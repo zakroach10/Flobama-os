@@ -34,7 +34,7 @@ export function WeekEventsSlide({
       <div className="min-h-0 flex-1 pt-10">
         {loading && !week ? (
           <p className="text-[40px] text-[#c9b8aa]">Loading this week…</p>
-        ) : !week || week.eventCount === 0 ? (
+        ) : !week || week.days.every((day) => day.events.length === 0) ? (
           <p className="max-w-[16ch] text-[48px] leading-tight text-[#c9b8aa]">No public shows this week.</p>
         ) : (
           <ul className="space-y-10">

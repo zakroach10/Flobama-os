@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { holdMsForAd, nextPlaylistIndex, playlistsEqual, type PublicScreenAd } from "@/lib/screens/playlist";
+import {
+  holdMsForAd,
+  isWeekEventsAd,
+  nextPlaylistIndex,
+  normalizePublicPlaylist,
+  playlistsEqual,
+  type PublicScreenAd,
+} from "@/lib/screens/playlist";
 import type { WeekSlidePayload } from "@/lib/screens/week";
 import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
@@ -14,7 +21,7 @@ export function VerticalPlayer({
   initialWeek?: WeekSlidePayload | null;
   lockPlaylist?: boolean;
 }) {
-  const [ads, setAds] = useState(initialAds);
+  const [ads, setAds] = useState(() => normalizePublicPlaylist(initialAds));
   const [week, setWeek] = useState(initialWeek);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -33,12 +40,14 @@ export function VerticalPlayer({
           fetch("/api/public/v1/screens/vertical", { cache: "no-store" }),
           fetch("/api/public/v1/screens/week", { cache: "no-store" }),
         ]);
-        const playlist = (await playlistRes.json()) as { ads?: PublicScreenAd[] };
+        const playlist = (await playlistRes.json()) as { ads?: PublicScreenAd[]; week?: WeekSlidePayload | null };
         const weekJson = (await weekRes.json()) as WeekSlidePayload;
         if (!cancelled && Array.isArray(playlist.ads)) {
-          setAds((currentAds) => (playlistsEqual(currentAds, playlist.ads!) ? currentAds : playlist.ads!));
+          const next = normalizePublicPlaylist(playlist.ads);
+          setAds((currentAds) => (playlistsEqual(currentAds, next) ? currentAds : next));
         }
-        if (!cancelled && weekJson && Array.isArray(weekJson.days)) setWeek(weekJson);
+        const nextWeek = playlist.week && Array.isArray(playlist.week.days) ? playlist.week : weekJson;
+        if (!cancelled && nextWeek && Array.isArray(nextWeek.days)) setWeek(nextWeek);
       } catch {
         // keep current playlist
       }
@@ -53,12 +62,13 @@ export function VerticalPlayer({
 
   const current = ads.length > 0 ? ads[index % ads.length] : null;
   const currentId = current?.id ?? null;
+  const showingWeek = current ? isWeekEventsAd(current) : false;
 
   useEffect(() => {
     if (!currentId) return;
     const ad = adsRef.current.find((item) => item.id === currentId);
     if (!ad) return;
-    if (ad.mediaKind === "video" && ad.durationSeconds == null) return;
+    if (ad.mediaKind === "video" && ad.durationSeconds == null && !isWeekEventsAd(ad)) return;
     const hold = holdMsForAd(ad);
     const hideAt = Math.max(0, hold - transitionMs(ad.transition));
     const hideTimer = window.setTimeout(() => setVisible(false), hideAt);
@@ -89,8 +99,8 @@ export function VerticalPlayer({
                   : "opacity-0"
             }`}
           >
-            {current.mediaKind === "week_events" ? (
-              <WeekEventsSlide week={week} />
+            {showingWeek ? (
+              <WeekEventsSlide week={week} loading={!week} />
             ) : current.mediaKind === "video" ? (
               <video
                 key={current.id}

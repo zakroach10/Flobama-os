@@ -41,19 +41,35 @@ export function toPublicPlaylist(ads: StaffScreenAd[]): PublicScreenAd[] {
   return [...ads]
     .filter((ad) => ad.enabled && ad.archived_at === null)
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((ad) => ({
-      id: ad.id,
-      title: ad.title,
-      url: ad.public_url,
-      mediaKind: resolvePublicMediaKind(ad),
-      durationSeconds: ad.duration_seconds,
-      transition: ad.transition,
-    }));
+    .map((ad) =>
+      normalizePublicAd({
+        id: ad.id,
+        title: ad.title,
+        url: ad.public_url,
+        mediaKind: resolvePublicMediaKind(ad),
+        durationSeconds: ad.duration_seconds,
+        transition: ad.transition,
+      }),
+    );
+}
+
+export function normalizePublicAd(ad: PublicScreenAd): PublicScreenAd {
+  return {
+    ...ad,
+    mediaKind: resolvePublicMediaKind(ad),
+  };
+}
+
+export function normalizePublicPlaylist(ads: PublicScreenAd[]) {
+  return ads.map(normalizePublicAd);
 }
 
 export function holdMsForAd(ad: PublicScreenAd, fallbackImageSeconds = 10): number {
-  if (ad.mediaKind === "video" && ad.durationSeconds == null) return 0;
-  return Math.max(1, ad.durationSeconds ?? fallbackImageSeconds) * 1000;
+  const kind = resolvePublicMediaKind(ad);
+  if (kind === "video" && ad.durationSeconds == null) return 0;
+  const seconds = Math.max(1, ad.durationSeconds ?? fallbackImageSeconds);
+  if (kind === "week_events") return Math.max(12, seconds) * 1000;
+  return seconds * 1000;
 }
 
 export function nextPlaylistIndex(index: number, length: number) {
