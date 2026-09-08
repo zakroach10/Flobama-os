@@ -15,7 +15,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
 
   const context = await getStaffContext();
   if (context.status === "unauthenticated") {
-    redirect("/login");
+    redirect("/login?next=/dashboard");
   }
   if (context.status === "denied") {
     redirect("/access-denied");

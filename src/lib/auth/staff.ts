@@ -35,11 +35,16 @@ export async function getStaffContext(): Promise<StaffContext> {
     error: userError,
   } = await supabase.auth.getUser();
 
+  const missingSession =
+    !user ||
+    userError?.message === "Auth session missing!" ||
+    userError?.name === "AuthSessionMissingError";
+
+  if (missingSession) {
+    return { status: "unauthenticated" };
+  }
   if (userError) {
     return { status: "error", message: userError.message };
-  }
-  if (!user) {
-    return { status: "unauthenticated" };
   }
 
   const { data: memberships, error: membershipError } = await supabase
