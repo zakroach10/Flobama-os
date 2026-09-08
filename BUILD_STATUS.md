@@ -22,6 +22,7 @@
 - Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
 - Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
 - OBS overlay at `/overlay` (1920×1080 browser source) and staff `/booth` (obs-websocket v5, sessionStorage credentials)
+- Screens: LED wall OBS scene mapping (auto ads vs band) and shared vertical 1080×1920 ad rotation with uploads
 - Setup-required state when Supabase env vars are missing
 - Unit tests for timezone, validation, permissions, redirects, CSV parser, public-field filter, OBS helpers
 - Optional disposable-environment RLS test (skipped without credentials)
@@ -31,7 +32,7 @@
 - Editing flobamadowntown.com, Pick'em, or other production sites
 - SpotOn sales (status panel only: “Not connected.”)
 - Inventory, payroll, invitations, multi-venue UI
-- Recurring events, artwork uploads
+- Recurring events, per-TV playlists, artist logo columns
 - Public staff self-registration (admins create accounts; there is still no signup page)
 - A live OBS booth in this cloud environment (LAN-only)
 
@@ -41,10 +42,10 @@
 - Timezone is not editable in the UI
 - The first admin is still bootstrapped with SQL; later staff are created in Settings
 - Public origin is `https://flobama-os.vercel.app` (`NEXT_PUBLIC_SITE_URL`); embed/overlay allow iframe embedding
-- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql` and `20260908000003_staff_admin.sql`
+- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, and `20260908000005_screens.sql`
 - Creating logins requires `SUPABASE_SERVICE_ROLE_KEY` on the server only
 - Search filters for events use PostgREST `or` + artist id lists; very large catalogs may need a dedicated search index later
 
 ## Apply after pull
 
-Run the new migrations on the hosted project (SQL editor or `npx supabase db push`). For staff creation, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Then use **Settings → Staff** as an admin, and **Events → Import legacy sheet** as an admin or manager.
+Run the new migrations on the hosted project (SQL editor or `npx supabase db push`). For staff creation, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Then use **Settings → Staff** as an admin, **Events → Import legacy sheet** as an admin or manager, and **Screens** after the screens migration.

@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { EVENT_STATUSES, EVENT_TYPES, EVENT_VISIBILITIES, STAFF_ROLES } from "@/lib/constants";
+import {
+  EVENT_STATUSES,
+  EVENT_TYPES,
+  EVENT_VISIBILITIES,
+  SCREEN_TRANSITIONS,
+  SCREEN_WALL_MODES,
+  STAFF_ROLES,
+} from "@/lib/constants";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
 
 const optionalText = (max: number) =>
@@ -137,3 +144,44 @@ export const passwordUpdateSchema = z
     message: "Passwords do not match.",
     path: ["confirmPassword"],
   });
+
+const optionalScene = z
+  .string()
+  .trim()
+  .max(200)
+  .optional()
+  .or(z.literal(""))
+  .transform((value) => (value ? value : null));
+
+export const screenWallStateSchema = z.object({
+  mode: z.enum(SCREEN_WALL_MODES),
+  adsSceneName: optionalScene,
+  bandSceneName: optionalScene,
+  manualSceneName: optionalScene,
+});
+
+export const screenAdMetaSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required.").max(160),
+    durationSeconds: z.number().int().min(1).max(600).nullable(),
+    transition: z.enum(SCREEN_TRANSITIONS),
+    enabled: z.boolean().default(true),
+    mediaKind: z.enum(["image", "video"]).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.mediaKind === "image" && value.durationSeconds == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["durationSeconds"],
+        message: "Images need a hold time.",
+      });
+    }
+  });
+
+export const updateScreenAdSchema = screenAdMetaSchema.extend({
+  id: z.string().uuid(),
+});
+
+export const reorderScreenAdsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+});

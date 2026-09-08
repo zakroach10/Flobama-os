@@ -253,6 +253,86 @@ export type Database = {
           },
         ];
       };
+      screen_wall_state: {
+        Row: {
+          venue_id: string;
+          mode: "auto" | "manual";
+          ads_scene_name: string | null;
+          band_scene_name: string | null;
+          manual_scene_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          mode?: "auto" | "manual";
+          ads_scene_name?: string | null;
+          band_scene_name?: string | null;
+          manual_scene_name?: string | null;
+        };
+        Update: {
+          mode?: "auto" | "manual";
+          ads_scene_name?: string | null;
+          band_scene_name?: string | null;
+          manual_scene_name?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_wall_state_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_ads: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          storage_path: string;
+          public_url: string;
+          media_kind: "image" | "video";
+          duration_seconds: number | null;
+          transition: "cut" | "fade" | "slide";
+          sort_order: number;
+          enabled: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          title: string;
+          storage_path: string;
+          public_url: string;
+          media_kind: "image" | "video";
+          duration_seconds?: number | null;
+          transition?: "cut" | "fade" | "slide";
+          sort_order?: number;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Update: {
+          title?: string;
+          duration_seconds?: number | null;
+          transition?: "cut" | "fade" | "slide";
+          sort_order?: number;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_ads_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       event_listings: {
@@ -277,6 +357,19 @@ export type Database = {
           venue_id: string;
           display_order: number;
           name: string;
+        };
+        Relationships: [];
+      };
+      screen_ad_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          public_url: string;
+          media_kind: "image" | "video";
+          duration_seconds: number | null;
+          transition: "cut" | "fade" | "slide";
+          sort_order: number;
         };
         Relationships: [];
       };
@@ -318,6 +411,9 @@ export type Database = {
       event_status: "draft" | "published" | "cancelled";
       event_visibility: "public" | "private";
       event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
+      screen_wall_mode: "auto" | "manual";
+      screen_media_kind: "image" | "video";
+      screen_transition: "cut" | "fade" | "slide";
     };
     CompositeTypes: {
       [_ in never]: never;

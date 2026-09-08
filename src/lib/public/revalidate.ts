@@ -10,4 +10,7 @@ export function revalidatePublicSurfaces() {
   revalidatePath("/overlay");
   revalidatePath("/api/public/v1/events");
   revalidatePath("/api/public/v1/now");
+  revalidatePath("/screens");
+  revalidatePath("/display/vertical");
+  revalidatePath("/api/public/v1/screens/vertical");
 }

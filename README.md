@@ -32,7 +32,7 @@ cp .env.example .env.local
 - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
 3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
-   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, and `20260908000003_staff_admin.sql`.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, and `20260908000005_screens.sql`.  
 
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
@@ -70,8 +70,8 @@ npm run dev
 
 | Role | What they can do |
 | --- | --- |
-| Admin | Create staff, change roles, rename the venue, edit events/artists, booth |
-| Manager | Edit events/artists, import listings, booth. Cannot create staff or rename the venue |
+| Admin | Create staff, change roles, rename the venue, edit events/artists, booth, screens |
+| Manager | Edit events/artists, import listings, booth, screens. Cannot create staff or rename the venue |
 | Viewer | Read-only calendar, artists, and staff directory |
 
 There is still no public registration. The **first** admin is created once:
@@ -144,3 +144,19 @@ This repository does not change flobamadowntown.com.
 5. Set **now playing** and toggle the lower third. The overlay only reveals events that qualify for `event_listings`.
 
 This cloud preview cannot reach a booth PC on your LAN. Viewers can see the overlay and API; they cannot write `booth_state` or use OBS controls.
+
+## Screens
+
+Admin and manager: **Screens**. Apply `supabase/migrations/20260908000005_screens.sql` (creates `screen_wall_state`, `screen_ads`, and the public `screen-ads` storage bucket).
+
+### LED wall
+
+OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens, connect OBS (same `sessionStorage` host/port/password as Booth), pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event; otherwise Ads. Manual mode cuts to a chosen scene.
+
+### Vertical TVs
+
+Every 1080×1920 player opens the same page:
+
+`https://flobama-os.vercel.app/display/vertical`
+
+Upload stills or short videos on Screens. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`.

@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDaysIcon, ClapperboardIcon, LayoutDashboardIcon, MenuIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  ClapperboardIcon,
+  LayoutDashboardIcon,
+  MenuIcon,
+  MonitorPlayIcon,
+  SettingsIcon,
+  UsersIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -29,6 +37,7 @@ function NavLinks({
     ? [
         ...NAV.slice(0, 2),
         { href: "/booth", label: "Booth", icon: ClapperboardIcon },
+        { href: "/screens", label: "Screens", icon: MonitorPlayIcon },
         ...NAV.slice(2),
       ]
     : NAV;

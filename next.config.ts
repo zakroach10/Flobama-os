@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
         source: "/overlay",
         headers: embeddable,
       },
+      {
+        source: "/display/:path*",
+        headers: embeddable,
+      },
     ];
   },
 };

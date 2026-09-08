@@ -27,6 +27,8 @@ export function buildPublicSurfaceUrls(origin: string) {
   const overlay = joinPublicUrl(base, "/overlay");
   const eventsApi = joinPublicUrl(base, "/api/public/v1/events");
   const nowApi = joinPublicUrl(base, "/api/public/v1/now");
+  const verticalDisplay = joinPublicUrl(base, "/display/vertical");
+  const verticalApi = joinPublicUrl(base, "/api/public/v1/screens/vertical");
   const iframe = `<iframe src="${embed}" title="FloBama events" style="width:100%;min-height:640px;border:0"></iframe>`;
   const embedSnippet = `${iframe}\n<script src="${embedScript}" defer></script>`;
   return {
@@ -36,6 +38,8 @@ export function buildPublicSurfaceUrls(origin: string) {
     overlay,
     eventsApi,
     nowApi,
+    verticalDisplay,
+    verticalApi,
     embedSnippet,
   };
 }

@@ -42,6 +42,18 @@ export const EVENT_VISIBILITY_LABELS: Record<EventVisibility, string> = {
   private: "Private",
 };
 
+export const SCREEN_TRANSITIONS = ["cut", "fade", "slide"] as const;
+export type ScreenTransition = (typeof SCREEN_TRANSITIONS)[number];
+
+export const SCREEN_TRANSITION_LABELS: Record<ScreenTransition, string> = {
+  cut: "Cut",
+  fade: "Fade",
+  slide: "Slide",
+};
+
+export const SCREEN_WALL_MODES = ["auto", "manual"] as const;
+export type ScreenWallMode = (typeof SCREEN_WALL_MODES)[number];
+
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",
   manager: "Manager",
