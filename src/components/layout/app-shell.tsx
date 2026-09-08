@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDaysIcon, LayoutDashboardIcon, MenuIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import { CalendarDaysIcon, ClapperboardIcon, LayoutDashboardIcon, MenuIcon, SettingsIcon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -18,14 +18,23 @@ const NAV = [
 function NavLinks({
   onNavigate,
   className,
+  showBooth,
 }: {
   onNavigate?: () => void;
   className?: string;
+  showBooth?: boolean;
 }) {
   const pathname = usePathname();
+  const items = showBooth
+    ? [
+        ...NAV.slice(0, 2),
+        { href: "/booth", label: "Booth", icon: ClapperboardIcon },
+        ...NAV.slice(2),
+      ]
+    : NAV;
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="Staff">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
         return (
@@ -65,11 +74,13 @@ export function AppShell({
   venueName,
   roleLabel,
   userLabel,
+  showBooth = false,
 }: {
   children: React.ReactNode;
   venueName: string;
   roleLabel: string;
   userLabel: string;
+  showBooth?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -78,7 +89,7 @@ export function AppShell({
       <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <Brand />
         <div className="flex-1 px-2">
-          <NavLinks />
+          <NavLinks showBooth={showBooth} />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
           <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
@@ -102,7 +113,7 @@ export function AppShell({
                 <SheetTitle className="text-sidebar-foreground">FloBama OS</SheetTitle>
               </SheetHeader>
               <div className="px-2 pb-6">
-                <NavLinks onNavigate={() => setOpen(false)} />
+                <NavLinks showBooth={showBooth} onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>

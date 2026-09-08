@@ -96,7 +96,7 @@ export default async function DashboardPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Upcoming drafts</CardTitle>
-                    <CardDescription>Publish when the listing is ready. This does not push to the website yet.</CardDescription>
+                    <CardDescription>Publish when the listing is ready. Public + published rows feed the website embed and API.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {data.draftEvents.length === 0 ? (
@@ -180,7 +180,7 @@ export default async function DashboardPage() {
           </Card>
 
           <p className="text-xs text-muted-foreground">
-            Coming next: website listings, media, and venue screens. Those destinations are not in this milestone.
+            Public listings, embed, and the OBS overlay read only published public events. Internal notes never leave staff screens.
           </p>
         </>
       )}

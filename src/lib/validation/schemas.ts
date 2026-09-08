@@ -25,6 +25,19 @@ export const eventFormSchema = z
     status: z.enum(EVENT_STATUSES),
     visibility: z.enum(EVENT_VISIBILITIES),
     featured: z.boolean(),
+    isTicketed: z.boolean().default(false),
+    ticketUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .or(z.literal(""))
+      .transform((value) => (value ? value : null))
+      .refine(
+        (value) => value === null || /^https?:\/\//i.test(value),
+        "Ticket link must start with http:// or https://.",
+      ),
+    coverLabel: optionalText(40),
     artistIds: z.array(z.string().uuid()).default([]),
     datesReviewed: z.boolean().optional(),
     isDuplicateDraft: z.boolean().optional(),

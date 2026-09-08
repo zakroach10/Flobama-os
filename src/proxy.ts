@@ -27,7 +27,12 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/auth/");
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/embed") ||
+    pathname.startsWith("/overlay") ||
+    pathname.startsWith("/api/public");
   if (isPublic) {
     return response;
   }

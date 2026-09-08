@@ -123,6 +123,10 @@ export type Database = {
           updated_by: string | null;
           created_at: string;
           updated_at: string;
+          legacy_source_id: string | null;
+          is_ticketed: boolean;
+          ticket_url: string | null;
+          cover_label: string | null;
         };
         Insert: {
           id?: string;
@@ -140,6 +144,10 @@ export type Database = {
           archived_at?: string | null;
           created_by?: string | null;
           updated_by?: string | null;
+          legacy_source_id?: string | null;
+          is_ticketed?: boolean;
+          ticket_url?: string | null;
+          cover_label?: string | null;
         };
         Update: {
           title?: string;
@@ -154,6 +162,10 @@ export type Database = {
           featured?: boolean;
           archived_at?: string | null;
           updated_by?: string | null;
+          legacy_source_id?: string | null;
+          is_ticketed?: boolean;
+          ticket_url?: string | null;
+          cover_label?: string | null;
         };
         Relationships: [
           {
@@ -207,11 +219,77 @@ export type Database = {
           },
         ];
       };
+      booth_state: {
+        Row: {
+          venue_id: string;
+          live_event_id: string | null;
+          lower_third_visible: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          live_event_id?: string | null;
+          lower_third_visible?: boolean;
+        };
+        Update: {
+          live_event_id?: string | null;
+          lower_third_visible?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "booth_state_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "booth_state_live_event_id_fkey";
+            columns: ["live_event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
-      [_ in never]: never;
+      event_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
+          starts_at: string;
+          ends_at: string;
+          location_label: string | null;
+          featured: boolean;
+          is_ticketed: boolean;
+          ticket_url: string | null;
+          cover_label: string | null;
+        };
+        Relationships: [];
+      };
+      event_listing_artists: {
+        Row: {
+          event_id: string;
+          venue_id: string;
+          display_order: number;
+          name: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
+      get_public_booth_now: {
+        Args: { p_venue_id: string };
+        Returns: {
+          live_event_id: string | null;
+          lower_third_visible: boolean;
+          updated_at: string;
+        }[];
+      };
       current_membership_role: {
         Args: { p_venue_id: string };
         Returns: "admin" | "manager" | "viewer";

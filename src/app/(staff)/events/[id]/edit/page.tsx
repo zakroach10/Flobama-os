@@ -55,6 +55,9 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
           status: event.status,
           visibility: event.visibility,
           featured: event.featured,
+          isTicketed: event.is_ticketed,
+          ticketUrl: event.ticket_url ?? "",
+          coverLabel: event.cover_label ?? "",
           artistIds: event.event_artists.map((row) => row.artist_id),
           timeZone: context.venue.timezone,
         }}

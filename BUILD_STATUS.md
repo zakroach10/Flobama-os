@@ -1,4 +1,4 @@
-# FloBama OS — Build status (milestone 1)
+# FloBama OS — Build status
 
 ## Completed
 
@@ -10,33 +10,37 @@
 - Venue-scoped roles: admin, manager, viewer (enforced in server actions and RLS)
 - Dashboard from live event/artist queries (today overlap, 7-day count, drafts, active artists, needs attention)
 - Event manager: list/search/filter/pagination, create, view, edit, duplicate, publish, draft, cancel, archive
+- Ticketed / ticket URL / cover fields on the staff event form
 - Artist directory: search, create, edit, archive, linked upcoming/past events
-- Settings: display name, admin venue rename, read-only timezone and role, logout
+- Settings: display name, admin venue rename, website embed snippet, public API URL
 - America/Chicago scheduling with timestamptz storage, overnight events, DST rejection
-- SQL migration with constraints, indexes, triggers, RLS, least-privilege grants
+- SQL migrations with constraints, indexes, triggers, RLS, least-privilege grants
+- Public projection views (`event_listings`, `event_listing_artists`) — anon has no `SELECT` on `events`
+- Legacy sheet import of 41 published, unarchived rows (idempotent `legacy_source_id`)
+- Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
+- Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
+- OBS overlay at `/overlay` (1920×1080 browser source) and staff `/booth` (obs-websocket v5, sessionStorage credentials)
 - Setup-required state when Supabase env vars are missing
-- Unit tests for timezone, validation, permissions, redirects
+- Unit tests for timezone, validation, permissions, redirects, CSV parser, public-field filter, OBS helpers
 - Optional disposable-environment RLS test (skipped without credentials)
 
 ## Explicitly not in this milestone
 
-- Public website, embeddable listings, media, venue screens
+- Editing flobamadowntown.com, Pick'em, or other production sites
 - SpotOn sales (status panel only: “Not connected.”)
-- Ticketing, inventory, payroll, invitations, multi-venue UI
-- Recurring events, spreadsheet import, artwork uploads
+- Inventory, payroll, invitations, multi-venue UI
+- Recurring events, artwork uploads
 - Staff self-registration
+- A live OBS booth in this cloud environment (LAN-only)
 
 ## Limitations
 
 - Brand accent is provisional until official tokens exist
 - Timezone is not editable in the UI
 - Membership/role changes are administrative SQL only
-- Live Supabase auth/RLS browser flows were not executed in this environment because project credentials were not provided
+- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql` before import, API, embed, and booth writes work
 - Search filters for events use PostgREST `or` + artist id lists; very large catalogs may need a dedicated search index later
 
-## Next milestone (suggested)
+## Apply after pull
 
-- Limited public event projection (never including internal notes)
-- SpotOn connection and event-tied sales
-- Media attachments
-- Staff invitation flow that still cannot self-promote
+Run the new migration on the hosted project (SQL editor or `npx supabase db push`), then use **Events → Import legacy sheet** while signed in as admin or manager.

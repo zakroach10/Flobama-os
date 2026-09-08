@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { StatusBadge, TypeBadge } from "@/components/status-badge";
+import { ImportLegacyButton } from "@/components/events/import-legacy-button";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,10 @@ export default async function EventsPage({
           <p className="text-muted-foreground">Operational calendar for {context.venue.name}.</p>
         </div>
         {canManageProgramming(context.role) ? (
-          <Button render={<Link href="/events/new" />}>Add event</Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <ImportLegacyButton />
+            <Button render={<Link href="/events/new" />}>Add event</Button>
+          </div>
         ) : null}
       </header>
 

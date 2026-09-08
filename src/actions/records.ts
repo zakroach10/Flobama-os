@@ -7,6 +7,7 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming, authorizeVenueSettings } from "@/lib/auth/permissions";
 import { eventFormSchema, artistFormSchema, profileSettingsSchema, venueSettingsSchema } from "@/lib/validation/schemas";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
+import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { z } from "zod";
 
 export type ActionResult = {
@@ -47,10 +48,7 @@ async function staffForMutation() {
 }
 
 function revalidateOps() {
-  revalidatePath("/dashboard");
-  revalidatePath("/events");
-  revalidatePath("/artists");
-  revalidatePath("/settings");
+  revalidatePublicSurfaces();
 }
 
 export async function saveEventAction(input: unknown, eventId?: string): Promise<ActionResult> {
@@ -85,6 +83,9 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
     status: values.status,
     visibility: values.visibility,
     featured: values.featured,
+    is_ticketed: values.isTicketed,
+    ticket_url: values.ticketUrl,
+    cover_label: values.coverLabel,
   };
 
   let id = eventId;
@@ -154,9 +155,9 @@ export async function setEventStatusAction(
   revalidateOps();
   revalidatePath(`/events/${eventId}`);
   const messages = {
-    draft: "Returned to draft. Website distribution is not connected yet.",
-    published: "Status set to published. This does not send the event to the website yet.",
-    cancelled: "Event cancelled.",
+    draft: "Returned to draft. It no longer appears in the public listings, embed, or API.",
+    published: "Published. Public listings, embed, and API include this event when visibility is public.",
+    cancelled: "Event cancelled. Cancelled rows stay off the public listings.",
   };
   return { ok: true, message: messages[status], id: eventId };
 }

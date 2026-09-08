@@ -51,6 +51,9 @@ export function EventForm({
     status: defaultValues.status,
     visibility: defaultValues.visibility,
     featured: defaultValues.featured,
+    isTicketed: defaultValues.isTicketed ?? false,
+    ticketUrl: defaultValues.ticketUrl ?? null,
+    coverLabel: defaultValues.coverLabel ?? null,
     artistIds: defaultValues.artistIds ?? [],
     timeZone,
     datesReviewed: defaultValues.datesReviewed,
@@ -257,9 +260,36 @@ export function EventForm({
       <fieldset className="space-y-4" disabled={pending}>
         <legend className="text-base font-semibold">Status</legend>
         <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          Publishing in this milestone only updates the database status. Website distribution is not connected yet.
-          Private events stay ineligible for any future public listing regardless of status.
+          Published + public events appear on the public API, website embed, and OBS overlay. Private or draft rows
+          never do, and internal notes stay staff-only.
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <Checkbox
+              checked={values.isTicketed}
+              onCheckedChange={(checked) => update("isTicketed", checked === true)}
+            />
+            Ticketed show
+          </label>
+          <Field error={fieldErrors.coverLabel?.[0]}>
+            <Label htmlFor="coverLabel">Cover charge</Label>
+            <Input
+              id="coverLabel"
+              value={values.coverLabel ?? ""}
+              onChange={(e) => update("coverLabel", e.target.value || null)}
+              placeholder="$5.00 or Free"
+            />
+          </Field>
+        </div>
+        <Field error={fieldErrors.ticketUrl?.[0]}>
+          <Label htmlFor="ticketUrl">Ticket URL</Label>
+          <Input
+            id="ticketUrl"
+            value={values.ticketUrl ?? ""}
+            onChange={(e) => update("ticketUrl", e.target.value || null)}
+            placeholder="https://"
+          />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>
             <Label htmlFor="status">Status</Label>

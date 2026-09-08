@@ -63,6 +63,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         <Item label="Artists" value={names.length ? names.join(", ") : "None attached"} />
         <Item label="Visibility" value={EVENT_VISIBILITY_LABELS[event.visibility]} />
         <Item label="Featured" value={event.featured ? "Yes" : "No"} />
+        <Item label="Ticketed" value={event.is_ticketed ? "Yes" : "No"} />
+        <Item label="Ticket URL" value={event.ticket_url || "—"} />
+        <Item label="Cover" value={event.cover_label || "—"} />
       </dl>
 
       <section className="space-y-2">
@@ -78,8 +81,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </p>
       </section>
       <p className="text-sm text-muted-foreground">
-        Published means the database status is published. The public website is not connected in this
-        milestone.
+        Published + public events are included in the public API, website embed, and OBS overlay. Internal
+        notes never leave this staff record.
       </p>
     </div>
   );

@@ -14,7 +14,7 @@ Internal operations platform for FloBama Music Hall. This repository is the staf
 - Timezone locked to `America/Chicago` in the database
 - Provisional warm-red accent (not an official brand spec) because no approved logo or tokens were in the repo
 - No staff self-signup; memberships are assigned with SQL
-- Event “Publish” only updates `events.status`; website distribution is not connected
+- Event “Publish” plus public visibility feeds the public API, HTML embed, and OBS overlay. The Google Sheet on flobamadowntown.com is not edited from this repo.
 
 ## Local setup
 
@@ -30,7 +30,7 @@ cp .env.example .env.local
 - `NEXT_PUBLIC_SUPABASE_URL` — Project Settings → API → Project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Project Settings → API → anon / publishable key
 
-3. Apply the schema. SQL editor: paste `supabase/migrations/20240908000001_init_flobama_os.sql`.  
+3. Apply the schema. SQL editor: paste both files in order — `supabase/migrations/20240908000001_init_flobama_os.sql` then `supabase/migrations/20260908000002_public_listings_and_booth.sql`.  
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
 ```bash
@@ -93,3 +93,40 @@ Database security tests that talk to Postgres are skipped unless you set `RLS_TE
 ## Vercel
 
 Set the same public env vars in the Vercel project. Redeploy after Auth redirect URLs include the production origin.
+
+## Public listings
+
+Anonymous clients cannot `SELECT` `public.events`. They only read `event_listings` and `event_listing_artists` (published + public + not archived). Internal notes never appear there.
+
+### Import the legacy sheet
+
+`data/legacy-events.csv` is the saved FloBama master sheet (68 rows). Admins and managers use **Events → Import legacy sheet**. That imports the **41** rows where Published is Yes and Archived is not Yes, upserts by `legacy_source_id` (`evt_…`), and links artist records. Re-running does not duplicate. Karaoke titles do not create an artist named Karaoke.
+
+### JSON API (CORS `*` on GET)
+
+- `GET /api/public/v1/events` — upcoming by default; `from`, `to`, `limit`
+- `GET /api/public/v1/events/[id]`
+- `GET /api/public/v1/now` — today’s overlapping public events plus booth now-playing if that event is public
+
+Each event includes `name`, `day`, `date`, `time` (America/Chicago), `ticketed`, `ticketUrl`, `coverCharge`, and ISO instants.
+
+### Website embed
+
+Settings has a copy-paste snippet. After deploy, WordPress / Elementor can iframe this app instead of fetching the Google Sheet:
+
+```html
+<iframe src="https://<app-origin>/embed/events" title="FloBama events" style="width:100%;min-height:640px;border:0"></iframe>
+<script src="https://<app-origin>/embed/events.js" defer></script>
+```
+
+This repository does not change flobamadowntown.com.
+
+## OBS booth (LAN)
+
+1. In OBS: **Tools → WebSocket Server Settings**. Enable the v5 server. Note host (usually `127.0.0.1`), port (`4455`), and password.
+2. Add a **Browser Source** at `{origin}/overlay`, width **1920**, height **1080**.
+3. Sign in to FloBama OS on the booth PC as admin or manager. Open **Booth**.
+4. Connect OBS from that page. Host, port, and password stay in `sessionStorage` on that machine — they are never stored in git or the database.
+5. Set **now playing** and toggle the lower third. The overlay only reveals events that qualify for `event_listings`.
+
+This cloud preview cannot reach a booth PC on your LAN. Viewers can see the overlay and API; they cannot write `booth_state` or use OBS controls.
