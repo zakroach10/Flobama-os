@@ -168,6 +168,10 @@ additional_redirect_urls = [
   "http://localhost:43123/auth/callback",
   "http://localhost:43123/auth/callback?next=/reset-password",
   "http://localhost:43123/reset-password",
+  "https://flobama-os.vercel.app",
+  "https://flobama-os.vercel.app/auth/callback",
+  "https://flobama-os.vercel.app/auth/callback?next=/reset-password",
+  "https://flobama-os.vercel.app/reset-password",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

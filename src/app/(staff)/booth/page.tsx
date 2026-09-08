@@ -8,6 +8,7 @@ import { BoothControls } from "@/components/booth/booth-controls";
 import { ObsPanel } from "@/components/booth/obs-panel";
 import { ErrorState } from "@/components/states";
 import { getSiteUrl } from "@/lib/env";
+import { joinPublicUrl } from "@/lib/public/urls";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function BoothPage() {
     return <ErrorState title="Could not load booth state" description={booth.error.message} />;
   }
 
-  const origin = getSiteUrl();
+  const overlayUrl = joinPublicUrl(getSiteUrl(), "/overlay");
   const canControl = canManageProgramming(context.role);
 
   return (
@@ -39,7 +40,7 @@ export default async function BoothPage() {
         <p className="text-muted-foreground">
           Control the OBS browser source and the public now-playing state. Overlay URL:{" "}
           <Link className="underline-offset-4 hover:underline" href="/overlay">
-            {origin}/overlay
+            {overlayUrl}
           </Link>
         </p>
       </header>
@@ -52,7 +53,7 @@ export default async function BoothPage() {
       />
       {canControl ? <ObsPanel /> : null}
       <section className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        In OBS: Tools → WebSocket Server Settings (v5). Add a Browser Source pointed at {origin}/overlay, width 1920,
+        In OBS: Tools → WebSocket Server Settings (v5). Add a Browser Source pointed at {overlayUrl}, width 1920,
         height 1080, and enable shutdown source when not visible.
       </section>
     </div>

@@ -42,12 +42,12 @@ npx supabase db push
 
 4. Authentication → URL Configuration:
 
-- Site URL: `http://localhost:43123` (production: your Vercel origin)
+- Site URL: `https://flobama-os.vercel.app` (keep `http://localhost:43123` in Additional Redirect URLs for local)
 - Redirect URLs:
-  - `http://localhost:43123/auth/callback`
-  - `http://localhost:43123/auth/callback?next=/reset-password`
-  - `http://localhost:43123/reset-password`
-  - the same paths on the production origin
+  - `https://flobama-os.vercel.app/auth/callback`
+  - `https://flobama-os.vercel.app/auth/callback?next=/reset-password`
+  - `https://flobama-os.vercel.app/reset-password`
+  - the same paths on `http://localhost:43123`
 
 Enable email/password. The app has no staff signup screen; keep public registration off if the dashboard offers it.
 
@@ -101,7 +101,9 @@ Database security tests that talk to Postgres are skipped unless you set `RLS_TE
 
 ## Vercel
 
-Set the same public env vars in the Vercel project. Redeploy after Auth redirect URLs include the production origin.
+Public app: [https://flobama-os.vercel.app](https://flobama-os.vercel.app)
+
+Set `NEXT_PUBLIC_SITE_URL=https://flobama-os.vercel.app` (no trailing slash required) plus the Supabase keys. Redeploy after Auth redirect URLs include that origin. Embed and overlay routes send `Content-Security-Policy: frame-ancestors *` so WordPress can iframe them.
 
 ## Public listings
 
@@ -124,9 +126,12 @@ Each event includes `name`, `day`, `date`, `time` (America/Chicago), `ticketed`,
 Settings has a copy-paste snippet. After deploy, WordPress / Elementor can iframe this app instead of fetching the Google Sheet:
 
 ```html
-<iframe src="https://<app-origin>/embed/events" title="FloBama events" style="width:100%;min-height:640px;border:0"></iframe>
-<script src="https://<app-origin>/embed/events.js" defer></script>
+<iframe src="https://flobama-os.vercel.app/embed/events" title="FloBama events" style="width:100%;min-height:640px;border:0"></iframe>
+<script src="https://flobama-os.vercel.app/embed/events.js" defer></script>
 ```
+
+JSON: `https://flobama-os.vercel.app/api/public/v1/events`  
+OBS overlay: `https://flobama-os.vercel.app/overlay`
 
 This repository does not change flobamadowntown.com.
 

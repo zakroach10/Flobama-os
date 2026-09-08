@@ -50,7 +50,7 @@ export async function requestPasswordResetAction(formData: FormData): Promise<Au
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { ok: false, message: "Supabase is not configured." };
 
-  const redirectTo = `${getSiteUrl().replace(/\/$/, "")}/auth/callback?next=/reset-password`;
+  const redirectTo = `${getSiteUrl()}/auth/callback?next=/reset-password`;
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, { redirectTo });
   if (error) return { ok: false, message: error.message };
 

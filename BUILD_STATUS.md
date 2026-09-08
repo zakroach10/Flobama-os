@@ -40,6 +40,7 @@
 - Brand accent is provisional until official tokens exist
 - Timezone is not editable in the UI
 - The first admin is still bootstrapped with SQL; later staff are created in Settings
+- Public origin is `https://flobama-os.vercel.app` (`NEXT_PUBLIC_SITE_URL`); embed/overlay allow iframe embedding
 - Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql` and `20260908000003_staff_admin.sql`
 - Creating logins requires `SUPABASE_SERVICE_ROLE_KEY` on the server only
 - Search filters for events use PostgREST `or` + artist id lists; very large catalogs may need a dedicated search index later

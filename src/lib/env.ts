@@ -1,4 +1,5 @@
 import { REQUIRED_PUBLIC_ENV, type RequiredPublicEnvName } from "@/lib/constants";
+import { normalizeOrigin, PRODUCTION_SITE_URL } from "@/lib/public/urls";
 
 export type PublicSupabaseEnv = {
   url: string;
@@ -35,9 +36,15 @@ export function isServiceRoleConfigured(): boolean {
 }
 
 export function getSiteUrl(): string {
-  return (
-    readEnv("NEXT_PUBLIC_SITE_URL") ??
-    readEnv("NEXT_PUBLIC_VERCEL_URL")?.replace(/^/, "https://") ??
-    "http://localhost:43123"
-  );
+  const explicit = normalizeOrigin(readEnv("NEXT_PUBLIC_SITE_URL"));
+  if (explicit) return explicit;
+  const vercelProduction = normalizeOrigin(readEnv("VERCEL_PROJECT_PRODUCTION_URL"));
+  if (vercelProduction) return vercelProduction;
+  const vercel = normalizeOrigin(readEnv("VERCEL_URL"));
+  if (vercel) return vercel;
+  return "http://localhost:43123";
+}
+
+export function getPublicAppUrl(): string {
+  return normalizeOrigin(readEnv("NEXT_PUBLIC_SITE_URL")) ?? PRODUCTION_SITE_URL;
 }
