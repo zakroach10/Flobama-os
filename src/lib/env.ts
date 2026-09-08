@@ -1,4 +1,4 @@
-import { REQUIRED_PUBLIC_ENV, type RequiredPublicEnvName } from "@/lib/constants";
+import type { RequiredPublicEnvName } from "@/lib/constants";
 import { normalizeOrigin, PRODUCTION_SITE_URL } from "@/lib/public/urls";
 
 export type PublicSupabaseEnv = {
@@ -12,8 +12,20 @@ function readEnv(name: string): string | undefined {
   return value.trim();
 }
 
+function readPublicSupabaseUrl() {
+  // Next only inlines NEXT_PUBLIC_* when the key is a static property access.
+  return process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || undefined;
+}
+
+function readPublicSupabaseAnonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || undefined;
+}
+
 export function missingPublicEnvNames(): RequiredPublicEnvName[] {
-  return REQUIRED_PUBLIC_ENV.filter((name) => !readEnv(name));
+  const missing: RequiredPublicEnvName[] = [];
+  if (!readPublicSupabaseUrl()) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!readPublicSupabaseAnonKey()) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  return missing;
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -21,8 +33,8 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function getPublicSupabaseEnv(): PublicSupabaseEnv | null {
-  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const url = readPublicSupabaseUrl();
+  const anonKey = readPublicSupabaseAnonKey();
   if (!url || !anonKey) return null;
   return { url, anonKey };
 }

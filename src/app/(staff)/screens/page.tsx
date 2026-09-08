@@ -6,7 +6,7 @@ import { getScreenWallState, listStaffScreenAds } from "@/lib/queries/screens";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
 import { ErrorState } from "@/components/states";
-import { getPublicAppUrl } from "@/lib/env";
+import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +48,7 @@ export default async function ScreensPage() {
         ads={ads}
         venueId={context.venue.id}
         displayUrl={joinPublicUrl(getPublicAppUrl(), "/display/vertical")}
+        supabaseEnv={getPublicSupabaseEnv()}
       />
     </div>
   );

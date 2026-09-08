@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SCREEN_TRANSITION_LABELS, SCREEN_TRANSITIONS, type ScreenTransition } from "@/lib/constants";
 import type { StaffScreenAd } from "@/lib/screens/playlist";
+import type { PublicSupabaseEnv } from "@/lib/env";
 import { describeUploadFailure, extensionForFile, MAX_SCREEN_AD_BYTES, mediaKindForFile } from "@/lib/screens/upload";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
@@ -22,10 +23,12 @@ export function VerticalAdsPanel({
   ads,
   venueId,
   displayUrl,
+  supabaseEnv,
 }: {
   ads: StaffScreenAd[];
   venueId: string;
   displayUrl: string;
+  supabaseEnv: PublicSupabaseEnv | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -74,6 +77,7 @@ export function VerticalAdsPanel({
               duration,
               transition,
               sortOrder: ads.length,
+              supabaseEnv,
             });
             if (!result.ok) {
               toast.error(result.message);
@@ -328,14 +332,20 @@ async function uploadAdFromBrowser(input: {
   duration: string;
   transition: ScreenTransition;
   sortOrder: number;
+  supabaseEnv: PublicSupabaseEnv | null;
 }) {
   const mediaKind = mediaKindForFile(input.file);
   if (!mediaKind) return { ok: false, message: "Use an image (JPEG, PNG, WebP, GIF) or a video (MP4, WebM)." };
   if (input.file.size === 0) return { ok: false, message: "Choose an image or video file." };
   if (input.file.size > MAX_SCREEN_AD_BYTES) return { ok: false, message: "File must be 50 MB or smaller." };
 
-  const supabase = createBrowserSupabaseClient();
-  if (!supabase) return { ok: false, message: "Supabase is not configured." };
+  const supabase = createBrowserSupabaseClient(input.supabaseEnv);
+  if (!supabase) {
+    return {
+      ok: false,
+      message: "The public Supabase URL and anon key are missing from this deployment. SQL is not the issue — set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY on Vercel.",
+    };
+  }
 
   const title = input.title.trim() || input.file.name.replace(/\.[^.]+$/, "");
   const durationSeconds = input.duration.trim()
