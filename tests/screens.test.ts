@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
-import { holdMsForAd, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
+import { holdMsForAd, nextPlaylistIndex, playlistsEqual, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
 import { buildWeekSlidePayload, paginateWeekDays } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { screenAdMetaSchema } from "@/lib/validation/schemas";
@@ -118,6 +118,15 @@ describe("vertical playlist", () => {
     ]);
     expect(playlist[0]?.mediaKind).toBe("week_events");
     expect(playlist[0]?.url).toBe("dynamic://week_events");
+  });
+
+  it("advances the playlist without resetting when contents are unchanged", () => {
+    expect(nextPlaylistIndex(0, 3)).toBe(1);
+    expect(nextPlaylistIndex(2, 3)).toBe(0);
+    const first = toPublicPlaylist([sample[2]]);
+    const second = toPublicPlaylist([sample[2]]);
+    expect(playlistsEqual(first, second)).toBe(true);
+    expect(playlistsEqual(first, [{ ...first[0]!, durationSeconds: 99 }])).toBe(false);
   });
 
   it("requires a hold time for the week slide", () => {

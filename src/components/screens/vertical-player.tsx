@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { holdMsForAd, type PublicScreenAd } from "@/lib/screens/playlist";
+import { useEffect, useRef, useState } from "react";
+import { holdMsForAd, nextPlaylistIndex, playlistsEqual, type PublicScreenAd } from "@/lib/screens/playlist";
 import type { WeekSlidePayload } from "@/lib/screens/week";
 import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
@@ -18,6 +18,8 @@ export function VerticalPlayer({
   const [week, setWeek] = useState(initialWeek);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
+  const adsRef = useRef(ads);
+  adsRef.current = ads;
 
   useEffect(() => {
     if (lockPlaylist) return;
@@ -30,7 +32,9 @@ export function VerticalPlayer({
         ]);
         const playlist = (await playlistRes.json()) as { ads?: PublicScreenAd[] };
         const weekJson = (await weekRes.json()) as WeekSlidePayload;
-        if (!cancelled && Array.isArray(playlist.ads)) setAds(playlist.ads);
+        if (!cancelled && Array.isArray(playlist.ads)) {
+          setAds((currentAds) => (playlistsEqual(currentAds, playlist.ads!) ? currentAds : playlist.ads!));
+        }
         if (!cancelled && weekJson && Array.isArray(weekJson.days)) setWeek(weekJson);
       } catch {
         // keep current playlist
@@ -45,22 +49,25 @@ export function VerticalPlayer({
   }, [lockPlaylist]);
 
   const current = ads.length > 0 ? ads[index % ads.length] : null;
+  const currentId = current?.id ?? null;
 
   useEffect(() => {
-    if (!current || ads.length === 0) return;
-    if (current.mediaKind === "video" && current.durationSeconds == null) return;
-    const hold = holdMsForAd(current);
-    const hideAt = Math.max(0, hold - transitionMs(current.transition));
+    if (!currentId) return;
+    const ad = adsRef.current.find((item) => item.id === currentId);
+    if (!ad) return;
+    if (ad.mediaKind === "video" && ad.durationSeconds == null) return;
+    const hold = holdMsForAd(ad);
+    const hideAt = Math.max(0, hold - transitionMs(ad.transition));
     const hideTimer = window.setTimeout(() => setVisible(false), hideAt);
     const nextTimer = window.setTimeout(() => {
-      setIndex((value) => (value + 1) % ads.length);
+      setIndex((value) => nextPlaylistIndex(value, adsRef.current.length));
       setVisible(true);
     }, hold);
     return () => {
       window.clearTimeout(hideTimer);
       window.clearTimeout(nextTimer);
     };
-  }, [ads.length, current]);
+  }, [currentId]);
 
   return (
     <div className="grid h-full w-full place-items-center overflow-hidden bg-[#1b1612]">

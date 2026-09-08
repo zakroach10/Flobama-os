@@ -40,6 +40,23 @@ export function holdMsForAd(ad: PublicScreenAd, fallbackImageSeconds = 10): numb
   return Math.max(1, ad.durationSeconds ?? fallbackImageSeconds) * 1000;
 }
 
+export function nextPlaylistIndex(index: number, length: number) {
+  if (length <= 0) return 0;
+  return (index + 1) % length;
+}
+
+export function playlistsEqual(left: PublicScreenAd[], right: PublicScreenAd[]) {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (ad, index) =>
+      ad.id === right[index]?.id &&
+      ad.url === right[index]?.url &&
+      ad.mediaKind === right[index]?.mediaKind &&
+      ad.durationSeconds === right[index]?.durationSeconds &&
+      ad.transition === right[index]?.transition,
+  );
+}
+
 export function isWeekEventsAd(ad: Pick<PublicScreenAd, "mediaKind"> | Pick<StaffScreenAd, "media_kind">) {
   return "mediaKind" in ad ? ad.mediaKind === "week_events" : ad.media_kind === "week_events";
 }
