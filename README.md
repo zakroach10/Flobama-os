@@ -147,11 +147,11 @@ This cloud preview cannot reach a booth PC on your LAN. Viewers can see the over
 
 ## Screens
 
-Admin and manager: **Screens**. Apply `supabase/migrations/20260908000005_screens.sql` (creates `screen_wall_state`, `screen_ads`, and the public `screen-ads` storage bucket).
+Admin and manager: **Screens**. Apply `supabase/migrations/20260908000005_screens.sql` (creates `screen_wall_state`, `screen_ads`, and the public `screen-ads` storage bucket). Timed takeovers also need `supabase/migrations/20260908000007_screen_takeover.sql`.
 
 ### LED wall
 
-OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens, connect OBS (same `sessionStorage` host/port/password as Booth), pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event; otherwise Ads. Manual mode cuts to a chosen scene.
+OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens, connect OBS (same `sessionStorage` host/port/password as Booth), pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event, or when a vertical takeover is running; otherwise Ads. Manual mode cuts to a chosen scene.
 
 ### Vertical TVs
 
@@ -164,5 +164,7 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 **This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists). Cover charge is not shown. The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. If the hosted enum does not include `week_events` yet, the slide is stored as a dynamic playlist row and still plays correctly.
 
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
+
+**Takeover:** Screens → **Take over TVs**. Pick a graphic (including one that is out of rotation) and how long to hold it: 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.
 
 Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).

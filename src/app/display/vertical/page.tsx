@@ -1,5 +1,5 @@
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { listPublicVerticalAds } from "@/lib/queries/screens";
+import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
 import { listPublicWeekEvents } from "@/lib/public/queries";
 import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
@@ -19,9 +19,16 @@ export default async function VerticalDisplayPage({
   }
   const client = createAnonSupabaseClient();
   if (!client) return <VerticalPlayer initialAds={[]} />;
-  const [{ ads }, { events }] = await Promise.all([
+  const [{ ads }, { events }, { takeover }] = await Promise.all([
     listPublicVerticalAds(client, FLO_BAMA_VENUE_ID),
     listPublicWeekEvents(client, FLO_BAMA_VENUE_ID),
+    getPublicTakeover(client, FLO_BAMA_VENUE_ID),
   ]);
-  return <VerticalPlayer initialAds={ads} initialWeek={buildWeekSlidePayload(events)} />;
+  return (
+    <VerticalPlayer
+      initialAds={ads}
+      initialWeek={buildWeekSlidePayload(events)}
+      initialTakeover={takeover}
+    />
+  );
 }

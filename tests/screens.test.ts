@@ -9,10 +9,19 @@ import {
   type StaffScreenAd,
 } from "@/lib/screens/playlist";
 import { containScale } from "@/lib/screens/frame";
+import {
+  displayRevision,
+  formatTakeoverUntil,
+  isTakeoverActive,
+  normalizePublicTakeover,
+  takeoverEndsAt,
+  takeoverMinutesLabel,
+  takeoverRemainingLabel,
+} from "@/lib/screens/takeover";
 import { buildWeekSlidePayload, paginateWeekDays, weekEventLineupMeta } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
-import { screenAdMetaSchema } from "@/lib/validation/schemas";
+import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
 
 const sample: StaffScreenAd[] = [
   {
@@ -296,6 +305,49 @@ describe("kiosk frame", () => {
   });
 });
 
+describe("screen takeover", () => {
+  const graphic = toPublicPlaylist([sample[2]])[0]!;
+
+  it("computes an end time or stays open until cleared", () => {
+    const now = new Date("2026-09-08T22:00:00.000Z");
+    expect(takeoverEndsAt(30, now)).toBe("2026-09-08T22:30:00.000Z");
+    expect(takeoverEndsAt(null, now)).toBeNull();
+    expect(takeoverMinutesLabel(15)).toBe("15 minutes");
+    expect(takeoverMinutesLabel(60)).toBe("1 hour");
+    expect(takeoverMinutesLabel(120)).toBe("2 hours");
+  });
+
+  it("treats null as open and past timestamps as expired", () => {
+    const now = new Date("2026-09-08T22:00:00.000Z");
+    expect(isTakeoverActive(null, now)).toBe(true);
+    expect(isTakeoverActive("2026-09-08T22:30:00.000Z", now)).toBe(true);
+    expect(isTakeoverActive("2026-09-08T21:59:00.000Z", now)).toBe(false);
+    expect(takeoverRemainingLabel("2026-09-08T22:12:00.000Z", now)).toBe("12m left");
+    expect(takeoverRemainingLabel("2026-09-08T23:30:00.000Z", now)).toBe("1h 30m left");
+    expect(takeoverRemainingLabel(null, now)).toBe("Until cleared");
+    expect(formatTakeoverUntil("2026-09-09T03:30:00.000Z")).toBe("until 10:30 PM");
+  });
+
+  it("changes the display revision when a takeover starts or ends", () => {
+    const playlist = [graphic];
+    const holding = { ad: graphic, endsAt: "2026-09-08T23:00:00.000Z" };
+    expect(displayRevision(playlist, null)).not.toBe(displayRevision(playlist, holding));
+    expect(normalizePublicTakeover({ ad: graphic, endsAt: "2020-01-01T00:00:00.000Z" })).toBeNull();
+  });
+
+  it("accepts preset and open-ended takeover lengths", () => {
+    expect(startScreenTakeoverSchema.safeParse({ adId: "33333333-3333-4333-8333-333333333333", minutes: 15 }).success).toBe(
+      true,
+    );
+    expect(startScreenTakeoverSchema.safeParse({ adId: "33333333-3333-4333-8333-333333333333", minutes: null }).success).toBe(
+      true,
+    );
+    expect(startScreenTakeoverSchema.safeParse({ adId: "33333333-3333-4333-8333-333333333333", minutes: 0 }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe("LED wall auto rule", () => {
   const wall = {
     mode: "auto" as const,
@@ -307,6 +359,8 @@ describe("LED wall auto rule", () => {
   it("uses the band scene when now-playing or a public event overlaps", () => {
     expect(shouldUseBandScene({ nowPlaying: true, overlappingPublicEvent: false })).toBe(true);
     expect(shouldUseBandScene({ nowPlaying: false, overlappingPublicEvent: true })).toBe(true);
+    expect(shouldUseBandScene({ nowPlaying: false, overlappingPublicEvent: false, takeoverActive: true })).toBe(true);
+    expect(shouldUseBandScene({ nowPlaying: false, overlappingPublicEvent: false })).toBe(false);
     expect(resolveWallScene(wall, { nowPlaying: false, overlappingPublicEvent: false })).toBe("Ads");
     expect(resolveWallScene(wall, { nowPlaying: true, overlappingPublicEvent: false })).toBe("Band Logo");
   });
@@ -327,9 +381,12 @@ describe("LED wall auto rule", () => {
         },
         now,
       ),
-    ).toEqual({ nowPlaying: false, overlappingPublicEvent: true });
+    ).toEqual({ nowPlaying: false, overlappingPublicEvent: true, takeoverActive: false });
     expect(
       liveFromNowPayload({ nowPlaying: { id: "evt" }, today: [] }, now),
-    ).toEqual({ nowPlaying: true, overlappingPublicEvent: false });
+    ).toEqual({ nowPlaying: true, overlappingPublicEvent: false, takeoverActive: false });
+    expect(
+      liveFromNowPayload({ nowPlaying: null, today: [], takeoverActive: true }, now),
+    ).toEqual({ nowPlaying: false, overlappingPublicEvent: false, takeoverActive: true });
   });
 });

@@ -8,28 +8,31 @@ import {
   isWeekEventsAd,
   nextPlaylistIndex,
   normalizePublicPlaylist,
-  playlistRevision,
   playlistsEqual,
   type PublicScreenAd,
 } from "@/lib/screens/playlist";
+import { displayRevision, normalizePublicTakeover, type PublicTakeover } from "@/lib/screens/takeover";
 import type { WeekSlidePayload } from "@/lib/screens/week";
 import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
 export function VerticalPlayer({
   initialAds,
   initialWeek = null,
+  initialTakeover = null,
   lockPlaylist = false,
 }: {
   initialAds: PublicScreenAd[];
   initialWeek?: WeekSlidePayload | null;
+  initialTakeover?: PublicTakeover | null;
   lockPlaylist?: boolean;
 }) {
   const [ads, setAds] = useState(() => normalizePublicPlaylist(initialAds));
   const [week, setWeek] = useState(initialWeek);
+  const [takeover, setTakeover] = useState(() => normalizePublicTakeover(initialTakeover));
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
-  const revisionRef = useRef(playlistRevision(ads));
+  const revisionRef = useRef(displayRevision(normalizePublicPlaylist(initialAds), normalizePublicTakeover(initialTakeover)));
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
 
@@ -59,16 +62,19 @@ export function VerticalPlayer({
           ads?: PublicScreenAd[];
           revision?: string;
           week?: WeekSlidePayload | null;
+          takeover?: PublicTakeover | null;
         };
         if (cancelled || !Array.isArray(playlist.ads)) return;
         const next = normalizePublicPlaylist(playlist.ads);
-        const nextRevision = playlist.revision ?? playlistRevision(next);
+        const nextTakeover = normalizePublicTakeover(playlist.takeover);
+        const nextRevision = playlist.revision ?? displayRevision(next, nextTakeover);
         if (nextRevision !== revisionRef.current) {
           revisionRef.current = nextRevision;
           window.location.reload();
           return;
         }
         setAds((currentAds) => (playlistsEqual(currentAds, next) ? currentAds : next));
+        setTakeover(nextTakeover);
         if (playlist.week && Array.isArray(playlist.week.days)) setWeek(playlist.week);
       } catch {
         // keep current playlist
@@ -82,13 +88,23 @@ export function VerticalPlayer({
     };
   }, [lockPlaylist]);
 
-  const current = ads.length > 0 ? ads[index % ads.length] : null;
+  const holding = Boolean(takeover);
+  const current = takeover?.ad ?? (ads.length > 0 ? ads[index % ads.length] : null);
   const currentId = current?.id ?? null;
   const showingWeek = current ? isWeekEventsAd(current) : false;
 
   useEffect(() => {
-    if (!currentId) return;
-    const ad = adsRef.current.find((item) => item.id === currentId);
+    if (!takeover?.endsAt) return;
+    const remaining = Date.parse(takeover.endsAt) - Date.now();
+    const timer = window.setTimeout(() => {
+      window.location.reload();
+    }, Math.max(250, remaining + 250));
+    return () => window.clearTimeout(timer);
+  }, [takeover?.endsAt]);
+
+  useEffect(() => {
+    if (!currentId || holding) return;
+    const ad = adsRef.current.find((item) => item.id === currentId) ?? current;
     if (!ad) return;
     if (ad.mediaKind === "video" && ad.durationSeconds == null && !isWeekEventsAd(ad)) return;
     const hold = holdMsForAd(ad);
@@ -102,7 +118,7 @@ export function VerticalPlayer({
       window.clearTimeout(hideTimer);
       window.clearTimeout(nextTimer);
     };
-  }, [currentId]);
+  }, [current, currentId, holding]);
 
   return (
     <div ref={hostRef} className="relative h-full w-full overflow-hidden bg-[#1b1612]">
@@ -141,7 +157,12 @@ export function VerticalPlayer({
                 autoPlay
                 muted
                 playsInline
+                loop={holding}
                 onEnded={() => {
+                  if (holding) {
+                    setVisible(true);
+                    return;
+                  }
                   if (current.durationSeconds == null) {
                     setVisible(true);
                     setIndex((value) => (value + 1) % ads.length);

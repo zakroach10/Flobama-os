@@ -22,7 +22,7 @@
 - Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
 - Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
 - OBS overlay at `/overlay` (1920×1080 browser source) and staff `/booth` (obs-websocket v5, sessionStorage credentials)
-- Screens: LED wall OBS scene mapping (auto ads vs band), shared vertical 1080×1920 ad rotation, and a live “this week” events slide
+- Screens: LED wall OBS scene mapping (auto ads vs band), shared vertical 1080×1920 ad rotation, a live “this week” events slide, and timed takeovers for a band or event graphic
 - Setup-required state when Supabase env vars are missing
 - Unit tests for timezone, validation, permissions, redirects, CSV parser, public-field filter, OBS helpers
 - Optional disposable-environment RLS test (skipped without credentials)

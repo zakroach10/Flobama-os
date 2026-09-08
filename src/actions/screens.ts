@@ -5,12 +5,19 @@ import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { WEEK_EVENTS_DEFAULT_SECONDS, WEEK_EVENTS_PUBLIC_URL, WEEK_EVENTS_STORAGE_PATH } from "@/lib/constants";
+import {
+  SCREEN_TAKEOVER_SQL,
+  WEEK_EVENTS_DEFAULT_SECONDS,
+  WEEK_EVENTS_PUBLIC_URL,
+  WEEK_EVENTS_STORAGE_PATH,
+} from "@/lib/constants";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
+import { isMissingScreenTakeoverRelation, takeoverEndsAt, takeoverMinutesLabel } from "@/lib/screens/takeover";
 import {
   createScreenAdRecordSchema,
   reorderScreenAdsSchema,
   screenWallStateSchema,
+  startScreenTakeoverSchema,
   updateScreenAdSchema,
 } from "@/lib/validation/schemas";
 
@@ -179,5 +186,52 @@ export async function archiveScreenAdAction(id: string): Promise<ScreenActionRes
   if (error) return { ok: false, message: error.message };
   revalidateScreens();
   return { ok: true, message: "Ad removed from the rotation." };
+}
+
+function takeoverSqlMessage(message: string) {
+  if (isMissingScreenTakeoverRelation(message)) {
+    return `Apply ${SCREEN_TAKEOVER_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  return message;
+}
+
+export async function startScreenTakeoverAction(input: unknown): Promise<ScreenActionResult> {
+  const gate = await screensGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = startScreenTakeoverSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const { data: ad, error: adError } = await gate.supabase
+    .from("screen_ads")
+    .select("id, title, archived_at")
+    .eq("id", parsed.data.adId)
+    .eq("venue_id", gate.context.venue.id)
+    .maybeSingle();
+  if (adError) return { ok: false, message: adError.message };
+  if (!ad || ad.archived_at) return { ok: false, message: "Choose a graphic that is still in the library." };
+
+  const { error } = await gate.supabase.from("screen_takeovers").upsert({
+    venue_id: gate.context.venue.id,
+    ad_id: ad.id,
+    ends_at: takeoverEndsAt(parsed.data.minutes),
+  });
+  if (error) return { ok: false, message: takeoverSqlMessage(error.message) };
+  revalidateScreens();
+  return {
+    ok: true,
+    message:
+      parsed.data.minutes == null
+        ? `${ad.title} is holding the TVs until you clear it.`
+        : `${ad.title} is holding the TVs for ${takeoverMinutesLabel(parsed.data.minutes)}.`,
+  };
+}
+
+export async function clearScreenTakeoverAction(): Promise<ScreenActionResult> {
+  const gate = await screensGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const { error } = await gate.supabase.from("screen_takeovers").delete().eq("venue_id", gate.context.venue.id);
+  if (error) return { ok: false, message: takeoverSqlMessage(error.message) };
+  revalidateScreens();
+  return { ok: true, message: "Takeover cleared. The regular playlist is back." };
 }
 

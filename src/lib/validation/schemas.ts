@@ -3,6 +3,7 @@ import {
   EVENT_STATUSES,
   EVENT_TYPES,
   EVENT_VISIBILITIES,
+  SCREEN_TAKEOVER_MAX_MINUTES,
   SCREEN_TRANSITIONS,
   SCREEN_WALL_MODES,
   STAFF_ROLES,
@@ -196,4 +197,9 @@ export const createScreenAdRecordSchema = z.object({
 
 export const reorderScreenAdsSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
+});
+
+export const startScreenTakeoverSchema = z.object({
+  adId: z.string().uuid(),
+  minutes: z.number().int().min(1).max(SCREEN_TAKEOVER_MAX_MINUTES).nullable(),
 });

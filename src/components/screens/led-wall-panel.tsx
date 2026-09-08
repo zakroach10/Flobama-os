@@ -80,11 +80,15 @@ export function LedWallPanel({ wall }: { wall: WallStateRow | null }) {
       return;
     }
     try {
-      const response = await fetch("/api/public/v1/now", { cache: "no-store" });
+      const [response, screensResponse] = await Promise.all([
+        fetch("/api/public/v1/now", { cache: "no-store" }),
+        fetch("/api/public/v1/screens/vertical", { cache: "no-store" }),
+      ]);
       const json = (await response.json()) as {
         nowPlaying?: { id?: string } | null;
         today?: Array<{ startsAt: string; endsAt: string }>;
       };
+      const screens = (await screensResponse.json()) as { takeover?: { ad?: { id?: string } } | null };
       const target = resolveWallScene(
         {
           mode: "auto",
@@ -92,7 +96,7 @@ export function LedWallPanel({ wall }: { wall: WallStateRow | null }) {
           bandSceneName: bandScene,
           manualSceneName: manualScene,
         },
-        liveFromNowPayload(json),
+        liveFromNowPayload({ ...json, takeoverActive: Boolean(screens.takeover?.ad?.id) }),
       );
       await cutTo(target);
     } catch {
@@ -119,7 +123,8 @@ export function LedWallPanel({ wall }: { wall: WallStateRow | null }) {
       <div>
         <h2 className="text-lg font-semibold">LED wall</h2>
         <p className="text-sm text-muted-foreground">
-          Map prebuilt OBS scenes. Auto uses Ads unless a public show is on now, then Band. Artwork stays in OBS.
+          Map prebuilt OBS scenes. Auto uses Ads unless a public show is on now or a TV takeover is
+          running, then Band. Artwork stays in OBS.
         </p>
       </div>
 
@@ -189,7 +194,7 @@ export function LedWallPanel({ wall }: { wall: WallStateRow | null }) {
             checked={mode === "auto"}
             onChange={() => setMode("auto")}
           />
-          Auto (ads unless a show is on)
+          Auto (ads unless a show or takeover is on)
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input

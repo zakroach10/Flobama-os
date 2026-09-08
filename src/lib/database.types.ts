@@ -333,6 +333,40 @@ export type Database = {
           },
         ];
       };
+      screen_takeovers: {
+        Row: {
+          venue_id: string;
+          ad_id: string;
+          ends_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          ad_id: string;
+          ends_at?: string | null;
+        };
+        Update: {
+          ad_id?: string;
+          ends_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_takeovers_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "screen_takeovers_ad_id_fkey";
+            columns: ["ad_id"];
+            isOneToOne: false;
+            referencedRelation: "screen_ads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       event_listings: {
@@ -370,6 +404,20 @@ export type Database = {
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
+        };
+        Relationships: [];
+      };
+      screen_takeover_listings: {
+        Row: {
+          venue_id: string;
+          ad_id: string;
+          ends_at: string | null;
+          updated_at: string;
+          title: string;
+          public_url: string;
+          media_kind: "image" | "video" | "week_events";
+          duration_seconds: number | null;
+          transition: "cut" | "fade" | "slide";
         };
         Relationships: [];
       };

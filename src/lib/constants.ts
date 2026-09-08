@@ -61,6 +61,9 @@ export const WEEK_EVENTS_PUBLIC_URL = "dynamic://week_events";
 export const WEEK_EVENTS_STORAGE_PATH = "dynamic/week_events";
 export const WEEK_EVENTS_DEFAULT_SECONDS = 20;
 export const VERTICAL_PLAYLIST_POLL_MS = 4000;
+export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
+export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
+export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",
