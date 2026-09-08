@@ -177,6 +177,7 @@ describe("this week slide", () => {
     expect(payload.rangeLabel).toBe("Sep 6–12, 2026");
     expect(payload.days).toHaveLength(1);
     expect(payload.days[0]?.events.map((event) => event.name)).toEqual(["Tuesday band", "Late set"]);
+    expect(payload.days[0]?.dateKey).toBe("2026-09-08");
   });
 
   it("paginates a busy week without dropping days", () => {

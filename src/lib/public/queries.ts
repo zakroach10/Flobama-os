@@ -53,6 +53,7 @@ export async function listPublicEvents(
     limit?: number;
     upcomingByEnd?: boolean;
     overlap?: boolean;
+    exclusiveEnd?: boolean;
   } = {},
 ): Promise<{ events: PublicEventJson[]; error: string | null }> {
   const venueId = options.venueId ?? FLO_BAMA_VENUE_ID;
@@ -63,7 +64,9 @@ export async function listPublicEvents(
     .order("starts_at", { ascending: true })
     .limit(options.limit ?? 80);
 
-  if (options.overlap && options.fromIso && options.toIso) {
+  if (options.exclusiveEnd && options.fromIso && options.toIso) {
+    query = query.gte("starts_at", options.fromIso).lt("starts_at", options.toIso);
+  } else if (options.overlap && options.fromIso && options.toIso) {
     query = query.lt("starts_at", options.toIso).gt("ends_at", options.fromIso);
   } else {
     if (options.fromIso) {
@@ -105,7 +108,7 @@ export async function listPublicWeekEvents(
     toIso: endIso,
     limit: 80,
     upcomingByEnd: false,
-    overlap: true,
+    exclusiveEnd: true,
   });
 }
 
