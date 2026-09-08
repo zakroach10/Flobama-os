@@ -6,17 +6,27 @@ import { toast } from "sonner";
 import {
   addWeekEventsSlideAction,
   archiveScreenAdAction,
+  createScreenAdRecordAction,
   reorderScreenAdsAction,
   updateScreenAdAction,
-  uploadScreenAdAction,
 } from "@/actions/screens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SCREEN_TRANSITION_LABELS, SCREEN_TRANSITIONS, type ScreenTransition } from "@/lib/constants";
 import type { StaffScreenAd } from "@/lib/screens/playlist";
+import { describeUploadFailure, extensionForFile, MAX_SCREEN_AD_BYTES, mediaKindForFile } from "@/lib/screens/upload";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-export function VerticalAdsPanel({ ads, displayUrl }: { ads: StaffScreenAd[]; displayUrl: string }) {
+export function VerticalAdsPanel({
+  ads,
+  venueId,
+  displayUrl,
+}: {
+  ads: StaffScreenAd[];
+  venueId: string;
+  displayUrl: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState("");
@@ -56,13 +66,15 @@ export function VerticalAdsPanel({ ads, displayUrl }: { ads: StaffScreenAd[]; di
             toast.error("Choose an image or video.");
             return;
           }
-          const data = new FormData();
-          data.set("file", file);
-          data.set("title", title);
-          data.set("durationSeconds", duration);
-          data.set("transition", transition);
           startTransition(async () => {
-            const result = await uploadScreenAdAction(data);
+            const result = await uploadAdFromBrowser({
+              file,
+              venueId,
+              title,
+              duration,
+              transition,
+              sortOrder: ads.length,
+            });
             if (!result.ok) {
               toast.error(result.message);
               return;
@@ -76,13 +88,20 @@ export function VerticalAdsPanel({ ads, displayUrl }: { ads: StaffScreenAd[]; di
       >
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="ad-file">File</Label>
-          <Input
+          <input
             id="ad-file"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+            className="h-11 min-h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm"
             onChange={(e) => {
               const next = e.target.files?.[0] ?? null;
               setFile(next);
+              if (next && next.size > MAX_SCREEN_AD_BYTES) {
+                toast.error("File must be 50 MB or smaller.");
+                setFile(null);
+                e.target.value = "";
+                return;
+              }
               if (next?.type.startsWith("video/")) setDuration("");
               else if (next) setDuration((value) => value || "10");
             }}
@@ -300,4 +319,55 @@ function AdRow({
       </div>
     </li>
   );
+}
+
+async function uploadAdFromBrowser(input: {
+  file: File;
+  venueId: string;
+  title: string;
+  duration: string;
+  transition: ScreenTransition;
+  sortOrder: number;
+}) {
+  const mediaKind = mediaKindForFile(input.file);
+  if (!mediaKind) return { ok: false, message: "Use an image (JPEG, PNG, WebP, GIF) or a video (MP4, WebM)." };
+  if (input.file.size === 0) return { ok: false, message: "Choose an image or video file." };
+  if (input.file.size > MAX_SCREEN_AD_BYTES) return { ok: false, message: "File must be 50 MB or smaller." };
+
+  const supabase = createBrowserSupabaseClient();
+  if (!supabase) return { ok: false, message: "Supabase is not configured." };
+
+  const title = input.title.trim() || input.file.name.replace(/\.[^.]+$/, "");
+  const durationSeconds = input.duration.trim()
+    ? Number(input.duration)
+    : mediaKind === "image"
+      ? 10
+      : null;
+  const id = crypto.randomUUID();
+  const ext = extensionForFile(input.file) ?? (mediaKind === "video" ? "mp4" : "jpg");
+  const storagePath = `${input.venueId}/${id}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
+    contentType: input.file.type || (mediaKind === "video" ? "video/mp4" : "image/jpeg"),
+    upsert: false,
+  });
+  if (uploadError) return { ok: false, message: describeUploadFailure(uploadError.message) };
+
+  const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
+  const result = await createScreenAdRecordAction({
+    id,
+    title,
+    durationSeconds,
+    transition: input.transition,
+    enabled: true,
+    mediaKind,
+    storagePath,
+    publicUrl,
+    sortOrder: input.sortOrder,
+  });
+  if (!result.ok) {
+    await supabase.storage.from("screen-ads").remove([storagePath]);
+    return { ok: false, message: describeUploadFailure(result.message) };
+  }
+  return result;
 }

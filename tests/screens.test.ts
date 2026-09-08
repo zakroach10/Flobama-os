@@ -3,6 +3,7 @@ import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import { holdMsForAd, nextPlaylistIndex, playlistsEqual, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
 import { buildWeekSlidePayload, paginateWeekDays } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
+import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { screenAdMetaSchema } from "@/lib/validation/schemas";
 
 const sample: StaffScreenAd[] = [
@@ -127,6 +128,13 @@ describe("vertical playlist", () => {
     const second = toPublicPlaylist([sample[2]]);
     expect(playlistsEqual(first, second)).toBe(true);
     expect(playlistsEqual(first, [{ ...first[0]!, durationSeconds: 99 }])).toBe(false);
+  });
+
+  it("classifies stills and videos and rejects oversized ads", () => {
+    expect(mediaKindForFile({ type: "image/png", name: "happy.png" })).toBe("image");
+    expect(mediaKindForFile({ type: "video/mp4", name: "spot.mp4" })).toBe("video");
+    expect(mediaKindForFile({ type: "application/pdf", name: "menu.pdf" })).toBeNull();
+    expect(MAX_SCREEN_AD_BYTES).toBe(50 * 1024 * 1024);
   });
 
   it("requires a hold time for the week slide", () => {

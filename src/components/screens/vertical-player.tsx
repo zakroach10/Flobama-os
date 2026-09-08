@@ -19,7 +19,10 @@ export function VerticalPlayer({
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
-  adsRef.current = ads;
+
+  useEffect(() => {
+    adsRef.current = ads;
+  }, [ads]);
 
   useEffect(() => {
     if (lockPlaylist) return;

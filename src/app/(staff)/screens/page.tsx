@@ -44,7 +44,11 @@ export default async function ScreensPage() {
         </p>
       </header>
       <LedWallPanel wall={wall} />
-      <VerticalAdsPanel ads={ads} displayUrl={joinPublicUrl(getPublicAppUrl(), "/display/vertical")} />
+      <VerticalAdsPanel
+        ads={ads}
+        venueId={context.venue.id}
+        displayUrl={joinPublicUrl(getPublicAppUrl(), "/display/vertical")}
+      />
     </div>
   );
 }

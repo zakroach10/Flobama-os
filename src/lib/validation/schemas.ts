@@ -182,6 +182,18 @@ export const updateScreenAdSchema = screenAdMetaSchema.extend({
   id: z.string().uuid(),
 });
 
+export const createScreenAdRecordSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  durationSeconds: z.number().int().min(1).max(600).nullable(),
+  transition: z.enum(SCREEN_TRANSITIONS),
+  enabled: z.boolean().default(true),
+  mediaKind: z.enum(["image", "video"]),
+  storagePath: z.string().trim().min(1).max(500),
+  publicUrl: z.string().trim().min(8).max(800),
+  sortOrder: z.number().int().min(0),
+});
+
 export const reorderScreenAdsSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
 });

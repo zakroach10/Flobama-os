@@ -1,17 +1,15 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { WEEK_EVENTS_DEFAULT_SECONDS, WEEK_EVENTS_PUBLIC_URL } from "@/lib/constants";
-import { getPublicSupabaseEnv } from "@/lib/env";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import {
+  createScreenAdRecordSchema,
   reorderScreenAdsSchema,
-  screenAdMetaSchema,
   screenWallStateSchema,
   updateScreenAdSchema,
 } from "@/lib/validation/schemas";
@@ -60,73 +58,31 @@ export async function saveScreenWallAction(input: unknown): Promise<ScreenAction
   return { ok: true, message: "LED wall settings saved." };
 }
 
-export async function uploadScreenAdAction(formData: FormData): Promise<ScreenActionResult> {
-  const gate = await screensGate();
-  if (!gate.ok) return { ok: false, message: gate.message };
+export async function createScreenAdRecordAction(input: unknown): Promise<ScreenActionResult> {
+  try {
+    const gate = await screensGate();
+    if (!gate.ok) return { ok: false, message: gate.message };
+    const parsed = createScreenAdRecordSchema.safeParse(input);
+    if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, message: "Choose an image or video file." };
+    const { error } = await gate.supabase.from("screen_ads").insert({
+      id: parsed.data.id,
+      venue_id: gate.context.venue.id,
+      title: parsed.data.title,
+      storage_path: parsed.data.storagePath,
+      public_url: parsed.data.publicUrl,
+      media_kind: parsed.data.mediaKind,
+      duration_seconds: parsed.data.durationSeconds,
+      transition: parsed.data.transition,
+      sort_order: parsed.data.sortOrder,
+      enabled: true,
+    });
+    if (error) return { ok: false, message: error.message };
+    revalidateScreens();
+    return { ok: true, message: "Ad added to the vertical rotation." };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Could not save the ad." };
   }
-  if (file.size > 50 * 1024 * 1024) {
-    return { ok: false, message: "File must be 50 MB or smaller." };
-  }
-
-  const title = String(formData.get("title") ?? "").trim() || file.name.replace(/\.[^.]+$/, "");
-  const transition = formData.get("transition");
-  const durationRaw = String(formData.get("durationSeconds") ?? "").trim();
-  const mediaKind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
-  if (!mediaKind) return { ok: false, message: "Use an image (JPEG, PNG, WebP, GIF) or a video (MP4, WebM)." };
-
-  const durationSeconds = durationRaw ? Number(durationRaw) : mediaKind === "image" ? 10 : null;
-  const parsed = screenAdMetaSchema.safeParse({
-    title,
-    durationSeconds,
-    transition: transition || "fade",
-    enabled: true,
-    mediaKind,
-  });
-  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
-
-  const env = getPublicSupabaseEnv();
-  if (!env) return { ok: false, message: "Supabase is not configured." };
-
-  const { count } = await gate.supabase
-    .from("screen_ads")
-    .select("id", { count: "exact", head: true })
-    .eq("venue_id", gate.context.venue.id)
-    .is("archived_at", null);
-
-  const id = randomUUID();
-  const ext = extensionFor(file) ?? (mediaKind === "video" ? "mp4" : "jpg");
-  const storagePath = `${gate.context.venue.id}/${id}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: uploadError } = await gate.supabase.storage.from("screen-ads").upload(storagePath, buffer, {
-    contentType: file.type || (mediaKind === "video" ? "video/mp4" : "image/jpeg"),
-    upsert: false,
-  });
-  if (uploadError) return { ok: false, message: uploadError.message };
-
-  const publicUrl = `${env.url.replace(/\/$/, "")}/storage/v1/object/public/screen-ads/${storagePath}`;
-  const { error: insertError } = await gate.supabase.from("screen_ads").insert({
-    id,
-    venue_id: gate.context.venue.id,
-    title: parsed.data.title,
-    storage_path: storagePath,
-    public_url: publicUrl,
-    media_kind: mediaKind,
-    duration_seconds: parsed.data.durationSeconds,
-    transition: parsed.data.transition,
-    sort_order: count ?? 0,
-    enabled: true,
-  });
-  if (insertError) {
-    await gate.supabase.storage.from("screen-ads").remove([storagePath]);
-    return { ok: false, message: insertError.message };
-  }
-
-  revalidateScreens();
-  return { ok: true, message: "Ad added to the vertical rotation." };
 }
 
 export async function addWeekEventsSlideAction(): Promise<ScreenActionResult> {
@@ -224,14 +180,3 @@ export async function archiveScreenAdAction(id: string): Promise<ScreenActionRes
   return { ok: true, message: "Ad removed from the rotation." };
 }
 
-function extensionFor(file: File) {
-  const fromName = file.name.split(".").pop()?.toLowerCase();
-  if (fromName && /^[a-z0-9]{1,5}$/.test(fromName)) return fromName;
-  if (file.type === "image/jpeg") return "jpg";
-  if (file.type === "image/png") return "png";
-  if (file.type === "image/webp") return "webp";
-  if (file.type === "image/gif") return "gif";
-  if (file.type === "video/mp4") return "mp4";
-  if (file.type === "video/webm") return "webm";
-  return null;
-}

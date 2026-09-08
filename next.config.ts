@@ -4,6 +4,11 @@ const embeddable = [{ key: "Content-Security-Policy", value: "frame-ancestors *"
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
+  },
   async headers() {
     return [
       {
