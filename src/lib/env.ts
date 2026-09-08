@@ -26,6 +26,14 @@ export function getPublicSupabaseEnv(): PublicSupabaseEnv | null {
   return { url, anonKey };
 }
 
+export function getServiceRoleKey(): string | null {
+  return readEnv("SUPABASE_SERVICE_ROLE_KEY") ?? null;
+}
+
+export function isServiceRoleConfigured(): boolean {
+  return Boolean(getPublicSupabaseEnv() && getServiceRoleKey());
+}
+
 export function getSiteUrl(): string {
   return (
     readEnv("NEXT_PUBLIC_SITE_URL") ??

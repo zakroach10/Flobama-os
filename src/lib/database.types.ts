@@ -302,6 +302,16 @@ export type Database = {
         Args: { p_venue_id: string; p_roles: ("admin" | "manager" | "viewer")[] };
         Returns: boolean;
       };
+      list_venue_staff: {
+        Args: { p_venue_id: string };
+        Returns: {
+          user_id: string;
+          role: "admin" | "manager" | "viewer";
+          display_name: string;
+          email: string | null;
+          created_at: string;
+        }[];
+      };
     };
     Enums: {
       staff_role: "admin" | "manager" | "viewer";

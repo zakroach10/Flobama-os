@@ -13,7 +13,7 @@ Internal operations platform for FloBama Music Hall. This repository is the staf
 - Single venue record: FloBama Music Hall (`11111111-1111-4111-8111-111111111111`)
 - Timezone locked to `America/Chicago` in the database
 - Provisional warm-red accent (not an official brand spec) because no approved logo or tokens were in the repo
-- No staff self-signup; memberships are assigned with SQL
+- No public signup. The first admin is bootstrapped in SQL; later staff are created in Settings by an admin.
 - Event “Publish” plus public visibility feeds the public API, HTML embed, and OBS overlay. The Google Sheet on flobamadowntown.com is not edited from this repo.
 
 ## Local setup
@@ -29,8 +29,11 @@ cp .env.example .env.local
 
 - `NEXT_PUBLIC_SUPABASE_URL` — Project Settings → API → Project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Project Settings → API → anon / publishable key
+- `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
-3. Apply the schema. SQL editor: paste both files in order — `supabase/migrations/20240908000001_init_flobama_os.sql` then `supabase/migrations/20260908000002_public_listings_and_booth.sql`.  
+3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, and `20260908000003_staff_admin.sql`.  
+
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
 ```bash
@@ -63,16 +66,22 @@ npm run dev
 
 `supabase:start` applies `supabase/migrations`. Auth redirects are already set in `supabase/config.toml` for port 43123. Studio is at http://127.0.0.1:54323. Create the first user there, then run the admin SQL.
 
-## Initial admin bootstrap
+## Staff roles and admin bootstrap
 
-There is no “make me admin” screen.
+| Role | What they can do |
+| --- | --- |
+| Admin | Create staff, change roles, rename the venue, edit events/artists, booth |
+| Manager | Edit events/artists, import listings, booth. Cannot create staff or rename the venue |
+| Viewer | Read-only calendar, artists, and staff directory |
+
+There is still no public registration. The **first** admin is created once:
 
 1. In Supabase **Authentication > Users**, add a user with email and password. Copy the user UUID.
 2. Open `supabase/bootstrap_admin.sql`, replace `00000000-0000-0000-0000-000000000000` with that UUID, and run it in the SQL editor.
 
-That inserts an `admin` row into `venue_memberships` for FloBama Music Hall.
+After that, signed-in admins use **Settings → Staff** to create more logins (email, temporary password, role). People cannot raise their own role. You cannot remove or demote the last admin, or change your own access.
 
-To add a manager or viewer later, run the same insert with `role` set to `manager` or `viewer`.
+Creating a login needs `SUPABASE_SERVICE_ROLE_KEY` on the server. Role changes and removals use the signed-in admin session and RLS.
 
 ## Scripts
 

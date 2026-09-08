@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EVENT_STATUSES, EVENT_TYPES, EVENT_VISIBILITIES } from "@/lib/constants";
+import { EVENT_STATUSES, EVENT_TYPES, EVENT_VISIBILITIES, STAFF_ROLES } from "@/lib/constants";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
 
 const optionalText = (max: number) =>
@@ -108,6 +108,24 @@ export const loginSchema = z.object({
 
 export const passwordResetRequestSchema = z.object({
   email: z.email("Enter a valid email."),
+});
+
+export const createStaffSchema = z.object({
+  email: z.email("Enter a valid email."),
+  displayName: z.string().trim().min(1, "Display name is required.").max(120),
+  role: z.enum(STAFF_ROLES),
+  password: z.string().min(8, "Use at least 8 characters."),
+});
+
+export type CreateStaffValues = z.output<typeof createStaffSchema>;
+
+export const updateStaffRoleSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(STAFF_ROLES),
+});
+
+export const removeStaffSchema = z.object({
+  userId: z.string().uuid(),
 });
 
 export const passwordUpdateSchema = z

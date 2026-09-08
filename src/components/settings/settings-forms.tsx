@@ -53,7 +53,9 @@ export function SettingsForms({
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
             <Input id="role" value={STAFF_ROLE_LABELS[role]} readOnly />
-            <p className="text-xs text-muted-foreground">Roles are assigned with administrative SQL, not from this screen.</p>
+            <p className="text-xs text-muted-foreground">
+              Your role is assigned by an admin. You cannot raise it from this screen.
+            </p>
           </div>
           <Button type="submit" disabled={pending}>
             Save display name

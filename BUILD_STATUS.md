@@ -13,6 +13,8 @@
 - Ticketed / ticket URL / cover fields on the staff event form
 - Artist directory: search, create, edit, archive, linked upcoming/past events
 - Settings: display name, admin venue rename, website embed snippet, public API URL
+- Role-based permissions with a visible matrix (admin / manager / viewer)
+- Admin staff directory: create logins, change roles, remove access (no self-promote, last admin protected)
 - America/Chicago scheduling with timestamptz storage, overnight events, DST rejection
 - SQL migrations with constraints, indexes, triggers, RLS, least-privilege grants
 - Public projection views (`event_listings`, `event_listing_artists`) — anon has no `SELECT` on `events`
@@ -30,17 +32,18 @@
 - SpotOn sales (status panel only: “Not connected.”)
 - Inventory, payroll, invitations, multi-venue UI
 - Recurring events, artwork uploads
-- Staff self-registration
+- Public staff self-registration (admins create accounts; there is still no signup page)
 - A live OBS booth in this cloud environment (LAN-only)
 
 ## Limitations
 
 - Brand accent is provisional until official tokens exist
 - Timezone is not editable in the UI
-- Membership/role changes are administrative SQL only
-- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql` before import, API, embed, and booth writes work
+- The first admin is still bootstrapped with SQL; later staff are created in Settings
+- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql` and `20260908000003_staff_admin.sql`
+- Creating logins requires `SUPABASE_SERVICE_ROLE_KEY` on the server only
 - Search filters for events use PostgREST `or` + artist id lists; very large catalogs may need a dedicated search index later
 
 ## Apply after pull
 
-Run the new migration on the hosted project (SQL editor or `npx supabase db push`), then use **Events → Import legacy sheet** while signed in as admin or manager.
+Run the new migrations on the hosted project (SQL editor or `npx supabase db push`). For staff creation, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Then use **Settings → Staff** as an admin, and **Events → Import legacy sheet** as an admin or manager.
