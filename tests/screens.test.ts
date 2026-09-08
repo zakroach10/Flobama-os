@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEMO_VERTICAL_ADS } from "@/lib/screens/demo";
 import { holdMsForAd, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { screenAdMetaSchema } from "@/lib/validation/schemas";
@@ -91,6 +92,12 @@ describe("vertical playlist", () => {
         mediaKind: "video",
       }).success,
     ).toBe(true);
+  });
+
+  it("ships a two-slide local fixture for the vertical player", () => {
+    expect(DEMO_VERTICAL_ADS).toHaveLength(2);
+    expect(DEMO_VERTICAL_ADS.every((ad) => ad.url.startsWith("data:image/svg+xml"))).toBe(true);
+    expect(holdMsForAd(DEMO_VERTICAL_ADS[0]!)).toBe(4000);
   });
 });
 

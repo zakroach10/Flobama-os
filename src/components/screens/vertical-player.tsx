@@ -3,12 +3,19 @@
 import { useEffect, useState } from "react";
 import { holdMsForAd, type PublicScreenAd } from "@/lib/screens/playlist";
 
-export function VerticalPlayer({ initialAds }: { initialAds: PublicScreenAd[] }) {
+export function VerticalPlayer({
+  initialAds,
+  lockPlaylist = false,
+}: {
+  initialAds: PublicScreenAd[];
+  lockPlaylist?: boolean;
+}) {
   const [ads, setAds] = useState(initialAds);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    if (lockPlaylist) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -24,7 +31,7 @@ export function VerticalPlayer({ initialAds }: { initialAds: PublicScreenAd[] })
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lockPlaylist]);
 
   const current = ads.length > 0 ? ads[index % ads.length] : null;
 

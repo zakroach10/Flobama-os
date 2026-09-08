@@ -160,3 +160,5 @@ Every 1080×1920 player opens the same page:
 `https://flobama-os.vercel.app/display/vertical`
 
 Upload stills or short videos on Screens. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`.
+
+Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).
