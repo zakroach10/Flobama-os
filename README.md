@@ -70,8 +70,8 @@ npm run dev
 
 | Role | What they can do |
 | --- | --- |
-| Admin | Create staff, change roles, rename the venue, edit events/artists, booth, screens |
-| Manager | Edit events/artists, import listings, booth, screens. Cannot create staff or rename the venue |
+| Admin | Create staff, change roles, rename the venue, edit events/artists, screens |
+| Manager | Edit events/artists, import listings, screens. Cannot create staff or rename the venue |
 | Viewer | Read-only calendar, artists, and staff directory |
 
 There is still no public registration. The **first** admin is created once:
@@ -139,9 +139,8 @@ This repository does not change flobamadowntown.com.
 
 1. In OBS: **Tools → WebSocket Server Settings**. Enable the v5 server. Note host (usually `127.0.0.1`), port (`4455`), and password.
 2. Add a **Browser Source** at `{origin}/overlay`, width **1920**, height **1080**.
-3. Sign in to FloBama OS on the booth PC as admin or manager. Open **Booth**.
+3. Sign in to FloBama OS on the booth PC as admin or manager. Open **Screens → LED wall**.
 4. Connect OBS from that page. Host, port, and password stay in `sessionStorage` on that machine — they are never stored in git or the database.
-5. Set **now playing** and toggle the lower third. The overlay only reveals events that qualify for `event_listings`.
 
 This cloud preview cannot reach a booth PC on your LAN. Viewers can see the overlay and API; they cannot write `booth_state` or use OBS controls.
 
@@ -151,7 +150,7 @@ Admin and manager: **Screens**. Apply `supabase/migrations/20260908000005_screen
 
 ### LED wall
 
-OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens, connect OBS (same `sessionStorage` host/port/password as Booth), pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event, or when a vertical takeover is running; otherwise Ads. Manual mode cuts to a chosen scene.
+Screens has two tabs: **LED wall** and **Vertical screens**. OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens → LED wall, connect OBS, pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event, or when a vertical takeover is running; otherwise Ads. Manual mode cuts to a chosen scene.
 
 ### Vertical TVs
 
@@ -165,6 +164,6 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
 
-**Takeover:** Screens → **Take over TVs**. Pick a graphic (including one that is out of rotation) and how long to hold it: 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.
+**Takeover Ad Screens:** On the Vertical screens tab, upload an override graphic in that box or pick one from the library. Hold it for 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Uploaded overrides stay out of the regular rotation. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.
 
 Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).

@@ -21,7 +21,7 @@ import {
   updateScreenAdSchema,
 } from "@/lib/validation/schemas";
 
-export type ScreenActionResult = { ok: boolean; message: string };
+export type ScreenActionResult = { ok: boolean; message: string; id?: string };
 
 function fieldMessage(error: z.ZodError) {
   return error.issues[0]?.message ?? "Check the highlighted fields.";
@@ -82,11 +82,15 @@ export async function createScreenAdRecordAction(input: unknown): Promise<Screen
       duration_seconds: parsed.data.durationSeconds,
       transition: parsed.data.transition,
       sort_order: parsed.data.sortOrder,
-      enabled: true,
+      enabled: parsed.data.enabled,
     });
     if (error) return { ok: false, message: error.message };
     revalidateScreens();
-    return { ok: true, message: "Ad added to the vertical rotation." };
+    return {
+      ok: true,
+      id: parsed.data.id,
+      message: parsed.data.enabled ? "Ad added to the vertical rotation." : "Override graphic saved.",
+    };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Could not save the ad." };
   }

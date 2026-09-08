@@ -168,17 +168,6 @@ export default async function DashboardPage() {
             )}
           </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>SpotOn</CardTitle>
-              <CardDescription>Not connected.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Sales reporting will land in a later milestone. This panel does not show revenue or
-              connection status because SpotOn is not wired up.
-            </CardContent>
-          </Card>
-
           <p className="text-xs text-muted-foreground">
             Public listings, embed, and the OBS overlay read only published public events. Internal notes never leave staff screens.
           </p>

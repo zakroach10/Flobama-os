@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDaysIcon,
-  ClapperboardIcon,
   LayoutDashboardIcon,
   MenuIcon,
   MonitorPlayIcon,
@@ -26,17 +25,16 @@ const NAV = [
 function NavLinks({
   onNavigate,
   className,
-  showBooth,
+  showScreens,
 }: {
   onNavigate?: () => void;
   className?: string;
-  showBooth?: boolean;
+  showScreens?: boolean;
 }) {
   const pathname = usePathname();
-  const items = showBooth
+  const items = showScreens
     ? [
         ...NAV.slice(0, 2),
-        { href: "/booth", label: "Booth", icon: ClapperboardIcon },
         { href: "/screens", label: "Screens", icon: MonitorPlayIcon },
         ...NAV.slice(2),
       ]
@@ -83,13 +81,13 @@ export function AppShell({
   venueName,
   roleLabel,
   userLabel,
-  showBooth = false,
+  showScreens = false,
 }: {
   children: React.ReactNode;
   venueName: string;
   roleLabel: string;
   userLabel: string;
-  showBooth?: boolean;
+  showScreens?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -98,7 +96,7 @@ export function AppShell({
       <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <Brand />
         <div className="flex-1 px-2">
-          <NavLinks showBooth={showBooth} />
+          <NavLinks showScreens={showScreens} />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
           <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
@@ -122,7 +120,7 @@ export function AppShell({
                 <SheetTitle className="text-sidebar-foreground">FloBama OS</SheetTitle>
               </SheetHeader>
               <div className="px-2 pb-6">
-                <NavLinks showBooth={showBooth} onNavigate={() => setOpen(false)} />
+                <NavLinks showScreens={showScreens} onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>

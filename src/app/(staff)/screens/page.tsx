@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { getScreenWallState, getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
+import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
 import { TakeoverPanel } from "@/components/screens/takeover-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
 import { ErrorState } from "@/components/states";
@@ -12,13 +13,18 @@ import { joinPublicUrl } from "@/lib/public/urls";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScreensPage() {
+export default async function ScreensPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
   if (!canManageProgramming(context.role)) redirect("/dashboard");
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
 
+  const tab: ScreensTab = (await searchParams).tab === "vertical" ? "vertical" : "led";
   const [{ wall, error: wallError }, { ads, error: adsError }, takeoverRes] = await Promise.all([
     getScreenWallState(supabase, context.venue.id),
     listStaffScreenAds(supabase, context.venue.id),
@@ -37,22 +43,36 @@ export default async function ScreensPage() {
     return <ErrorState title="Could not load ads" description={adsError} />;
   }
 
+  const supabaseEnv = getPublicSupabaseEnv();
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Screens</h1>
         <p className="text-muted-foreground">
-          Enable OBS scenes for the 16ft LED wall, rotate ads on the shared vertical players, and hold one
-          graphic when a band or event takes over.
+          LED wall scene control and the shared vertical ad players, including timed takeovers.
         </p>
       </header>
-      <LedWallPanel wall={wall} />
-      <TakeoverPanel ads={ads} takeover={takeoverRes.takeover} missingTable={takeoverRes.missingTable} />
-      <VerticalAdsPanel
-        ads={ads}
-        venueId={context.venue.id}
-        displayUrl={joinPublicUrl(getPublicAppUrl(), "/display/vertical")}
-        supabaseEnv={getPublicSupabaseEnv()}
+      <ScreensWorkspace
+        defaultTab={tab}
+        led={<LedWallPanel wall={wall} />}
+        vertical={
+          <>
+            <TakeoverPanel
+              ads={ads}
+              takeover={takeoverRes.takeover}
+              missingTable={takeoverRes.missingTable}
+              venueId={context.venue.id}
+              supabaseEnv={supabaseEnv}
+            />
+            <VerticalAdsPanel
+              ads={ads}
+              venueId={context.venue.id}
+              displayUrl={joinPublicUrl(getPublicAppUrl(), "/display/vertical")}
+              supabaseEnv={supabaseEnv}
+            />
+          </>
+        }
       />
     </div>
   );
