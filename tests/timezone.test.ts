@@ -6,6 +6,7 @@ import {
   toVenueDateInput,
   toVenueTimeInput,
   venueDayBounds,
+  venueWeekBounds,
 } from "@/lib/timezone";
 
 const ZONE = "America/Chicago";
@@ -63,5 +64,13 @@ describe("dashboard today overlap", () => {
     const first = venueDayBounds(new Date("2026-01-01T06:00:00.000Z"), ZONE);
     const second = venueDayBounds(new Date("2026-07-04T06:00:00.000Z"), ZONE);
     expect(first.start.toISODate()).not.toBe(second.start.toISODate());
+  });
+});
+
+describe("venue week bounds", () => {
+  it("uses Sunday through Saturday in America/Chicago", () => {
+    const tuesday = venueWeekBounds(new Date("2026-09-08T22:00:00.000Z"), ZONE);
+    expect(tuesday.start.setZone(ZONE).toFormat("cccc yyyy-LL-dd HH:mm")).toBe("Sunday 2026-09-06 00:00");
+    expect(tuesday.end.setZone(ZONE).toFormat("cccc yyyy-LL-dd HH:mm")).toBe("Sunday 2026-09-13 00:00");
   });
 });

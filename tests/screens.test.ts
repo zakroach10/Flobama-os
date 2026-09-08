@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_VERTICAL_ADS } from "@/lib/screens/demo";
+import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import { holdMsForAd, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
+import { buildWeekSlidePayload, paginateWeekDays } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { screenAdMetaSchema } from "@/lib/validation/schemas";
 
@@ -94,10 +95,119 @@ describe("vertical playlist", () => {
     ).toBe(true);
   });
 
-  it("ships a two-slide local fixture for the vertical player", () => {
-    expect(DEMO_VERTICAL_ADS).toHaveLength(2);
-    expect(DEMO_VERTICAL_ADS.every((ad) => ad.url.startsWith("data:image/svg+xml"))).toBe(true);
+  it("ships a local fixture that includes the weekly events slide", () => {
+    expect(DEMO_VERTICAL_ADS).toHaveLength(3);
+    expect(DEMO_VERTICAL_ADS[2]?.mediaKind).toBe("week_events");
+    expect(DEMO_WEEK_SLIDE.eventCount).toBe(3);
     expect(holdMsForAd(DEMO_VERTICAL_ADS[0]!)).toBe(4000);
+  });
+
+  it("keeps a week slide in the public playlist", () => {
+    const playlist = toPublicPlaylist([
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        title: "This week's events",
+        public_url: "dynamic://week_events",
+        media_kind: "week_events",
+        duration_seconds: 20,
+        transition: "fade",
+        sort_order: 0,
+        enabled: true,
+        archived_at: null,
+      },
+    ]);
+    expect(playlist[0]?.mediaKind).toBe("week_events");
+    expect(playlist[0]?.url).toBe("dynamic://week_events");
+  });
+
+  it("requires a hold time for the week slide", () => {
+    expect(
+      screenAdMetaSchema.safeParse({
+        title: "This week's events",
+        durationSeconds: null,
+        transition: "fade",
+        enabled: true,
+        mediaKind: "week_events",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("this week slide", () => {
+  it("groups public events by venue-local day", () => {
+    const payload = buildWeekSlidePayload(
+      [
+        {
+          id: "a",
+          name: "Tuesday band",
+          day: "Tuesday",
+          date: "Sep 8, 2026",
+          time: "7:00 PM",
+          display: "Tue, Sep 8 • 7:00 PM",
+          ticketed: false,
+          ticketUrl: null,
+          coverCharge: null,
+          startsAt: "2026-09-09T00:00:00.000Z",
+          endsAt: "2026-09-09T03:00:00.000Z",
+          eventType: "live_music",
+          locationLabel: null,
+          featured: false,
+          artists: ["Tuesday band"],
+        },
+        {
+          id: "b",
+          name: "Late set",
+          day: "Tuesday",
+          date: "Sep 8, 2026",
+          time: "10:30 PM",
+          display: "Tue, Sep 8 • 10:30 PM",
+          ticketed: false,
+          ticketUrl: null,
+          coverCharge: "$5",
+          startsAt: "2026-09-09T03:30:00.000Z",
+          endsAt: "2026-09-09T05:30:00.000Z",
+          eventType: "live_music",
+          locationLabel: null,
+          featured: false,
+          artists: [],
+        },
+      ],
+      new Date("2026-09-08T22:00:00.000Z"),
+    );
+    expect(payload.rangeLabel).toBe("Sep 6–12, 2026");
+    expect(payload.days).toHaveLength(1);
+    expect(payload.days[0]?.events.map((event) => event.name)).toEqual(["Tuesday band", "Late set"]);
+  });
+
+  it("paginates a busy week without dropping days", () => {
+    const days = Array.from({ length: 7 }, (_, index) => ({
+      dateKey: `2026-09-0${index + 6}`,
+      weekday: "Day",
+      dateLabel: `Sep ${index + 6}`,
+      events: [
+        {
+          id: `${index}-a`,
+          name: "Early",
+          time: "7:00 PM",
+          artists: [],
+          ticketed: false,
+          coverCharge: null,
+          featured: false,
+        },
+        {
+          id: `${index}-b`,
+          name: "Late",
+          time: "10:00 PM",
+          artists: [],
+          ticketed: false,
+          coverCharge: null,
+          featured: false,
+        },
+      ],
+    }));
+    const pages = paginateWeekDays(days, 8);
+    expect(pages.flat().flatMap((day) => day.events)).toHaveLength(14);
+    expect(pages.length).toBeGreaterThan(1);
   });
 });
 

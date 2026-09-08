@@ -161,6 +161,17 @@ export function venueDayBounds(
   return { start, end };
 }
 
+/** Sunday 00:00 through next Sunday 00:00 in the venue timezone. */
+export function venueWeekBounds(
+  instant: Date = new Date(),
+  timeZone: string = DEFAULT_VENUE_TIMEZONE,
+): { start: DateTime; end: DateTime } {
+  const local = DateTime.fromJSDate(instant, { zone: timeZone });
+  const start = local.startOf("day").minus({ days: local.weekday % 7 });
+  const end = start.plus({ days: 7 });
+  return { start, end };
+}
+
 export function eventOverlapsVenueDay(
   startsAtIso: string,
   endsAtIso: string,

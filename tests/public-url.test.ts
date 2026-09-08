@@ -17,6 +17,7 @@ describe("public site URLs", () => {
     expect(surfaces.eventsApi).toBe("https://flobama-os.vercel.app/api/public/v1/events");
     expect(surfaces.verticalDisplay).toBe("https://flobama-os.vercel.app/display/vertical");
     expect(surfaces.verticalApi).toBe("https://flobama-os.vercel.app/api/public/v1/screens/vertical");
+    expect(surfaces.weekApi).toBe("https://flobama-os.vercel.app/api/public/v1/screens/week");
     expect(surfaces.embedSnippet).toContain('src="https://flobama-os.vercel.app/embed/events"');
     expect(surfaces.embedSnippet).toContain("https://flobama-os.vercel.app/embed/events.js");
     expect(joinPublicUrl("https://flobama-os.vercel.app/", "overlay")).toBe(

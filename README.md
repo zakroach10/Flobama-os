@@ -32,7 +32,7 @@ cp .env.example .env.local
 - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
 3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
-   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, and `20260908000005_screens.sql`.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, and `20260908000006_week_events_slide.sql`.  
 
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
@@ -160,5 +160,7 @@ Every 1080×1920 player opens the same page:
 `https://flobama-os.vercel.app/display/vertical`
 
 Upload stills or short videos on Screens. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`.
+
+**This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists, cover/tickets). The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. Apply `20260908000006_week_events_slide.sql` before adding it.
 
 Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).

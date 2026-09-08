@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { WEEK_EVENTS_DEFAULT_SECONDS, WEEK_EVENTS_PUBLIC_URL } from "@/lib/constants";
 import { getPublicSupabaseEnv } from "@/lib/env";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import {
@@ -126,6 +127,49 @@ export async function uploadScreenAdAction(formData: FormData): Promise<ScreenAc
 
   revalidateScreens();
   return { ok: true, message: "Ad added to the vertical rotation." };
+}
+
+export async function addWeekEventsSlideAction(): Promise<ScreenActionResult> {
+  const gate = await screensGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const { data: existing, error: existingError } = await gate.supabase
+    .from("screen_ads")
+    .select("id")
+    .eq("venue_id", gate.context.venue.id)
+    .eq("media_kind", "week_events")
+    .is("archived_at", null)
+    .limit(1);
+  if (existingError) return { ok: false, message: existingError.message };
+  if ((existing ?? []).length > 0) {
+    return { ok: false, message: "This week's events is already in the playlist." };
+  }
+
+  const { count } = await gate.supabase
+    .from("screen_ads")
+    .select("id", { count: "exact", head: true })
+    .eq("venue_id", gate.context.venue.id)
+    .is("archived_at", null);
+
+  const { error } = await gate.supabase.from("screen_ads").insert({
+    venue_id: gate.context.venue.id,
+    title: "This week's events",
+    storage_path: "",
+    public_url: WEEK_EVENTS_PUBLIC_URL,
+    media_kind: "week_events",
+    duration_seconds: WEEK_EVENTS_DEFAULT_SECONDS,
+    transition: "fade",
+    sort_order: count ?? 0,
+    enabled: true,
+  });
+  if (error) {
+    return {
+      ok: false,
+      message: `${error.message} Apply supabase/migrations/20260908000006_week_events_slide.sql if week_events is missing.`,
+    };
+  }
+  revalidateScreens();
+  return { ok: true, message: "This week's events was added to the rotation." };
 }
 
 export async function updateScreenAdAction(input: unknown): Promise<ScreenActionResult> {

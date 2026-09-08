@@ -3,7 +3,7 @@ import type { Database } from "@/lib/database.types";
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/constants";
 import { toPublicEventJson, type PublicEventJson } from "@/lib/public/listings";
-import { venueDayBounds } from "@/lib/timezone";
+import { venueDayBounds, venueWeekBounds } from "@/lib/timezone";
 
 type Client = SupabaseClient<Database>;
 type ListingRow = Database["public"]["Views"]["event_listings"]["Row"];
@@ -52,6 +52,7 @@ export async function listPublicEvents(
     toIso?: string | null;
     limit?: number;
     upcomingByEnd?: boolean;
+    overlap?: boolean;
   } = {},
 ): Promise<{ events: PublicEventJson[]; error: string | null }> {
   const venueId = options.venueId ?? FLO_BAMA_VENUE_ID;
@@ -62,11 +63,16 @@ export async function listPublicEvents(
     .order("starts_at", { ascending: true })
     .limit(options.limit ?? 80);
 
-  if (options.fromIso) {
-    query = options.upcomingByEnd === false ? query.gte("starts_at", options.fromIso) : query.gte("ends_at", options.fromIso);
-  }
-  if (options.toIso) {
-    query = query.lte("starts_at", options.toIso);
+  if (options.overlap && options.fromIso && options.toIso) {
+    query = query.lt("starts_at", options.toIso).gt("ends_at", options.fromIso);
+  } else {
+    if (options.fromIso) {
+      query =
+        options.upcomingByEnd === false ? query.gte("starts_at", options.fromIso) : query.gte("ends_at", options.fromIso);
+    }
+    if (options.toIso) {
+      query = query.lte("starts_at", options.toIso);
+    }
   }
 
   const { data, error } = await query;
@@ -82,6 +88,25 @@ export async function listPublicEvents(
       .map((row) => toPublicEventJson(listingToStaff(row, artists.get(row.id) ?? [])))
       .filter((row): row is PublicEventJson => row !== null),
   };
+}
+
+export async function listPublicWeekEvents(
+  client: Client,
+  venueId = FLO_BAMA_VENUE_ID,
+  now: Date = new Date(),
+  timeZone = DEFAULT_VENUE_TIMEZONE,
+): Promise<{ events: PublicEventJson[]; error: string | null }> {
+  const { start, end } = venueWeekBounds(now, timeZone);
+  const startIso = start.toUTC().toISO();
+  const endIso = end.toUTC().toISO();
+  return listPublicEvents(client, {
+    venueId,
+    fromIso: startIso,
+    toIso: endIso,
+    limit: 80,
+    upcomingByEnd: false,
+    overlap: true,
+  });
 }
 
 export async function getPublicEvent(

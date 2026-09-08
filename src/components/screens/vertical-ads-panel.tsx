@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  addWeekEventsSlideAction,
   archiveScreenAdAction,
   reorderScreenAdsAction,
   updateScreenAdAction,
@@ -29,7 +30,8 @@ export function VerticalAdsPanel({ ads, displayUrl }: { ads: StaffScreenAd[]; di
       <div>
         <h2 className="text-lg font-semibold">Vertical screens</h2>
         <p className="text-sm text-muted-foreground">
-          One shared 1080×1920 playlist. Point every vertical player at this URL.
+          One shared 1080×1920 playlist. Point every vertical player at this URL. Add a live “this week”
+          slide to pull public shows for the current Sunday–Saturday week.
         </p>
         <p className="mt-2 text-sm break-all">{displayUrl}</p>
         <Button
@@ -119,16 +121,33 @@ export function VerticalAdsPanel({ ads, displayUrl }: { ads: StaffScreenAd[]; di
             ))}
           </select>
         </div>
-        <div className="sm:col-span-2">
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
           <Button type="submit" disabled={pending}>
             {pending ? "Uploading…" : "Add to rotation"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending || ads.some((ad) => ad.media_kind === "week_events")}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await addWeekEventsSlideAction();
+                if (!result.ok) toast.error(result.message);
+                else {
+                  toast.success(result.message);
+                  router.refresh();
+                }
+              })
+            }
+          >
+            Add this week’s events
           </Button>
         </div>
       </form>
 
       {ads.length === 0 ? (
         <p className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
-          No ads yet. Upload the first still or video to fill the vertical screens.
+          No ads yet. Upload a still or video, or add this week’s events.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -191,7 +210,11 @@ function AdRow({
   return (
     <li className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[96px_1fr]">
       <div className="overflow-hidden rounded-md bg-muted">
-        {ad.media_kind === "video" ? (
+        {ad.media_kind === "week_events" ? (
+          <div className="flex h-24 w-full items-center justify-center bg-[#1b1612] px-2 text-center text-xs text-[#e4c4b0]">
+            This week
+          </div>
+        ) : ad.media_kind === "video" ? (
           <video src={ad.public_url} muted className="h-24 w-full object-cover" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
@@ -207,7 +230,7 @@ function AdRow({
           value={duration}
           onChange={(e) => setDuration(e.target.value)}
           aria-label="Duration seconds"
-          placeholder={ad.media_kind === "video" ? "Full video" : "10"}
+          placeholder={ad.media_kind === "video" ? "Full video" : ad.media_kind === "week_events" ? "20" : "10"}
         />
         <select
           className="h-11 min-h-11 rounded-lg border border-input bg-transparent px-3 text-sm"

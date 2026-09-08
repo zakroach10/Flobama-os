@@ -166,14 +166,14 @@ export const screenAdMetaSchema = z
     durationSeconds: z.number().int().min(1).max(600).nullable(),
     transition: z.enum(SCREEN_TRANSITIONS),
     enabled: z.boolean().default(true),
-    mediaKind: z.enum(["image", "video"]).optional(),
+    mediaKind: z.enum(["image", "video", "week_events"]).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.mediaKind === "image" && value.durationSeconds == null) {
+    if ((value.mediaKind === "image" || value.mediaKind === "week_events") && value.durationSeconds == null) {
       ctx.addIssue({
         code: "custom",
         path: ["durationSeconds"],
-        message: "Images need a hold time.",
+        message: value.mediaKind === "week_events" ? "This week needs a hold time." : "Images need a hold time.",
       });
     }
   });

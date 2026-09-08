@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { holdMsForAd, type PublicScreenAd } from "@/lib/screens/playlist";
+import type { WeekSlidePayload } from "@/lib/screens/week";
+import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
 export function VerticalPlayer({
   initialAds,
+  initialWeek = null,
   lockPlaylist = false,
 }: {
   initialAds: PublicScreenAd[];
+  initialWeek?: WeekSlidePayload | null;
   lockPlaylist?: boolean;
 }) {
   const [ads, setAds] = useState(initialAds);
+  const [week, setWeek] = useState(initialWeek);
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -19,13 +24,19 @@ export function VerticalPlayer({
     let cancelled = false;
     async function refresh() {
       try {
-        const response = await fetch("/api/public/v1/screens/vertical", { cache: "no-store" });
-        const json = (await response.json()) as { ads?: PublicScreenAd[] };
-        if (!cancelled && Array.isArray(json.ads)) setAds(json.ads);
+        const [playlistRes, weekRes] = await Promise.all([
+          fetch("/api/public/v1/screens/vertical", { cache: "no-store" }),
+          fetch("/api/public/v1/screens/week", { cache: "no-store" }),
+        ]);
+        const playlist = (await playlistRes.json()) as { ads?: PublicScreenAd[] };
+        const weekJson = (await weekRes.json()) as WeekSlidePayload;
+        if (!cancelled && Array.isArray(playlist.ads)) setAds(playlist.ads);
+        if (!cancelled && weekJson && Array.isArray(weekJson.days)) setWeek(weekJson);
       } catch {
         // keep current playlist
       }
     }
+    void refresh();
     const timer = window.setInterval(() => void refresh(), 30000);
     return () => {
       cancelled = true;
@@ -53,9 +64,7 @@ export function VerticalPlayer({
 
   return (
     <div className="grid h-full w-full place-items-center overflow-hidden bg-[#1b1612]">
-      <div
-        className="relative h-[1920px] w-[1080px] shrink-0 origin-center overflow-hidden bg-[#1b1612] [transform:scale(min(calc(100dvw/1080),calc(100dvh/1920)))]"
-      >
+      <div className="relative h-[1920px] w-[1080px] shrink-0 origin-center overflow-hidden bg-[#1b1612] [transform:scale(min(calc(100dvw/1080),calc(100dvh/1920)))]">
         {!current ? (
           <div className="flex h-full w-full items-center justify-center text-center">
             <p className="px-16 text-4xl text-[#c9b8aa]">No ads scheduled</p>
@@ -70,7 +79,9 @@ export function VerticalPlayer({
                   : "opacity-0"
             }`}
           >
-            {current.mediaKind === "video" ? (
+            {current.mediaKind === "week_events" ? (
+              <WeekEventsSlide week={week} />
+            ) : current.mediaKind === "video" ? (
               <video
                 key={current.id}
                 src={current.url}

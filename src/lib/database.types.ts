@@ -293,7 +293,7 @@ export type Database = {
           title: string;
           storage_path: string;
           public_url: string;
-          media_kind: "image" | "video";
+          media_kind: "image" | "video" | "week_events";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
@@ -308,7 +308,7 @@ export type Database = {
           title: string;
           storage_path: string;
           public_url: string;
-          media_kind: "image" | "video";
+          media_kind: "image" | "video" | "week_events";
           duration_seconds?: number | null;
           transition?: "cut" | "fade" | "slide";
           sort_order?: number;
@@ -366,7 +366,7 @@ export type Database = {
           venue_id: string;
           title: string;
           public_url: string;
-          media_kind: "image" | "video";
+          media_kind: "image" | "video" | "week_events";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
@@ -412,7 +412,7 @@ export type Database = {
       event_visibility: "public" | "private";
       event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
       screen_wall_mode: "auto" | "manual";
-      screen_media_kind: "image" | "video";
+      screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
     };
     CompositeTypes: {
