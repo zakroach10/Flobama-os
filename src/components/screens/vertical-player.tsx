@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { VERTICAL_PLAYLIST_POLL_MS } from "@/lib/constants";
 import {
   holdMsForAd,
   isWeekEventsAd,
   nextPlaylistIndex,
   normalizePublicPlaylist,
+  playlistRevision,
   playlistsEqual,
   type PublicScreenAd,
 } from "@/lib/screens/playlist";
@@ -26,6 +28,7 @@ export function VerticalPlayer({
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
+  const revisionRef = useRef(playlistRevision(ads));
 
   useEffect(() => {
     adsRef.current = ads;
@@ -36,24 +39,28 @@ export function VerticalPlayer({
     let cancelled = false;
     async function refresh() {
       try {
-        const [playlistRes, weekRes] = await Promise.all([
-          fetch("/api/public/v1/screens/vertical", { cache: "no-store" }),
-          fetch("/api/public/v1/screens/week", { cache: "no-store" }),
-        ]);
-        const playlist = (await playlistRes.json()) as { ads?: PublicScreenAd[]; week?: WeekSlidePayload | null };
-        const weekJson = (await weekRes.json()) as WeekSlidePayload;
-        if (!cancelled && Array.isArray(playlist.ads)) {
-          const next = normalizePublicPlaylist(playlist.ads);
-          setAds((currentAds) => (playlistsEqual(currentAds, next) ? currentAds : next));
+        const response = await fetch("/api/public/v1/screens/vertical", { cache: "no-store" });
+        const playlist = (await response.json()) as {
+          ads?: PublicScreenAd[];
+          revision?: string;
+          week?: WeekSlidePayload | null;
+        };
+        if (cancelled || !Array.isArray(playlist.ads)) return;
+        const next = normalizePublicPlaylist(playlist.ads);
+        const nextRevision = playlist.revision ?? playlistRevision(next);
+        if (nextRevision !== revisionRef.current) {
+          revisionRef.current = nextRevision;
+          window.location.reload();
+          return;
         }
-        const nextWeek = playlist.week && Array.isArray(playlist.week.days) ? playlist.week : weekJson;
-        if (!cancelled && nextWeek && Array.isArray(nextWeek.days)) setWeek(nextWeek);
+        setAds((currentAds) => (playlistsEqual(currentAds, next) ? currentAds : next));
+        if (playlist.week && Array.isArray(playlist.week.days)) setWeek(playlist.week);
       } catch {
         // keep current playlist
       }
     }
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 30000);
+    const timer = window.setInterval(() => void refresh(), VERTICAL_PLAYLIST_POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

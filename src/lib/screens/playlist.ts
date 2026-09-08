@@ -77,6 +77,12 @@ export function nextPlaylistIndex(index: number, length: number) {
   return (index + 1) % length;
 }
 
+export function playlistRevision(ads: PublicScreenAd[]) {
+  return ads
+    .map((ad) => [ad.id, ad.url, ad.mediaKind, ad.durationSeconds ?? "", ad.transition, ad.title].join(":"))
+    .join("|");
+}
+
 export function playlistsEqual(left: PublicScreenAd[], right: PublicScreenAd[]) {
   if (left.length !== right.length) return false;
   return left.every(

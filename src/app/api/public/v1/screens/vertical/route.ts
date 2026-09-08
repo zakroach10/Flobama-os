@@ -1,8 +1,8 @@
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { publicJson, publicOptions } from "@/lib/public/http";
+import { PUBLIC_NO_STORE, publicJson, publicOptions } from "@/lib/public/http";
 import { listPublicWeekEvents } from "@/lib/public/queries";
 import { listPublicVerticalAds } from "@/lib/queries/screens";
-import { normalizePublicPlaylist } from "@/lib/screens/playlist";
+import { normalizePublicPlaylist, playlistRevision } from "@/lib/screens/playlist";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 
@@ -21,9 +21,14 @@ export async function GET() {
   ]);
   if (error) return publicJson({ error }, 500);
   const playlist = normalizePublicPlaylist(ads);
-  return publicJson({
-    ads: playlist,
-    count: playlist.length,
-    week: weekRes.error ? null : buildWeekSlidePayload(weekRes.events),
-  });
+  return publicJson(
+    {
+      ads: playlist,
+      count: playlist.length,
+      revision: playlistRevision(playlist),
+      week: weekRes.error ? null : buildWeekSlidePayload(weekRes.events),
+    },
+    200,
+    PUBLIC_NO_STORE,
+  );
 }

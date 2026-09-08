@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
-import { holdMsForAd, nextPlaylistIndex, playlistsEqual, toPublicPlaylist, type StaffScreenAd } from "@/lib/screens/playlist";
+import {
+  holdMsForAd,
+  nextPlaylistIndex,
+  playlistRevision,
+  playlistsEqual,
+  toPublicPlaylist,
+  type StaffScreenAd,
+} from "@/lib/screens/playlist";
 import { buildWeekSlidePayload, paginateWeekDays } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
@@ -134,6 +141,19 @@ describe("vertical playlist", () => {
     ])[0];
     expect(storedAsImage?.mediaKind).toBe("week_events");
     expect(holdMsForAd(storedAsImage!)).toBe(20000);
+  });
+
+  it("changes playlist revision when a new ad is added", () => {
+    const first = toPublicPlaylist([sample[2]]);
+    const added = {
+      ...sample[2],
+      id: "4",
+      title: "New still",
+      public_url: "https://example.com/d.jpg",
+    };
+    const second = toPublicPlaylist([sample[2], added]);
+    expect(playlistRevision(first)).not.toBe(playlistRevision(second));
+    expect(playlistRevision(first)).toBe(playlistRevision(toPublicPlaylist([sample[2]])));
   });
 
   it("advances the playlist without resetting when contents are unchanged", () => {
