@@ -56,6 +56,16 @@ export function parseVenueLocalDateTime(
     };
   }
 
+  const wall = dt.toFormat("yyyy-LL-dd HH:mm");
+  const expected = `${date} ${time}`;
+  if (wall !== expected) {
+    return {
+      ok: false,
+      code: "invalid_local",
+      message: `That local time does not exist in ${timeZone} (often during a spring-forward daylight-saving gap). Choose another time.`,
+    };
+  }
+
   if (countLocalInterpretations(date, time, timeZone) > 1) {
     return {
       ok: false,
