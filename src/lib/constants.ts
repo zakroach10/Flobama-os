@@ -58,6 +58,7 @@ export const SCREEN_MEDIA_KINDS = ["image", "video", "week_events"] as const;
 export type ScreenMediaKind = (typeof SCREEN_MEDIA_KINDS)[number];
 
 export const WEEK_EVENTS_PUBLIC_URL = "dynamic://week_events";
+export const WEEK_EVENTS_STORAGE_PATH = "dynamic/week_events";
 export const WEEK_EVENTS_DEFAULT_SECONDS = 20;
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {

@@ -1,4 +1,4 @@
-import type { ScreenMediaKind, ScreenTransition } from "@/lib/constants";
+import { WEEK_EVENTS_PUBLIC_URL, type ScreenMediaKind, type ScreenTransition } from "@/lib/constants";
 
 export type StaffScreenAd = {
   id: string;
@@ -21,6 +21,22 @@ export type PublicScreenAd = {
   transition: ScreenTransition;
 };
 
+export function isWeekEventsUrl(url: string | null | undefined) {
+  return (url ?? "").startsWith(WEEK_EVENTS_PUBLIC_URL);
+}
+
+export function resolvePublicMediaKind(ad: {
+  media_kind?: ScreenMediaKind | string;
+  mediaKind?: ScreenMediaKind | string;
+  public_url?: string;
+  url?: string;
+}): ScreenMediaKind {
+  if (isWeekEventsUrl(ad.url ?? ad.public_url) || ad.media_kind === "week_events" || ad.mediaKind === "week_events") {
+    return "week_events";
+  }
+  return (ad.mediaKind ?? ad.media_kind ?? "image") as ScreenMediaKind;
+}
+
 export function toPublicPlaylist(ads: StaffScreenAd[]): PublicScreenAd[] {
   return [...ads]
     .filter((ad) => ad.enabled && ad.archived_at === null)
@@ -29,7 +45,7 @@ export function toPublicPlaylist(ads: StaffScreenAd[]): PublicScreenAd[] {
       id: ad.id,
       title: ad.title,
       url: ad.public_url,
-      mediaKind: ad.media_kind,
+      mediaKind: resolvePublicMediaKind(ad),
       durationSeconds: ad.duration_seconds,
       transition: ad.transition,
     }));
@@ -57,6 +73,10 @@ export function playlistsEqual(left: PublicScreenAd[], right: PublicScreenAd[]) 
   );
 }
 
-export function isWeekEventsAd(ad: Pick<PublicScreenAd, "mediaKind"> | Pick<StaffScreenAd, "media_kind">) {
-  return "mediaKind" in ad ? ad.mediaKind === "week_events" : ad.media_kind === "week_events";
+export function isWeekEventsAd(
+  ad:
+    | Pick<PublicScreenAd, "mediaKind" | "url">
+    | Pick<StaffScreenAd, "media_kind" | "public_url">,
+) {
+  return resolvePublicMediaKind(ad) === "week_events";
 }

@@ -119,6 +119,21 @@ describe("vertical playlist", () => {
     ]);
     expect(playlist[0]?.mediaKind).toBe("week_events");
     expect(playlist[0]?.url).toBe("dynamic://week_events");
+    expect(
+      toPublicPlaylist([
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          title: "This week's events",
+          public_url: "dynamic://week_events",
+          media_kind: "image",
+          duration_seconds: 20,
+          transition: "fade",
+          sort_order: 0,
+          enabled: true,
+          archived_at: null,
+        },
+      ])[0]?.mediaKind,
+    ).toBe("week_events");
   });
 
   it("advances the playlist without resetting when contents are unchanged", () => {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { WEEK_EVENTS_DEFAULT_SECONDS, WEEK_EVENTS_PUBLIC_URL } from "@/lib/constants";
+import { WEEK_EVENTS_DEFAULT_SECONDS, WEEK_EVENTS_PUBLIC_URL, WEEK_EVENTS_STORAGE_PATH } from "@/lib/constants";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import {
   createScreenAdRecordSchema,
@@ -93,7 +93,7 @@ export async function addWeekEventsSlideAction(): Promise<ScreenActionResult> {
     .from("screen_ads")
     .select("id")
     .eq("venue_id", gate.context.venue.id)
-    .eq("media_kind", "week_events")
+    .eq("public_url", WEEK_EVENTS_PUBLIC_URL)
     .is("archived_at", null)
     .limit(1);
   if (existingError) return { ok: false, message: existingError.message };
@@ -107,22 +107,23 @@ export async function addWeekEventsSlideAction(): Promise<ScreenActionResult> {
     .eq("venue_id", gate.context.venue.id)
     .is("archived_at", null);
 
-  const { error } = await gate.supabase.from("screen_ads").insert({
+  const row = {
     venue_id: gate.context.venue.id,
     title: "This week's events",
-    storage_path: "",
+    storage_path: WEEK_EVENTS_STORAGE_PATH,
     public_url: WEEK_EVENTS_PUBLIC_URL,
-    media_kind: "week_events",
     duration_seconds: WEEK_EVENTS_DEFAULT_SECONDS,
-    transition: "fade",
+    transition: "fade" as const,
     sort_order: count ?? 0,
     enabled: true,
-  });
+  };
+  const inserted = await gate.supabase.from("screen_ads").insert({ ...row, media_kind: "week_events" });
+  const error =
+    inserted.error && /invalid input value for enum/i.test(inserted.error.message)
+      ? (await gate.supabase.from("screen_ads").insert({ ...row, media_kind: "image" })).error
+      : inserted.error;
   if (error) {
-    return {
-      ok: false,
-      message: `${error.message} Apply supabase/migrations/20260908000006_week_events_slide.sql if week_events is missing.`,
-    };
+    return { ok: false, message: error.message };
   }
   revalidateScreens();
   return { ok: true, message: "This week's events was added to the rotation." };

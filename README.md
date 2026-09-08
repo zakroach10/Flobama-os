@@ -161,6 +161,6 @@ Every 1080×1920 player opens the same page:
 
 Upload stills or short videos on Screens (50 MB max). Files go straight to the `screen-ads` bucket, then the playlist row is saved. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`.
 
-**This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists, cover/tickets). The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. Apply `20260908000006_week_events_slide.sql` before adding it.
+**This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists, cover/tickets). The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. If the hosted enum does not include `week_events` yet, the slide is stored as a dynamic playlist row and still plays correctly.
 
 Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).

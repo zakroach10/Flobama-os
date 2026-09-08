@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SCREEN_TRANSITION_LABELS, SCREEN_TRANSITIONS, type ScreenTransition } from "@/lib/constants";
-import type { StaffScreenAd } from "@/lib/screens/playlist";
+import { isWeekEventsAd, type StaffScreenAd } from "@/lib/screens/playlist";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import { describeUploadFailure, extensionForFile, MAX_SCREEN_AD_BYTES, mediaKindForFile } from "@/lib/screens/upload";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
@@ -151,7 +151,7 @@ export function VerticalAdsPanel({
           <Button
             type="button"
             variant="outline"
-            disabled={pending || ads.some((ad) => ad.media_kind === "week_events")}
+            disabled={pending || ads.some((ad) => isWeekEventsAd(ad))}
             onClick={() =>
               startTransition(async () => {
                 const result = await addWeekEventsSlideAction();
@@ -233,7 +233,7 @@ function AdRow({
   return (
     <li className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[96px_1fr]">
       <div className="overflow-hidden rounded-md bg-muted">
-        {ad.media_kind === "week_events" ? (
+        {isWeekEventsAd(ad) ? (
           <div className="flex h-24 w-full items-center justify-center bg-[#1b1612] px-2 text-center text-xs text-[#e4c4b0]">
             This week
           </div>
@@ -253,7 +253,7 @@ function AdRow({
           value={duration}
           onChange={(e) => setDuration(e.target.value)}
           aria-label="Duration seconds"
-          placeholder={ad.media_kind === "video" ? "Full video" : ad.media_kind === "week_events" ? "20" : "10"}
+          placeholder={ad.media_kind === "video" ? "Full video" : isWeekEventsAd(ad) ? "20" : "10"}
         />
         <select
           className="h-11 min-h-11 rounded-lg border border-input bg-transparent px-3 text-sm"
@@ -284,7 +284,7 @@ function AdRow({
                   durationSeconds: duration ? Number(duration) : null,
                   transition,
                   enabled,
-                  mediaKind: ad.media_kind,
+                  mediaKind: isWeekEventsAd(ad) ? "image" : ad.media_kind,
                 });
                 if (!result.ok) toast.error(result.message);
                 else {
