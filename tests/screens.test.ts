@@ -8,7 +8,8 @@ import {
   toPublicPlaylist,
   type StaffScreenAd,
 } from "@/lib/screens/playlist";
-import { buildWeekSlidePayload, paginateWeekDays } from "@/lib/screens/week";
+import { containScale } from "@/lib/screens/frame";
+import { buildWeekSlidePayload, paginateWeekDays, weekEventLineupMeta } from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { screenAdMetaSchema } from "@/lib/validation/schemas";
@@ -261,6 +262,37 @@ describe("this week slide", () => {
     const pages = paginateWeekDays(days, 8);
     expect(pages.flat().flatMap((day) => day.events)).toHaveLength(14);
     expect(pages.length).toBeGreaterThan(1);
+  });
+
+  it("lists time and artists without cover or tickets", () => {
+    expect(
+      weekEventLineupMeta({
+        time: "7:00 PM",
+        artists: ["Slaw Dogs"],
+      }),
+    ).toBe("7:00 PM · Slaw Dogs");
+    expect(
+      weekEventLineupMeta({
+        time: "10:30 PM",
+        artists: [],
+      }),
+    ).toBe("10:30 PM");
+    expect(
+      weekEventLineupMeta({
+        time: "8:00 PM",
+        artists: ["House band"],
+      }),
+    ).not.toMatch(/cover|tickets|\$/i);
+  });
+});
+
+describe("kiosk frame", () => {
+  it("contains the 1080×1920 stage inside the viewport", () => {
+    expect(containScale(1080, 1920)).toBe(1);
+    expect(containScale(2160, 3840)).toBe(2);
+    expect(containScale(1920, 1080)).toBeCloseTo(1080 / 1920);
+    expect(containScale(540, 960)).toBe(0.5);
+    expect(containScale(0, 1920)).toBe(1);
   });
 });
 

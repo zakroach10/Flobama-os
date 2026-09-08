@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { VERTICAL_PLAYLIST_POLL_MS } from "@/lib/constants";
+import { containScale, VERTICAL_FRAME_HEIGHT, VERTICAL_FRAME_WIDTH } from "@/lib/screens/frame";
 import {
   holdMsForAd,
   isWeekEventsAd,
@@ -29,10 +30,24 @@ export function VerticalPlayer({
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
   const revisionRef = useRef(playlistRevision(ads));
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState<number | null>(null);
 
   useEffect(() => {
     adsRef.current = ads;
   }, [ads]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const update = () => {
+      setScale(containScale(host.clientWidth, host.clientHeight));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (lockPlaylist) return;
@@ -90,8 +105,18 @@ export function VerticalPlayer({
   }, [currentId]);
 
   return (
-    <div className="grid h-full w-full place-items-center overflow-hidden bg-[#1b1612]">
-      <div className="relative h-[1920px] w-[1080px] shrink-0 origin-center overflow-hidden bg-[#1b1612] [transform:scale(min(calc(100dvw/1080),calc(100dvh/1920)))]">
+    <div ref={hostRef} className="relative h-full w-full overflow-hidden bg-[#1b1612]">
+      <div
+        className="absolute top-1/2 left-1/2 overflow-hidden bg-[#1b1612]"
+        style={{
+          width: VERTICAL_FRAME_WIDTH,
+          height: VERTICAL_FRAME_HEIGHT,
+          transform:
+            scale == null
+              ? `translate(-50%, -50%) scale(min(calc(100dvw / ${VERTICAL_FRAME_WIDTH}), calc(100dvh / ${VERTICAL_FRAME_HEIGHT})))`
+              : `translate(-50%, -50%) scale(${scale})`,
+        }}
+      >
         {!current ? (
           <div className="flex h-full w-full items-center justify-center text-center">
             <p className="px-16 text-4xl text-[#c9b8aa]">No ads scheduled</p>
@@ -112,7 +137,7 @@ export function VerticalPlayer({
               <video
                 key={current.id}
                 src={current.url}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 autoPlay
                 muted
                 playsInline
@@ -125,7 +150,7 @@ export function VerticalPlayer({
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={current.url} alt={current.title} className="h-full w-full object-cover" />
+              <img src={current.url} alt={current.title} className="h-full w-full object-contain" />
             )}
           </div>
         )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { paginateWeekDays, type WeekSlidePayload } from "@/lib/screens/week";
+import { paginateWeekDays, weekEventLineupMeta, type WeekSlidePayload } from "@/lib/screens/week";
 
 export function WeekEventsSlide({
   week,
@@ -47,11 +47,7 @@ export function WeekEventsSlide({
                   {day.events.map((event) => (
                     <li key={event.id}>
                       <p className="text-[44px] leading-tight font-medium">{event.name}</p>
-                      <p className="mt-1 text-[28px] text-[#c9b8aa]">
-                        {event.time}
-                        {event.artists.length > 0 ? ` · ${event.artists.join(", ")}` : ""}
-                        {event.coverCharge ? ` · ${event.coverCharge}` : event.ticketed ? " · Tickets" : ""}
-                      </p>
+                      <p className="mt-1 text-[28px] text-[#c9b8aa]">{weekEventLineupMeta(event)}</p>
                     </li>
                   ))}
                 </ul>

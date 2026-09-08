@@ -51,6 +51,12 @@ export function toWeekSlideEvent(event: PublicEventJson): WeekSlideEvent {
   };
 }
 
+export function weekEventLineupMeta(event: Pick<WeekSlideEvent, "time" | "artists">) {
+  const parts = [event.time];
+  if (event.artists.length > 0) parts.push(event.artists.join(", "));
+  return parts.join(" · ");
+}
+
 export function groupEventsByVenueDay(
   events: PublicEventJson[],
   timeZone: string = DEFAULT_VENUE_TIMEZONE,
