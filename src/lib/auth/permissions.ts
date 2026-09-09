@@ -9,16 +9,22 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Create and edit events and artists",
     "Import the legacy sheet",
     "Manage LED wall scenes and vertical ads",
+    "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the calendar and settings",
   ],
   manager: [
     "Create and edit events and artists",
     "Import the legacy sheet",
     "Manage LED wall scenes and vertical ads",
+    "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the staff directory",
     "View the calendar and settings",
   ],
-  viewer: ["View the calendar, artists, and staff directory", "View settings (read-only)"],
+  viewer: [
+    "View the calendar, artists, and staff directory",
+    "View ticketing sales, orders, and check-in status without selling or refunding",
+    "View settings (read-only)",
+  ],
 };
 
 export function canManageProgramming(role: StaffRole): boolean {

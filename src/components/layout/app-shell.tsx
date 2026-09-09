@@ -8,6 +8,7 @@ import {
   MenuIcon,
   MonitorPlayIcon,
   SettingsIcon,
+  TicketIcon,
   UsersIcon,
 } from "lucide-react";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
@@ -19,6 +20,7 @@ import { useState } from "react";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
+  { href: "/ticketing", label: "Ticketing", icon: TicketIcon },
   { href: "/artists", label: "Artists", icon: UsersIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];

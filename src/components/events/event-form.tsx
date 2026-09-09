@@ -269,7 +269,7 @@ export function EventForm({
               checked={values.isTicketed}
               onCheckedChange={(checked) => update("isTicketed", checked === true)}
             />
-            Ticketed show
+            Ticketed show (external link)
           </label>
           <Field error={fieldErrors.coverLabel?.[0]}>
             <Label htmlFor="coverLabel">Cover charge</Label>
@@ -289,6 +289,9 @@ export function EventForm({
             onChange={(e) => update("ticketUrl", e.target.value || null)}
             placeholder="https://"
           />
+          <p className="text-xs text-muted-foreground">
+            For FloBama Ticketing (tables, QR, door check-in), use the Ticketing tab on the saved event instead of an external URL.
+          </p>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field>

@@ -34,6 +34,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/overlay") ||
     pathname.startsWith("/display") ||
     pathname.startsWith("/print") ||
+    pathname.startsWith("/tickets") ||
+    pathname.startsWith("/t/") ||
     pathname.startsWith("/api/public");
   if (isPublic) {
     return response;

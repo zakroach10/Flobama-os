@@ -32,7 +32,7 @@ cp .env.example .env.local
 - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
 3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
-   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, and `20260908000006_week_events_slide.sql`.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, and `20260909000008_ticketing.sql`.  
 
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
@@ -70,9 +70,9 @@ npm run dev
 
 | Role | What they can do |
 | --- | --- |
-| Admin | Create staff, change roles, rename the venue, edit events/artists, screens |
-| Manager | Edit events/artists, import listings, screens. Cannot create staff or rename the venue |
-| Viewer | Read-only calendar, artists, and staff directory |
+| Admin | Create staff, change roles, rename the venue, edit events/artists, screens, ticketing |
+| Manager | Edit events/artists, import listings, screens, ticketing. Cannot create staff or rename the venue |
+| Viewer | Read-only calendar, artists, staff directory, ticketing sales |
 
 There is still no public registration. The **first** admin is created once:
 
@@ -169,3 +169,21 @@ The player contain-fits the 1080×1920 stage to the TV viewport so ads and the l
 **Takeover Ad Screens:** On the Vertical screens tab, upload an override graphic in that box or pick one from the library. Hold it for 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Uploaded overrides stay out of the regular rotation. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.
 
 Local preview of rotation without uploads: http://localhost:43123/display/vertical?demo=1 (development only).
+
+## FloBama Ticketing
+
+Native Event Manager module for general admission, VIP types, whole-table reservations, guest checkout, QR tickets, and door check-in. It is not a separate app.
+
+Apply `supabase/migrations/20260909000008_ticketing.sql` after the earlier migrations. Until that SQL is on the hosted database, staff Ticketing screens explain the gap and the public buyer flow still works at `/tickets/demo` (in-memory holds and orders on the running server process).
+
+Staff: **Ticketing** in the sidebar (Dashboard, Ticketed events, Orders, Check-in, Customers, Venue layout, Reports). On an event: **Overview / Ticketing / Table map / Sales**. Enable Ticketing on the event to copy the FloBama main-room layout (Tables 1–28) onto that show only.
+
+Public:
+
+- Event page: `/tickets/[eventId]` — demo: http://localhost:43123/tickets/demo
+- Ticket pass: `/t/[token]` (the QR is a random token; door staff resolve it server-side)
+- Door: `/ticketing/check-in/[eventId]` (alias `/admin/ticketing/check-in/[eventId]`)
+
+Checkout uses a labeled mock payment adapter. Do not set `STRIPE_SECRET_KEY` until Stripe is wired; V1 will refuse a live Stripe charge rather than pretend.
+
+Holds last 10 minutes. Table inventory uses `UPDATE … WHERE status = 'available'` (and the demo store’s equivalent) so two buyers cannot take the same table.

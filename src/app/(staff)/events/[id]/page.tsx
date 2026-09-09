@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -6,7 +5,7 @@ import { getEventById, artistNames } from "@/lib/queries/events";
 import { formatVenueDateTime } from "@/lib/timezone";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { EventActions } from "@/components/events/event-actions";
-import { StatusBadge, TypeBadge, VisibilityNote } from "@/components/status-badge";
+import { EventPageHeader } from "@/components/events/event-page-header";
 import { ErrorState } from "@/components/states";
 import { EVENT_VISIBILITY_LABELS } from "@/lib/constants";
 
@@ -26,30 +25,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            <Link href="/events" className="underline-offset-4 hover:underline">
-              Events
-            </Link>
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">{event.title}</h1>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge status={event.status} />
-            <TypeBadge type={event.event_type} />
-            <VisibilityNote visibility={event.visibility} />
-            {event.archived_at ? (
-              <span className="rounded-md border px-2 py-0.5 text-xs">Archived</span>
-            ) : null}
-          </div>
-        </div>
-        <EventActions
-          eventId={event.id}
-          status={event.status}
-          archived={Boolean(event.archived_at)}
-          canEdit={canManageProgramming(context.role)}
-        />
-      </div>
+      <EventPageHeader
+        event={event}
+        current="overview"
+        actions={
+          <EventActions
+            eventId={event.id}
+            status={event.status}
+            archived={Boolean(event.archived_at)}
+            canEdit={canManageProgramming(context.role)}
+          />
+        }
+      />
 
       {event.archived_at ? (
         <p className="rounded-lg border bg-muted px-4 py-3 text-sm">This event is archived.</p>
@@ -67,6 +54,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         <Item label="Ticket URL" value={event.ticket_url || "—"} />
         <Item label="Cover" value={event.cover_label || "—"} />
       </dl>
+      <p className="text-sm text-muted-foreground">
+        FloBama Ticketing (tables, QR, door check-in) lives on the Ticketing tab. The ticketed checkbox on the edit form is for an external ticket link.
+      </p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Public description</h2>
