@@ -1,6 +1,11 @@
 @page {
   size: letter portrait;
-  margin: 0.45in;
+  margin: 0.28in;
+}
+
+html,
+body {
+  background: #1b1612;
 }
 
 @media print {
@@ -10,8 +15,10 @@
 
   html,
   body {
-    background: #fff !important;
+    background: #1b1612 !important;
     height: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .flyer-sheet {
@@ -19,5 +26,7 @@
     margin: 0 !important;
     min-height: 0 !important;
     width: 100% !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

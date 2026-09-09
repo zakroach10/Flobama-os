@@ -12,45 +12,59 @@ export function WeekFlyer({
   const empty = days.every((day) => day.events.length === 0);
 
   return (
-    <article className="flyer-sheet mx-auto my-6 w-[8.5in] min-h-[11in] bg-[#f7f1ea] px-12 py-10 text-[#2c221c] shadow-lg print:my-0 print:shadow-none">
-      <header className="border-b-2 border-[#d36b4a] pb-6">
-        <p className="text-xs font-medium tracking-[0.28em] text-[#8a6f5c] uppercase">{venueName}</p>
-        <h1 className="mt-3 font-serif text-5xl leading-none">This week</h1>
-        <p className="mt-3 text-xl text-[#6e5344]">{rangeLabel}</p>
+    <article className="flyer-sheet mx-auto my-6 flex w-[8.5in] min-h-[11in] flex-col bg-[#1b1612] px-10 py-9 text-[#f4ebe3] shadow-lg print:my-0 print:shadow-none">
+      <header className="border-b-[6px] border-[#d36b4a] pb-6">
+        <p className="text-[13px] font-bold tracking-[0.42em] text-[#e4c4b0] uppercase">{venueName}</p>
+        <h1 className="mt-2 font-serif text-[80px] leading-none tracking-tight uppercase">This week</h1>
+        <p className="mt-4 text-[26px] font-bold tracking-[0.14em] text-[#d36b4a] uppercase">{rangeLabel}</p>
       </header>
 
       {empty ? (
-        <p className="mt-16 max-w-[18ch] font-serif text-3xl leading-tight text-[#8a6f5c]">
-          No public shows this week.
-        </p>
+        <p className="mt-16 max-w-[10ch] font-serif text-6xl leading-[0.9] text-[#e4c4b0]">No public shows this week.</p>
       ) : (
-        <ul className="mt-8 space-y-5">
-          {days.map((day) => (
-            <li key={day.dateKey} className="grid grid-cols-[7.5rem_1fr] gap-4 border-b border-[#d8c8ba] pb-4 last:border-0">
-              <div>
-                <p className="text-sm font-semibold tracking-wide text-[#d36b4a] uppercase">{day.weekday}</p>
-                <p className="text-sm text-[#8a6f5c]">{day.dateLabel}</p>
-              </div>
-              {day.events.length === 0 ? (
-                <p className="self-center text-sm text-[#b09a8b]">No shows</p>
-              ) : (
-                <ul className="space-y-2">
-                  {day.events.map((event) => (
-                    <li key={event.id}>
-                      <p className="text-lg leading-tight font-medium">{event.name}</p>
-                      <p className="mt-0.5 text-sm text-[#6e5344]">{weekEventLineupMeta(event)}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+        <ul className="mt-7 flex-1">
+          {days.map((day) => {
+            const live = day.events.length > 0;
+            return (
+              <li
+                key={day.dateKey}
+                className={`grid grid-cols-[6.25rem_1fr] gap-5 border-b border-[#f4ebe3]/15 py-3.5 last:border-0 ${
+                  live ? "bg-[#2a221c]" : ""
+                }`}
+              >
+                <div className={`pl-3 ${live ? "border-l-[6px] border-[#d36b4a]" : "border-l-[6px] border-transparent"}`}>
+                  <p className="text-[28px] leading-none font-black tracking-tight uppercase">{shortWeekday(day.weekday)}</p>
+                  <p className="mt-1 text-[15px] font-semibold text-[#c9b8aa] uppercase">{day.dateLabel}</p>
+                </div>
+                {live ? (
+                  <ul className="space-y-2 pr-3">
+                    {day.events.map((event) => (
+                      <li key={event.id}>
+                        <p className="text-[26px] leading-[1.05] font-extrabold tracking-tight uppercase">{event.name}</p>
+                        <p className="mt-1 text-[15px] font-medium tracking-wide text-[#e4c4b0] uppercase">
+                          {weekEventLineupMeta(event)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="self-center text-[15px] font-semibold tracking-[0.18em] text-[#8a7466] uppercase">
+                    No shows
+                  </p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <footer className="mt-10 text-xs tracking-wide text-[#8a6f5c] uppercase">
+      <footer className="mt-8 text-[13px] font-bold tracking-[0.32em] text-[#e4c4b0] uppercase">
         FloBama Music Hall · Downtown Florence
       </footer>
     </article>
   );
+}
+
+function shortWeekday(weekday: string) {
+  return weekday.slice(0, 3);
 }
