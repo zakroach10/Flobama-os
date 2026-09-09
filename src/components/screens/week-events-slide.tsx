@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WeekLineup } from "@/components/brand/week-lineup";
-import { fillVenueWeekDays, paginateWeekDays, type WeekSlidePayload } from "@/lib/screens/week";
+import { liveWeekDays, paginateWeekDays, type WeekSlidePayload } from "@/lib/screens/week";
 
 export function WeekEventsSlide({
   week,
@@ -12,8 +12,8 @@ export function WeekEventsSlide({
   loading?: boolean;
 }) {
   const crowded = (week?.eventCount ?? 0) > 12;
-  const filled = fillVenueWeekDays(week?.days ?? []);
-  const pages = crowded ? paginateWeekDays(week?.days ?? []) : [filled];
+  const liveDays = liveWeekDays(week?.days ?? []);
+  const pages = crowded ? paginateWeekDays(liveDays) : [liveDays];
   const [page, setPage] = useState(0);
 
   useEffect(() => {

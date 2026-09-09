@@ -3,7 +3,6 @@ import { listPublicWeekEvents } from "@/lib/public/queries";
 import { DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import {
   buildWeekSlidePayload,
-  fillVenueWeekDays,
   weekFlyerFileName,
   weekFlyerTitle,
 } from "@/lib/screens/week";
@@ -36,7 +35,7 @@ export default async function WeekFlyerPage({
         <WeekFlyer
           venueName="FloBama Music Hall"
           rangeLabel={DEMO_WEEK_SLIDE.rangeLabel}
-          days={fillVenueWeekDays(DEMO_WEEK_SLIDE.days, new Date("2026-09-08T22:00:00.000Z"))}
+          days={DEMO_WEEK_SLIDE.days}
         />
         <span className="sr-only">{title}</span>
       </>
@@ -60,7 +59,7 @@ export default async function WeekFlyerPage({
   return (
     <>
       <PrintWeekToolbar autoPrint={autoPrint} documentTitle={weekFlyerFileName(week.rangeLabel)} />
-      <WeekFlyer venueName="FloBama Music Hall" rangeLabel={week.rangeLabel} days={fillVenueWeekDays(week.days)} />
+      <WeekFlyer venueName="FloBama Music Hall" rangeLabel={week.rangeLabel} days={week.days} />
       <span className="sr-only">{title}</span>
     </>
   );

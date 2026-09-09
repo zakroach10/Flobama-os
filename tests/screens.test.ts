@@ -248,7 +248,7 @@ describe("this week slide", () => {
     expect(payload.days[0]?.dateKey).toBe("2026-09-08");
   });
 
-  it("fills Sunday through Saturday for a flyer handout", () => {
+  it("fills Sunday through Saturday when a full week grid is needed", () => {
     const payload = buildWeekSlidePayload(
       [
         {

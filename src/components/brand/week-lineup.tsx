@@ -1,5 +1,5 @@
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
-import { weekEventLineupMeta, type WeekSlideDay } from "@/lib/screens/week";
+import { liveWeekDays, weekEventLineupMeta, type WeekSlideDay } from "@/lib/screens/week";
 import { cn } from "@/lib/utils";
 
 export function WeekLineup({
@@ -17,7 +17,8 @@ export function WeekLineup({
   footer?: boolean;
   pageLabel?: string | null;
 }) {
-  const empty = days.every((day) => day.events.length === 0);
+  const liveDays = liveWeekDays(days);
+  const empty = liveDays.length === 0;
   const kiosk = size === "kiosk";
   const dark = tone === "dark";
 
@@ -33,10 +34,10 @@ export function WeekLineup({
         className={cn(
           "flex w-full flex-col items-center",
           kiosk ? "border-b-[10px] pb-10" : "border-b-[8px] pb-6",
-          dark ? "border-[#d36b4a]" : "border-[#d36b4a]",
+          "border-[#d36b4a]",
         )}
       >
-        <FlobamaLogo className={kiosk ? "w-[760px]" : "w-[430px]"} priority />
+        <FlobamaLogo className={kiosk ? "w-[880px]" : "w-[520px]"} priority />
         <h1
           className={cn(
             "font-black tracking-tight uppercase",
@@ -65,58 +66,41 @@ export function WeekLineup({
           No public shows this week.
         </p>
       ) : (
-        <ul className={cn("flex w-full flex-1 flex-col justify-center", kiosk ? "mt-10 gap-7" : "mt-8 gap-5")}>
-          {days.map((day) => {
-            const live = day.events.length > 0;
-            return (
-              <li key={day.dateKey} className="w-full">
-                {live ? (
-                  <div>
+        <ul className={cn("flex w-full flex-1 flex-col justify-center", kiosk ? "mt-10 gap-10" : "mt-8 gap-6")}>
+          {liveDays.map((day) => (
+            <li key={day.dateKey} className="w-full">
+              <p
+                className={cn(
+                  "font-black tracking-[0.28em] text-[#d36b4a] uppercase",
+                  kiosk ? "text-[32px]" : "text-[22px]",
+                )}
+              >
+                {shortWeekday(day.weekday)} {day.dateLabel}
+              </p>
+              <ul className={kiosk ? "mt-2 space-y-3" : "mt-1.5 space-y-2"}>
+                {day.events.map((event) => (
+                  <li key={event.id}>
                     <p
                       className={cn(
-                        "font-black tracking-[0.28em] text-[#d36b4a] uppercase",
-                        kiosk ? "text-[32px]" : "text-[22px]",
+                        "leading-[0.95] font-black tracking-tight uppercase",
+                        kiosk ? "text-[56px]" : "text-[38px]",
                       )}
                     >
-                      {shortWeekday(day.weekday)} {day.dateLabel}
+                      {event.name}
                     </p>
-                    <ul className={kiosk ? "mt-2 space-y-3" : "mt-1.5 space-y-2"}>
-                      {day.events.map((event) => (
-                        <li key={event.id}>
-                          <p
-                            className={cn(
-                              "leading-[0.95] font-black tracking-tight uppercase",
-                              kiosk ? "text-[48px]" : "text-[34px]",
-                            )}
-                          >
-                            {event.name}
-                          </p>
-                          <p
-                            className={cn(
-                              "font-extrabold tracking-[0.14em] uppercase",
-                              kiosk ? "mt-2 text-[22px]" : "mt-1 text-[16px]",
-                            )}
-                          >
-                            {weekEventLineupMeta(event)}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p
-                    className={cn(
-                      "font-extrabold tracking-[0.22em] uppercase",
-                      dark ? "text-[#6e5c52]" : "text-[#b0b0b0]",
-                      kiosk ? "text-[22px]" : "text-[16px]",
-                    )}
-                  >
-                    {shortWeekday(day.weekday)} {day.dateLabel} · No shows
-                  </p>
-                )}
-              </li>
-            );
-          })}
+                    <p
+                      className={cn(
+                        "font-extrabold tracking-[0.14em] uppercase",
+                        kiosk ? "mt-2 text-[24px]" : "mt-1 text-[16px]",
+                      )}
+                    >
+                      {weekEventLineupMeta(event)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
         </ul>
       )}
 

@@ -97,6 +97,10 @@ export function buildWeekSlidePayload(
   };
 }
 
+export function liveWeekDays(days: WeekSlideDay[]): WeekSlideDay[] {
+  return days.filter((day) => day.events.length > 0);
+}
+
 export function fillVenueWeekDays(
   days: WeekSlideDay[],
   instant: Date = new Date(),
