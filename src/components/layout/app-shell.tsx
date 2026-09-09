@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDaysIcon,
+  ExternalLinkIcon,
   LayoutDashboardIcon,
   MenuIcon,
   MonitorPlayIcon,
   SettingsIcon,
   TicketIcon,
   UsersIcon,
+  UtensilsCrossedIcon,
 } from "lucide-react";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,12 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/ticketing", label: "Ticketing", icon: TicketIcon },
+  {
+    href: "https://client.restaurantpos.spoton.com/b/",
+    label: "Spot on BOH",
+    icon: UtensilsCrossedIcon,
+    external: true,
+  },
   { href: "/artists", label: "Artists", icon: UsersIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -45,20 +53,33 @@ function NavLinks({
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="Staff">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const external = "external" in item && item.external;
+        const active = !external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
         const Icon = item.icon;
+        const className = cn(
+          "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
+        );
+        if (external) {
+          return (
+            <a
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavigate}
+              className={className}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden />
+              <span className="flex-1">{item.label}</span>
+              <ExternalLinkIcon className="size-3.5 shrink-0 opacity-70" aria-hidden />
+            </a>
+          );
+        }
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={cn(
-              "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
-            )}
-          >
+          <Link key={item.href} href={item.href} onClick={onNavigate} className={className}>
             <Icon className="size-4 shrink-0" aria-hidden />
             {item.label}
           </Link>
