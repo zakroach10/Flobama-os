@@ -33,6 +33,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/embed") ||
     pathname.startsWith("/overlay") ||
     pathname.startsWith("/display") ||
+    pathname.startsWith("/print") ||
     pathname.startsWith("/api/public");
   if (isPublic) {
     return response;

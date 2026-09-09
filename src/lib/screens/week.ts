@@ -97,6 +97,36 @@ export function buildWeekSlidePayload(
   };
 }
 
+export function fillVenueWeekDays(
+  days: WeekSlideDay[],
+  instant: Date = new Date(),
+  timeZone: string = DEFAULT_VENUE_TIMEZONE,
+): WeekSlideDay[] {
+  const { start } = venueWeekBounds(instant, timeZone);
+  const byKey = new Map(days.map((day) => [day.dateKey, day]));
+  return Array.from({ length: 7 }, (_, index) => {
+    const local = start.plus({ days: index });
+    const dateKey = local.toFormat("yyyy-LL-dd");
+    return (
+      byKey.get(dateKey) ?? {
+        dateKey,
+        weekday: local.toFormat("cccc"),
+        dateLabel: local.toFormat("LLL d"),
+        events: [],
+      }
+    );
+  });
+}
+
+export function weekFlyerTitle(rangeLabel: string) {
+  return `This week at FloBama · ${rangeLabel}`;
+}
+
+export function weekFlyerFileName(rangeLabel: string) {
+  const slug = rangeLabel.replaceAll("–", "-").replaceAll(",", "").replaceAll(" ", "-");
+  return `Flobama-this-week-${slug}`;
+}
+
 export function paginateWeekDays(days: WeekSlideDay[], maxEventsPerPage = 8): WeekSlideDay[][] {
   const pages: WeekSlideDay[][] = [];
   let current: WeekSlideDay[] = [];

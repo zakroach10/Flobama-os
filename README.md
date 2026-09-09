@@ -162,6 +162,8 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 
 **This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists). Cover charge is not shown. The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. If the hosted enum does not include `week_events` yet, the slide is stored as a dynamic playlist row and still plays correctly.
 
+**Weekly flyer:** Events or Screens → **Print this week’s flyer** opens a US Letter handout at `/print/week`. Use Print and choose Save as PDF. It lists every day of the current Sunday–Saturday week from the same public calendar. Local sample: http://localhost:43123/print/week?demo=1
+
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
 
 **Takeover Ad Screens:** On the Vertical screens tab, upload an override graphic in that box or pick one from the library. Hold it for 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Uploaded overrides stay out of the regular rotation. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.

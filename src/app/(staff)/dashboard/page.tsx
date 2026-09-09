@@ -6,6 +6,7 @@ import { artistNames } from "@/lib/queries/events";
 import { formatVenueDateTime, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/states";
 import { StatusBadge } from "@/components/status-badge";
@@ -29,9 +30,12 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-semibold tracking-tight">{context.venue.name}</h1>
           <p className="mt-1 text-muted-foreground">{formatVenueTodayHeading(new Date(), context.venue.timezone)}</p>
         </div>
-        {canManageProgramming(context.role) ? (
-          <Button render={<Link href="/events/new" />}>Add event</Button>
-        ) : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <PrintWeekFlyerButton />
+          {canManageProgramming(context.role) ? (
+            <Button render={<Link href="/events/new" />}>Add event</Button>
+          ) : null}
+        </div>
       </header>
 
       {error || !data ? (

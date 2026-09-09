@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { StatusBadge, TypeBadge } from "@/components/status-badge";
 import { ImportLegacyButton } from "@/components/events/import-legacy-button";
+import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +45,15 @@ export default async function EventsPage({
           <h1 className="text-3xl font-semibold tracking-tight">Events</h1>
           <p className="text-muted-foreground">Operational calendar for {context.venue.name}.</p>
         </div>
-        {canManageProgramming(context.role) ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <ImportLegacyButton />
-            <Button render={<Link href="/events/new" />}>Add event</Button>
-          </div>
-        ) : null}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <PrintWeekFlyerButton />
+          {canManageProgramming(context.role) ? (
+            <>
+              <ImportLegacyButton />
+              <Button render={<Link href="/events/new" />}>Add event</Button>
+            </>
+          ) : null}
+        </div>
       </header>
 
       <form className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-6" method="get">

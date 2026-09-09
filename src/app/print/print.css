@@ -1,0 +1,23 @@
+@page {
+  size: letter portrait;
+  margin: 0.45in;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+  }
+
+  .flyer-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+  }
+}

@@ -18,7 +18,13 @@ import {
   takeoverMinutesLabel,
   takeoverRemainingLabel,
 } from "@/lib/screens/takeover";
-import { buildWeekSlidePayload, paginateWeekDays, weekEventLineupMeta } from "@/lib/screens/week";
+import {
+  buildWeekSlidePayload,
+  fillVenueWeekDays,
+  paginateWeekDays,
+  weekEventLineupMeta,
+  weekFlyerFileName,
+} from "@/lib/screens/week";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
@@ -240,6 +246,38 @@ describe("this week slide", () => {
     expect(payload.days).toHaveLength(1);
     expect(payload.days[0]?.events.map((event) => event.name)).toEqual(["Tuesday band", "Late set"]);
     expect(payload.days[0]?.dateKey).toBe("2026-09-08");
+  });
+
+  it("fills Sunday through Saturday for a flyer handout", () => {
+    const payload = buildWeekSlidePayload(
+      [
+        {
+          id: "a",
+          name: "Tuesday band",
+          day: "Tuesday",
+          date: "Sep 8, 2026",
+          time: "7:00 PM",
+          display: "Tue, Sep 8 • 7:00 PM",
+          ticketed: false,
+          ticketUrl: null,
+          coverCharge: null,
+          startsAt: "2026-09-09T00:00:00.000Z",
+          endsAt: "2026-09-09T03:00:00.000Z",
+          eventType: "live_music",
+          locationLabel: null,
+          featured: false,
+          artists: ["Tuesday band"],
+        },
+      ],
+      new Date("2026-09-08T22:00:00.000Z"),
+    );
+    const days = fillVenueWeekDays(payload.days, new Date("2026-09-08T22:00:00.000Z"));
+    expect(days).toHaveLength(7);
+    expect(days[0]?.weekday).toBe("Sunday");
+    expect(days[6]?.weekday).toBe("Saturday");
+    expect(days[2]?.events[0]?.name).toBe("Tuesday band");
+    expect(days.filter((day) => day.events.length === 0)).toHaveLength(6);
+    expect(weekFlyerFileName(payload.rangeLabel)).toBe("Flobama-this-week-Sep-6-12-2026");
   });
 
   it("paginates a busy week without dropping days", () => {

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SCREEN_TRANSITION_LABELS, SCREEN_TRANSITIONS, type ScreenTransition } from "@/lib/constants";
+import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { uploadScreenAdFromBrowser } from "@/lib/screens/browser-upload";
 import { isWeekEventsAd, type StaffScreenAd } from "@/lib/screens/playlist";
 import type { PublicSupabaseEnv } from "@/lib/env";
@@ -46,18 +47,20 @@ export function VerticalAdsPanel({
           slide to pull public shows for the current Sunday–Saturday week.
         </p>
         <p className="mt-2 text-sm break-all">{displayUrl}</p>
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-2"
-          onClick={() => {
-            void navigator.clipboard.writeText(displayUrl);
-            setCopied(true);
-            toast.success("Copied display URL");
-          }}
-        >
-          {copied ? "Copied" : "Copy display URL"}
-        </Button>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void navigator.clipboard.writeText(displayUrl);
+              setCopied(true);
+              toast.success("Copied display URL");
+            }}
+          >
+            {copied ? "Copied" : "Copy display URL"}
+          </Button>
+          <PrintWeekFlyerButton />
+        </div>
       </div>
 
       <form

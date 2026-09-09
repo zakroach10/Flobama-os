@@ -14,4 +14,5 @@ export function revalidatePublicSurfaces() {
   revalidatePath("/display/vertical");
   revalidatePath("/api/public/v1/screens/vertical");
   revalidatePath("/api/public/v1/screens/week");
+  revalidatePath("/print/week");
 }
