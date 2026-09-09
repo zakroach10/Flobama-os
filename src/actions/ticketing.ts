@@ -5,7 +5,6 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import { MASTER_LAYOUT_ID } from "@/lib/ticketing/constants";
 import { checkInDemoOrder, getDemoOrder, getDemoOrderByQr } from "@/lib/ticketing/memory-store";
 import { dollarsToCents } from "@/lib/ticketing/money";
@@ -607,5 +606,3 @@ export async function moveTableReservationAction(
   revalidateTicketing(eventId);
   return { ok: true, message: `Moved reservation from ${source.name} to ${target.name}.` };
 }
-
-export { FLO_BAMA_VENUE_ID };
