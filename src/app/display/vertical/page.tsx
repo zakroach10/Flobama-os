@@ -11,11 +11,20 @@ export const dynamic = "force-dynamic";
 export default async function VerticalDisplayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ demo?: string }>;
+  searchParams: Promise<{ demo?: string; slide?: string }>;
 }) {
   const params = await searchParams;
   if (process.env.NODE_ENV !== "production" && params.demo === "1") {
-    return <VerticalPlayer initialAds={DEMO_VERTICAL_ADS} initialWeek={DEMO_WEEK_SLIDE} lockPlaylist />;
+    const weekIndex = DEMO_VERTICAL_ADS.findIndex((ad) => ad.mediaKind === "week_events");
+    const initialIndex = params.slide === "week" && weekIndex >= 0 ? weekIndex : 0;
+    return (
+      <VerticalPlayer
+        initialAds={DEMO_VERTICAL_ADS}
+        initialWeek={DEMO_WEEK_SLIDE}
+        lockPlaylist
+        initialIndex={initialIndex}
+      />
+    );
   }
   const client = createAnonSupabaseClient();
   if (!client) return <VerticalPlayer initialAds={[]} />;

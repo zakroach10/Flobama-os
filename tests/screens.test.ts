@@ -341,6 +341,12 @@ describe("kiosk frame", () => {
     expect(containScale(540, 960)).toBe(0.5);
     expect(containScale(0, 1920)).toBe(1);
   });
+
+  it("returns a unitless scale so CSS transform scale() stays valid", () => {
+    const scale = containScale(1920, 1080);
+    expect(Number.isFinite(scale)).toBe(true);
+    expect(String(scale)).not.toMatch(/px|vw|vh|dvw|dvh/);
+  });
 });
 
 describe("screen takeover", () => {

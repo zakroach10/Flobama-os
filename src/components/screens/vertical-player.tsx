@@ -21,21 +21,23 @@ export function VerticalPlayer({
   initialWeek = null,
   initialTakeover = null,
   lockPlaylist = false,
+  initialIndex = 0,
 }: {
   initialAds: PublicScreenAd[];
   initialWeek?: WeekSlidePayload | null;
   initialTakeover?: PublicTakeover | null;
   lockPlaylist?: boolean;
+  initialIndex?: number;
 }) {
   const [ads, setAds] = useState(() => normalizePublicPlaylist(initialAds));
   const [week, setWeek] = useState(initialWeek);
   const [takeover, setTakeover] = useState(() => normalizePublicTakeover(initialTakeover));
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(initialIndex);
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
   const revisionRef = useRef(displayRevision(normalizePublicPlaylist(initialAds), normalizePublicTakeover(initialTakeover)));
   const hostRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState<number | null>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     adsRef.current = ads;
@@ -122,16 +124,14 @@ export function VerticalPlayer({
   }, [current, currentId, holding]);
 
   return (
-    <div ref={hostRef} className="relative h-full w-full overflow-hidden bg-[#1b1612]">
+    <div ref={hostRef} className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[#1b1612]">
       <div
-        className="absolute top-1/2 left-1/2 overflow-hidden bg-[#1b1612]"
+        className="relative overflow-hidden bg-[#1b1612]"
         style={{
           width: VERTICAL_FRAME_WIDTH,
           height: VERTICAL_FRAME_HEIGHT,
-          transform:
-            scale == null
-              ? `translate(-50%, -50%) scale(min(calc(100dvw / ${VERTICAL_FRAME_WIDTH}), calc(100dvh / ${VERTICAL_FRAME_HEIGHT})))`
-              : `translate(-50%, -50%) scale(${scale})`,
+          transform: `scale(${scale})`,
+          transformOrigin: "center center",
         }}
       >
         {!current ? (
