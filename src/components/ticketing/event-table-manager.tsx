@@ -67,6 +67,7 @@ export function EventTableManager({
             y: object.y_position,
             width: object.width,
             height: object.height,
+            rotation: object.rotation,
             shape: object.shape,
             status: object.status,
             sellable: object.sellable,

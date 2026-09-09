@@ -38,6 +38,7 @@ export default async function VenueLayoutPage() {
               y_position: item.y,
               width: item.width,
               height: item.height,
+              rotation: 0,
               capacity: 0,
               sellable: false,
               shape: "rect" as const,
@@ -68,7 +69,8 @@ export default async function VenueLayoutPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <h1 className="text-3xl font-semibold tracking-tight">{layout.name}</h1>
       <p className="text-muted-foreground">
-        Master FloBama room. Drag tables, then save. Event maps copy this layout and can be changed per show.
+        Master FloBama room. Add and edit tables, the bar, dividers, restrooms, and other spaces, then save. Event maps
+        copy this layout and can still be changed per show.
       </p>
       <TicketingSubnav />
       <LayoutEditor
@@ -83,6 +85,7 @@ export default async function VenueLayoutPage() {
           y_position: object.y_position,
           width: object.width,
           height: object.height,
+          rotation: object.rotation,
           capacity: object.capacity,
           sellable: object.sellable,
           shape: object.shape,

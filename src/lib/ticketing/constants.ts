@@ -1,5 +1,6 @@
 export const TICKETING_HOLD_MINUTES = 10;
 export const TICKETING_SQL = "supabase/migrations/20260909000008_ticketing.sql";
+export const TICKETING_LAYOUT_TYPES_SQL = "supabase/migrations/20260909000010_layout_object_types.sql";
 export const TICKETING_SESSION_COOKIE = "flobama_ticket_session";
 export const MASTER_LAYOUT_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -12,6 +13,8 @@ export const LAYOUT_OBJECT_TYPES = [
   "standing",
   "vip_area",
   "entrance",
+  "divider",
+  "restroom",
   "label",
   "decor",
 ] as const;
@@ -26,12 +29,20 @@ export const LAYOUT_OBJECT_LABELS: Record<LayoutObjectType, string> = {
   standing: "Standing",
   vip_area: "VIP area",
   entrance: "Entrance",
+  divider: "Divider",
+  restroom: "Restroom",
   label: "Label",
   decor: "Decor",
 };
 
 export const LAYOUT_SHAPES = ["rect", "round", "ellipse"] as const;
 export type LayoutShape = (typeof LAYOUT_SHAPES)[number];
+
+export const LAYOUT_SHAPE_LABELS: Record<LayoutShape, string> = {
+  rect: "Rectangle",
+  round: "Round",
+  ellipse: "Oval",
+};
 
 export const TABLE_STATUSES = ["available", "held", "sold", "blocked", "comp", "unavailable"] as const;
 export type TableInventoryStatus = (typeof TABLE_STATUSES)[number];

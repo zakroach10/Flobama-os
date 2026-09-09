@@ -5,7 +5,9 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { MASTER_LAYOUT_ID } from "@/lib/ticketing/constants";
+import { LAYOUT_OBJECT_TYPES, LAYOUT_SHAPES, MASTER_LAYOUT_ID, type LayoutObjectType, type LayoutShape } from "@/lib/ticketing/constants";
+import { hintLayoutObjectTypeError } from "@/lib/ticketing/errors";
+import { isTempLayoutObjectId } from "@/lib/ticketing/layout-objects";
 import { checkInDemoOrder, getDemoOrder, getDemoOrderByQr } from "@/lib/ticketing/memory-store";
 import { dollarsToCents } from "@/lib/ticketing/money";
 import { newQrToken } from "@/lib/ticketing/tokens";
@@ -14,6 +16,7 @@ import { z } from "zod";
 export type TicketingActionResult = {
   ok: boolean;
   message: string;
+  insertedIds?: Record<string, string>;
 };
 
 async function staffGate() {
@@ -252,33 +255,130 @@ export async function snapshotEventLayoutAction(eventId: string, layoutId = MAST
   return { ok: true, message: "Event table map copied from the main room." };
 }
 
+function asFiniteNumber(value: unknown, fallback: number) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function persistLayoutObjectFields(object: Record<string, unknown>, sortOrder: number) {
+  const objectType = String(object.object_type ?? "");
+  if (!LAYOUT_OBJECT_TYPES.includes(objectType as LayoutObjectType)) {
+    return { ok: false as const, error: `Unknown object type: ${objectType || "(empty)"}` };
+  }
+  const shape = LAYOUT_SHAPES.includes(object.shape as LayoutShape) ? (object.shape as LayoutShape) : "rect";
+  const name = String(object.name ?? "").trim();
+  if (name.length < 1 || name.length > 80) {
+    return { ok: false as const, error: "Each object needs a name between 1 and 80 characters." };
+  }
+  const tableNumberRaw = object.table_number;
+  const sectionRaw = object.section;
+  const priceRaw = object.default_price_cents;
+  return {
+    ok: true as const,
+    row: {
+      object_type: objectType,
+      name,
+      capacity: Math.min(200, Math.max(0, Math.round(asFiniteNumber(object.capacity, 0)))),
+      x_position: asFiniteNumber(object.x_position, 0),
+      y_position: asFiniteNumber(object.y_position, 0),
+      width: Math.min(2000, Math.max(8, asFiniteNumber(object.width, 80))),
+      height: Math.min(2000, Math.max(8, asFiniteNumber(object.height, 80))),
+      rotation: asFiniteNumber(object.rotation, 0),
+      shape,
+      table_number: typeof tableNumberRaw === "string" && tableNumberRaw.trim() ? tableNumberRaw.trim() : null,
+      section: typeof sectionRaw === "string" && sectionRaw.trim() ? sectionRaw.trim() : null,
+      default_price_cents:
+        priceRaw == null ? null : Math.max(0, Math.round(asFiniteNumber(priceRaw, 0))),
+      sellable: object.sellable === true,
+      sort_order: sortOrder,
+    },
+  };
+}
+
 export async function saveVenueLayoutObjectsAction(
   layoutId: string,
   objects: Array<Record<string, unknown>>,
 ): Promise<TicketingActionResult> {
   const gate = await staffGate();
   if (!gate.ok) return gate;
-  for (const object of objects) {
-    if (!object.id) continue;
+  if (!z.uuid().safeParse(layoutId).success) {
+    return { ok: false, message: "This demo layout cannot be saved until ticketing SQL is applied." };
+  }
+
+  const { data: layout, error: layoutError } = await gate.supabase
+    .from("venue_layouts" as never)
+    .select("id, venue_id")
+    .eq("id", layoutId)
+    .maybeSingle();
+  if (layoutError) return { ok: false, message: layoutError.message };
+  const layoutRow = layout as { id: string; venue_id: string } | null;
+  if (!layoutRow || layoutRow.venue_id !== gate.context.venue.id) {
+    return { ok: false, message: "Layout not found." };
+  }
+
+  const { data: existingRows, error: existingError } = await gate.supabase
+    .from("venue_layout_objects" as never)
+    .select("id")
+    .eq("layout_id", layoutId);
+  if (existingError) return { ok: false, message: existingError.message };
+  const existingIds = new Set(((existingRows ?? []) as Array<{ id: string }>).map((row) => row.id));
+
+  const incoming = objects.filter((object) => typeof object.id === "string" && object.id.length > 0);
+  const persisted = incoming.map((object, index) => {
+    const parsed = persistLayoutObjectFields(object, index);
+    return { object, parsed };
+  });
+  const invalid = persisted.find((item) => !item.parsed.ok);
+  if (invalid && !invalid.parsed.ok) return { ok: false, message: invalid.parsed.error };
+
+  const toUpdate = persisted.filter(
+    (item) => !isTempLayoutObjectId(String(item.object.id)) && existingIds.has(String(item.object.id)),
+  );
+  const toInsert = persisted.filter(
+    (item) => isTempLayoutObjectId(String(item.object.id)) || !existingIds.has(String(item.object.id)),
+  );
+  const keptIds = new Set(toUpdate.map((item) => String(item.object.id)));
+  const toDelete = [...existingIds].filter((id) => !keptIds.has(id));
+
+  for (const item of toUpdate) {
+    if (!item.parsed.ok) continue;
     const { error } = await gate.supabase
       .from("venue_layout_objects" as never)
-      .update({
-        x_position: object.x_position,
-        y_position: object.y_position,
-        width: object.width,
-        height: object.height,
-        rotation: object.rotation,
-        name: object.name,
-        capacity: object.capacity,
-        sellable: object.sellable,
-        default_price_cents: object.default_price_cents,
-        section: object.section,
+      .update(item.parsed.row as never)
+      .eq("id", String(item.object.id))
+      .eq("layout_id", layoutId);
+    if (error) return { ok: false, message: hintLayoutObjectTypeError(error.message) };
+  }
+
+  const insertedIds: Record<string, string> = {};
+  for (const item of toInsert) {
+    if (!item.parsed.ok) continue;
+    const { data, error } = await gate.supabase
+      .from("venue_layout_objects" as never)
+      .insert({
+        ...item.parsed.row,
+        layout_id: layoutId,
+        venue_id: gate.context.venue.id,
       } as never)
-      .eq("id", object.id as string);
+      .select("id")
+      .single();
+    if (error || !data) {
+      return { ok: false, message: hintLayoutObjectTypeError(error?.message ?? "Could not add that object.") };
+    }
+    insertedIds[String(item.object.id)] = (data as { id: string }).id;
+  }
+
+  if (toDelete.length > 0) {
+    const { error } = await gate.supabase
+      .from("venue_layout_objects" as never)
+      .delete()
+      .eq("layout_id", layoutId)
+      .in("id", toDelete);
     if (error) return { ok: false, message: error.message };
   }
+
   revalidateTicketing();
-  return { ok: true, message: "Venue layout saved." };
+  return { ok: true, message: "Venue layout saved.", insertedIds };
 }
 
 export async function saveEventLayoutObjectsAction(

@@ -145,5 +145,10 @@ export const DEMO_DECOR = [
   { id: "stage", type: "stage", name: "Stage", x: 360, y: 24, width: 480, height: 88 },
   { id: "floor", type: "dance_floor", name: "Dance floor", x: 360, y: 128, width: 480, height: 200 },
   { id: "bar", type: "bar", name: "Bar", x: 24, y: 160, width: 88, height: 420 },
+  { id: "vip", type: "vip_area", name: "VIP rail", x: 360, y: 340, width: 480, height: 56 },
+  { id: "standing", type: "standing", name: "Standing", x: 360, y: 410, width: 480, height: 88 },
+  { id: "divider-rear", type: "divider", name: "Divider", x: 360, y: 760, width: 480, height: 12 },
+  { id: "restroom-w", type: "restroom", name: "Restroom", x: 40, y: 740, width: 80, height: 80 },
+  { id: "restroom-m", type: "restroom", name: "Restroom", x: 140, y: 740, width: 80, height: 80 },
   { id: "door", type: "entrance", name: "Entrance", x: 520, y: 800, width: 160, height: 40 },
 ];
