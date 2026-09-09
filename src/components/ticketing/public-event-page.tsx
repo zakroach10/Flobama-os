@@ -17,12 +17,26 @@ import { DEFAULT_VENUE_TIMEZONE } from "@/lib/constants";
 
 type CartTicket = { typeId: string; quantity: number };
 
-export function PublicTicketEventPage({ eventId }: { eventId: string }) {
-  const [event, setEvent] = useState<PublicTicketEvent | null>(null);
-  const [types, setTypes] = useState<PublicTicketType[]>([]);
-  const [tables, setTables] = useState<PublicTable[]>([]);
-  const [decor, setDecor] = useState(DEMO_DECOR);
-  const [error, setError] = useState<string | null>(null);
+export function PublicTicketEventPage({
+  eventId,
+  initialEvent,
+  initialTypes,
+  initialTables,
+  initialDecor,
+  initialError,
+}: {
+  eventId: string;
+  initialEvent: PublicTicketEvent | null;
+  initialTypes: PublicTicketType[];
+  initialTables: PublicTable[];
+  initialDecor?: typeof DEMO_DECOR;
+  initialError?: string | null;
+}) {
+  const [event, setEvent] = useState<PublicTicketEvent | null>(initialEvent);
+  const [types, setTypes] = useState<PublicTicketType[]>(initialTypes);
+  const [tables, setTables] = useState<PublicTable[]>(initialTables);
+  const [decor, setDecor] = useState(initialDecor?.length ? initialDecor : DEMO_DECOR);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [cart, setCart] = useState<CartTicket[]>([]);
   const [selectedTable, setSelectedTable] = useState<PublicTable | null>(null);
   const [heldTableId, setHeldTableId] = useState<string | null>(null);
@@ -53,16 +67,10 @@ export function PublicTicketEventPage({ eventId }: { eventId: string }) {
   }
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      void refresh();
-    }, 0);
     const timer = window.setInterval(() => {
       void refresh();
     }, 8000);
-    return () => {
-      window.clearTimeout(timeout);
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
     // eventId is the listing key; refresh closes over it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
