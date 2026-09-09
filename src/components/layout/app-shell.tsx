@@ -10,6 +10,7 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "lucide-react";
+import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -69,8 +70,8 @@ function Brand() {
   return (
     <div className="px-3 py-4">
       <Link href="/dashboard" className="block rounded-md focus-visible:outline-2">
-        <p className="font-semibold tracking-tight text-sidebar-foreground">FloBama OS</p>
-        <p className="text-xs text-sidebar-foreground/60">Staff operations</p>
+        <FlobamaLogo className="w-[168px]" />
+        <p className="mt-2 text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/70 uppercase">Staff OS</p>
       </Link>
     </div>
   );
@@ -117,14 +118,15 @@ export function AppShell({
             </SheetTrigger>
             <SheetContent side="left" className="bg-sidebar p-0 text-sidebar-foreground">
               <SheetHeader>
-                <SheetTitle className="text-sidebar-foreground">FloBama OS</SheetTitle>
+                <SheetTitle className="sr-only">FloBama OS</SheetTitle>
+                <FlobamaLogo className="mx-auto w-[180px]" />
               </SheetHeader>
               <div className="px-2 pb-6">
                 <NavLinks showScreens={showScreens} onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>
-          <p className="font-semibold">FloBama OS</p>
+          <FlobamaLogo className="h-8 w-auto max-w-[140px]" />
         </header>
         <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">{children}</div>
       </div>

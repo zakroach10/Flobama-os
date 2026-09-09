@@ -1,5 +1,6 @@
 import type { PublicEventJson } from "@/lib/public/listings";
 import { DateTime } from "luxon";
+import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { DEFAULT_VENUE_TIMEZONE } from "@/lib/constants";
 
 export function EventsEmbed({
@@ -36,6 +37,7 @@ export function EventsEmbed({
     <div className="embed-root min-h-full bg-[#1b1612] text-[#f4ece4]">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <header className="mb-6 flex flex-col gap-1 border-b border-[#5c2a22] pb-4">
+          <FlobamaLogo className="mb-2 w-[200px]" />
           <p className="text-xs tracking-[0.28em] text-[#d4573c] uppercase">FloBama Music Hall</p>
           <h1 className="text-3xl font-semibold tracking-tight">Featured events</h1>
           <p className="text-sm text-[#c9b8aa]">{monthStart.toFormat("LLLL yyyy")} · Downtown Florence</p>

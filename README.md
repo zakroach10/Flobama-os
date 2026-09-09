@@ -12,7 +12,7 @@ Internal operations platform for FloBama Music Hall. This repository is the staf
 
 - Single venue record: FloBama Music Hall (`11111111-1111-4111-8111-111111111111`)
 - Timezone locked to `America/Chicago` in the database
-- Provisional warm-red accent (not an official brand spec) because no approved logo or tokens were in the repo
+- Official FloBama wordmark (`public/flobama-logo.png`) on staff OS, weekly flyers, and vertical kiosk screens. Warm-red `#d36b4a` is the matching accent.
 - No public signup. The first admin is bootstrapped in SQL; later staff are created in Settings by an admin.
 - Event “Publish” plus public visibility feeds the public API, HTML embed, and OBS overlay. The Google Sheet on flobamadowntown.com is not edited from this repo.
 

@@ -46,11 +46,8 @@
 }
 
 /*
-  FloBama OS milestone palette.
-  Official brand assets were not in this repository, so this uses a
-  provisional warm-red accent with charcoal and warm off-white.
-  Replace these tokens when approved brand specs are available.
-  The accent is NOT an official FloBama brand specification.
+  FloBama OS palette: charcoal, warm off-white, and a warm-red accent that
+  matches the official FloBama wordmark in public/flobama-logo.png.
 */
 :root {
   --background: oklch(0.975 0.01 85);
