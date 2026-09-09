@@ -135,6 +135,7 @@ export async function updateStaffRoleAction(input: unknown): Promise<StaffAction
     actorRole: gate.context.role,
     targetId: target.userId,
     targetRole: target.role,
+    targetEmail: target.email,
     nextRole: parsed.data.role,
     adminCount: members.filter((member) => member.role === "admin").length,
   });
@@ -167,6 +168,7 @@ export async function removeStaffAction(input: unknown): Promise<StaffActionResu
     actorRole: gate.context.role,
     targetId: target.userId,
     targetRole: target.role,
+    targetEmail: target.email,
     removing: true,
     adminCount: members.filter((member) => member.role === "admin").length,
   });

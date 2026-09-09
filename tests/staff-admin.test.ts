@@ -4,6 +4,7 @@ import {
   authorizeStaffAdmin,
   authorizeVenueSettings,
   canManageStaff,
+  isMasterAdminEmail,
   ROLE_PERMISSIONS,
 } from "@/lib/auth/permissions";
 import { createStaffSchema } from "@/lib/validation/schemas";
@@ -51,6 +52,36 @@ describe("staff admin permissions", () => {
         adminCount: 1,
       }).allowed,
     ).toBe(true);
+  });
+
+  it("blocks removing or demoting the master admin even when other admins exist", () => {
+    expect(isMasterAdminEmail("zak@view360.marketing")).toBe(true);
+    expect(isMasterAdminEmail("ZAK@VIEW360.MARKETING")).toBe(true);
+    expect(isMasterAdminEmail("other@example.com")).toBe(false);
+
+    expect(
+      authorizeMembershipChange({
+        actorId: "other-admin",
+        actorRole: "admin",
+        targetId: "zak",
+        targetRole: "admin",
+        targetEmail: "zak@view360.marketing",
+        removing: true,
+        adminCount: 3,
+      }).allowed,
+    ).toBe(false);
+
+    expect(
+      authorizeMembershipChange({
+        actorId: "other-admin",
+        actorRole: "admin",
+        targetId: "zak",
+        targetRole: "admin",
+        targetEmail: "zak@view360.marketing",
+        nextRole: "viewer",
+        adminCount: 3,
+      }).allowed,
+    ).toBe(false);
   });
 
   it("blocks managers from creating staff", () => {

@@ -1,5 +1,6 @@
 export const FLO_BAMA_VENUE_ID = "11111111-1111-4111-8111-111111111111";
 export const DEFAULT_VENUE_TIMEZONE = "America/Chicago";
+export const MASTER_ADMIN_EMAIL = "zak@view360.marketing";
 export const EVENT_PAGE_SIZE = 20;
 export const ARTIST_PAGE_SIZE = 20;
 

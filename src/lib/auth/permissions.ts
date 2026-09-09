@@ -1,8 +1,9 @@
 import type { StaffRole } from "@/lib/constants";
-import { STAFF_ROLES } from "@/lib/constants";
+import { MASTER_ADMIN_EMAIL, STAFF_ROLES } from "@/lib/constants";
 
 export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   admin: [
+    "Cannot be removed or demoted by other staff",
     "Create and remove staff",
     "Change staff roles",
     "Rename the venue",
@@ -26,6 +27,10 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "View settings (read-only)",
   ],
 };
+
+export function isMasterAdminEmail(email: string | null | undefined): boolean {
+  return Boolean(email && email.trim().toLowerCase() === MASTER_ADMIN_EMAIL);
+}
 
 export function canManageProgramming(role: StaffRole): boolean {
   return role === "admin" || role === "manager";
@@ -84,12 +89,20 @@ export function authorizeMembershipChange(input: {
   actorRole: StaffRole | null;
   targetId: string;
   targetRole: StaffRole;
+  targetEmail?: string | null;
   nextRole?: StaffRole;
   removing?: boolean;
   adminCount: number;
 }): AuthzDecision {
   const allowed = authorizeStaffAdmin(input.actorRole);
   if (!allowed.allowed) return allowed;
+
+  if (isMasterAdminEmail(input.targetEmail)) {
+    const losesAdmin = input.removing || (input.nextRole !== undefined && input.nextRole !== "admin");
+    if (losesAdmin) {
+      return { allowed: false, reason: "The master admin cannot be removed or demoted." };
+    }
+  }
 
   if (input.actorId === input.targetId) {
     return { allowed: false, reason: "You cannot change or remove your own access." };

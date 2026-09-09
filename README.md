@@ -79,7 +79,7 @@ There is still no public registration. The **first** admin is created once:
 1. In Supabase **Authentication > Users**, add a user with email and password. Copy the user UUID.
 2. Open `supabase/bootstrap_admin.sql`, replace `00000000-0000-0000-0000-000000000000` with that UUID, and run it in the SQL editor.
 
-After that, signed-in admins use **Settings → Staff** to create more logins (email, temporary password, role). People cannot raise their own role. You cannot remove or demote the last admin, or change your own access.
+After that, signed-in admins use **Settings → Staff** to create more logins (email, temporary password, role). People cannot raise their own role. You cannot remove or demote the last admin, or change your own access. `zak@view360.marketing` is the master admin and cannot be removed or demoted by other staff.
 
 Creating a login needs `SUPABASE_SERVICE_ROLE_KEY` on the server. Role changes and removals use the signed-in admin session and RLS.
 

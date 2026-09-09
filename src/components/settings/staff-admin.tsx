@@ -7,7 +7,7 @@ import { createStaffAction, removeStaffAction, updateStaffRoleAction } from "@/a
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ROLE_PERMISSIONS } from "@/lib/auth/permissions";
+import { ROLE_PERMISSIONS, isMasterAdminEmail } from "@/lib/auth/permissions";
 import { STAFF_ROLE_LABELS, STAFF_ROLES, type StaffRole } from "@/lib/constants";
 import type { StaffMember } from "@/lib/queries/staff";
 
@@ -59,7 +59,7 @@ export function StaffDirectory({
         <h2 className="text-lg font-semibold">Staff</h2>
         <p className="text-sm text-muted-foreground">
           {canManage
-            ? "Create logins here. The first admin still has to be bootstrapped in Supabase."
+            ? "Create logins here. The master admin cannot be removed or demoted by anyone else."
             : "Only admins can add people or change roles."}
         </p>
       </div>
@@ -178,6 +178,8 @@ function StaffRow({
   const [pending, startTransition] = useTransition();
   const [role, setRole] = useState<StaffRole>(member.role);
   const isSelf = member.userId === currentUserId;
+  const isMaster = isMasterAdminEmail(member.email);
+  const locked = isSelf || isMaster;
   const dirty = role !== member.role;
   const roleOptions = useMemo(() => STAFF_ROLES, []);
 
@@ -187,6 +189,7 @@ function StaffRow({
         <p className="font-medium">
           {member.displayName}
           {isSelf ? <span className="ml-2 text-xs text-muted-foreground">You</span> : null}
+          {isMaster ? <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Master admin</span> : null}
         </p>
         <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
       </div>
@@ -195,7 +198,7 @@ function StaffRow({
           <select
             className="h-11 min-h-11 rounded-lg border border-input bg-transparent px-3 text-sm"
             value={role}
-            disabled={isSelf || pending}
+            disabled={locked || pending}
             aria-label={`Role for ${member.displayName}`}
             onChange={(e) => setRole(e.target.value as StaffRole)}
           >
@@ -208,7 +211,7 @@ function StaffRow({
           <Button
             type="button"
             variant="outline"
-            disabled={isSelf || pending || !dirty}
+            disabled={locked || pending || !dirty}
             onClick={() => {
               startTransition(async () => {
                 const result = await updateStaffRoleAction({ userId: member.userId, role });
@@ -224,23 +227,27 @@ function StaffRow({
           >
             Save
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isSelf || pending}
-            onClick={() => {
-              startTransition(async () => {
-                const result = await removeStaffAction({ userId: member.userId });
-                if (!result.ok) toast.error(result.message);
-                else {
-                  toast.success(result.message);
-                  router.refresh();
-                }
-              });
-            }}
-          >
-            Remove
-          </Button>
+          {isMaster ? (
+            <p className="text-xs text-muted-foreground">This login cannot be removed or demoted.</p>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={locked || pending}
+              onClick={() => {
+                startTransition(async () => {
+                  const result = await removeStaffAction({ userId: member.userId });
+                  if (!result.ok) toast.error(result.message);
+                  else {
+                    toast.success(result.message);
+                    router.refresh();
+                  }
+                });
+              }}
+            >
+              Remove
+            </Button>
+          )}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">{STAFF_ROLE_LABELS[member.role]}</p>
