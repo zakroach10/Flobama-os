@@ -1,11 +1,11 @@
 @page {
   size: letter portrait;
-  margin: 0.28in;
+  margin: 0.32in;
 }
 
 html,
 body {
-  background: #1b1612;
+  background: #f3f3f3;
 }
 
 @media print {
@@ -15,7 +15,7 @@ body {
 
   html,
   body {
-    background: #1b1612 !important;
+    background: #fff !important;
     height: auto !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -26,7 +26,5 @@ body {
     margin: 0 !important;
     min-height: 0 !important;
     width: 100% !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 }
