@@ -17,7 +17,19 @@ import {
   type LayoutObjectType,
   type LayoutShape,
 } from "@/lib/ticketing/constants";
-import { createLayoutObject, isSellableLayoutType, LAYOUT_PALETTE, nextTableNumber } from "@/lib/ticketing/layout-objects";
+import {
+  applyCopiedSize,
+  applyCopiedSizeToOthers,
+  copiedSizeFrom,
+  createLayoutObject,
+  duplicateLayoutObject,
+  isSellableLayoutType,
+  LAYOUT_PALETTE,
+  nextTableNumber,
+  otherSameTypeLabel,
+  sameTypeCount,
+  type CopiedObjectSize,
+} from "@/lib/ticketing/layout-objects";
 import { formatCents } from "@/lib/ticketing/money";
 
 export type EditorObject = {
@@ -54,9 +66,12 @@ export function LayoutEditor({
   const router = useRouter();
   const [objects, setObjects] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [copiedSize, setCopiedSize] = useState<CopiedObjectSize | null>(null);
   const [pending, start] = useTransition();
   const selected = objects.find((object) => object.id === selectedId);
   const editor = !readOnly;
+  const otherCount = selected ? sameTypeCount(objects, selected.id) : 0;
+  const sizeToApply = copiedSize ?? (selected ? copiedSizeFrom(selected) : null);
 
   function patchSelected(patch: Partial<EditorObject>) {
     if (!selectedId) return;
@@ -67,6 +82,39 @@ export function LayoutEditor({
     const created = createLayoutObject(type, nextTableNumber(objects));
     setObjects((current) => [...current, created]);
     setSelectedId(created.id);
+  }
+
+  function duplicateSelected() {
+    if (!selected) return;
+    const copy = duplicateLayoutObject(selected, nextTableNumber(objects), {
+      width: canvasWidth,
+      height: canvasHeight,
+    });
+    setObjects((current) => [...current, copy]);
+    setSelectedId(copy.id);
+    toast.success(`Duplicated ${selected.name}.`);
+  }
+
+  function copySelectedSize() {
+    if (!selected) return;
+    setCopiedSize(copiedSizeFrom(selected));
+    toast.success(`Copied ${selected.width} × ${selected.height}.`);
+  }
+
+  function applySizeToSelected() {
+    if (!selected || !copiedSize) return;
+    setObjects((current) =>
+      current.map((object) => (object.id === selected.id ? applyCopiedSize(object, copiedSize) : object)),
+    );
+    toast.success(`Applied ${copiedSize.width} × ${copiedSize.height} to ${selected.name}.`);
+  }
+
+  function applySizeToOthers() {
+    if (!selected || !sizeToApply) return;
+    const count = sameTypeCount(objects, selected.id);
+    if (count === 0) return;
+    setObjects((current) => applyCopiedSizeToOthers(current, selected.id, sizeToApply));
+    toast.success(`Applied ${sizeToApply.width} × ${sizeToApply.height} to ${count} ${otherSameTypeLabel(selected.object_type)}.`);
   }
 
   return (
@@ -223,6 +271,27 @@ export function LayoutEditor({
                   {selected.default_price_cents != null ? ` · ${formatCents(selected.default_price_cents)}` : ""}
                 </p>
               )}
+              {copiedSize ? (
+                <p className="text-xs text-muted-foreground">
+                  Copied size {copiedSize.width} × {copiedSize.height}
+                  {copiedSize.shape !== selected.shape ? ` · ${copiedSize.shape}` : ""}
+                </p>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" onClick={duplicateSelected}>
+                  Duplicate
+                </Button>
+                <Button type="button" variant="outline" onClick={copySelectedSize}>
+                  Copy size
+                </Button>
+              </div>
+              <Button type="button" variant="outline" className="w-full" disabled={!copiedSize} onClick={applySizeToSelected}>
+                Apply copied size
+              </Button>
+              <Button type="button" variant="outline" className="w-full" disabled={otherCount === 0} onClick={applySizeToOthers}>
+                Apply size to {otherSameTypeLabel(selected.object_type)}
+                {otherCount > 0 ? ` (${otherCount})` : ""}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -248,7 +317,7 @@ export function LayoutEditor({
           )
         ) : (
           <p className="text-muted-foreground">
-            {editor ? "Add a bar, divider, restroom, or table, then tap it to edit." : "Tap a table to inspect it."}
+            {editor ? "Add or duplicate a table, copy its size onto the others, then save." : "Tap a table to inspect it."}
           </p>
         )}
         {editor ? (

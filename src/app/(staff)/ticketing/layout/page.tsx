@@ -69,8 +69,9 @@ export default async function VenueLayoutPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <h1 className="text-3xl font-semibold tracking-tight">{layout.name}</h1>
       <p className="text-muted-foreground">
-        Master FloBama room. Add and edit tables, the bar, dividers, restrooms, and other spaces, then save. Event maps
-        copy this layout and can still be changed per show.
+        Master FloBama room. Add, duplicate, and resize tables, the bar, dividers, restrooms, and other spaces, then
+        save. Copy a table’s size and apply it to the rest. Event maps copy this layout and can still be changed per
+        show.
       </p>
       <TicketingSubnav />
       <LayoutEditor
