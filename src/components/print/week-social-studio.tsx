@@ -40,8 +40,8 @@ export function WeekSocialStudio({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#111] sm:text-3xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-sm text-[#444]">
-            Pick a size, then download a PNG for Instagram, stories, or Facebook. Busy weeks split across pages so the
-            type stays readable.
+            Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG.
+            Busy weeks split across pages so the type stays readable.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -97,7 +97,7 @@ export function WeekSocialStudio({
         ))}
       </div>
 
-      <figure className="overflow-hidden rounded-xl border bg-[#d6cfc8] p-3 sm:p-4">
+      <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-3 sm:p-4">
         <ScaledPreview width={format.width} height={format.height} className="rounded-lg shadow-md">
           <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
         </ScaledPreview>

@@ -8,7 +8,7 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1080,
     layout: "stack",
-    maxEvents: 8,
+    maxEvents: 6,
   },
   {
     id: "ig-portrait",
@@ -17,7 +17,7 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1350,
     layout: "stack",
-    maxEvents: 10,
+    maxEvents: 8,
   },
   {
     id: "story",
@@ -26,7 +26,7 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1920,
     layout: "stack",
-    maxEvents: 12,
+    maxEvents: 8,
   },
   {
     id: "landscape",
@@ -35,7 +35,7 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1920,
     height: 1080,
     layout: "split",
-    maxEvents: 12,
+    maxEvents: 8,
   },
 ] as const;
 

@@ -1,15 +1,11 @@
-import { weekEventLineupMeta, type WeekSlideDay } from "@/lib/screens/week";
+import {
+  SOCIAL_POSTER,
+  socialPosterColumns,
+  socialPosterRows,
+  socialPosterScale,
+} from "@/lib/screens/social-poster";
 import type { WeekSocialFormat } from "@/lib/screens/social";
-
-const SCALE: Record<
-  WeekSocialFormat["id"],
-  { pad: number; logo: number; title: number; range: number; day: number; event: number; meta: number }
-> = {
-  "ig-square": { pad: 52, logo: 560, title: 72, range: 28, day: 22, event: 34, meta: 16 },
-  "ig-portrait": { pad: 60, logo: 640, title: 80, range: 30, day: 24, event: 38, meta: 17 },
-  story: { pad: 72, logo: 760, title: 96, range: 32, day: 28, event: 46, meta: 20 },
-  landscape: { pad: 48, logo: 480, title: 64, range: 26, day: 20, event: 30, meta: 15 },
-};
+import type { WeekSlideDay } from "@/lib/screens/week";
 
 function Text({
   children,
@@ -23,20 +19,24 @@ function Text({
 
 export function WeekSocialOgGraphic({
   format,
-  rangeLabel,
   days,
   pageLabel,
-  logoSrc,
+  paperSrc,
+  tearSrc,
+  stickerSrc,
 }: {
   format: WeekSocialFormat;
-  rangeLabel: string;
+  rangeLabel?: string;
   days: WeekSlideDay[];
   pageLabel: string | null;
-  logoSrc: string | null;
+  paperSrc: string | null;
+  tearSrc: string | null;
+  stickerSrc: string | null;
 }) {
-  const scale = SCALE[format.id];
-  const split = format.layout === "split";
-  const empty = days.length === 0;
+  const scale = socialPosterScale(format.id);
+  const rows = socialPosterRows(days);
+  const columns = socialPosterColumns(rows, scale.columns);
+  const split = columns.length === 2;
 
   return (
     <div
@@ -44,150 +44,188 @@ export function WeekSocialOgGraphic({
         width: format.width,
         height: format.height,
         display: "flex",
-        flexDirection: split ? "row" : "column",
-        backgroundColor: "#1b1612",
-        color: "#f4ebe3",
-        padding: scale.pad,
-        fontFamily: "Georgia, ui-serif, serif",
+        flexDirection: "column",
+        backgroundColor: SOCIAL_POSTER.cream,
+        fontFamily: "Roboto",
+        position: "relative",
       }}
     >
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          alignItems: split ? "flex-start" : "center",
-          justifyContent: split ? "center" : "flex-start",
-          width: split ? "38%" : "100%",
-          borderRight: split ? "8px solid #d36b4a" : "0px solid #1b1612",
-          borderBottom: split ? "0px solid #1b1612" : "8px solid #d36b4a",
-          paddingRight: split ? 40 : 0,
-          paddingBottom: split ? 0 : 28,
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: scale.header,
+          position: "relative",
+          overflow: "hidden",
+          paddingTop: 18,
+          paddingBottom: Math.round(scale.header * 0.18),
         }}
       >
-        {logoSrc ? (
+        {paperSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoSrc} alt="FloBama" width={scale.logo} height={Math.round((scale.logo * 488) / 1500)} />
+          <img
+            src={paperSrc}
+            alt=""
+            width={format.width}
+            height={scale.header}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: format.width,
+              height: scale.header,
+              objectFit: "cover",
+            }}
+          />
         ) : (
-          <Text style={{ fontSize: 54, fontWeight: 900, letterSpacing: -2 }}>FloBama</Text>
+          <div
+            style={{
+              display: "flex",
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "#ff6a00",
+            }}
+          />
+        )}
+        {stickerSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={stickerSrc} alt="FloBama" width={scale.logo} height={Math.round((scale.logo * 300) / 710)} />
+        ) : (
+          <Text style={{ fontSize: 54, fontWeight: 700, color: SOCIAL_POSTER.title }}>FloBama</Text>
         )}
         <Text
           style={{
-            marginTop: 16,
+            marginTop: Math.round(scale.title * 0.45),
             fontSize: scale.title,
-            fontWeight: 900,
-            lineHeight: 0.85,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: SOCIAL_POSTER.title,
             textTransform: "uppercase",
           }}
         >
-          This week
+          {SOCIAL_POSTER.heading}
         </Text>
-        <Text
-          style={{
-            marginTop: 16,
-            fontSize: scale.range,
-            fontWeight: 800,
-            letterSpacing: 3,
-            color: "#d36b4a",
-            textTransform: "uppercase",
-          }}
-        >
-          {rangeLabel}
-        </Text>
-        {split ? (
-          <Text
+        {tearSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={tearSrc}
+            alt=""
+            width={format.width}
+            height={Math.round(format.width * (58 / 1080))}
             style={{
-              marginTop: 28,
-              paddingTop: 18,
-              borderTop: "6px solid rgba(244,235,227,0.35)",
-              fontSize: 14,
-              fontWeight: 800,
-              letterSpacing: 3,
-              textTransform: "uppercase",
+              position: "absolute",
+              left: 0,
+              bottom: -Math.round(format.width * (58 / 1080) * 0.35),
+              width: format.width,
             }}
-          >
-            FloBama Music Hall · Downtown Florence
-          </Text>
+          />
         ) : null}
       </div>
 
-      {empty ? (
+      {rows.length === 0 ? (
         <Text
           style={{
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 56,
-            fontWeight: 900,
+            fontSize: Math.round(scale.name * 1.15),
+            fontWeight: 700,
+            color: SOCIAL_POSTER.blue,
             textTransform: "uppercase",
             textAlign: "center",
+            padding: scale.padX,
           }}
         >
-          No public shows this week.
+          No public shows this week
         </Text>
       ) : (
         <div
           style={{
             display: "flex",
             flexDirection: split ? "row" : "column",
-            flexWrap: split ? "wrap" : "nowrap",
             flex: 1,
-            justifyContent: "center",
-            paddingLeft: split ? 48 : 0,
-            marginTop: split ? 0 : 28,
+            justifyContent: "flex-start",
+            paddingLeft: scale.padX,
+            paddingRight: scale.padX,
+            paddingTop: scale.listTop,
+            paddingBottom: pageLabel ? 28 : 36,
+            gap: split ? 32 : scale.gap,
           }}
         >
-          {days.map((day) => (
+          {columns.map((column, index) => (
             <div
-              key={day.dateKey}
+              key={index}
               style={{
                 display: "flex",
                 flexDirection: "column",
-                width: split ? "50%" : "100%",
-                alignItems: split ? "flex-start" : "center",
-                marginBottom: 22,
+                flex: 1,
+                justifyContent: "flex-start",
+                alignItems: "center",
+                gap: scale.gap,
               }}
             >
-              <Text
-                style={{
-                  fontSize: scale.day,
-                  fontWeight: 800,
-                  letterSpacing: 4,
-                  color: "#d36b4a",
-                  textTransform: "uppercase",
-                }}
-              >
-                {`${day.weekday.slice(0, 3)} ${day.dateLabel}`}
-              </Text>
-              {day.events.map((event) => (
+              {column.map((row) => (
                 <div
-                  key={event.id}
+                  key={row.id}
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: split ? "flex-start" : "center",
-                    marginTop: 8,
+                    alignItems: "center",
+                    width: "100%",
                   }}
                 >
-                  <Text
+                  <div
                     style={{
-                      fontSize: scale.event,
-                      fontWeight: 900,
-                      lineHeight: 0.95,
-                      textTransform: "uppercase",
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "flex-start",
+                      justifyContent: "center",
                     }}
                   >
-                    {event.name}
-                  </Text>
+                    <Text
+                      style={{
+                        fontSize: scale.date,
+                        color: SOCIAL_POSTER.ink,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {row.lead}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: scale.ordinal,
+                        color: SOCIAL_POSTER.ink,
+                        marginTop: 2,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {row.ordinal}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: scale.date,
+                        fontWeight: 700,
+                        color: SOCIAL_POSTER.ink,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {` ${row.time}`}
+                    </Text>
+                  </div>
                   <Text
                     style={{
-                      marginTop: 4,
-                      fontSize: scale.meta,
+                      marginTop: 2,
+                      fontSize: scale.name,
                       fontWeight: 700,
-                      letterSpacing: 2,
+                      color: SOCIAL_POSTER.blue,
                       textTransform: "uppercase",
+                      textAlign: "center",
                     }}
                   >
-                    {weekEventLineupMeta(event)}
+                    {row.name}
                   </Text>
                 </div>
               ))}
@@ -196,25 +234,19 @@ export function WeekSocialOgGraphic({
         </div>
       )}
 
-      {!split ? (
+      {pageLabel ? (
         <Text
           style={{
-            marginTop: 24,
-            paddingTop: 18,
-            borderTop: "8px solid rgba(244,235,227,0.35)",
-            fontSize: 14,
-            fontWeight: 800,
-            letterSpacing: 4,
+            position: "absolute",
+            right: 24,
+            bottom: 16,
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: 3,
+            color: "#666666",
             textTransform: "uppercase",
-            justifyContent: "center",
           }}
         >
-          FloBama Music Hall · Downtown Florence
-        </Text>
-      ) : null}
-
-      {pageLabel ? (
-        <Text style={{ marginTop: 12, fontSize: 16, fontWeight: 800, letterSpacing: 3, color: "#c9b8aa", textTransform: "uppercase" }}>
           {pageLabel}
         </Text>
       ) : null}

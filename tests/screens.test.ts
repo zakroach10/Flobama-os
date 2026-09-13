@@ -34,6 +34,12 @@ import {
   weekSocialPages,
   weekSocialStudioPath,
 } from "@/lib/screens/social";
+import {
+  englishOrdinal,
+  socialPosterColumns,
+  socialPosterDateParts,
+  socialPosterRows,
+} from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
@@ -315,6 +321,22 @@ describe("this week slide", () => {
     expect(weekSocialStudioPath({ formatId: "landscape", demo: true })).toBe(
       "/print/week/social?size=landscape&demo=1",
     );
+  });
+
+  it("formats Live Music This Week poster lines like the venue template", () => {
+    expect(englishOrdinal(1)).toBe("ST");
+    expect(englishOrdinal(22)).toBe("ND");
+    expect(englishOrdinal(23)).toBe("RD");
+    expect(englishOrdinal(25)).toBe("TH");
+    expect(socialPosterDateParts("2026-08-25", "7:00 PM")).toEqual({
+      lead: "TUESDAY AUGUST 25",
+      ordinal: "TH",
+      time: "7:00 PM",
+    });
+    const rows = socialPosterRows(DEMO_WEEK_SLIDE.days);
+    expect(rows.map((row) => row.name)).toEqual(["SLAW DOGS", "KARAOKE", "LATE SET"]);
+    expect(socialPosterColumns(rows, 2)).toHaveLength(1);
+    expect(socialPosterColumns(rows.concat(rows), 2)).toHaveLength(2);
   });
 
   it("paginates a busy week without dropping days", () => {

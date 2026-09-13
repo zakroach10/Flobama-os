@@ -27,7 +27,7 @@ export function PrintWeekToolbar({
     <div className="no-print mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 pt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pt-6">
       <p className="text-sm text-[#444]">
         {mode === "social"
-          ? "Download a PNG at the size you need, then post it."
+          ? "Download a PNG in FloBama’s Live Music This Week style, then post it."
           : "US Letter flyer. Use Print and choose Save as PDF for a handout file."}
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

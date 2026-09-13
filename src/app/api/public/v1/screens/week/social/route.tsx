@@ -35,7 +35,13 @@ export async function GET(request: Request) {
   const days = pages[pageIndex] ?? [];
   const pageLabel = pages.length > 1 ? `${pageIndex + 1} / ${pages.length}` : null;
   const filename = socialGraphicFileName(week.rangeLabel, format.id, pageIndex + 1, pages.length);
-  const logoSrc = await logoDataUri();
+  const [paperSrc, tearSrc, stickerSrc, regular, bold] = await Promise.all([
+    fileDataUri("public/social/paper-orange.jpg", "image/jpeg"),
+    fileDataUri("public/social/paper-tear.png", "image/png"),
+    fileDataUri("public/social/flobama-sticker.png", "image/png"),
+    readFile(join(process.cwd(), "public/fonts/Roboto-Regular.ttf")),
+    readFile(join(process.cwd(), "public/fonts/Roboto-Bold.ttf")),
+  ]);
 
   return new ImageResponse(
     (
@@ -45,13 +51,19 @@ export async function GET(request: Request) {
           rangeLabel={week.rangeLabel}
           days={days}
           pageLabel={pageLabel}
-          logoSrc={logoSrc}
+          paperSrc={paperSrc}
+          tearSrc={tearSrc}
+          stickerSrc={stickerSrc}
         />
       </div>
     ),
     {
       width: format.width,
       height: format.height,
+      fonts: [
+        { name: "Roboto", data: regular, weight: 400, style: "normal" },
+        { name: "Roboto", data: bold, weight: 700, style: "normal" },
+      ],
       headers: {
         "Content-Type": "image/png",
         "Content-Disposition": `attachment; filename="${filename}"`,
@@ -70,10 +82,10 @@ async function loadLiveWeek() {
   return buildWeekSlidePayload(events);
 }
 
-async function logoDataUri() {
+async function fileDataUri(relativePath: string, mime: string) {
   try {
-    const bytes = await readFile(join(process.cwd(), "public/flobama-logo.png"));
-    return `data:image/png;base64,${bytes.toString("base64")}`;
+    const bytes = await readFile(join(process.cwd(), relativePath));
+    return `data:${mime};base64,${bytes.toString("base64")}`;
   } catch {
     return null;
   }
