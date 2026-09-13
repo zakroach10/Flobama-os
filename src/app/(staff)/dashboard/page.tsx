@@ -6,6 +6,7 @@ import { artistNames } from "@/lib/queries/events";
 import { formatVenueDateTime, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/states";
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <PrintWeekFlyerButton />
+          <ExportWeekSocialButton />
           {canManageProgramming(context.role) ? (
             <Button render={<Link href="/events/new" />}>Add event</Button>
           ) : null}

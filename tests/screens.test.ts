@@ -25,6 +25,13 @@ import {
   weekEventLineupMeta,
   weekFlyerFileName,
 } from "@/lib/screens/week";
+import {
+  isWeekSocialFormatId,
+  socialGraphicFileName,
+  WEEK_SOCIAL_FORMATS,
+  weekSocialFormat,
+  weekSocialPages,
+} from "@/lib/screens/social";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
@@ -278,6 +285,25 @@ describe("this week slide", () => {
     expect(days[2]?.events[0]?.name).toBe("Tuesday band");
     expect(days.filter((day) => day.events.length === 0)).toHaveLength(6);
     expect(weekFlyerFileName(payload.rangeLabel)).toBe("Flobama-this-week-Sep-6-12-2026");
+  });
+
+  it("exports this week at Instagram, story, and landscape sizes", () => {
+    expect(WEEK_SOCIAL_FORMATS.map((format) => [format.id, format.width, format.height])).toEqual([
+      ["ig-square", 1080, 1080],
+      ["ig-portrait", 1080, 1350],
+      ["story", 1080, 1920],
+      ["landscape", 1920, 1080],
+    ]);
+    expect(isWeekSocialFormatId("story")).toBe(true);
+    expect(isWeekSocialFormatId("billboard")).toBe(false);
+    expect(weekSocialFormat("nope").id).toBe("ig-square");
+    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-square")).toBe(
+      "Flobama-this-week-Sep-6-12-2026-ig-square.png",
+    );
+    expect(socialGraphicFileName("Sep 6–12, 2026", "story", 2, 3)).toBe(
+      "Flobama-this-week-Sep-6-12-2026-story-p2.png",
+    );
+    expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-square"))).toHaveLength(1);
   });
 
   it("paginates a busy week without dropping days", () => {

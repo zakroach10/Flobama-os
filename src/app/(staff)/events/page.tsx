@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { StatusBadge, TypeBadge } from "@/components/status-badge";
 import { ImportLegacyButton } from "@/components/events/import-legacy-button";
+import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function EventsPage({
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <PrintWeekFlyerButton />
+          <ExportWeekSocialButton />
           {canManageProgramming(context.role) ? (
             <>
               <ImportLegacyButton />

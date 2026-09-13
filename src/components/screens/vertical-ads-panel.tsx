@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SCREEN_TRANSITION_LABELS, SCREEN_TRANSITIONS, type ScreenTransition } from "@/lib/constants";
+import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { uploadScreenAdFromBrowser } from "@/lib/screens/browser-upload";
 import { isWeekEventsAd, type StaffScreenAd } from "@/lib/screens/playlist";
@@ -60,6 +61,7 @@ export function VerticalAdsPanel({
             {copied ? "Copied" : "Copy display URL"}
           </Button>
           <PrintWeekFlyerButton />
+          <ExportWeekSocialButton />
         </div>
       </div>
 

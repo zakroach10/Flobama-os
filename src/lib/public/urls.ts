@@ -31,6 +31,7 @@ export function buildPublicSurfaceUrls(origin: string) {
   const verticalApi = joinPublicUrl(base, "/api/public/v1/screens/vertical");
   const weekApi = joinPublicUrl(base, "/api/public/v1/screens/week");
   const weekFlyer = joinPublicUrl(base, "/print/week");
+  const weekSocial = joinPublicUrl(base, "/print/week/social");
   const iframe = `<iframe src="${embed}" title="FloBama events" style="width:100%;min-height:640px;border:0"></iframe>`;
   const embedSnippet = `${iframe}\n<script src="${embedScript}" defer></script>`;
   return {
@@ -44,6 +45,7 @@ export function buildPublicSurfaceUrls(origin: string) {
     verticalApi,
     weekApi,
     weekFlyer,
+    weekSocial,
     embedSnippet,
   };
 }

@@ -164,6 +164,8 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 
 **Weekly flyer:** Events or Screens → **Print this week’s flyer** opens a US Letter handout at `/print/week`. Use Print and choose Save as PDF. It lists every day of the current Sunday–Saturday week from the same public calendar. Local sample: http://localhost:43123/print/week?demo=1
 
+**Social graphics:** Events, Dashboard, or Screens → **Social sizes** opens `/print/week/social`. Pick Instagram square (1080×1080), Instagram portrait (1080×1350), Story/Reels (1080×1920), or landscape (1920×1080), then download a PNG. Busy weeks split across pages. Local sample: http://localhost:43123/print/week/social?demo=1
+
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
 
 **Takeover Ad Screens:** On the Vertical screens tab, upload an override graphic in that box or pick one from the library. Hold it for 15 minutes, 30 minutes, 1 hour, 2 hours, 4 hours, a custom minute count, or until you clear it. Uploaded overrides stay out of the regular rotation. Open kiosks reload onto that graphic within a few seconds and stay there until the timer ends. Clear now to resume the playlist early.
