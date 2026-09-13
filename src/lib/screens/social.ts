@@ -67,13 +67,17 @@ export function socialGraphicFileName(
   return `${base}-${formatId}${pagePart}.png`;
 }
 
-export function weekSocialExportPath(options: {
-  formatId: WeekSocialFormatId;
-  page?: number;
-  demo?: boolean;
-}) {
+export function weekSocialQuery(options: { formatId: WeekSocialFormatId; page?: number; demo?: boolean }) {
   const params = new URLSearchParams({ size: options.formatId });
   if (options.page && options.page > 1) params.set("page", String(options.page));
   if (options.demo) params.set("demo", "1");
-  return `/api/public/v1/screens/week/social?${params.toString()}`;
+  return params.toString();
+}
+
+export function weekSocialStudioPath(options: { formatId: WeekSocialFormatId; page?: number; demo?: boolean }) {
+  return `/print/week/social?${weekSocialQuery(options)}`;
+}
+
+export function weekSocialExportPath(options: { formatId: WeekSocialFormatId; page?: number; demo?: boolean }) {
+  return `/api/public/v1/screens/week/social?${weekSocialQuery(options)}`;
 }

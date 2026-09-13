@@ -1,15 +1,12 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import {
-  DEFAULT_WEEK_SOCIAL_FORMAT,
   socialGraphicFileName,
   WEEK_SOCIAL_FORMATS,
   weekSocialExportPath,
   weekSocialFormat,
   weekSocialPages,
+  weekSocialStudioPath,
   type WeekSocialFormatId,
 } from "@/lib/screens/social";
 import type { WeekSlideDay } from "@/lib/screens/week";
@@ -18,22 +15,22 @@ import { cn } from "@/lib/utils";
 export function WeekSocialStudio({
   rangeLabel,
   days,
-  initialFormat = DEFAULT_WEEK_SOCIAL_FORMAT,
+  formatId,
+  page = 1,
   demo = false,
 }: {
   rangeLabel: string;
   days: WeekSlideDay[];
-  initialFormat?: WeekSocialFormatId;
+  formatId: WeekSocialFormatId;
+  page?: number;
   demo?: boolean;
 }) {
-  const [formatId, setFormatId] = useState<WeekSocialFormatId>(initialFormat);
-  const [page, setPage] = useState(0);
   const format = weekSocialFormat(formatId);
-  const pages = useMemo(() => weekSocialPages(days, format), [days, format]);
-  const current = pages[Math.min(page, pages.length - 1)] ?? [];
-  const pageLabel = pages.length > 1 ? `${Math.min(page, pages.length - 1) + 1} / ${pages.length}` : null;
+  const pages = weekSocialPages(days, format);
+  const currentPage = Math.min(Math.max(page, 1), Math.max(pages.length, 1));
+  const current = pages[currentPage - 1] ?? [];
+  const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
   const scale = previewScale(format.width, format.height);
-  const currentPage = Math.min(page, pages.length - 1) + 1;
   const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
   const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
 
@@ -53,22 +50,26 @@ export function WeekSocialStudio({
           </a>
           {pages.length > 1 ? (
             <>
-              <button
-                type="button"
-                className={buttonVariants({ variant: "outline" })}
-                disabled={page === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
-              >
-                Previous page
-              </button>
-              <button
-                type="button"
-                className={buttonVariants({ variant: "outline" })}
-                disabled={page >= pages.length - 1}
-                onClick={() => setPage((value) => Math.min(pages.length - 1, value + 1))}
-              >
-                Next page
-              </button>
+              {currentPage > 1 ? (
+                <a
+                  className={buttonVariants({ variant: "outline" })}
+                  href={weekSocialStudioPath({ formatId: format.id, page: currentPage - 1, demo })}
+                >
+                  Previous page
+                </a>
+              ) : (
+                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none opacity-50")}>Previous page</span>
+              )}
+              {currentPage < pages.length ? (
+                <a
+                  className={buttonVariants({ variant: "outline" })}
+                  href={weekSocialStudioPath({ formatId: format.id, page: currentPage + 1, demo })}
+                >
+                  Next page
+                </a>
+              ) : (
+                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none opacity-50")}>Next page</span>
+              )}
             </>
           ) : null}
         </div>
@@ -76,13 +77,9 @@ export function WeekSocialStudio({
 
       <div className="flex flex-wrap gap-2">
         {WEEK_SOCIAL_FORMATS.map((item) => (
-          <button
+          <a
             key={item.id}
-            type="button"
-            onClick={() => {
-              setFormatId(item.id);
-              setPage(0);
-            }}
+            href={weekSocialStudioPath({ formatId: item.id, demo })}
             className={cn(
               "min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
               item.id === format.id
@@ -92,7 +89,7 @@ export function WeekSocialStudio({
           >
             <span className="block font-medium">{item.label}</span>
             <span className={item.id === format.id ? "text-[#c9b8aa]" : "text-[#666]"}>{item.hint}</span>
-          </button>
+          </a>
         ))}
       </div>
 

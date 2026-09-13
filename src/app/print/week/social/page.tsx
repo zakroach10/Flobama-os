@@ -18,11 +18,12 @@ export const metadata: Metadata = {
 export default async function WeekSocialPage({
   searchParams,
 }: {
-  searchParams: Promise<{ demo?: string; size?: string }>;
+  searchParams: Promise<{ demo?: string; size?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const demo = process.env.NODE_ENV !== "production" && params.demo === "1";
   const format = weekSocialFormat(isWeekSocialFormatId(params.size) ? params.size : undefined);
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
   if (demo) {
     return (
@@ -31,7 +32,8 @@ export default async function WeekSocialPage({
         <WeekSocialStudio
           rangeLabel={DEMO_WEEK_SLIDE.rangeLabel}
           days={DEMO_WEEK_SLIDE.days}
-          initialFormat={format.id}
+          formatId={format.id}
+          page={page}
           demo
         />
         <span className="sr-only">{weekFlyerTitle(DEMO_WEEK_SLIDE.rangeLabel)}</span>
@@ -44,7 +46,7 @@ export default async function WeekSocialPage({
     return (
       <>
         <PrintWeekToolbar documentTitle={weekFlyerFileName("this-week")} mode="social" />
-        <WeekSocialStudio rangeLabel="This week" days={[]} initialFormat={format.id} />
+        <WeekSocialStudio rangeLabel="This week" days={[]} formatId={format.id} page={page} />
       </>
     );
   }
@@ -55,7 +57,7 @@ export default async function WeekSocialPage({
   return (
     <>
       <PrintWeekToolbar documentTitle={weekFlyerFileName(week.rangeLabel)} mode="social" />
-      <WeekSocialStudio rangeLabel={week.rangeLabel} days={week.days} initialFormat={format.id} />
+      <WeekSocialStudio rangeLabel={week.rangeLabel} days={week.days} formatId={format.id} page={page} />
       <span className="sr-only">{weekFlyerTitle(week.rangeLabel)}</span>
     </>
   );

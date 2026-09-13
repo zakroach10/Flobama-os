@@ -32,6 +32,7 @@ import {
   weekSocialFormat,
   weekSocialExportPath,
   weekSocialPages,
+  weekSocialStudioPath,
 } from "@/lib/screens/social";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
@@ -310,6 +311,9 @@ describe("this week slide", () => {
     );
     expect(weekSocialExportPath({ formatId: "story", page: 2 })).toBe(
       "/api/public/v1/screens/week/social?size=story&page=2",
+    );
+    expect(weekSocialStudioPath({ formatId: "landscape", demo: true })).toBe(
+      "/print/week/social?size=landscape&demo=1",
     );
   });
 
