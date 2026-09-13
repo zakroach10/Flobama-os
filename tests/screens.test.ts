@@ -30,6 +30,7 @@ import {
   socialGraphicFileName,
   WEEK_SOCIAL_FORMATS,
   weekSocialFormat,
+  weekSocialExportPath,
   weekSocialPages,
 } from "@/lib/screens/social";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
@@ -304,6 +305,12 @@ describe("this week slide", () => {
       "Flobama-this-week-Sep-6-12-2026-story-p2.png",
     );
     expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-square"))).toHaveLength(1);
+    expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
+      "/api/public/v1/screens/week/social?size=ig-square&demo=1",
+    );
+    expect(weekSocialExportPath({ formatId: "story", page: 2 })).toBe(
+      "/api/public/v1/screens/week/social?size=story&page=2",
+    );
   });
 
   it("paginates a busy week without dropping days", () => {

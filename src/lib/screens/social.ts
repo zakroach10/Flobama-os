@@ -66,3 +66,14 @@ export function socialGraphicFileName(
   const pagePart = pageCount > 1 ? `-p${page}` : "";
   return `${base}-${formatId}${pagePart}.png`;
 }
+
+export function weekSocialExportPath(options: {
+  formatId: WeekSocialFormatId;
+  page?: number;
+  demo?: boolean;
+}) {
+  const params = new URLSearchParams({ size: options.formatId });
+  if (options.page && options.page > 1) params.set("page", String(options.page));
+  if (options.demo) params.set("demo", "1");
+  return `/api/public/v1/screens/week/social?${params.toString()}`;
+}

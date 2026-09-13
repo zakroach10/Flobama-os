@@ -32,6 +32,7 @@ export default async function WeekSocialPage({
           rangeLabel={DEMO_WEEK_SLIDE.rangeLabel}
           days={DEMO_WEEK_SLIDE.days}
           initialFormat={format.id}
+          demo
         />
         <span className="sr-only">{weekFlyerTitle(DEMO_WEEK_SLIDE.rangeLabel)}</span>
       </>

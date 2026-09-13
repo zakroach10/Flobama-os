@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
-import { downloadNodePng } from "@/lib/screens/download-png";
 import {
   DEFAULT_WEEK_SOCIAL_FORMAT,
   socialGraphicFileName,
   WEEK_SOCIAL_FORMATS,
+  weekSocialExportPath,
   weekSocialFormat,
   weekSocialPages,
   type WeekSocialFormatId,
@@ -20,42 +19,23 @@ export function WeekSocialStudio({
   rangeLabel,
   days,
   initialFormat = DEFAULT_WEEK_SOCIAL_FORMAT,
+  demo = false,
 }: {
   rangeLabel: string;
   days: WeekSlideDay[];
   initialFormat?: WeekSocialFormatId;
+  demo?: boolean;
 }) {
-  const exportRef = useRef<HTMLDivElement>(null);
   const [formatId, setFormatId] = useState<WeekSocialFormatId>(initialFormat);
   const [page, setPage] = useState(0);
-  const [downloading, setDownloading] = useState(false);
   const format = weekSocialFormat(formatId);
   const pages = useMemo(() => weekSocialPages(days, format), [days, format]);
   const current = pages[Math.min(page, pages.length - 1)] ?? [];
   const pageLabel = pages.length > 1 ? `${Math.min(page, pages.length - 1) + 1} / ${pages.length}` : null;
   const scale = previewScale(format.width, format.height);
-
-  async function downloadCurrent() {
-    const node = exportRef.current;
-    if (!node) {
-      toast.error("The graphic is not ready yet. Wait a moment and try again.");
-      return;
-    }
-    setDownloading(true);
-    try {
-      const currentPage = Math.min(page, pages.length - 1) + 1;
-      await downloadNodePng(
-        node,
-        socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length),
-        { width: format.width, height: format.height },
-      );
-      toast.success(`Saved ${format.label} PNG.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not export that graphic.");
-    } finally {
-      setDownloading(false);
-    }
-  }
+  const currentPage = Math.min(page, pages.length - 1) + 1;
+  const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
+  const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
@@ -68,22 +48,27 @@ export function WeekSocialStudio({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={downloading} onClick={() => void downloadCurrent()}>
-            {downloading ? "Exporting…" : "Download PNG"}
-          </Button>
+          <a className={buttonVariants({ variant: "default" })} href={exportHref} download={filename}>
+            Download PNG
+          </a>
           {pages.length > 1 ? (
             <>
-              <Button type="button" variant="outline" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>
-                Previous page
-              </Button>
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className={buttonVariants({ variant: "outline" })}
+                disabled={page === 0}
+                onClick={() => setPage((value) => Math.max(0, value - 1))}
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                className={buttonVariants({ variant: "outline" })}
                 disabled={page >= pages.length - 1}
                 onClick={() => setPage((value) => Math.min(pages.length - 1, value + 1))}
               >
                 Next page
-              </Button>
+              </button>
             </>
           ) : null}
         </div>
@@ -114,9 +99,7 @@ export function WeekSocialStudio({
       <div className="overflow-auto rounded-xl border bg-[#d6cfc8] p-4">
         <div className="mx-auto" style={{ width: format.width * scale, height: format.height * scale }}>
           <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <div ref={exportRef}>
-              <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
-            </div>
+            <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
           </div>
         </div>
       </div>
