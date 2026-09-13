@@ -113,7 +113,7 @@ export default async function TicketingDashboardPage() {
 function Header() {
   return (
     <header>
-      <h1 className="text-3xl font-semibold tracking-tight">Ticketing</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ticketing</h1>
       <p className="text-muted-foreground">Tickets, tables, door check-in, and sales for FloBama shows.</p>
     </header>
   );

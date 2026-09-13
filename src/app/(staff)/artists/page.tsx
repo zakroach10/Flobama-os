@@ -38,11 +38,13 @@ export default async function ArtistsPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Artists</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Artists</h1>
           <p className="text-muted-foreground">Operational directory — not the public Wall of Fame.</p>
         </div>
         {canEdit ? (
-          <Button render={<Link href="/artists?new=1" />}>Add artist</Button>
+          <Button className="w-full sm:w-auto" render={<Link href="/artists?new=1" />}>
+            Add artist
+          </Button>
         ) : null}
       </header>
 

@@ -46,17 +46,18 @@ export function EventActions({
   if (!canEdit) return null;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
       {!archived ? (
-        <Button variant="outline" render={<Link href={`/events/${eventId}/edit`} />}>
+        <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/events/${eventId}/edit`} />}>
           Edit
         </Button>
       ) : null}
-      <Button variant="outline" render={<Link href={`/events/new?from=${eventId}`} />}>
+      <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/events/new?from=${eventId}`} />}>
         Duplicate
       </Button>
       {!archived && status !== "published" ? (
         <Button
+          className="w-full sm:w-auto"
           variant="outline"
           disabled={pending}
           onClick={() => run(() => setEventStatusAction(eventId, "published"))}
@@ -65,17 +66,22 @@ export function EventActions({
         </Button>
       ) : null}
       {!archived && status === "published" ? (
-        <Button variant="outline" disabled={pending} onClick={() => run(() => setEventStatusAction(eventId, "draft"))}>
+        <Button
+          className="w-full sm:w-auto"
+          variant="outline"
+          disabled={pending}
+          onClick={() => run(() => setEventStatusAction(eventId, "draft"))}
+        >
           Return to draft
         </Button>
       ) : null}
       {!archived && status !== "cancelled" ? (
-        <Button variant="outline" disabled={pending} onClick={() => setConfirm("cancel")}>
+        <Button className="w-full sm:w-auto" variant="outline" disabled={pending} onClick={() => setConfirm("cancel")}>
           Cancel event
         </Button>
       ) : null}
       {!archived ? (
-        <Button variant="destructive" disabled={pending} onClick={() => setConfirm("archive")}>
+        <Button className="w-full sm:w-auto" variant="destructive" disabled={pending} onClick={() => setConfirm("archive")}>
           Archive
         </Button>
       ) : null}

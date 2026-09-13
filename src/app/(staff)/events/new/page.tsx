@@ -81,7 +81,7 @@ export default async function NewEventPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{isDuplicate ? "Duplicate event" : "New event"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{isDuplicate ? "Duplicate event" : "New event"}</h1>
         <p className="text-muted-foreground">
           {isDuplicate
             ? "Copied from an existing record. Status is draft until you save."

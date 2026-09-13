@@ -7,7 +7,11 @@ export function ExportWeekSocialButton({
   variant?: "outline" | "default";
 }) {
   return (
-    <Button variant={variant} render={<Link href="/print/week/social" target="_blank" rel="noreferrer" />}>
+    <Button
+      variant={variant}
+      className="w-full sm:w-auto"
+      render={<Link href="/print/week/social" target="_blank" rel="noreferrer" />}
+    >
       Social sizes
     </Button>
   );

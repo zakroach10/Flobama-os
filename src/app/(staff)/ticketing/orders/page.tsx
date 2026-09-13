@@ -21,7 +21,7 @@ export default async function TicketingOrdersPage() {
   }
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Orders</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Orders</h1>
       <TicketingSubnav />
       <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full text-sm">

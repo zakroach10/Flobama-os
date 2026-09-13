@@ -16,6 +16,7 @@ export function ImportLegacyButton() {
       <Button
         type="button"
         variant="outline"
+        className="w-full sm:w-auto"
         disabled={pending}
         onClick={() => {
           startTransition(async () => {

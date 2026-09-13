@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function PrintLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-full bg-[#f3f3f3] print:bg-white">{children}</div>;
+  return <div className="min-h-full overflow-x-hidden bg-[#f3f3f3] print:overflow-visible print:bg-white">{children}</div>;
 }

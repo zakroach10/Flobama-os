@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
@@ -22,6 +22,13 @@ export const metadata: Metadata = {
     template: "%s · FloBama OS",
   },
   description: "Internal operations for FloBama Music Hall.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f7f3ea",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

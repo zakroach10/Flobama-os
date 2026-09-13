@@ -35,7 +35,7 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
           Artists
         </Link>
       </p>
-      <h1 className="text-3xl font-semibold tracking-tight">{artist.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.name}</h1>
       {artist.archived_at ? <p className="text-sm text-muted-foreground">This artist is archived.</p> : null}
       <ArtistForm artist={artist} canEdit={canManageProgramming(context.role) && !artist.archived_at} />
 

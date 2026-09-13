@@ -17,7 +17,7 @@ export default async function CheckInIndexPage() {
   const { rows, error, missing } = await listTicketedEvents(supabase, context.venue.id);
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Check-in</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Check-in</h1>
       <TicketingSubnav />
       {missing || error ? <ErrorState title="Could not load shows" description={error ?? "Apply the ticketing migration."} /> : null}
       <ul className="space-y-2">

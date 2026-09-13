@@ -17,7 +17,7 @@ export default async function TicketingCustomersPage() {
   if (missing || error) return <ErrorState title="Could not load customers" description={error ?? "Apply the ticketing migration."} />;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Customers</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Customers</h1>
       <TicketingSubnav />
       <ul className="divide-y rounded-xl border bg-card text-sm">
         {customers.length === 0 ? <li className="px-4 py-8 text-muted-foreground">No ticket buyers yet.</li> : null}

@@ -20,7 +20,7 @@ export default async function TicketedEventsPage() {
   }
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Ticketed events</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ticketed events</h1>
       <TicketingSubnav />
       <ul className="divide-y rounded-xl border bg-card">
         {rows.length === 0 ? <li className="px-4 py-8 text-sm text-muted-foreground">No shows have ticketing enabled.</li> : null}

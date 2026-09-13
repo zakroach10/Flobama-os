@@ -1,4 +1,5 @@
 import { buttonVariants } from "@/components/ui/button";
+import { ScaledPreview } from "@/components/print/scaled-preview";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import {
   socialGraphicFileName,
@@ -30,52 +31,55 @@ export function WeekSocialStudio({
   const currentPage = Math.min(Math.max(page, 1), Math.max(pages.length, 1));
   const current = pages[currentPage - 1] ?? [];
   const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
-  const scale = previewScale(format.width, format.height);
   const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
   const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+    <div className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:space-y-6 sm:py-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#111]">This week · social sizes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#111] sm:text-3xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-sm text-[#444]">
             Pick a size, then download a PNG for Instagram, stories, or Facebook. Busy weeks split across pages so the
             type stays readable.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <a className={buttonVariants({ variant: "default" })} href={exportHref} download={filename}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <a className={cn(buttonVariants({ variant: "default" }), "w-full sm:w-auto")} href={exportHref} download={filename}>
             Download PNG
           </a>
           {pages.length > 1 ? (
             <>
               {currentPage > 1 ? (
                 <a
-                  className={buttonVariants({ variant: "outline" })}
+                  className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
                   href={weekSocialStudioPath({ formatId: format.id, page: currentPage - 1, demo })}
                 >
                   Previous page
                 </a>
               ) : (
-                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none opacity-50")}>Previous page</span>
+                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none w-full opacity-50 sm:w-auto")}>
+                  Previous page
+                </span>
               )}
               {currentPage < pages.length ? (
                 <a
-                  className={buttonVariants({ variant: "outline" })}
+                  className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
                   href={weekSocialStudioPath({ formatId: format.id, page: currentPage + 1, demo })}
                 >
                   Next page
                 </a>
               ) : (
-                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none opacity-50")}>Next page</span>
+                <span className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none w-full opacity-50 sm:w-auto")}>
+                  Next page
+                </span>
               )}
             </>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {WEEK_SOCIAL_FORMATS.map((item) => (
           <a
             key={item.id}
@@ -93,19 +97,15 @@ export function WeekSocialStudio({
         ))}
       </div>
 
-      <div className="overflow-auto rounded-xl border bg-[#d6cfc8] p-4">
-        <div className="mx-auto" style={{ width: format.width * scale, height: format.height * scale }}>
-          <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
-          </div>
-        </div>
-      </div>
+      <figure className="overflow-hidden rounded-xl border bg-[#d6cfc8] p-3 sm:p-4">
+        <ScaledPreview width={format.width} height={format.height} className="rounded-lg shadow-md">
+          <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
+        </ScaledPreview>
+        <figcaption className="mt-3 text-center text-xs text-[#5c534c]">
+          On-screen preview · {format.label} · {format.width}×{format.height}
+          {pageLabel ? ` · page ${pageLabel}` : ""}
+        </figcaption>
+      </figure>
     </div>
   );
-}
-
-function previewScale(width: number, height: number) {
-  const maxWidth = 720;
-  const maxHeight = 820;
-  return Math.min(1, maxWidth / width, maxHeight / height);
 }

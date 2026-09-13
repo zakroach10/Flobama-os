@@ -23,7 +23,7 @@ export default async function TicketingReportsPage() {
   const refunds = orders.filter((order) => order.order_status === "refunded");
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Reports</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Reports</h1>
       <TicketingSubnav />
       <dl className="grid gap-3 sm:grid-cols-4">
         <Card label="Ticketed shows" value={String(ticketed.rows.length)} />

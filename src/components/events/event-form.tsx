@@ -333,11 +333,11 @@ export function EventForm({
 
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <Button type="submit" className="w-full sm:w-auto" disabled={pending}>
           {pending ? "Saving…" : eventId ? "Save event" : "Create event"}
         </Button>
-        <Button type="button" variant="outline" disabled={pending} onClick={() => router.back()}>
+        <Button type="button" className="w-full sm:w-auto" variant="outline" disabled={pending} onClick={() => router.back()}>
           Cancel
         </Button>
       </div>

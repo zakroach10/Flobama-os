@@ -17,7 +17,10 @@ const LINKS = [
 export function TicketingSubnav() {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-wrap gap-1 border-b pb-px" aria-label="Ticketing">
+    <nav
+      className="-mx-4 flex flex-nowrap gap-1 overflow-x-auto overscroll-x-contain border-b px-4 pb-px [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+      aria-label="Ticketing"
+    >
       {LINKS.map((link) => {
         const active = link.href === "/ticketing" ? pathname === "/ticketing" : pathname.startsWith(link.href);
         return (
@@ -25,7 +28,7 @@ export function TicketingSubnav() {
             key={link.href}
             href={link.href}
             className={cn(
-              "inline-flex h-10 items-center px-3 text-sm font-medium",
+              "inline-flex h-10 shrink-0 items-center px-3 text-sm font-medium",
               active ? "border-b-2 border-primary" : "text-muted-foreground hover:text-foreground",
             )}
           >

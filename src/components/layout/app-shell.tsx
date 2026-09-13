@@ -100,6 +100,16 @@ function Brand() {
   );
 }
 
+function mobileSection(pathname: string) {
+  if (pathname.startsWith("/events")) return "Events";
+  if (pathname.startsWith("/ticketing")) return "Ticketing";
+  if (pathname.startsWith("/artists")) return "Artists";
+  if (pathname.startsWith("/settings")) return "Settings";
+  if (pathname.startsWith("/screens")) return "Screens";
+  if (pathname.startsWith("/dashboard")) return "Dashboard";
+  return "Staff OS";
+}
+
 export function AppShell({
   children,
   venueName,
@@ -114,6 +124,7 @@ export function AppShell({
   showScreens?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="flex min-h-full bg-background">
@@ -130,7 +141,7 @@ export function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex min-h-14 items-center gap-3 border-b bg-card px-4 md:hidden">
+        <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b bg-card/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-sm md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               render={
@@ -139,19 +150,31 @@ export function AppShell({
             >
               <MenuIcon />
             </SheetTrigger>
-            <SheetContent side="left" className="bg-sidebar p-0 text-sidebar-foreground">
+            <SheetContent side="left" className="bg-sidebar p-0 text-sidebar-foreground data-[side=left]:w-[min(20rem,88vw)]">
               <SheetHeader>
                 <SheetTitle className="sr-only">FloBama OS</SheetTitle>
-                <FlobamaLogo className="mx-auto w-[180px]" />
+                <FlobamaLogo className="mx-auto w-[180px] max-w-[70%]" />
               </SheetHeader>
-              <div className="px-2 pb-6">
+              <div className="flex-1 overflow-y-auto px-2 pb-6">
                 <NavLinks showScreens={showScreens} onNavigate={() => setOpen(false)} />
+              </div>
+              <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
+                <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
+                <p className="mt-1 truncate">{userLabel}</p>
+                <p className="truncate">{roleLabel}</p>
               </div>
             </SheetContent>
           </Sheet>
-          <FlobamaLogo className="h-8 w-auto max-w-[140px]" />
+          <div className="min-w-0 flex-1">
+            <FlobamaLogo className="h-7 w-auto max-w-[132px]" />
+            <p className="truncate text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              {mobileSection(pathname)}
+            </p>
+          </div>
         </header>
-        <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+        <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6 lg:px-8">
+          {children}
+        </div>
       </div>
     </div>
   );

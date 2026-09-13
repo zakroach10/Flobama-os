@@ -7,7 +7,11 @@ export function PrintWeekFlyerButton({
   variant?: "outline" | "default";
 }) {
   return (
-    <Button variant={variant} render={<Link href="/print/week" target="_blank" rel="noreferrer" />}>
+    <Button
+      variant={variant}
+      className="w-full sm:w-auto"
+      render={<Link href="/print/week" target="_blank" rel="noreferrer" />}
+    >
       Print this week’s flyer
     </Button>
   );

@@ -21,7 +21,7 @@ export function EventPageHeader({
       </p>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{event.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{event.title}</h1>
           <StatusBadge status={event.status} />
           <TypeBadge type={event.event_type as "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other"} />
         </div>

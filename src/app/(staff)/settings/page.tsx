@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">Account, roles, and venue defaults for this staff workspace.</p>
       </div>
       <RolePermissionGuide />

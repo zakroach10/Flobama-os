@@ -23,7 +23,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">{order.order_number}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{order.order_number}</h1>
       <TicketingSubnav />
       <dl className="grid gap-3 rounded-xl border bg-card p-5 sm:grid-cols-2 text-sm">
         <div>

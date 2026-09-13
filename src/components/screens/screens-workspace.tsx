@@ -32,7 +32,7 @@ export function ScreensWorkspace({
       }}
       className="gap-6"
     >
-      <TabsList variant="line" className="h-auto w-full min-h-11 justify-start rounded-none">
+      <TabsList variant="line" className="h-auto min-h-11 w-full justify-start overflow-x-auto rounded-none">
         <TabsTrigger value="led" className="min-h-11 px-3">
           LED wall
         </TabsTrigger>

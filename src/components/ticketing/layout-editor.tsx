@@ -121,9 +121,9 @@ export function LayoutEditor({
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
       <div className="space-y-3">
         {editor ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {LAYOUT_PALETTE.map((type) => (
-              <Button key={type} type="button" size="sm" variant="outline" onClick={() => addObject(type)}>
+              <Button key={type} type="button" size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => addObject(type)}>
                 {LAYOUT_OBJECT_LABELS[type]}
               </Button>
             ))}

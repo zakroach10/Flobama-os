@@ -28,14 +28,16 @@ export default async function DashboardPage() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">Venue</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{context.venue.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{context.venue.name}</h1>
           <p className="mt-1 text-muted-foreground">{formatVenueTodayHeading(new Date(), context.venue.timezone)}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <PrintWeekFlyerButton />
           <ExportWeekSocialButton />
           {canManageProgramming(context.role) ? (
-            <Button render={<Link href="/events/new" />}>Add event</Button>
+            <Button className="w-full sm:w-auto" render={<Link href="/events/new" />}>
+              Add event
+            </Button>
           ) : null}
         </div>
       </header>

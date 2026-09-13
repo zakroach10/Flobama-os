@@ -43,7 +43,7 @@ export default async function EventsPage({
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Events</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Events</h1>
           <p className="text-muted-foreground">Operational calendar for {context.venue.name}.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -52,7 +52,9 @@ export default async function EventsPage({
           {canManageProgramming(context.role) ? (
             <>
               <ImportLegacyButton />
-              <Button render={<Link href="/events/new" />}>Add event</Button>
+              <Button className="w-full sm:w-auto" render={<Link href="/events/new" />}>
+                Add event
+              </Button>
             </>
           ) : null}
         </div>

@@ -19,7 +19,7 @@ export default async function VenueLayoutPage() {
   if (missing) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Venue layout</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Venue layout</h1>
         <TicketingSubnav />
         <ErrorState
           title="Master layout is not in this database yet"
@@ -67,7 +67,7 @@ export default async function VenueLayoutPage() {
   const { objects } = await listLayoutObjects(supabase, layout.id);
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">{layout.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{layout.name}</h1>
       <p className="text-muted-foreground">
         Master FloBama room. Add, duplicate, and resize tables, the bar, dividers, restrooms, and other spaces, then
         save. Copy a table’s size and apply it to the rest. Event maps copy this layout and can still be changed per
