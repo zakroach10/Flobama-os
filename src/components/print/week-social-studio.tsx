@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
+import { downloadNodePng } from "@/lib/screens/download-png";
 import {
   DEFAULT_WEEK_SOCIAL_FORMAT,
   socialGraphicFileName,
@@ -37,25 +37,21 @@ export function WeekSocialStudio({
 
   async function downloadCurrent() {
     const node = exportRef.current;
-    if (!node) return;
+    if (!node) {
+      toast.error("The graphic is not ready yet. Wait a moment and try again.");
+      return;
+    }
     setDownloading(true);
     try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: 1,
-        width: format.width,
-        height: format.height,
-        backgroundColor: "#1b1612",
-        style: { position: "relative", left: "0", top: "0" },
-      });
-      const link = document.createElement("a");
       const currentPage = Math.min(page, pages.length - 1) + 1;
-      link.download = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
-      link.href = dataUrl;
-      link.click();
+      await downloadNodePng(
+        node,
+        socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length),
+        { width: format.width, height: format.height },
+      );
       toast.success(`Saved ${format.label} PNG.`);
-    } catch {
-      toast.error("Could not export that graphic. Try again in Chrome or Safari.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not export that graphic.");
     } finally {
       setDownloading(false);
     }
@@ -118,14 +114,10 @@ export function WeekSocialStudio({
       <div className="overflow-auto rounded-xl border bg-[#d6cfc8] p-4">
         <div className="mx-auto" style={{ width: format.width * scale, height: format.height * scale }}>
           <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
+            <div ref={exportRef}>
+              <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
+            </div>
           </div>
-        </div>
-      </div>
-
-      <div className="pointer-events-none fixed top-0 -left-[4000px]" aria-hidden>
-        <div ref={exportRef}>
-          <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
         </div>
       </div>
     </div>
