@@ -109,9 +109,9 @@ Set `NEXT_PUBLIC_SITE_URL=https://flobama-os.vercel.app` (no trailing slash requ
 
 Anonymous clients cannot `SELECT` `public.events`. They only read `event_listings` and `event_listing_artists` (published + public + not archived). Internal notes never appear there.
 
-### Import the legacy sheet
+### Update from the master sheet
 
-`data/legacy-events.csv` is the saved FloBama master sheet (68 rows). Admins and managers use **Events → Import legacy sheet**. That imports the **41** rows where Published is Yes and Archived is not Yes, upserts by `legacy_source_id` (`evt_…`), and links artist records. Re-running does not duplicate. Karaoke titles do not create an artist named Karaoke.
+Admins and managers use **Events → Update**. That fetches the live published [FloBama master sheet](https://docs.google.com/spreadsheets/d/e/2PACX-1vRENsjXeSHSUIuHU1Fne1ciKu6zW3FzaNxofXOvCUWjSKYaOHZskJupvfG3QHK-AeVfTvZwzN7VaMUk/pubhtml) (CSV), upserts every Published / not Archived row by `legacy_source_id` (`evt_…`), and links artist records. Sheet rows that are unpublished or archived withdraw matching OS events (draft or archive). Re-running does not duplicate. Karaoke titles do not create an artist named Karaoke. `data/legacy-events.csv` is a fallback snapshot if Google is unreachable.
 
 ### JSON API (CORS `*` on GET)
 

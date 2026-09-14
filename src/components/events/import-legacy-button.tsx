@@ -28,13 +28,13 @@ export function ImportLegacyButton() {
             }
             toast.success(result.message);
             setSummary(
-              `${result.imported} listings · ${result.created} created · ${result.updated} updated · ${result.artistsCreated} artists added`,
+              `${result.imported} listings · ${result.created} new · ${result.updated} updated · ${result.withdrawn} withdrawn · ${result.artistsCreated} artists added`,
             );
             router.refresh();
           });
         }}
       >
-        {pending ? "Importing…" : "Import legacy sheet"}
+        {pending ? "Updating…" : "Update"}
       </Button>
       {summary ? <p className="max-w-xs text-right text-xs text-muted-foreground">{summary}</p> : null}
     </div>

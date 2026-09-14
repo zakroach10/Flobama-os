@@ -29,8 +29,15 @@ export type ParsedLegacyEvent = {
   artistName: string | null;
 };
 
+export type LegacyWithdrawnRow = {
+  title: string;
+  legacySourceId: string;
+  archived: boolean;
+};
+
 export type LegacyParseResult = {
   importable: ParsedLegacyEvent[];
+  withdrawn: LegacyWithdrawnRow[];
   skipped: LegacySkippedRow[];
 };
 
@@ -203,6 +210,7 @@ export function normalizeCoverLabel(raw: string): string | null {
 
 export function parseLegacySheet(text: string, timeZone = DEFAULT_VENUE_TIMEZONE): LegacyParseResult {
   const importable: ParsedLegacyEvent[] = [];
+  const withdrawn: LegacyWithdrawnRow[] = [];
   const skipped: LegacySkippedRow[] = [];
 
   for (const record of parseCsvRecords(text)) {
@@ -215,10 +223,12 @@ export function parseLegacySheet(text: string, timeZone = DEFAULT_VENUE_TIMEZONE
     }
     if (isYes(record.archived)) {
       skipped.push({ title, legacySourceId, reason: "archived" });
+      if (legacySourceId) withdrawn.push({ title, legacySourceId, archived: true });
       continue;
     }
     if (!isYes(record.published)) {
       skipped.push({ title, legacySourceId, reason: "unpublished" });
+      if (legacySourceId) withdrawn.push({ title, legacySourceId, archived: false });
       continue;
     }
     if (!legacySourceId) {
@@ -263,5 +273,5 @@ export function parseLegacySheet(text: string, timeZone = DEFAULT_VENUE_TIMEZONE
     });
   }
 
-  return { importable, skipped };
+  return { importable, withdrawn, skipped };
 }

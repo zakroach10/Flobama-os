@@ -9,6 +9,7 @@ import {
   parseSheetDate,
   parseSheetTime,
 } from "@/lib/legacy/parser";
+import { FLO_BAMA_MASTER_SHEET_CSV_URL, looksLikeMasterSheetCsv } from "@/lib/legacy/sheet";
 
 describe("legacy sheet parser", () => {
   it("reads Excel serial times as time-of-day only", () => {
@@ -42,6 +43,7 @@ Test Event,Monday,2026-08-03,8:00 PM,Yes,zakary.info,Free,evt_test,No,Yes,secret
     expect(result.importable).toHaveLength(1);
     expect(result.importable[0]?.legacySourceId).toBe("evt_keep_me");
     expect(result.skipped.map((row) => row.reason).sort()).toEqual(["archived", "test_event", "unpublished"]);
+    expect(result.withdrawn.map((row) => row.legacySourceId).sort()).toEqual(["evt_archived", "evt_draft"]);
   });
 
   it("classifies karaoke, DJ, and sports titles and never names an artist Karaoke", () => {
@@ -55,10 +57,10 @@ Test Event,Monday,2026-08-03,8:00 PM,Yes,zakary.info,Free,evt_test,No,Yes,secret
     expect(artistNameFromTitle("Kirbi Music and Friends (Ticketed Show)")).toBe("Kirbi Music and Friends");
   });
 
-  it("imports 41 published unarchived rows from the saved master sheet", () => {
+  it("updates 43 published unarchived rows from the master sheet snapshot", () => {
     const csv = readFileSync(path.join(process.cwd(), "data/legacy-events.csv"), "utf8");
     const result = parseLegacySheet(csv);
-    expect(result.importable).toHaveLength(41);
+    expect(result.importable).toHaveLength(43);
     expect(result.importable.every((row) => row.legacySourceId.startsWith("evt_"))).toBe(true);
     expect(result.importable.some((row) => row.title === "Test Event")).toBe(false);
     expect(result.importable.some((row) => row.artistName === "Karaoke")).toBe(false);
@@ -69,5 +71,19 @@ Test Event,Monday,2026-08-03,8:00 PM,Yes,zakary.info,Free,evt_test,No,Yes,secret
     const late = result.importable.find((row) => row.legacySourceId === "evt_8d16679dbfac");
     expect(late?.eventType).toBe("dj");
     expect(late?.endsAtIso).toContain("2026-08-22");
+    const misfits = result.importable.find((row) => row.legacySourceId === "evt_271cd003253e");
+    expect(misfits?.title).toBe("The Misfits");
+    expect(misfits?.startsAtIso).toContain("2026-09-11");
+    const dejaVu = result.importable.find((row) => row.legacySourceId === "evt_6c8372ef877b");
+    expect(dejaVu?.title).toBe("Deja Vu");
+    expect(dejaVu?.startsAtIso).toContain("2026-09-12");
+  });
+
+  it("recognizes the published master sheet CSV", () => {
+    const csv = readFileSync(path.join(process.cwd(), "data/legacy-events.csv"), "utf8");
+    expect(looksLikeMasterSheetCsv(csv)).toBe(true);
+    expect(looksLikeMasterSheetCsv("<html>nope</html>")).toBe(false);
+    expect(FLO_BAMA_MASTER_SHEET_CSV_URL).toContain("output=csv");
   });
 });
+

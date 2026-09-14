@@ -1,9 +1,8 @@
 "use server";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { parseLegacySheet, type ParsedLegacyEvent } from "@/lib/legacy/parser";
+import { loadMasterSheetCsv } from "@/lib/legacy/sheet";
 import { authorizeProgramming } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth/staff";
@@ -13,8 +12,25 @@ export type ImportLegacyResult = {
   message: string;
   created: number;
   updated: number;
+  withdrawn: number;
   artistsCreated: number;
   imported: number;
+};
+
+type ExistingLegacyEvent = {
+  id: string;
+  legacy_source_id: string | null;
+  featured: boolean;
+  archived_at: string | null;
+  status: "draft" | "published" | "cancelled";
+};
+
+const emptyResult = {
+  created: 0,
+  updated: 0,
+  withdrawn: 0,
+  artistsCreated: 0,
+  imported: 0,
 };
 
 async function staffForImport() {
@@ -33,39 +49,38 @@ function findArtistId(artists: Array<{ id: string; name: string }>, name: string
   return artists.find((artist) => artist.name.trim().toLowerCase() === key)?.id;
 }
 
+function fail(message: string, counts: Omit<ImportLegacyResult, "ok" | "message">): ImportLegacyResult {
+  return { ok: false, message, ...counts };
+}
+
 export async function importLegacyEventsAction(): Promise<ImportLegacyResult> {
   const gate = await staffForImport();
   if (!gate.ok) {
-    return { ok: false, message: gate.message, created: 0, updated: 0, artistsCreated: 0, imported: 0 };
+    return fail(gate.message, emptyResult);
   }
   const allowed = authorizeProgramming(gate.context.role);
   if (!allowed.allowed) {
-    return { ok: false, message: allowed.reason, created: 0, updated: 0, artistsCreated: 0, imported: 0 };
+    return fail(allowed.reason, emptyResult);
   }
 
-  const csvPath = path.join(process.cwd(), "data", "legacy-events.csv");
   let csv: string;
+  let source: "live" | "local";
   try {
-    csv = await readFile(csvPath, "utf8");
+    const loaded = await loadMasterSheetCsv();
+    csv = loaded.csv;
+    source = loaded.source;
   } catch {
-    return {
-      ok: false,
-      message: "Could not read data/legacy-events.csv.",
-      created: 0,
-      updated: 0,
-      artistsCreated: 0,
-      imported: 0,
-    };
+    return fail("Could not load the master events sheet.", emptyResult);
   }
 
   const parsed = parseLegacySheet(csv, gate.context.venue.timezone);
   const { data: existingEvents, error: existingError } = await gate.supabase
     .from("events")
-    .select("id, legacy_source_id, featured")
+    .select("id, legacy_source_id, featured, archived_at, status")
     .eq("venue_id", gate.context.venue.id)
     .not("legacy_source_id", "is", null);
   if (existingError) {
-    return { ok: false, message: existingError.message, created: 0, updated: 0, artistsCreated: 0, imported: 0 };
+    return fail(existingError.message, emptyResult);
   }
 
   const { data: existingArtists, error: artistError } = await gate.supabase
@@ -73,27 +88,39 @@ export async function importLegacyEventsAction(): Promise<ImportLegacyResult> {
     .select("id, name")
     .eq("venue_id", gate.context.venue.id);
   if (artistError) {
-    return { ok: false, message: artistError.message, created: 0, updated: 0, artistsCreated: 0, imported: 0 };
+    return fail(artistError.message, emptyResult);
   }
 
   const byLegacy = new Map(
     (existingEvents ?? [])
       .filter((row) => row.legacy_source_id)
-      .map((row) => [row.legacy_source_id as string, row]),
+      .map((row) => [row.legacy_source_id as string, row as ExistingLegacyEvent]),
   );
   const artists = [...(existingArtists ?? [])];
   let created = 0;
   let updated = 0;
+  let withdrawn = 0;
   let artistsCreated = 0;
 
   for (const row of parsed.importable) {
-    const result = await upsertLegacyEvent(gate.supabase, gate.context.venue.id, row, byLegacy.get(row.legacySourceId) ?? null);
+    const result = await upsertLegacyEvent(
+      gate.supabase,
+      gate.context.venue.id,
+      row,
+      byLegacy.get(row.legacySourceId) ?? null,
+    );
     if (!result.ok) {
-      return { ok: false, message: result.message, created, updated, artistsCreated, imported: created + updated };
+      return fail(result.message, { created, updated, withdrawn, artistsCreated, imported: created + updated });
     }
     if (result.created) created += 1;
     else updated += 1;
-    byLegacy.set(row.legacySourceId, { id: result.id, legacy_source_id: row.legacySourceId, featured: false });
+    byLegacy.set(row.legacySourceId, {
+      id: result.id,
+      legacy_source_id: row.legacySourceId,
+      featured: false,
+      archived_at: null,
+      status: "published",
+    });
 
     const artistResult = await ensureLegacyArtist(
       gate.supabase,
@@ -103,7 +130,13 @@ export async function importLegacyEventsAction(): Promise<ImportLegacyResult> {
       artists,
     );
     if (!artistResult.ok) {
-      return { ok: false, message: artistResult.message, created, updated, artistsCreated, imported: created + updated };
+      return fail(artistResult.message, {
+        created,
+        updated,
+        withdrawn,
+        artistsCreated,
+        imported: created + updated,
+      });
     }
     artistsCreated += artistResult.created ? 1 : 0;
     if (artistResult.artist) {
@@ -113,12 +146,24 @@ export async function importLegacyEventsAction(): Promise<ImportLegacyResult> {
     }
   }
 
+  for (const row of parsed.withdrawn) {
+    const existing = byLegacy.get(row.legacySourceId);
+    if (!existing) continue;
+    const result = await applyWithdrawnLegacyEvent(gate.supabase, gate.context.venue.id, existing, row.archived);
+    if (!result.ok) {
+      return fail(result.message, { created, updated, withdrawn, artistsCreated, imported: created + updated });
+    }
+    if (result.changed) withdrawn += 1;
+  }
+
   revalidatePublicSurfaces();
+  const origin = source === "live" ? "the master sheet" : "the saved sheet snapshot";
   return {
     ok: true,
-    message: `Imported ${parsed.importable.length} public listings (${created} new, ${updated} updated).`,
+    message: `Updated ${parsed.importable.length} public listings from ${origin} (${created} new, ${updated} updated).`,
     created,
     updated,
+    withdrawn,
     artistsCreated,
     imported: parsed.importable.length,
   };
@@ -128,7 +173,7 @@ async function upsertLegacyEvent(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   venueId: string,
   row: ParsedLegacyEvent,
-  existing: { id: string; featured: boolean } | null,
+  existing: ExistingLegacyEvent | null,
 ): Promise<{ ok: true; id: string; created: boolean } | { ok: false; message: string }> {
   if (!supabase) return { ok: false, message: "Supabase is not configured." };
   const fields = {
@@ -160,6 +205,34 @@ async function upsertLegacyEvent(
     .single();
   if (error || !data) return { ok: false, message: error?.message ?? "Could not create event." };
   return { ok: true, id: data.id, created: true };
+}
+
+async function applyWithdrawnLegacyEvent(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  venueId: string,
+  existing: ExistingLegacyEvent,
+  archived: boolean,
+): Promise<{ ok: true; changed: boolean } | { ok: false; message: string }> {
+  if (!supabase) return { ok: false, message: "Supabase is not configured." };
+
+  const fields = archived
+    ? {
+        archived_at: existing.archived_at ?? new Date().toISOString(),
+      }
+    : {
+        status: "draft" as const,
+        archived_at: null,
+      };
+
+  const alreadyArchived = archived && Boolean(existing.archived_at);
+  const alreadyDraft = !archived && existing.status === "draft" && !existing.archived_at;
+  if (alreadyArchived || alreadyDraft) {
+    return { ok: true, changed: false };
+  }
+
+  const { error } = await supabase.from("events").update(fields).eq("id", existing.id).eq("venue_id", venueId);
+  if (error) return { ok: false, message: error.message };
+  return { ok: true, changed: true };
 }
 
 async function ensureLegacyArtist(

@@ -18,7 +18,7 @@
 - America/Chicago scheduling with timestamptz storage, overnight events, DST rejection
 - SQL migrations with constraints, indexes, triggers, RLS, least-privilege grants
 - Public projection views (`event_listings`, `event_listing_artists`) — anon has no `SELECT` on `events`
-- Legacy sheet import of 41 published, unarchived rows (idempotent `legacy_source_id`)
+- Events → Update syncs published, unarchived rows from the live FloBama master sheet (idempotent `legacy_source_id`)
 - Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
 - Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
 - OBS overlay at `/overlay` (1920×1080 browser source) and LED wall OBS controls on Screens (obs-websocket v5, sessionStorage credentials)
@@ -48,4 +48,4 @@
 
 ## Apply after pull
 
-Run the new migrations on the hosted project (SQL editor or `npx supabase db push`). For staff creation, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Then use **Settings → Staff** as an admin, **Events → Import legacy sheet** as an admin or manager, and **Screens** after the screens migration.
+Run the new migrations on the hosted project (SQL editor or `npx supabase db push`). For staff creation, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`. Then use **Settings → Staff** as an admin, **Events → Update** as an admin or manager, and **Screens** after the screens migration.
