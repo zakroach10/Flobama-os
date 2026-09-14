@@ -24,7 +24,7 @@ export function PrintWeekToolbar({
   }, [autoPrint, mode]);
 
   return (
-    <div className="no-print mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 pt-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pt-6">
+    <div className="no-print mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pt-4">
       <p className="text-sm text-[#444]">
         {mode === "social"
           ? "Download a PNG in FloBama’s Live Music This Week style, then post it."
