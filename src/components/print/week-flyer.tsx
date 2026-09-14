@@ -20,7 +20,7 @@ export function WeekFlyer({
 }) {
   return (
     <>
-      <div className="no-print px-4 py-5 sm:py-6">
+      <div className="no-print px-4 py-3 sm:py-4">
         <ScaledPreview
           width={LETTER_PREVIEW_WIDTH}
           height={LETTER_PREVIEW_HEIGHT}
@@ -28,7 +28,7 @@ export function WeekFlyer({
         >
           <FlyerSheet rangeLabel={rangeLabel} days={days} />
         </ScaledPreview>
-        <p className="mt-3 text-center text-xs text-[#5c534c]">On-screen preview · US Letter · 8.5 × 11 in</p>
+        <p className="mt-2 text-center text-xs text-[#5c534c]">On-screen preview · US Letter · 8.5 × 11 in</p>
       </div>
       <div className="hidden print:block">
         <FlyerSheet rangeLabel={rangeLabel} days={days} />

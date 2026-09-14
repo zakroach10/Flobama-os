@@ -35,11 +35,11 @@ export function WeekSocialStudio({
   const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:space-y-6 sm:py-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:py-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#111] sm:text-3xl">This week · social sizes</h1>
-          <p className="mt-1 max-w-xl text-sm text-[#444]">
+          <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
+          <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
             Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG.
             Busy weeks split across pages so the type stays readable.
           </p>
@@ -79,13 +79,13 @@ export function WeekSocialStudio({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
         {WEEK_SOCIAL_FORMATS.map((item) => (
           <a
             key={item.id}
             href={weekSocialStudioPath({ formatId: item.id, demo })}
             className={cn(
-              "min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+              "min-h-10 rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors sm:min-h-11 sm:px-3 sm:py-2",
               item.id === format.id
                 ? "border-[#d36b4a] bg-[#1b1612] text-[#f4ebe3]"
                 : "border-[#ccc] bg-white text-[#111] hover:border-[#d36b4a]",
@@ -97,11 +97,11 @@ export function WeekSocialStudio({
         ))}
       </div>
 
-      <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-3 sm:p-4">
+      <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-2 sm:p-3">
         <ScaledPreview width={format.width} height={format.height} className="rounded-lg shadow-md">
           <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
         </ScaledPreview>
-        <figcaption className="mt-3 text-center text-xs text-[#5c534c]">
+        <figcaption className="mt-2 text-center text-xs text-[#5c534c]">
           On-screen preview · {format.label} · {format.width}×{format.height}
           {pageLabel ? ` · page ${pageLabel}` : ""}
         </figcaption>
