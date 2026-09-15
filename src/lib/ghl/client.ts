@@ -39,8 +39,39 @@ function joinUrl(path: string, searchParams?: Record<string, string | undefined>
 function jsonErrorMessage(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") return fallback;
   const record = payload as Record<string, unknown>;
+  const parts: string[] = [];
+
   const message = record.message ?? record.error ?? record.msg;
-  if (typeof message === "string" && message.trim()) return message.trim();
+  if (typeof message === "string" && message.trim()) {
+    parts.push(message.trim());
+  } else if (message && typeof message === "object") {
+    const nested = message as Record<string, unknown>;
+    const nestedMessage = nested.message ?? nested.error;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) parts.push(nestedMessage.trim());
+  }
+
+  const errors = record.errors ?? record.error;
+  if (Array.isArray(errors)) {
+    for (const item of errors) {
+      if (typeof item === "string" && item.trim()) parts.push(item.trim());
+      else if (item && typeof item === "object") {
+        const err = item as Record<string, unknown>;
+        const field = typeof err.field === "string" ? err.field : typeof err.path === "string" ? err.path : null;
+        const msg = typeof err.message === "string" ? err.message : typeof err.msg === "string" ? err.msg : null;
+        if (field && msg) parts.push(`${field}: ${msg}`);
+        else if (msg) parts.push(msg);
+      }
+    }
+  }
+
+  const meta = record.meta;
+  if (meta && typeof meta === "object") {
+    const metaRecord = meta as Record<string, unknown>;
+    const metaMessage = metaRecord.message ?? metaRecord.error;
+    if (typeof metaMessage === "string" && metaMessage.trim()) parts.push(metaMessage.trim());
+  }
+
+  if (parts.length > 0) return [...new Set(parts)].join(" · ");
   return fallback;
 }
 

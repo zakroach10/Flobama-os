@@ -484,4 +484,5 @@ export const REQUIRED_PIT_SCOPES = [
   "Social Planner posts: read",
   "Social Planner posts: write",
   "Social Planner statistics: read",
+  "Users: read",
 ];
