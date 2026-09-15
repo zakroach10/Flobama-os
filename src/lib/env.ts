@@ -67,6 +67,7 @@ export type GhlConfig = {
   token: string;
   locationId: string;
   apiVersion: string;
+  socialUserId?: string;
   objectKeys: {
     bandSubmission?: string;
     privateEvents?: string;
@@ -81,6 +82,7 @@ export function getGhlConfig(): GhlConfig | null {
     token,
     locationId,
     apiVersion: readEnv("GHL_API_VERSION") ?? DEFAULT_GHL_API_VERSION,
+    socialUserId: readEnv("GHL_SOCIAL_USER_ID"),
     objectKeys: {
       bandSubmission: readEnv("GHL_OBJECT_BAND_SUBMISSION"),
       privateEvents: readEnv("GHL_OBJECT_PRIVATE_EVENTS"),

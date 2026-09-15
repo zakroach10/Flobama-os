@@ -319,6 +319,36 @@ export async function listSocialAccounts(deps?: GhlDeps): Promise<SocialAccount[
   return filterAllowedSocialAccounts(extractSocialAccounts(payload));
 }
 
+export function extractLocationUserIds(payload: unknown): string[] {
+  const root = asRecord(payload);
+  const list = root?.users;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => {
+      const record = asRecord(item);
+      if (!record || record.deleted === true) return null;
+      return asString(record.id);
+    })
+    .filter((id): id is string => Boolean(id));
+}
+
+/** GHL requires userId for non-draft Social Planner posts to connected OAuth channels. */
+export async function resolveSocialUserId(deps?: GhlDeps): Promise<string | null> {
+  const config = resolveGhlConfig(deps);
+  if (!ghlConfigured(config)) return null;
+  if (config.socialUserId) return config.socialUserId;
+  try {
+    const payload = await ghlFetch(
+      "/users/",
+      { searchParams: { locationId: config.locationId } },
+      { ...deps, config },
+    );
+    return extractLocationUserIds(payload)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listSocialPosts(input: ListSocialPostsInput, deps?: GhlDeps): Promise<SocialPost[]> {
   const config = resolveGhlConfig(deps);
   if (!ghlConfigured(config)) return [];
@@ -353,9 +383,20 @@ export async function createSocialPost(input: CreateSocialPostInput, deps?: GhlD
   if (input.status !== "draft" && input.accountIds.length === 0) {
     throw new Error("Select at least one social account.");
   }
+
+  let userId = input.userId?.trim() || undefined;
+  if (input.status !== "draft" && !userId) {
+    userId = (await resolveSocialUserId({ ...deps, config })) ?? undefined;
+    if (!userId) {
+      throw new Error(
+        "GoHighLevel userId is required to post. Set GHL_SOCIAL_USER_ID, or grant users.readonly on the Private Integration Token.",
+      );
+    }
+  }
+
   const payload = await ghlFetch(
     `/social-media-posting/${encodeURIComponent(config.locationId)}/posts`,
-    { method: "POST", body: buildCreateSocialPostBody(input) },
+    { method: "POST", body: buildCreateSocialPostBody({ ...input, userId }) },
     { ...deps, config },
   );
   const post = extractSocialPost(payload);

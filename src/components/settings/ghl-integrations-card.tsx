@@ -74,9 +74,10 @@ export async function GhlIntegrationsCard() {
             Names vary slightly in the Private Integration UI — pick the Objects / Records read and write pair, plus
             Social Planner account/post scopes (<code>socialplanner/account.readonly</code>,{" "}
             <code>socialplanner/post.readonly</code>, <code>socialplanner/post.write</code>, optional{" "}
-            <code>socialplanner/statistics.readonly</code>). Band submissions default to{" "}
-            <code>custom_objects.band_inquiries</code>. Optional overrides: <code>GHL_OBJECT_BAND_SUBMISSION</code>,{" "}
-            <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
+            <code>socialplanner/statistics.readonly</code>), and <code>users.readonly</code> so Post now / Schedule can
+            send a GHL <code>userId</code>. Optional override: <code>GHL_SOCIAL_USER_ID</code>. Band submissions default
+            to <code>custom_objects.band_inquiries</code>. Optional object overrides:{" "}
+            <code>GHL_OBJECT_BAND_SUBMISSION</code>, <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
           </p>
         </div>
       </div>

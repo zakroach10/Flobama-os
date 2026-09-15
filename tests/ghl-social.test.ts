@@ -8,10 +8,12 @@ import {
   extractSocialAccounts,
   extractSocialPost,
   extractSocialPosts,
+  extractLocationUserIds,
   filterAllowedSocialAccounts,
   isAllowedSocialAccount,
   isImageCapablePlatform,
   listSocialAccounts,
+  resolveSocialUserId,
   weekSocialMediaItems,
   weekSocialMediaUrls,
   type SocialAccount,
@@ -99,9 +101,11 @@ describe("create-post payload", () => {
       accountIds: ["acc_1"],
       summary: "Live music this week at FloBama.",
       status: "published",
+      userId: "user_1",
       media: [{ url: "https://example.com/a.png", type: "image/png" }],
     });
     expect(body.status).toBe("published");
+    expect(body.userId).toBe("user_1");
     expect(body).not.toHaveProperty("scheduleDate");
   });
 
@@ -297,5 +301,51 @@ describe("social ghlFetch wrappers", () => {
     expect(post.id).toBe("post_1");
     expect(extractSocialPost({ results: { post: post.raw } })?.id).toBe("post_1");
     expect(extractSocialPosts({ results: { posts: [post.raw] } })).toHaveLength(1);
+  });
+
+  it("resolves userId from location users and attaches it on publish", async () => {
+    expect(extractLocationUserIds({ users: [{ id: "user_abc", deleted: false }] })).toEqual(["user_abc"]);
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes("/users/")) {
+        return jsonResponse({ users: [{ id: "user_abc", name: "Staff", deleted: false }] });
+      }
+      if (url.includes("/posts") && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        expect(body.status).toBe("published");
+        expect(body.userId).toBe("user_abc");
+        return jsonResponse(
+          {
+            results: {
+              post: {
+                _id: "post_live",
+                summary: body.summary,
+                status: "published",
+                accountIds: body.accountIds,
+                media: body.media,
+                type: "post",
+              },
+            },
+          },
+          201,
+        );
+      }
+      return jsonResponse({ message: `unhandled ${url}` }, 500);
+    };
+
+    const userId = await resolveSocialUserId(configuredDeps(fetchImpl));
+    expect(userId).toBe("user_abc");
+
+    const post = await createSocialPost(
+      {
+        accountIds: ["acc_1"],
+        summary: "Live music this week at FloBama.",
+        status: "published",
+        media: weekSocialMediaItems({ formatId: "ig-square", origin: PRODUCTION_SITE_URL }),
+      },
+      configuredDeps(fetchImpl),
+    );
+    expect(post.id).toBe("post_live");
   });
 });
