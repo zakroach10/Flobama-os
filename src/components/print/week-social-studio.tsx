@@ -4,6 +4,7 @@ import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import {
   socialGraphicFileName,
   WEEK_SOCIAL_FORMATS,
+  weekSocialComposePath,
   weekSocialExportPath,
   weekSocialFormat,
   weekSocialPages,
@@ -33,6 +34,7 @@ export function WeekSocialStudio({
   const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
   const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
   const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
+  const composeHref = weekSocialComposePath({ formatId: format.id, page: currentPage });
 
   return (
     <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:py-4">
@@ -40,14 +42,19 @@ export function WeekSocialStudio({
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
-            Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG.
-            Busy weeks split across pages so the type stays readable.
+            Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG or post
+            it through GoHighLevel Social Planner. Busy weeks split across pages so the type stays readable.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <a className={cn(buttonVariants({ variant: "default" }), "w-full sm:w-auto")} href={exportHref} download={filename}>
             Download PNG
           </a>
+          {!demo ? (
+            <a className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")} href={composeHref}>
+              Post to GHL
+            </a>
+          ) : null}
           {pages.length > 1 ? (
             <>
               {currentPage > 1 ? (

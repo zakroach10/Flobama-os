@@ -480,4 +480,8 @@ export const REQUIRED_PIT_SCOPES = [
   "Custom object records: write",
   "Associations / relations: read",
   "Contacts: read",
+  "Social Planner accounts: read",
+  "Social Planner posts: read",
+  "Social Planner posts: write",
+  "Social Planner statistics: read",
 ];

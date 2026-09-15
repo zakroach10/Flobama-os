@@ -81,3 +81,9 @@ export function weekSocialStudioPath(options: { formatId: WeekSocialFormatId; pa
 export function weekSocialExportPath(options: { formatId: WeekSocialFormatId; page?: number; demo?: boolean }) {
   return `/api/public/v1/screens/week/social?${weekSocialQuery(options)}`;
 }
+
+export function weekSocialComposePath(options: { formatId: WeekSocialFormatId; page?: number }) {
+  const params = new URLSearchParams({ size: options.formatId });
+  if (options.page && options.page > 1) params.set("page", String(options.page));
+  return `/social/compose?${params.toString()}`;
+}

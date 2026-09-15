@@ -10,6 +10,7 @@ import {
   MenuIcon,
   MonitorPlayIcon,
   SettingsIcon,
+  Share2Icon,
   TicketIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -39,19 +40,26 @@ function NavLinks({
   className,
   showScreens,
   showBooking,
+  showSocial,
 }: {
   onNavigate?: () => void;
   className?: string;
   showScreens?: boolean;
   showBooking?: boolean;
+  showSocial?: boolean;
 }) {
   const pathname = usePathname();
   const items = [...NAV];
+  let insertAt = 2;
   if (showBooking) {
-    items.splice(2, 0, { href: "/booking", label: "Booking", icon: ClipboardListIcon });
+    items.splice(insertAt, 0, { href: "/booking", label: "Booking", icon: ClipboardListIcon });
+    insertAt += 1;
+  }
+  if (showSocial) {
+    items.splice(insertAt, 0, { href: "/social", label: "Social", icon: Share2Icon });
+    insertAt += 1;
   }
   if (showScreens) {
-    const insertAt = showBooking ? 3 : 2;
     items.splice(insertAt, 0, { href: "/screens", label: "Screens", icon: MonitorPlayIcon });
   }
   return (
@@ -107,6 +115,7 @@ function Brand() {
 function mobileSection(pathname: string) {
   if (pathname.startsWith("/events")) return "Events";
   if (pathname.startsWith("/booking")) return "Booking";
+  if (pathname.startsWith("/social")) return "Social";
   if (pathname.startsWith("/ticketing")) return "Ticketing";
   if (pathname.startsWith("/artists")) return "Artists";
   if (pathname.startsWith("/settings")) return "Settings";
@@ -122,6 +131,7 @@ export function AppShell({
   userLabel,
   showScreens = false,
   showBooking = false,
+  showSocial = false,
 }: {
   children: React.ReactNode;
   venueName: string;
@@ -129,6 +139,7 @@ export function AppShell({
   userLabel: string;
   showScreens?: boolean;
   showBooking?: boolean;
+  showSocial?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -138,7 +149,7 @@ export function AppShell({
       <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <Brand />
         <div className="flex-1 px-2">
-          <NavLinks showScreens={showScreens} showBooking={showBooking} />
+          <NavLinks showScreens={showScreens} showBooking={showBooking} showSocial={showSocial} />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
           <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
@@ -163,7 +174,12 @@ export function AppShell({
                 <FlobamaLogo className="mx-auto w-[180px] max-w-[70%]" />
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-2 pb-6">
-                <NavLinks showScreens={showScreens} showBooking={showBooking} onNavigate={() => setOpen(false)} />
+                <NavLinks
+                  showScreens={showScreens}
+                  showBooking={showBooking}
+                  showSocial={showSocial}
+                  onNavigate={() => setOpen(false)}
+                />
               </div>
               <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
                 <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>

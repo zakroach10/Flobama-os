@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       ],
       headers: {
         "Content-Type": "image/png",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": `inline; filename="${filename}"`,
         "Cache-Control": PUBLIC_NO_STORE,
         "Access-Control-Allow-Origin": "*",
       },
