@@ -99,12 +99,21 @@ export type OpenAiConfig = {
   model: string;
 };
 
+function readOpenAiApiKey(): string | undefined {
+  // Static access so Next/Vercel reliably expose the secret on the server runtime.
+  return process.env.OPENAI_API_KEY?.trim() || undefined;
+}
+
+function readOpenAiModel(): string | undefined {
+  return process.env.OPENAI_MODEL?.trim() || undefined;
+}
+
 export function getOpenAiConfig(): OpenAiConfig | null {
-  const apiKey = readEnv("OPENAI_API_KEY");
+  const apiKey = readOpenAiApiKey();
   if (!apiKey) return null;
   return {
     apiKey,
-    model: readEnv("OPENAI_MODEL") ?? DEFAULT_OPENAI_MODEL,
+    model: readOpenAiModel() ?? DEFAULT_OPENAI_MODEL,
   };
 }
 

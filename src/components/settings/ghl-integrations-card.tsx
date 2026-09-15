@@ -93,10 +93,17 @@ export async function GhlIntegrationsCard() {
             Model: <span className="font-mono text-xs">{openAi.model}</span>
           </p>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Set <code>OPENAI_API_KEY</code> (optional <code>OPENAI_MODEL</code>, default {DEFAULT_OPENAI_MODEL}) to enable
-            the analysis window on Band Submission detail pages.
-          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              This deployment does not see <code>OPENAI_API_KEY</code>. In Vercel → Project → Settings → Environment
+              Variables, add exactly <code>OPENAI_API_KEY</code> (optional <code>OPENAI_MODEL</code>, default{" "}
+              {DEFAULT_OPENAI_MODEL}).
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Enable the variable for the same environment you are viewing (Production and/or Preview).</li>
+              <li>Redeploy after saving — new env vars are not applied to an already-running deployment.</li>
+            </ul>
+          </div>
         )}
       </div>
     </section>

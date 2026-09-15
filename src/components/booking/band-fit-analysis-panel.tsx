@@ -20,8 +20,8 @@ export function BandFitAnalysisPanel({ result }: { result: BandFitAnalysisResult
       <section className="rounded-xl border border-dashed bg-card p-4">
         <h3 className="text-lg font-semibold">Booking fit analysis</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          AI analysis is not configured. Set <code>OPENAI_API_KEY</code> on the server to generate an advisory booking-fit
-          note from this Band Inquiry.
+          AI analysis is not configured. Set <code>OPENAI_API_KEY</code> on the server (Vercel env for this
+          Production/Preview deployment), then redeploy, to generate an advisory booking-fit note from this Band Inquiry.
         </p>
       </section>
     );
