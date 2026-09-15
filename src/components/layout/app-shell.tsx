@@ -14,6 +14,7 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -134,6 +135,10 @@ export function AppShell({
           <NavLinks showScreens={showScreens} />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="font-medium text-sidebar-foreground">Appearance</p>
+            <ThemeToggle compact className="border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground hover:bg-sidebar-accent" />
+          </div>
           <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
           <p className="mt-1 truncate">{userLabel}</p>
           <p className="truncate">{roleLabel}</p>
@@ -159,6 +164,10 @@ export function AppShell({
                 <NavLinks showScreens={showScreens} onNavigate={() => setOpen(false)} />
               </div>
               <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="font-medium text-sidebar-foreground">Appearance</p>
+                  <ThemeToggle compact className="border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground hover:bg-sidebar-accent" />
+                </div>
                 <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
                 <p className="mt-1 truncate">{userLabel}</p>
                 <p className="truncate">{roleLabel}</p>
@@ -171,6 +180,7 @@ export function AppShell({
               {mobileSection(pathname)}
             </p>
           </div>
+          <ThemeToggle compact />
         </header>
         <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6 lg:px-8">
           {children}

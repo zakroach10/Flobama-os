@@ -38,8 +38,8 @@ export function WeekSocialStudio({
     <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:py-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
-          <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">This week · social sizes</h1>
+          <p className="mt-1 max-w-xl text-xs text-muted-foreground sm:text-sm">
             Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG.
             Busy weeks split across pages so the type stays readable.
           </p>
@@ -87,21 +87,21 @@ export function WeekSocialStudio({
             className={cn(
               "min-h-10 rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors sm:min-h-11 sm:px-3 sm:py-2",
               item.id === format.id
-                ? "border-[#d36b4a] bg-[#1b1612] text-[#f4ebe3]"
-                : "border-[#ccc] bg-white text-[#111] hover:border-[#d36b4a]",
+                ? "border-[#d36b4a] bg-sidebar text-sidebar-foreground"
+                : "border-border bg-card text-foreground hover:border-[#d36b4a]",
             )}
           >
             <span className="block font-medium">{item.label}</span>
-            <span className={item.id === format.id ? "text-[#c9b8aa]" : "text-[#666]"}>{item.hint}</span>
+            <span className={item.id === format.id ? "text-sidebar-foreground/70" : "text-muted-foreground"}>{item.hint}</span>
           </a>
         ))}
       </div>
 
-      <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-2 sm:p-3">
+      <figure className="overflow-hidden rounded-xl border bg-muted p-2 sm:p-3">
         <ScaledPreview width={format.width} height={format.height} className="rounded-lg shadow-md">
           <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
         </ScaledPreview>
-        <figcaption className="mt-2 text-center text-xs text-[#5c534c]">
+        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
           On-screen preview · {format.label} · {format.width}×{format.height}
           {pageLabel ? ` · page ${pageLabel}` : ""}
         </figcaption>

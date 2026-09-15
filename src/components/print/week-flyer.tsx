@@ -28,7 +28,7 @@ export function WeekFlyer({
         >
           <FlyerSheet rangeLabel={rangeLabel} days={days} />
         </ScaledPreview>
-        <p className="mt-2 text-center text-xs text-[#5c534c]">On-screen preview · US Letter · 8.5 × 11 in</p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">On-screen preview · US Letter · 8.5 × 11 in</p>
       </div>
       <div className="hidden print:block">
         <FlyerSheet rangeLabel={rangeLabel} days={days} />

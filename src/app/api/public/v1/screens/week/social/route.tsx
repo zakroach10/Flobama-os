@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   const [paperSrc, tearSrc, stickerSrc, regular, bold] = await Promise.all([
     fileDataUri("public/social/paper-orange.jpg", "image/jpeg"),
     fileDataUri("public/social/paper-tear.png", "image/png"),
-    fileDataUri("public/social/flobama-sticker.png", "image/png"),
+    fileDataUri("public/flobama-logo.png", "image/png"),
     readFile(join(process.cwd(), "public/fonts/Roboto-Regular.ttf")),
     readFile(join(process.cwd(), "public/fonts/Roboto-Bold.ttf")),
   ]);

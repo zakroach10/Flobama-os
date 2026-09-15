@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import type { WeekSlideDay } from "@/lib/screens/week";
-import type { WeekSocialFormatId } from "@/lib/screens/social";
+import { FLOBAMA_LOGO_SRC } from "@/lib/brand";
 
 export const SOCIAL_POSTER = {
   cream: "#e4e2dd",
@@ -13,7 +13,7 @@ export const SOCIAL_POSTER = {
 export const SOCIAL_POSTER_ASSETS = {
   paper: "/social/paper-orange.jpg",
   tear: "/social/paper-tear.png",
-  sticker: "/social/flobama-sticker.png",
+  sticker: FLOBAMA_LOGO_SRC,
 } as const;
 
 export type SocialPosterRow = {

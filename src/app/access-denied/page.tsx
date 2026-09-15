@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { signOutAction } from "@/actions/records";
 
 export default function AccessDeniedPage() {
   return (
-    <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-6 py-16">
+    <main className="relative mx-auto flex min-h-full max-w-lg flex-col justify-center px-6 py-16">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <FlobamaLogo className="mb-5 w-[220px]" />
       <p className="text-sm font-semibold">FloBama OS</p>
       <h1 className="mt-2 text-3xl font-semibold">Access denied</h1>
