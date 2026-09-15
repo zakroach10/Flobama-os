@@ -42,7 +42,10 @@ export function SocialDeskHome({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Connected accounts</h2>
-            <p className="text-sm text-muted-foreground">Image-capable accounts are pre-selected when composing.</p>
+            <p className="text-sm text-muted-foreground">
+              Only accounts labeled <strong>Flobama Downtown</strong> are listed. Image-capable ones are pre-selected when
+              composing.
+            </p>
           </div>
           <Link href="/social/compose" className={cn(buttonVariants({ variant: "default" }))}>
             Compose week graphic
@@ -50,8 +53,8 @@ export function SocialDeskHome({
         </div>
         {accounts.length === 0 ? (
           <EmptyState
-            title="No social accounts connected"
-            description="Connect Facebook, Instagram, or other channels in GoHighLevel Social Planner, then refresh this page."
+            title="No Flobama Downtown accounts"
+            description="Connect Facebook, Instagram, or other channels in GoHighLevel Social Planner and name them exactly “Flobama Downtown”, then refresh this page."
           />
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">

@@ -38,6 +38,9 @@ const IMAGE_CAPABLE_PLATFORMS = new Set([
 
 export const DEFAULT_WEEK_SOCIAL_CAPTION = "Live music this week at FloBama.";
 
+/** Only offer GHL Social Planner accounts whose display name is Flobama Downtown. */
+export const SOCIAL_ACCOUNT_NAME_FILTER = "flobama downtown";
+
 export type SocialPostStatus = "draft" | "scheduled" | "published" | "failed" | "in_review" | "in_progress" | "pending" | "deleted" | string;
 
 export type SocialPostType = "post" | "story" | "reel";
@@ -114,6 +117,20 @@ function resultsObject(payload: unknown): Record<string, unknown> | null {
 export function isImageCapablePlatform(platform: string | null | undefined): boolean {
   if (!platform) return true;
   return IMAGE_CAPABLE_PLATFORMS.has(platform.trim().toLowerCase());
+}
+
+export function normalizeSocialAccountLabel(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Match GHL account display names like "Flobama Downtown" / "FLOJAMA DOWNTOWN". */
+export function isFlobamaDowntownAccount(account: Pick<SocialAccount, "name"> | string | null | undefined): boolean {
+  const name = typeof account === "string" || account == null ? account : account.name;
+  return normalizeSocialAccountLabel(name) === SOCIAL_ACCOUNT_NAME_FILTER;
+}
+
+export function filterFlobamaDowntownAccounts(accounts: SocialAccount[]): SocialAccount[] {
+  return accounts.filter(isFlobamaDowntownAccount);
 }
 
 export function mapSocialAccount(raw: unknown): SocialAccount | null {
@@ -268,7 +285,7 @@ export async function listSocialAccounts(deps?: GhlDeps): Promise<SocialAccount[
     {},
     { ...deps, config },
   );
-  return extractSocialAccounts(payload);
+  return filterFlobamaDowntownAccounts(extractSocialAccounts(payload));
 }
 
 export async function listSocialPosts(input: ListSocialPostsInput, deps?: GhlDeps): Promise<SocialPost[]> {

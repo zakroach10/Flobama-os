@@ -119,7 +119,9 @@ export function SocialComposeForm({
         <div className="space-y-2">
           <Label>Accounts</Label>
           {accounts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No connected accounts in GoHighLevel.</p>
+            <p className="text-sm text-muted-foreground">
+              No connected accounts labeled Flobama Downtown in GoHighLevel.
+            </p>
           ) : (
             <ul className="space-y-2 rounded-xl border bg-card p-3">
               {accounts.map((account) => {

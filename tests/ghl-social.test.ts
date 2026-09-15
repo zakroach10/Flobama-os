@@ -8,6 +8,8 @@ import {
   extractSocialAccounts,
   extractSocialPost,
   extractSocialPosts,
+  filterFlobamaDowntownAccounts,
+  isFlobamaDowntownAccount,
   isImageCapablePlatform,
   listSocialAccounts,
   weekSocialMediaItems,
@@ -116,7 +118,7 @@ describe("account mapping", () => {
     const accounts: SocialAccount[] = [
       {
         id: "ig",
-        name: "IG",
+        name: "Flobama Downtown",
         platform: "instagram",
         type: null,
         profileId: "p1",
@@ -125,7 +127,7 @@ describe("account mapping", () => {
       },
       {
         id: "yt",
-        name: "YT",
+        name: "Flobama Downtown",
         platform: "youtube",
         type: null,
         profileId: "p2",
@@ -134,7 +136,7 @@ describe("account mapping", () => {
       },
       {
         id: "expired",
-        name: "FB",
+        name: "Flobama Downtown",
         platform: "facebook",
         type: null,
         profileId: "p3",
@@ -143,6 +145,34 @@ describe("account mapping", () => {
       },
     ];
     expect(defaultSelectedAccountIds(accounts)).toEqual(["ig"]);
+  });
+
+  it("matches Flobama Downtown labels case-insensitively", () => {
+    expect(isFlobamaDowntownAccount("Flobama Downtown")).toBe(true);
+    expect(isFlobamaDowntownAccount("  flobama   downtown ")).toBe(true);
+    expect(isFlobamaDowntownAccount("FloBama Uptown")).toBe(false);
+    expect(
+      filterFlobamaDowntownAccounts([
+        {
+          id: "keep",
+          name: "Flobama Downtown",
+          platform: "facebook",
+          type: null,
+          profileId: "p1",
+          isExpired: false,
+          imageCapable: true,
+        },
+        {
+          id: "drop",
+          name: "Other Page",
+          platform: "instagram",
+          type: null,
+          profileId: "p2",
+          isExpired: false,
+          imageCapable: true,
+        },
+      ]).map((account) => account.id),
+    ).toEqual(["keep"]);
   });
 
   it("extracts accounts from GHL payload", () => {
@@ -161,18 +191,21 @@ describe("account mapping", () => {
 });
 
 describe("social ghlFetch wrappers", () => {
-  it("lists accounts via Social Planner path", async () => {
+  it("lists only Flobama Downtown accounts", async () => {
     const calls: { url: string; method?: string }[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {
       calls.push({ url: String(input), method: init?.method });
       return jsonResponse({
         results: {
-          accounts: [{ id: "acc_1", name: "FB", platform: "facebook", profileId: "p1" }],
+          accounts: [
+            { id: "acc_keep", name: "Flobama Downtown", platform: "facebook", profileId: "p1" },
+            { id: "acc_drop", name: "Other Venue", platform: "instagram", profileId: "p2" },
+          ],
         },
       });
     };
     const accounts = await listSocialAccounts(configuredDeps(fetchImpl));
-    expect(accounts[0]?.id).toBe("acc_1");
+    expect(accounts.map((account) => account.id)).toEqual(["acc_keep"]);
     expect(calls[0]?.url).toContain("/social-media-posting/loc_1/accounts");
   });
 
