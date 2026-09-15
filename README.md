@@ -207,7 +207,7 @@ Linked contact name/email/phone come from `GET /associations/relations/{recordId
 
 ## Band booking fit analysis
 
-Opening a **Band Submission** detail page automatically asks OpenAI for an advisory booking-fit note using only GHL Band Inquiry fields (bio, socials/EPK URLs, draw, compensation, etc.). No live social scraping.
+Opening a **Band Submission** detail page automatically asks OpenAI for an advisory booking-fit note using only GHL Band Inquiry fields (bio, socials/EPK URLs, draw, compensation, etc.). No live social scraping. The Band submissions list also shows each row’s fit verdict and score.
 
 Server-only: `OPENAI_API_KEY` (optional `OPENAI_MODEL`, default `gpt-4.1-mini`). Unset key shows a setup state on the analysis panel and does not block the rest of the page. Analysis never writes status back to GHL.
 

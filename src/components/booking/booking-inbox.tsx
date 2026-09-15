@@ -3,7 +3,9 @@ import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { BookingContactActions } from "@/components/booking/booking-contact-actions";
+import { BandFitListBadges } from "@/components/booking/band-fit-badges";
 import { contactSummary } from "@/components/booking/contact-summary";
+import type { BandFitAnalysisResult } from "@/lib/booking/analyze-band";
 import type { BookingKind, BookingRecord } from "@/lib/ghl/objects";
 import { BOOKING_KIND_META } from "@/lib/ghl/objects";
 
@@ -22,6 +24,7 @@ export function BookingInbox({
   query,
   status,
   error,
+  fitById,
 }: {
   kind: BookingKind;
   configured: boolean;
@@ -30,6 +33,7 @@ export function BookingInbox({
   query: string;
   status: string;
   error?: string;
+  fitById?: Record<string, BandFitAnalysisResult>;
 }) {
   const meta = BOOKING_KIND_META[kind];
   const bandList = kind === "band_submission";
@@ -83,7 +87,10 @@ export function BookingInbox({
           {records.map((record) => (
             <li key={record.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
               <Link href={`${meta.href}/${record.id}`} className="min-w-0 flex-1">
-                <p className="font-medium">{record.displayName}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{record.displayName}</p>
+                  {bandList ? <BandFitListBadges result={fitById?.[record.id]} /> : null}
+                </div>
                 {bandList ? (
                   <div className="mt-1 space-y-1 text-sm text-muted-foreground">
                     <p>

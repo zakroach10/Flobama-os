@@ -281,3 +281,26 @@ export async function analyzeBandFit(record: BookingRecord, deps?: AnalyzeBandDe
     clearTimeout(timer);
   }
 }
+
+export async function analyzeBandFits(
+  records: BookingRecord[],
+  deps?: AnalyzeBandDeps,
+  concurrency = 3,
+): Promise<Record<string, BandFitAnalysisResult>> {
+  const config = resolveConfig(deps);
+  const out: Record<string, BandFitAnalysisResult> = {};
+  if (!config) {
+    for (const record of records) out[record.id] = { configured: false };
+    return out;
+  }
+
+  const unique = records.filter((record) => record.id);
+  for (let i = 0; i < unique.length; i += concurrency) {
+    const slice = unique.slice(i, i + concurrency);
+    const batch = await Promise.all(
+      slice.map(async (record) => [record.id, await analyzeBandFit(record, { ...deps, config })] as const),
+    );
+    for (const [id, result] of batch) out[id] = result;
+  }
+  return out;
+}

@@ -1,18 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import type { BandFitAnalysisResult, BandFitVerdict } from "@/lib/booking/analyze-band";
-
-const VERDICT_LABELS: Record<BandFitVerdict, string> = {
-  strong_fit: "Strong fit",
-  possible_fit: "Possible fit",
-  weak_fit: "Weak fit",
-  insufficient_data: "Insufficient data",
-};
-
-function verdictVariant(verdict: BandFitVerdict): "default" | "secondary" | "outline" | "destructive" {
-  if (verdict === "strong_fit") return "default";
-  if (verdict === "weak_fit") return "destructive";
-  return "secondary";
-}
+import { BandFitScoreBadges } from "@/components/booking/band-fit-badges";
+import type { BandFitAnalysisResult } from "@/lib/booking/analyze-band";
 
 export function BandFitAnalysisPanel({ result }: { result: BandFitAnalysisResult }) {
   if (!result.configured) {
@@ -48,10 +35,7 @@ export function BandFitAnalysisPanel({ result }: { result: BandFitAnalysisResult
             Staff advisory from GHL Band Inquiry fields only. Not a booking decision and not written back to GoHighLevel.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={verdictVariant(analysis.verdict)}>{VERDICT_LABELS[analysis.verdict]}</Badge>
-          <Badge variant="outline">Score {analysis.score}/100</Badge>
-        </div>
+        <BandFitScoreBadges analysis={analysis} />
       </div>
       <p className="text-sm">{analysis.summary}</p>
       <div className="grid gap-4 sm:grid-cols-2">

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { getOpenAiConfig, isOpenAiConfigured } from "@/lib/env";
 import {
   analyzeBandFit,
+  analyzeBandFits,
   buildBandFitPromptPayload,
   parseBandFitAnalysis,
 } from "@/lib/booking/analyze-band";
@@ -189,5 +190,46 @@ describe("analyzeBandFit", () => {
       fetchImpl,
     });
     expect(result).toEqual({ configured: true, analysis: null, error: "quota exceeded" });
+  });
+
+  it("analyzes a list of submissions with limited concurrency", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchImpl: typeof fetch = async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            verdict: "possible_fit",
+            score: 70,
+            summary: "Possible fit.",
+            strengths: ["Local"],
+            risks: ["Unknown following"],
+            signals: {
+              onlinePresence: "Links present.",
+              following: "Unknown.",
+              draw: "Unknown.",
+              compensation: "Unknown.",
+              localFit: "Local.",
+            },
+          }),
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    };
+
+    const first = sampleRecord();
+    const second = { ...sampleRecord(), id: "rec_2", displayName: "Second Band" };
+    const third = { ...sampleRecord(), id: "rec_3", displayName: "Third Band" };
+    const results = await analyzeBandFits([first, second, third], {
+      config: { apiKey: "sk-test", model: "gpt-4.1-mini" },
+      fetchImpl,
+    }, 2);
+    expect(Object.keys(results)).toEqual(["rec_1", "rec_2", "rec_3"]);
+    expect(results.rec_1?.configured && results.rec_1.analysis?.score).toBe(70);
+    expect(maxInFlight).toBeLessThanOrEqual(2);
   });
 });

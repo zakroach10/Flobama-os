@@ -1,4 +1,5 @@
 import { BookingInbox } from "@/components/booking/booking-inbox";
+import { analyzeBandFits } from "@/lib/booking/analyze-band";
 import { loadBookingInbox } from "@/lib/ghl/booking";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export default async function BandSubmissionsPage({
     return <BookingInbox kind="band_submission" configured={false} records={[]} statusOptions={[]} query={query} status={status} />;
   }
 
+  const fitById = await analyzeBandFits(result.records);
+
   return (
     <BookingInbox
       kind="band_submission"
@@ -27,6 +30,7 @@ export default async function BandSubmissionsPage({
       query={query}
       status={status}
       error={result.error}
+      fitById={fitById}
     />
   );
 }
