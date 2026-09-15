@@ -38,8 +38,18 @@ const IMAGE_CAPABLE_PLATFORMS = new Set([
 
 export const DEFAULT_WEEK_SOCIAL_CAPTION = "Live music this week at FloBama.";
 
-/** Only offer GHL Social Planner accounts whose display name is Flobama Downtown. */
+/** Offer GHL Social Planner accounts labeled Flobama Downtown, Instagram, or Google. */
+export const SOCIAL_ACCOUNT_NAME_ALLOWLIST = new Set([
+  "flobama downtown",
+  "flobama instagram",
+  "flobama google",
+]);
+
+/** @deprecated Use SOCIAL_ACCOUNT_NAME_ALLOWLIST */
 export const SOCIAL_ACCOUNT_NAME_FILTER = "flobama downtown";
+
+/** Platforms that may match by “Flobama …” name even when the exact label differs. */
+const SOCIAL_ACCOUNT_PLATFORM_ALLOWLIST = new Set(["instagram", "google"]);
 
 export type SocialPostStatus = "draft" | "scheduled" | "published" | "failed" | "in_review" | "in_progress" | "pending" | "deleted" | string;
 
@@ -123,14 +133,35 @@ export function normalizeSocialAccountLabel(value: string | null | undefined): s
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Match GHL account display names like "Flobama Downtown" / "FLOJAMA DOWNTOWN". */
-export function isFlobamaDowntownAccount(account: Pick<SocialAccount, "name"> | string | null | undefined): boolean {
-  const name = typeof account === "string" || account == null ? account : account.name;
-  return normalizeSocialAccountLabel(name) === SOCIAL_ACCOUNT_NAME_FILTER;
+/** Match Flobama Downtown / Instagram / Google Social Planner accounts. */
+export function isAllowedSocialAccount(
+  account: Pick<SocialAccount, "name" | "platform"> | string | null | undefined,
+): boolean {
+  if (account == null) return false;
+  if (typeof account === "string") {
+    return SOCIAL_ACCOUNT_NAME_ALLOWLIST.has(normalizeSocialAccountLabel(account));
+  }
+  const name = normalizeSocialAccountLabel(account.name);
+  if (SOCIAL_ACCOUNT_NAME_ALLOWLIST.has(name)) return true;
+  const platform = normalizeSocialAccountLabel(account.platform);
+  if (SOCIAL_ACCOUNT_PLATFORM_ALLOWLIST.has(platform) && name.includes("flobama")) return true;
+  return false;
 }
 
+/** @deprecated Use isAllowedSocialAccount */
+export function isFlobamaDowntownAccount(
+  account: Pick<SocialAccount, "name" | "platform"> | string | null | undefined,
+): boolean {
+  return isAllowedSocialAccount(account);
+}
+
+export function filterAllowedSocialAccounts(accounts: SocialAccount[]): SocialAccount[] {
+  return accounts.filter(isAllowedSocialAccount);
+}
+
+/** @deprecated Use filterAllowedSocialAccounts */
 export function filterFlobamaDowntownAccounts(accounts: SocialAccount[]): SocialAccount[] {
-  return accounts.filter(isFlobamaDowntownAccount);
+  return filterAllowedSocialAccounts(accounts);
 }
 
 export function mapSocialAccount(raw: unknown): SocialAccount | null {
@@ -285,7 +316,7 @@ export async function listSocialAccounts(deps?: GhlDeps): Promise<SocialAccount[
     {},
     { ...deps, config },
   );
-  return filterFlobamaDowntownAccounts(extractSocialAccounts(payload));
+  return filterAllowedSocialAccounts(extractSocialAccounts(payload));
 }
 
 export async function listSocialPosts(input: ListSocialPostsInput, deps?: GhlDeps): Promise<SocialPost[]> {
