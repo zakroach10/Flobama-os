@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
-import type { WeekSlideDay } from "@/lib/screens/week";
 import { FLOBAMA_LOGO_SRC } from "@/lib/brand";
+import type { WeekSocialFormatId } from "@/lib/screens/social";
+import type { WeekSlideDay } from "@/lib/screens/week";
 
 export const SOCIAL_POSTER = {
   cream: "#e4e2dd",
