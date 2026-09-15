@@ -205,4 +205,10 @@ PIT scopes: custom object schema read, custom object record read and write, asso
 
 Linked contact name/email/phone come from `GET /associations/relations/{recordId}` then `GET /contacts/{contactId}` — the custom-object record id is never treated as a contact id.
 
+## Band booking fit analysis
+
+Opening a **Band Submission** detail page automatically asks OpenAI for an advisory booking-fit note using only GHL Band Inquiry fields (bio, socials/EPK URLs, draw, compensation, etc.). No live social scraping.
+
+Server-only: `OPENAI_API_KEY` (optional `OPENAI_MODEL`, default `gpt-4.1-mini`). Unset key shows a setup state on the analysis panel and does not block the rest of the page. Analysis never writes status back to GHL.
+
 

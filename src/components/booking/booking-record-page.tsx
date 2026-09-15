@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookingRecordActions } from "@/components/booking/booking-record-actions";
 import { BookingContactActions } from "@/components/booking/booking-contact-actions";
+import { BandFitAnalysisPanel } from "@/components/booking/band-fit-analysis-panel";
 import { EmptyState, ErrorState } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { analyzeBandFit } from "@/lib/booking/analyze-band";
 import { loadBookingDetail } from "@/lib/ghl/booking";
 import { BAND_INQUIRY_FIELDS } from "@/lib/ghl/band-inquiry";
 import { BOOKING_KIND_META, type BookingKind, type BookingRecord } from "@/lib/ghl/objects";
@@ -46,6 +48,7 @@ export async function BookingRecordPage({
   }
 
   const record = result.record;
+  const analysis = kind === "band_submission" ? await analyzeBandFit(record) : null;
 
   return (
     <div className="space-y-6">
@@ -70,6 +73,7 @@ export async function BookingRecordPage({
         </div>
       </div>
 
+      {analysis ? <BandFitAnalysisPanel result={analysis} /> : null}
       {kind === "band_submission" ? <BandInquiryDetail record={record} /> : <GenericBookingDetail record={record} />}
       <BookingRecordActions kind={kind} record={record} />
     </div>

@@ -91,3 +91,23 @@ export function getGhlConfig(): GhlConfig | null {
 export function isGhlConfigured(): boolean {
   return getGhlConfig() !== null;
 }
+
+export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+
+export type OpenAiConfig = {
+  apiKey: string;
+  model: string;
+};
+
+export function getOpenAiConfig(): OpenAiConfig | null {
+  const apiKey = readEnv("OPENAI_API_KEY");
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: readEnv("OPENAI_MODEL") ?? DEFAULT_OPENAI_MODEL,
+  };
+}
+
+export function isOpenAiConfigured(): boolean {
+  return getOpenAiConfig() !== null;
+}

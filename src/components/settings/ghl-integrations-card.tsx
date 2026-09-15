@@ -1,8 +1,11 @@
 import { getGhlConnectionStatus } from "@/lib/ghl/booking";
+import { isOpenAiConfigured, DEFAULT_OPENAI_MODEL, getOpenAiConfig } from "@/lib/env";
 import { Badge } from "@/components/ui/badge";
 
 export async function GhlIntegrationsCard() {
   const status = await getGhlConnectionStatus();
+  const openAi = getOpenAiConfig();
+  const openAiConfigured = isOpenAiConfigured();
 
   return (
     <section className="space-y-4">
@@ -72,6 +75,29 @@ export async function GhlIntegrationsCard() {
             <code>GHL_OBJECT_BAND_SUBMISSION</code>, <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
           </p>
         </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-medium">OpenAI</h3>
+          <Badge variant={openAiConfigured ? "default" : "secondary"}>
+            {openAiConfigured ? "Connected" : "Not configured"}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Band Submission booking-fit analysis uses <code>OPENAI_API_KEY</code> on the server only. The key is never
+          shown here or sent to the browser. Analysis is advisory and does not change GoHighLevel status.
+        </p>
+        {openAi ? (
+          <p className="text-sm text-muted-foreground">
+            Model: <span className="font-mono text-xs">{openAi.model}</span>
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Set <code>OPENAI_API_KEY</code> (optional <code>OPENAI_MODEL</code>, default {DEFAULT_OPENAI_MODEL}) to enable
+            the analysis window on Band Submission detail pages.
+          </p>
+        )}
       </div>
     </section>
   );
