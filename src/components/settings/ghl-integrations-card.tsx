@@ -21,7 +21,8 @@ export async function GhlIntegrationsCard() {
           Private Integration Token lives in Vercel / <code>.env.local</code> only (
           <code>GHL_PRIVATE_TOKEN</code>, <code>GHL_LOCATION_ID</code>). It is never shown here, stored in Postgres, or
           sent to the browser. Booking uses custom objects <strong>Band Submission</strong> and{" "}
-          <strong>Private events</strong> as the source of truth.
+          <strong>Private events</strong> as the source of truth. Social uses Social Planner accounts and posts for the
+          weekly event graphic desk.
         </p>
         {status.configured ? (
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -70,9 +71,12 @@ export async function GhlIntegrationsCard() {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Names vary slightly in the Private Integration UI — pick the Objects / Records read and write pair. Band
-            submissions default to <code>custom_objects.band_inquiries</code>. Optional overrides:{" "}
-            <code>GHL_OBJECT_BAND_SUBMISSION</code>, <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
+            Names vary slightly in the Private Integration UI — pick the Objects / Records read and write pair, plus
+            Social Planner account/post scopes (<code>socialplanner/account.readonly</code>,{" "}
+            <code>socialplanner/post.readonly</code>, <code>socialplanner/post.write</code>, optional{" "}
+            <code>socialplanner/statistics.readonly</code>). Band submissions default to{" "}
+            <code>custom_objects.band_inquiries</code>. Optional overrides: <code>GHL_OBJECT_BAND_SUBMISSION</code>,{" "}
+            <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
           </p>
         </div>
       </div>
