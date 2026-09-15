@@ -1,4 +1,4 @@
-import { liveWeekDays, paginateWeekDays, weekFlyerFileName, type WeekSlideDay } from "@/lib/screens/week";
+import { liveWeekDays, weekFlyerFileName, type WeekSlideDay } from "@/lib/screens/week";
 
 export const WEEK_SOCIAL_FORMATS = [
   {
@@ -8,7 +8,6 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1080,
     layout: "stack",
-    maxEvents: 6,
   },
   {
     id: "ig-portrait",
@@ -17,7 +16,6 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1350,
     layout: "stack",
-    maxEvents: 8,
   },
   {
     id: "story",
@@ -26,7 +24,6 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1080,
     height: 1920,
     layout: "stack",
-    maxEvents: 8,
   },
   {
     id: "landscape",
@@ -35,7 +32,6 @@ export const WEEK_SOCIAL_FORMATS = [
     width: 1920,
     height: 1080,
     layout: "split",
-    maxEvents: 8,
   },
 ] as const;
 
@@ -52,8 +48,8 @@ export function weekSocialFormat(id: string | null | undefined): WeekSocialForma
   return WEEK_SOCIAL_FORMATS.find((format) => format.id === id) ?? WEEK_SOCIAL_FORMATS[0];
 }
 
-export function weekSocialPages(days: WeekSlideDay[], format: Pick<WeekSocialFormat, "maxEvents">) {
-  return paginateWeekDays(liveWeekDays(days), format.maxEvents);
+export function weekSocialPages(days: WeekSlideDay[]) {
+  return [liveWeekDays(days)];
 }
 
 export function socialGraphicFileName(

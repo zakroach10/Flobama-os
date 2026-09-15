@@ -27,7 +27,7 @@ export function WeekSocialStudio({
   demo?: boolean;
 }) {
   const format = weekSocialFormat(formatId);
-  const pages = weekSocialPages(days, format);
+  const pages = weekSocialPages(days);
   const currentPage = Math.min(Math.max(page, 1), Math.max(pages.length, 1));
   const current = pages[currentPage - 1] ?? [];
   const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
@@ -41,7 +41,7 @@ export function WeekSocialStudio({
           <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-xs text-muted-foreground sm:text-sm">
             Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG.
-            Busy weeks split across pages so the type stays readable.
+            Square, portrait, story, and landscape keep the full week on one graphic.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

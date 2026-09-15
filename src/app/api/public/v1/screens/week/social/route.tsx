@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   const week = demo ? DEMO_WEEK_SLIDE : await loadLiveWeek();
   if ("error" in week) return publicJson({ error: week.error }, week.status);
 
-  const pages = weekSocialPages(week.days, format);
+  const pages = weekSocialPages(week.days);
   const pageIndex = Math.min(pageNumber, pages.length) - 1;
   const days = pages[pageIndex] ?? [];
   const pageLabel = pages.length > 1 ? `${pageIndex + 1} / ${pages.length}` : null;

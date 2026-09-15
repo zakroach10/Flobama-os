@@ -39,6 +39,7 @@ import {
   socialPosterColumns,
   socialPosterDateParts,
   socialPosterRows,
+  socialPosterScale,
 } from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
@@ -311,7 +312,7 @@ describe("this week slide", () => {
     expect(socialGraphicFileName("Sep 6–12, 2026", "story", 2, 3)).toBe(
       "Flobama-this-week-Sep-6-12-2026-story-p2.png",
     );
-    expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-square"))).toHaveLength(1);
+    expect(weekSocialPages(DEMO_WEEK_SLIDE.days)).toHaveLength(1);
     expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
       "/api/public/v1/screens/week/social?size=ig-square&demo=1",
     );
@@ -368,6 +369,10 @@ describe("this week slide", () => {
     const pages = paginateWeekDays(days, 8);
     expect(pages.flat().flatMap((day) => day.events)).toHaveLength(14);
     expect(pages.length).toBeGreaterThan(1);
+    expect(weekSocialPages(days)).toHaveLength(1);
+    expect(weekSocialPages(days)[0]?.flatMap((day) => day.events)).toHaveLength(14);
+    expect(socialPosterScale("ig-square", 3).columns).toBe(1);
+    expect(socialPosterScale("ig-square", 10).columns).toBe(2);
   });
 
   it("lists time and artists without cover or tickets", () => {
