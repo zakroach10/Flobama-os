@@ -43,8 +43,9 @@ export function SocialDeskHome({
           <div>
             <h2 className="text-lg font-semibold">Connected accounts</h2>
             <p className="text-sm text-muted-foreground">
-              Only accounts labeled <strong>Flobama Downtown</strong> are listed. Image-capable ones are pre-selected when
-              composing.
+              Only <strong>Flobama Downtown</strong>, <strong>Flobama Instagram</strong>, and{" "}
+              <strong>Flobama Google</strong> accounts are listed (Instagram/Google platforms also match when the name
+              includes FloBama). Image-capable ones are pre-selected when composing.
             </p>
           </div>
           <Link href="/social/compose" className={cn(buttonVariants({ variant: "default" }))}>
@@ -53,8 +54,8 @@ export function SocialDeskHome({
         </div>
         {accounts.length === 0 ? (
           <EmptyState
-            title="No Flobama Downtown accounts"
-            description="Connect Facebook, Instagram, or other channels in GoHighLevel Social Planner and name them exactly “Flobama Downtown”, then refresh this page."
+            title="No FloBama social accounts"
+            description="Connect channels in GoHighLevel Social Planner labeled Flobama Downtown, Flobama Instagram, or Flobama Google, then refresh this page."
           />
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">

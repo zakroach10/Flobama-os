@@ -8,8 +8,8 @@ import {
   extractSocialAccounts,
   extractSocialPost,
   extractSocialPosts,
-  filterFlobamaDowntownAccounts,
-  isFlobamaDowntownAccount,
+  filterAllowedSocialAccounts,
+  isAllowedSocialAccount,
   isImageCapablePlatform,
   listSocialAccounts,
   weekSocialMediaItems,
@@ -147,14 +147,34 @@ describe("account mapping", () => {
     expect(defaultSelectedAccountIds(accounts)).toEqual(["ig"]);
   });
 
-  it("matches Flobama Downtown labels case-insensitively", () => {
-    expect(isFlobamaDowntownAccount("Flobama Downtown")).toBe(true);
-    expect(isFlobamaDowntownAccount("  flobama   downtown ")).toBe(true);
-    expect(isFlobamaDowntownAccount("FloBama Uptown")).toBe(false);
+  it("matches Flobama Downtown, Instagram, and Google accounts", () => {
+    expect(isAllowedSocialAccount("Flobama Downtown")).toBe(true);
+    expect(isAllowedSocialAccount("  flobama   downtown ")).toBe(true);
+    expect(isAllowedSocialAccount("Flobama Instagram")).toBe(true);
+    expect(isAllowedSocialAccount("Flobama Google")).toBe(true);
+    expect(isAllowedSocialAccount("FloBama Uptown")).toBe(false);
     expect(
-      filterFlobamaDowntownAccounts([
+      isAllowedSocialAccount({
+        name: "FloBama Music Hall",
+        platform: "instagram",
+      }),
+    ).toBe(true);
+    expect(
+      isAllowedSocialAccount({
+        name: "FloBama Music Hall",
+        platform: "google",
+      }),
+    ).toBe(true);
+    expect(
+      isAllowedSocialAccount({
+        name: "Other Page",
+        platform: "instagram",
+      }),
+    ).toBe(false);
+    expect(
+      filterAllowedSocialAccounts([
         {
-          id: "keep",
+          id: "keep-downtown",
           name: "Flobama Downtown",
           platform: "facebook",
           type: null,
@@ -163,16 +183,34 @@ describe("account mapping", () => {
           imageCapable: true,
         },
         {
-          id: "drop",
-          name: "Other Page",
+          id: "keep-ig",
+          name: "Flobama Instagram",
           platform: "instagram",
           type: null,
           profileId: "p2",
           isExpired: false,
           imageCapable: true,
         },
+        {
+          id: "keep-google",
+          name: "Flobama Google",
+          platform: "google",
+          type: null,
+          profileId: "p3",
+          isExpired: false,
+          imageCapable: true,
+        },
+        {
+          id: "drop",
+          name: "Other Page",
+          platform: "instagram",
+          type: null,
+          profileId: "p4",
+          isExpired: false,
+          imageCapable: true,
+        },
       ]).map((account) => account.id),
-    ).toEqual(["keep"]);
+    ).toEqual(["keep-downtown", "keep-ig", "keep-google"]);
   });
 
   it("extracts accounts from GHL payload", () => {
@@ -191,21 +229,23 @@ describe("account mapping", () => {
 });
 
 describe("social ghlFetch wrappers", () => {
-  it("lists only Flobama Downtown accounts", async () => {
+  it("lists Flobama Downtown, Instagram, and Google accounts", async () => {
     const calls: { url: string; method?: string }[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {
       calls.push({ url: String(input), method: init?.method });
       return jsonResponse({
         results: {
           accounts: [
-            { id: "acc_keep", name: "Flobama Downtown", platform: "facebook", profileId: "p1" },
-            { id: "acc_drop", name: "Other Venue", platform: "instagram", profileId: "p2" },
+            { id: "acc_downtown", name: "Flobama Downtown", platform: "facebook", profileId: "p1" },
+            { id: "acc_ig", name: "Flobama Instagram", platform: "instagram", profileId: "p2" },
+            { id: "acc_google", name: "Flobama Google", platform: "google", profileId: "p3" },
+            { id: "acc_drop", name: "Other Venue", platform: "instagram", profileId: "p4" },
           ],
         },
       });
     };
     const accounts = await listSocialAccounts(configuredDeps(fetchImpl));
-    expect(accounts.map((account) => account.id)).toEqual(["acc_keep"]);
+    expect(accounts.map((account) => account.id)).toEqual(["acc_downtown", "acc_ig", "acc_google"]);
     expect(calls[0]?.url).toContain("/social-media-posting/loc_1/accounts");
   });
 

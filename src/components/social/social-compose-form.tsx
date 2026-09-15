@@ -120,7 +120,7 @@ export function SocialComposeForm({
           <Label>Accounts</Label>
           {accounts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No connected accounts labeled Flobama Downtown in GoHighLevel.
+              No Flobama Downtown / Instagram / Google accounts connected in GoHighLevel.
             </p>
           ) : (
             <ul className="space-y-2 rounded-xl border bg-card p-3">
