@@ -94,6 +94,17 @@ describe("create-post payload", () => {
     ]);
   });
 
+  it("publishes now without scheduleDate", () => {
+    const body = buildCreateSocialPostBody({
+      accountIds: ["acc_1"],
+      summary: "Live music this week at FloBama.",
+      status: "published",
+      media: [{ url: "https://example.com/a.png", type: "image/png" }],
+    });
+    expect(body.status).toBe("published");
+    expect(body).not.toHaveProperty("scheduleDate");
+  });
+
   it("lists posts with comma-separated accounts string", () => {
     expect(
       buildListSocialPostsBody({

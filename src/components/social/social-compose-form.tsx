@@ -39,7 +39,7 @@ export function SocialComposeForm({
   const [selected, setSelected] = useState<string[]>(defaults);
   const [summary, setSummary] = useState(DEFAULT_WEEK_SOCIAL_CAPTION);
   const [formatId, setFormatId] = useState<WeekSocialFormatId>(initialFormatId);
-  const [status, setStatus] = useState<"draft" | "scheduled">("draft");
+  const [status, setStatus] = useState<"draft" | "scheduled" | "published">("published");
   const [scheduleLocal, setScheduleLocal] = useState("");
   const pageCount = Math.max(1, pageCountByFormat[formatId] ?? 1);
 
@@ -81,6 +81,8 @@ export function SocialComposeForm({
   }
 
   const previewHref = weekSocialExportPath({ formatId, page: 1 });
+  const submitLabel =
+    status === "published" ? "Post now in GHL" : status === "scheduled" ? "Schedule in GHL" : "Save draft in GHL";
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
@@ -154,15 +156,16 @@ export function SocialComposeForm({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="social-status">Status</Label>
+            <Label htmlFor="social-status">When</Label>
             <select
               id="social-status"
               value={status}
-              onChange={(event) => setStatus(event.target.value as "draft" | "scheduled")}
+              onChange={(event) => setStatus(event.target.value as "draft" | "scheduled" | "published")}
               className="h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
             >
+              <option value="published">Post now</option>
+              <option value="scheduled">Schedule</option>
               <option value="draft">Draft</option>
-              <option value="scheduled">Scheduled</option>
             </select>
           </div>
           <div className="space-y-2">
@@ -179,7 +182,7 @@ export function SocialComposeForm({
 
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={pending} onClick={submit}>
-            {status === "draft" ? "Save draft in GHL" : "Schedule in GHL"}
+            {submitLabel}
           </Button>
           <a
             className={cn(buttonVariants({ variant: "outline" }))}
@@ -204,8 +207,8 @@ export function SocialComposeForm({
           ))}
         </ul>
         <p className="text-xs text-muted-foreground">
-          GoHighLevel fetches these public HTTPS PNGs when publishing. Default caption and draft status keep posts
-          reviewable before they go live.
+          GoHighLevel fetches these public HTTPS PNGs when publishing. Use Post now to publish immediately, Schedule for
+          a later time, or Draft to review in Social Planner first.
         </p>
       </aside>
     </div>
