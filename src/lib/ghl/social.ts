@@ -88,7 +88,7 @@ export type SocialPost = {
 export type CreateSocialPostInput = {
   accountIds: string[];
   summary: string;
-  status: "draft" | "scheduled";
+  status: "draft" | "scheduled" | "published";
   scheduleDate?: string | null;
   media: SocialMediaItem[];
   type?: SocialPostType;

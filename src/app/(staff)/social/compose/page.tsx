@@ -58,7 +58,7 @@ export default async function SocialComposePage({
         <h2 className="text-lg font-semibold">Compose week graphic</h2>
         <p className="text-sm text-muted-foreground">
           Posts {week.rangeLabel} lineup PNG{pageCount > 1 ? `s (${pageCount} pages)` : ""} to selected GHL accounts.
-          Defaults to draft so you can review in Social Planner before publish.
+          Defaults to <strong>Post now</strong>; you can also schedule or save a draft.
         </p>
       </div>
       {accountsError ? <ErrorState title="Could not load accounts" description={accountsError} /> : null}

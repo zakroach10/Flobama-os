@@ -32,7 +32,7 @@ function ghlMessage(error: unknown, fallback: string) {
 export async function createWeekSocialPostAction(input: {
   accountIds: string[];
   summary: string;
-  status: "draft" | "scheduled";
+  status: "draft" | "scheduled" | "published";
   scheduleDate?: string | null;
   formatId?: string;
   pageCount?: number;
@@ -43,15 +43,16 @@ export async function createWeekSocialPostAction(input: {
   const formatId: WeekSocialFormatId = isWeekSocialFormatId(input.formatId) ? input.formatId : "ig-square";
   const summary = input.summary.trim() || "Live music this week at FloBama.";
   const accountIds = Array.isArray(input.accountIds) ? input.accountIds.filter(Boolean) : [];
-  const status = input.status === "scheduled" ? "scheduled" : "draft";
+  const status =
+    input.status === "published" ? "published" : input.status === "scheduled" ? "scheduled" : "draft";
 
   if (status === "scheduled") {
     if (!input.scheduleDate?.trim()) {
       return { ok: false, message: "Pick a schedule date and time." };
     }
-    if (accountIds.length === 0) {
-      return { ok: false, message: "Select at least one social account." };
-    }
+  }
+  if (status !== "draft" && accountIds.length === 0) {
+    return { ok: false, message: "Select at least one social account." };
   }
 
   const payload: CreateSocialPostInput = {
@@ -71,11 +72,13 @@ export async function createWeekSocialPostAction(input: {
     const post = await createSocialPost(payload);
     revalidatePath("/social");
     revalidatePath(`/social/posts/${post.id}`);
-    return {
-      ok: true,
-      message: status === "draft" ? "Draft saved in GoHighLevel." : "Post scheduled in GoHighLevel.",
-      id: post.id,
-    };
+    const message =
+      status === "published"
+        ? "Posted in GoHighLevel."
+        : status === "scheduled"
+          ? "Post scheduled in GoHighLevel."
+          : "Draft saved in GoHighLevel.";
+    return { ok: true, message, id: post.id };
   } catch (error) {
     return { ok: false, message: ghlMessage(error, "Could not create social post.") };
   }
@@ -83,7 +86,7 @@ export async function createWeekSocialPostAction(input: {
 
 export async function updateSocialPostAction(
   postId: string,
-  patch: { summary?: string; status?: "draft" | "scheduled"; scheduleDate?: string | null; accountIds?: string[] },
+  patch: { summary?: string; status?: "draft" | "scheduled" | "published"; scheduleDate?: string | null; accountIds?: string[] },
 ): Promise<ActionResult> {
   const access = await staffForSocial();
   if (!access.ok) return access;
