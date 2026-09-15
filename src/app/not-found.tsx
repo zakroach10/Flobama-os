@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export default function NotFound() {
   return (
-    <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-6 py-16">
+    <main className="relative mx-auto flex min-h-full max-w-lg flex-col justify-center px-6 py-16">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <FlobamaLogo className="mb-5 w-[220px]" />
       <h1 className="text-3xl font-semibold">Page not found</h1>
       <p className="mt-3 text-muted-foreground">That record or route is not in FloBama OS.</p>

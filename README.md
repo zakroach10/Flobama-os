@@ -12,7 +12,7 @@ Internal operations platform for FloBama Music Hall. This repository is the staf
 
 - Single venue record: FloBama Music Hall (`11111111-1111-4111-8111-111111111111`)
 - Timezone locked to `America/Chicago` in the database
-- Official FloBama wordmark (`public/flobama-logo.png`) on staff OS, weekly flyers, and vertical kiosk screens. Warm-red `#d36b4a` is the matching accent.
+- Official FloBama wordmark (`public/flobama-logo.png`) on staff OS, weekly flyers, social graphics, and vertical kiosk screens. Warm-red `#d36b4a` is the matching accent. Staff can switch light and dark mode from the sidebar, mobile header, sign-in screen, or Settings → Appearance.
 - No public signup. The first admin is bootstrapped in SQL; later staff are created in Settings by an admin.
 - Event “Publish” plus public visibility feeds the public API, HTML embed, and OBS overlay. The Google Sheet on flobamadowntown.com is not edited from this repo.
 
@@ -164,7 +164,7 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 
 **Weekly flyer:** Events or Screens → **Print this week’s flyer** opens a US Letter handout at `/print/week`. Use Print and choose Save as PDF. It lists every day of the current Sunday–Saturday week from the same public calendar. Local sample: http://localhost:43123/print/week?demo=1
 
-**Social graphics:** Events, Dashboard, or Screens → **Social sizes** opens `/print/week/social`. Downloads use FloBama’s Live Music This Week look (orange crumpled header, torn paper, blue lineup). Pick Instagram square (1080×1080), Instagram portrait (1080×1350), Story/Reels (1080×1920), or landscape (1920×1080). Busy weeks split across pages. Local sample: http://localhost:43123/print/week/social?demo=1
+**Social graphics:** Events, Dashboard, or Screens → **Social sizes** opens `/print/week/social`. Downloads use FloBama’s Live Music This Week look (orange crumpled header, torn paper, blue lineup). Pick Instagram square (1080×1080), Instagram portrait (1080×1350), Story/Reels (1080×1920), or landscape (1920×1080). Each size keeps the full week on one graphic. Local sample: http://localhost:43123/print/week/social?demo=1
 
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
 

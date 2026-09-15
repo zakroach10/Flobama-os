@@ -1,4 +1,5 @@
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangleIcon } from "lucide-react";
@@ -40,7 +41,10 @@ export function ErrorState({ title, description }: { title: string; description:
 
 export function SetupRequired({ missing }: { missing: string[] }) {
   return (
-    <main className="mx-auto flex min-h-full max-w-xl flex-col justify-center px-6 py-16">
+    <main className="relative mx-auto flex min-h-full max-w-xl flex-col justify-center px-6 py-16">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <FlobamaLogo className="mb-5 w-[220px]" />
       <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">FloBama OS</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Setup required</h1>

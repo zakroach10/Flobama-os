@@ -6,6 +6,7 @@ import {
 } from "@/lib/screens/social-poster";
 import type { WeekSocialFormat } from "@/lib/screens/social";
 import type { WeekSlideDay } from "@/lib/screens/week";
+import { flobamaLogoHeight } from "@/lib/brand";
 
 function Text({
   children,
@@ -33,8 +34,8 @@ export function WeekSocialOgGraphic({
   tearSrc: string | null;
   stickerSrc: string | null;
 }) {
-  const scale = socialPosterScale(format.id);
   const rows = socialPosterRows(days);
+  const scale = socialPosterScale(format.id, rows.length);
   const columns = socialPosterColumns(rows, scale.columns);
   const split = columns.length === 2;
 
@@ -92,7 +93,7 @@ export function WeekSocialOgGraphic({
         )}
         {stickerSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={stickerSrc} alt="FloBama" width={scale.logo} height={Math.round((scale.logo * 300) / 710)} />
+          <img src={stickerSrc} alt="FloBama" width={scale.logo} height={flobamaLogoHeight(scale.logo)} />
         ) : (
           <Text style={{ fontSize: 54, fontWeight: 700, color: SOCIAL_POSTER.title }}>FloBama</Text>
         )}

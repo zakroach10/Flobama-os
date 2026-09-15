@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export function PrintWeekToolbar({
   autoPrint = false,
@@ -25,12 +26,13 @@ export function PrintWeekToolbar({
 
   return (
     <div className="no-print mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pt-4">
-      <p className="text-sm text-[#444]">
+      <p className="text-sm text-muted-foreground">
         {mode === "social"
           ? "Download a PNG in FloBama’s Live Music This Week style, then post it."
           : "US Letter flyer. Use Print and choose Save as PDF for a handout file."}
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <ThemeToggle compact />
         {mode === "flyer" ? (
           <>
             <Button type="button" variant="outline" className="w-full sm:w-auto" render={<Link href="/print/week/social" />}>

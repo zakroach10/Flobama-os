@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { StaffRole } from "@/lib/constants";
 import { STAFF_ROLE_LABELS } from "@/lib/constants";
+import { ThemeModePicker } from "@/components/theme/theme-toggle";
 
 export function SettingsForms({
   displayName,
@@ -99,6 +100,15 @@ export function SettingsForms({
             </Button>
           ) : null}
         </form>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Appearance</h2>
+        <p className="text-sm text-muted-foreground">
+          Switch the staff workspace, sign-in screen, and public ticket pages between light and dark.
+          Flyers and social downloads keep their printed look.
+        </p>
+        <ThemeModePicker />
       </section>
 
       <section className="space-y-3">
