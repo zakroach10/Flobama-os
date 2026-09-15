@@ -97,9 +97,9 @@ export async function loadBookingInbox(
       page: filters.page,
     });
     const payload = await searchRecords(resolved.key, body, { ...deps, config });
-    const fieldMap = resolveFieldMap(resolved.schema);
+    const fieldMap = resolveFieldMap(resolved.schema, kind);
     let records = extractRecords(payload)
-      .map((record) => mapRecordToBooking(record, resolved.key, fieldMap))
+      .map((record) => mapRecordToBooking(record, resolved.key, fieldMap, kind))
       .filter((record) => record.id);
     records.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
 
@@ -141,7 +141,7 @@ export async function loadBookingDetail(kind: BookingKind, recordId: string, dep
     const payload = await getRecord(resolved.key, recordId, { ...deps, config });
     const raw = extractRecords(payload)[0];
     if (!raw) return { configured: true, record: null, error: "That record was not found in GoHighLevel." };
-    const record = mapRecordToBooking(raw, resolved.key, resolveFieldMap(resolved.schema));
+    const record = mapRecordToBooking(raw, resolved.key, resolveFieldMap(resolved.schema, kind), kind);
     return {
       configured: true,
       record,

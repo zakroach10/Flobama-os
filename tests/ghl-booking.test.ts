@@ -128,13 +128,15 @@ describe("object discovery", () => {
 
 describe("record mapping", () => {
   it("maps schema-driven fields onto a booking DTO", () => {
-    const fieldMap = resolveFieldMap(SAMPLE_SCHEMAS[0]);
+    const fieldMap = resolveFieldMap(SAMPLE_SCHEMAS[0], "band_submission");
     const booking = mapRecordToBooking(
       {
         id: "rec_1",
+        name: "GHL Record",
         updatedAt: "2026-09-15T18:00:00.000Z",
         properties: {
-          band_name: "The River Band",
+          name: "GHL Record",
+          "custom_objects.band_inquiries.band_name": "The River Band",
           email: "band@example.com",
           phone: "2515550100",
           requested_date: "2026-10-01",
@@ -142,8 +144,9 @@ describe("record mapping", () => {
           internal_notes: "Follow up Friday",
         },
       },
-      "custom_objects.band_submission",
+      "custom_objects.band_inquiries",
       fieldMap,
+      "band_submission",
     );
     expect(booking.displayName).toBe("The River Band");
     expect(booking.email).toBe("band@example.com");

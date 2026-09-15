@@ -80,6 +80,8 @@ const ROLE_ALIASES: Record<FieldRole, string[]> = {
   notes: ["notes", "internal notes", "note", "comments", "staff notes"],
 };
 
+const BAND_NAME_ALIASES = ["band name", "band_name", "band", "artist name", "artist", "group name"];
+
 export type BookingRecord = {
   id: string;
   schemaKey: string;
@@ -219,20 +221,31 @@ export function fieldOptions(field: GhlField | undefined): string[] {
   return [...new Set(values)];
 }
 
-export function resolveFieldMap(schema: GhlObjectSchema | null | undefined): Partial<Record<FieldRole, GhlField>> {
+function roleAliases(role: FieldRole, kind?: BookingKind): string[] {
+  if (role === "displayName" && kind === "band_submission") return BAND_NAME_ALIASES;
+  return ROLE_ALIASES[role];
+}
+
+export function resolveFieldMap(
+  schema: GhlObjectSchema | null | undefined,
+  kind?: BookingKind,
+): Partial<Record<FieldRole, GhlField>> {
   const fields = schemaFields(schema);
   const map: Partial<Record<FieldRole, GhlField>> = {};
   for (const role of Object.keys(ROLE_ALIASES) as FieldRole[]) {
-    const aliases = ROLE_ALIASES[role];
+    const aliases = roleAliases(role, kind);
     const match = fields.find((field) => {
       const label = normalizeLabel(fieldLabelOf(field));
       const key = normalizeLabel(fieldKeyOf(field) ?? "");
-      return aliases.some((alias) => label === alias || key === alias || label.endsWith(` ${alias}`));
+      const segment = lastSegment(fieldKeyOf(field) ?? "");
+      return aliases.some(
+        (alias) => label === alias || key === alias || segment === alias || label.endsWith(` ${alias}`),
+      );
     });
     if (match) map[role] = match;
   }
-  if (!map.displayName) {
-    const named = fields.find((field) => normalizeLabel(fieldKeyOf(field) ?? "") === "name");
+  if (!map.displayName && kind !== "band_submission") {
+    const named = fields.find((field) => lastSegment(fieldKeyOf(field) ?? "") === "name");
     if (named) map.displayName = named;
   }
   if (!map.status) {
@@ -300,6 +313,22 @@ export function recordProperties(record: Record<string, unknown>): Record<string
   return out;
 }
 
+function lastSegment(key: string): string {
+  const parts = key.split(".");
+  return normalizeLabel(parts[parts.length - 1] ?? key);
+}
+
+function isGenericGhlName(value: string, recordId: string): boolean {
+  const normalized = normalizeLabel(value);
+  return (
+    !normalized ||
+    normalized === normalizeLabel(recordId) ||
+    normalized === "ghl record" ||
+    normalized === "gohighlevel record" ||
+    normalized === "untitled"
+  );
+}
+
 function pickProperty(
   properties: Record<string, string | null>,
   field: GhlField | undefined,
@@ -308,24 +337,44 @@ function pickProperty(
   const key = field ? fieldKeyOf(field) : null;
   if (key && properties[key]) return properties[key];
   for (const fallback of fallbackKeys) {
-    const match = Object.entries(properties).find(([propKey]) => normalizeLabel(propKey) === fallback);
+    const wanted = normalizeLabel(fallback);
+    const match = Object.entries(properties).find(([propKey]) => {
+      const label = normalizeLabel(propKey);
+      return label === wanted || lastSegment(propKey) === wanted;
+    });
     if (match?.[1]) return match[1];
   }
   return null;
+}
+
+function pickDisplayName(
+  kind: BookingKind | undefined,
+  record: Record<string, unknown>,
+  properties: Record<string, string | null>,
+  fieldMap: Partial<Record<FieldRole, GhlField>>,
+  recordId: string,
+): string {
+  const bandInquiry = kind === "band_submission";
+  const fallbacks = bandInquiry
+    ? BAND_NAME_ALIASES
+    : ["name", "display name", "title", "event name", "company name"];
+  const fromField = pickProperty(properties, fieldMap.displayName, fallbacks);
+  const fromRecordName = bandInquiry ? null : propertyValue(record.name);
+  const value = fromField || fromRecordName;
+  if (value && !isGenericGhlName(value, recordId)) return value;
+  return bandInquiry ? "Untitled band" : recordId || "Untitled";
 }
 
 export function mapRecordToBooking(
   record: Record<string, unknown>,
   schemaKey: string,
   fieldMap: Partial<Record<FieldRole, GhlField>>,
+  kind?: BookingKind,
 ): BookingRecord {
   const properties = recordProperties(record);
   const id = String(record.id ?? record.recordId ?? "");
-  const displayName =
-    pickProperty(properties, fieldMap.displayName, ["name", "display name", "title", "band name", "event name"]) ||
-    propertyValue(record.name) ||
-    id ||
-    "Untitled";
+  const inferredKind = kind ?? (schemaKey.includes("band_inquir") ? "band_submission" : undefined);
+  const displayName = pickDisplayName(inferredKind, record, properties, fieldMap, id);
   const status = pickProperty(properties, fieldMap.status, ["status", "stage"]);
   const statusFieldKey = fieldMap.status ? fieldKeyOf(fieldMap.status) : null;
   const notesFieldKey = fieldMap.notes ? fieldKeyOf(fieldMap.notes) : null;

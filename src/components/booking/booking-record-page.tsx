@@ -46,7 +46,7 @@ export async function BookingRecordPage({
             Back to {meta.plural.toLowerCase()}
           </Button>
           <h2 className="mt-4 text-xl font-semibold tracking-tight">{record.displayName}</h2>
-          <p className="text-sm text-muted-foreground">GoHighLevel record {record.id}</p>
+          <p className="text-sm text-muted-foreground">{meta.title}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {record.status ? <Badge variant="secondary">{record.status}</Badge> : null}
