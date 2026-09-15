@@ -1,4 +1,11 @@
 import type { GhlConfig } from "@/lib/env";
+import {
+  BAND_INQUIRY_DISPLAY_KEYS,
+  buildBandInquiryView,
+  extractContact,
+  inquiryProperty,
+  type BandInquiryView,
+} from "@/lib/ghl/band-inquiry";
 
 export const BOOKING_KINDS = ["band_submission", "private_events"] as const;
 export type BookingKind = (typeof BOOKING_KINDS)[number];
@@ -80,15 +87,17 @@ const ROLE_ALIASES: Record<FieldRole, string[]> = {
   notes: ["notes", "internal notes", "note", "comments", "staff notes"],
 };
 
-const BAND_NAME_ALIASES = ["band name", "band_name", "band", "artist name", "artist", "group name"];
+const BAND_NAME_ALIASES = ["artist_band_name", "artist band name", "band name", "band_name", "band", "artist name", "artist"];
 
 export type BookingRecord = {
   id: string;
   schemaKey: string;
   displayName: string;
+  contactName: string | null;
   email: string | null;
   phone: string | null;
   requestedDates: string | null;
+  compensation: string | null;
   status: string | null;
   notes: string | null;
   updatedAt: string | null;
@@ -97,6 +106,7 @@ export type BookingRecord = {
   statusOptions: string[];
   statusFieldKey: string | null;
   notesFieldKey: string | null;
+  inquiry: BandInquiryView | null;
 };
 
 export function extractSchemas(payload: unknown): GhlObjectSchema[] {
@@ -355,6 +365,12 @@ function pickDisplayName(
   recordId: string,
 ): string {
   const bandInquiry = kind === "band_submission";
+  if (bandInquiry) {
+    for (const key of BAND_INQUIRY_DISPLAY_KEYS) {
+      const value = inquiryProperty(properties, { key, label: key, section: "profile" });
+      if (value && !isGenericGhlName(value, recordId)) return value;
+    }
+  }
   const fallbacks = bandInquiry
     ? BAND_NAME_ALIASES
     : ["name", "display name", "title", "event name", "company name"];
@@ -375,6 +391,8 @@ export function mapRecordToBooking(
   const id = String(record.id ?? record.recordId ?? "");
   const inferredKind = kind ?? (schemaKey.includes("band_inquir") ? "band_submission" : undefined);
   const displayName = pickDisplayName(inferredKind, record, properties, fieldMap, id);
+  const contact = extractContact(record, properties);
+  const inquiry = inferredKind === "band_submission" ? buildBandInquiryView(record, properties) : null;
   const status = pickProperty(properties, fieldMap.status, ["status", "stage"]);
   const statusFieldKey = fieldMap.status ? fieldKeyOf(fieldMap.status) : null;
   const notesFieldKey = fieldMap.notes ? fieldKeyOf(fieldMap.notes) : null;
@@ -385,17 +403,22 @@ export function mapRecordToBooking(
     id,
     schemaKey,
     displayName,
-    email: pickProperty(properties, fieldMap.email, ["email"]),
-    phone: pickProperty(properties, fieldMap.phone, ["phone", "phone number"]),
-    requestedDates: pickProperty(properties, fieldMap.date, ["date", "event date", "requested date", "requested dates"]),
+    contactName: contact.name,
+    email: contact.email ?? pickProperty(properties, fieldMap.email, ["email"]),
+    phone: contact.phone ?? pickProperty(properties, fieldMap.phone, ["phone", "phone number"]),
+    requestedDates:
+      inquiry?.availableDates ??
+      pickProperty(properties, fieldMap.date, ["available_dates", "date", "event date", "requested date", "requested dates"]),
+    compensation: inquiry?.compensation ?? null,
     status,
-    notes: pickProperty(properties, fieldMap.notes, ["notes", "internal notes"]),
+    notes: pickProperty(properties, fieldMap.notes, ["notes", "internal notes", "additional_information"]),
     updatedAt: propertyValue(record.updatedAt ?? record.dateUpdated ?? record.updated_at) ?? properties.updatedAt ?? null,
     createdAt: propertyValue(record.createdAt ?? record.dateAdded ?? record.created_at) ?? null,
     properties,
     statusOptions: options,
     statusFieldKey,
     notesFieldKey,
+    inquiry,
   };
 }
 

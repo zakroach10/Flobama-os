@@ -127,19 +127,22 @@ describe("object discovery", () => {
 });
 
 describe("record mapping", () => {
-  it("maps schema-driven fields onto a booking DTO", () => {
+  it("maps Band inquiries from contact and custom object keys", () => {
     const fieldMap = resolveFieldMap(SAMPLE_SCHEMAS[0], "band_submission");
     const booking = mapRecordToBooking(
       {
         id: "rec_1",
         name: "GHL Record",
         updatedAt: "2026-09-15T18:00:00.000Z",
+        contact: { full_name: "Alex Rivera", email: "alex@example.com", phone: "2515550100" },
         properties: {
           name: "GHL Record",
-          "custom_objects.band_inquiries.band_name": "The River Band",
-          email: "band@example.com",
-          phone: "2515550100",
-          requested_date: "2026-10-01",
+          "custom_objects.band_inquiries.artist_band_name": "The River Band",
+          "custom_objects.band_inquiries.genre": "Americana",
+          "custom_objects.band_inquiries.home_city__state": "Mobile, AL",
+          "custom_objects.band_inquiries.available_dates": "Oct 3–4",
+          "custom_objects.band_inquiries.expected_compensation": "$1,200",
+          "custom_objects.band_inquiries.instagram": "@rivertown",
           booking_status: { value: "New" },
           internal_notes: "Follow up Friday",
         },
@@ -149,7 +152,14 @@ describe("record mapping", () => {
       "band_submission",
     );
     expect(booking.displayName).toBe("The River Band");
-    expect(booking.email).toBe("band@example.com");
+    expect(booking.contactName).toBe("Alex Rivera");
+    expect(booking.email).toBe("alex@example.com");
+    expect(booking.phone).toBe("2515550100");
+    expect(booking.compensation).toBe("$1,200");
+    expect(booking.requestedDates).toBe("Oct 3–4");
+    expect(booking.inquiry?.genre).toBe("Americana");
+    expect(booking.inquiry?.homeCity).toBe("Mobile, AL");
+    expect(booking.inquiry?.fields.find((field) => field.key === "instagram")?.href).toBe("https://instagram.com/rivertown");
     expect(booking.status).toBe("New");
     expect(booking.statusFieldKey).toBe("booking_status");
     expect(booking.notesFieldKey).toBe("internal_notes");
