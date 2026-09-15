@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { SettingsForms } from "@/components/settings/settings-forms";
 import { WebsiteEmbedCard } from "@/components/settings/website-embed-card";
+import { GhlIntegrationsCard } from "@/components/settings/ghl-integrations-card";
 import { RolePermissionGuide, StaffDirectory } from "@/components/settings/staff-admin";
 import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -40,6 +41,7 @@ export default async function SettingsPage() {
         />
       )}
       <WebsiteEmbedCard siteUrl={getPublicAppUrl()} />
+      <GhlIntegrationsCard />
       <SettingsForms
         displayName={context.profile?.display_name ?? ""}
         venueName={context.venue.name}

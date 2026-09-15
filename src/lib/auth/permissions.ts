@@ -9,6 +9,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Rename the venue",
     "Create and edit events and artists",
     "Update events from the master sheet",
+    "Manage Booking from GoHighLevel custom objects",
     "Manage LED wall scenes and vertical ads",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the calendar and settings",
@@ -16,6 +17,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   manager: [
     "Create and edit events and artists",
     "Update events from the master sheet",
+    "Manage Booking from GoHighLevel custom objects",
     "Manage LED wall scenes and vertical ads",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the staff directory",

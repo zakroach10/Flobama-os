@@ -189,3 +189,17 @@ Public:
 Checkout uses a labeled mock payment adapter. Do not set `STRIPE_SECRET_KEY` until Stripe is wired; V1 will refuse a live Stripe charge rather than pretend.
 
 Holds last 10 minutes. Table inventory uses `UPDATE … WHERE status = 'available'` (and the demo store’s equivalent) so two buyers cannot take the same table.
+
+## GoHighLevel booking
+
+Staff **Booking** (managers and admins) lists **Band Submission** and **Private events** custom objects from GoHighLevel. GHL remains the source of truth; records are not copied into Supabase.
+
+Server-only env (never `NEXT_PUBLIC_`, never git, never Postgres):
+
+- `GHL_PRIVATE_TOKEN` — Private Integration Token
+- `GHL_LOCATION_ID`
+- Optional `GHL_API_VERSION` (default `2021-07-28`)
+- Optional `GHL_OBJECT_BAND_SUBMISSION` / `GHL_OBJECT_PRIVATE_EVENTS` if object labels do not match
+
+PIT scopes: custom object schema read, custom object record read and write. Unset token/location turns the inbox into a setup state, same idea as unset Stripe.
+

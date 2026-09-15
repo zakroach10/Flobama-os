@@ -60,3 +60,34 @@ export function getSiteUrl(): string {
 export function getPublicAppUrl(): string {
   return normalizeOrigin(readEnv("NEXT_PUBLIC_SITE_URL")) ?? PRODUCTION_SITE_URL;
 }
+
+export const DEFAULT_GHL_API_VERSION = "2021-07-28";
+
+export type GhlConfig = {
+  token: string;
+  locationId: string;
+  apiVersion: string;
+  objectKeys: {
+    bandSubmission?: string;
+    privateEvents?: string;
+  };
+};
+
+export function getGhlConfig(): GhlConfig | null {
+  const token = readEnv("GHL_PRIVATE_TOKEN");
+  const locationId = readEnv("GHL_LOCATION_ID");
+  if (!token || !locationId) return null;
+  return {
+    token,
+    locationId,
+    apiVersion: readEnv("GHL_API_VERSION") ?? DEFAULT_GHL_API_VERSION,
+    objectKeys: {
+      bandSubmission: readEnv("GHL_OBJECT_BAND_SUBMISSION"),
+      privateEvents: readEnv("GHL_OBJECT_PRIVATE_EVENTS"),
+    },
+  };
+}
+
+export function isGhlConfigured(): boolean {
+  return getGhlConfig() !== null;
+}
