@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { BookingContactActions } from "@/components/booking/booking-contact-actions";
+import { contactSummary } from "@/components/booking/contact-summary";
 import type { BookingKind, BookingRecord } from "@/lib/ghl/objects";
 import { BOOKING_KIND_META } from "@/lib/ghl/objects";
 
@@ -88,9 +89,12 @@ export function BookingInbox({
                     <p>
                       {[record.inquiry?.genre, record.inquiry?.homeCity].filter(Boolean).join(" · ") || "Genre and home city not listed"}
                     </p>
-                    <p>
-                      {[record.contactName, record.email, record.phone].filter(Boolean).join(" · ") || "No contact details"}
-                    </p>
+                    {(() => {
+                      const summary = contactSummary(record);
+                      return (
+                        <p className={summary.tone === "error" ? "text-destructive" : undefined}>{summary.text}</p>
+                      );
+                    })()}
                     {record.requestedDates ? <p>Available: {record.requestedDates}</p> : null}
                     <p>
                       Expected compensation:{" "}
@@ -99,7 +103,8 @@ export function BookingInbox({
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {[record.email, record.phone, record.requestedDates].filter(Boolean).join(" · ") || "No contact fields"}
+                    {contactSummary(record).text}
+                    {record.requestedDates ? ` · ${record.requestedDates}` : ""}
                   </p>
                 )}
               </Link>

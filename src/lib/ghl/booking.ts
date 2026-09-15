@@ -11,6 +11,7 @@ import {
 } from "@/lib/ghl/client";
 import {
   BOOKING_KIND_META,
+  applyLinkedContact,
   buildSearchRecordsBody,
   extractRecords,
   extractSchemas,
@@ -25,6 +26,7 @@ import {
   type BookingRecord,
   type GhlObjectSchema,
 } from "@/lib/ghl/objects";
+import { loadLinkedContact, loadLinkedContacts } from "@/lib/ghl/contacts";
 
 export type BookingInboxResult =
   | { configured: false }
@@ -108,6 +110,20 @@ export async function loadBookingInbox(
       records = records.filter((record) => (record.status ?? "") === statusFilter);
     }
 
+    const linked = await loadLinkedContacts(
+      records.map((record) => record.id),
+      { ...deps, config },
+    );
+    records = records.map((record) => applyLinkedContact(record, linked.get(record.id) ?? {
+      status: "none",
+      contactId: null,
+      name: null,
+      email: null,
+      phone: null,
+      relationshipLabel: null,
+      message: "No linked contact",
+    }));
+
     const statusOptions = [...new Set(records.flatMap((record) => record.statusOptions.concat(record.status ? [record.status] : [])))];
     return {
       configured: true,
@@ -141,7 +157,9 @@ export async function loadBookingDetail(kind: BookingKind, recordId: string, dep
     const payload = await getRecord(resolved.key, recordId, { ...deps, config });
     const raw = extractRecords(payload)[0];
     if (!raw) return { configured: true, record: null, error: "That record was not found in GoHighLevel." };
-    const record = mapRecordToBooking(raw, resolved.key, resolveFieldMap(resolved.schema, kind), kind);
+    const mapped = mapRecordToBooking(raw, resolved.key, resolveFieldMap(resolved.schema, kind), kind);
+    const linked = await loadLinkedContact(mapped.id, { ...deps, config });
+    const record = applyLinkedContact(mapped, linked);
     return {
       configured: true,
       record,

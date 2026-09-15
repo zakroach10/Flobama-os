@@ -2,10 +2,10 @@ import type { GhlConfig } from "@/lib/env";
 import {
   BAND_INQUIRY_DISPLAY_KEYS,
   buildBandInquiryView,
-  extractContact,
   inquiryProperty,
   type BandInquiryView,
 } from "@/lib/ghl/band-inquiry";
+import type { LinkedContact, LinkedContactStatus } from "@/lib/ghl/contacts";
 
 export const BOOKING_KINDS = ["band_submission", "private_events"] as const;
 export type BookingKind = (typeof BOOKING_KINDS)[number];
@@ -96,6 +96,9 @@ export type BookingRecord = {
   contactName: string | null;
   email: string | null;
   phone: string | null;
+  contactId: string | null;
+  contactLinkStatus: LinkedContactStatus;
+  contactLinkMessage: string | null;
   requestedDates: string | null;
   compensation: string | null;
   status: string | null;
@@ -391,7 +394,6 @@ export function mapRecordToBooking(
   const id = String(record.id ?? record.recordId ?? "");
   const inferredKind = kind ?? (schemaKey.includes("band_inquir") ? "band_submission" : undefined);
   const displayName = pickDisplayName(inferredKind, record, properties, fieldMap, id);
-  const contact = extractContact(record, properties);
   const inquiry = inferredKind === "band_submission" ? buildBandInquiryView(record, properties) : null;
   const status = pickProperty(properties, fieldMap.status, ["status", "stage"]);
   const statusFieldKey = fieldMap.status ? fieldKeyOf(fieldMap.status) : null;
@@ -403,9 +405,12 @@ export function mapRecordToBooking(
     id,
     schemaKey,
     displayName,
-    contactName: contact.name,
-    email: contact.email ?? pickProperty(properties, fieldMap.email, ["email"]),
-    phone: contact.phone ?? pickProperty(properties, fieldMap.phone, ["phone", "phone number"]),
+    contactName: null,
+    email: null,
+    phone: null,
+    contactId: null,
+    contactLinkStatus: "none",
+    contactLinkMessage: null,
     requestedDates:
       inquiry?.availableDates ??
       pickProperty(properties, fieldMap.date, ["available_dates", "date", "event date", "requested date", "requested dates"]),
@@ -420,6 +425,31 @@ export function mapRecordToBooking(
     notesFieldKey,
     inquiry,
   };
+}
+
+export function applyLinkedContact(record: BookingRecord, linked: LinkedContact): BookingRecord {
+  const next: BookingRecord = {
+    ...record,
+    contactId: linked.contactId,
+    contactLinkStatus: linked.status,
+    contactLinkMessage: linked.message,
+  };
+  if (linked.status === "linked") {
+    next.contactName = linked.name;
+    next.email = linked.email;
+    next.phone = linked.phone;
+    if (next.inquiry) {
+      next.inquiry = { ...next.inquiry, contactName: linked.name };
+    }
+  } else {
+    next.contactName = null;
+    next.email = null;
+    next.phone = null;
+    if (next.inquiry) {
+      next.inquiry = { ...next.inquiry, contactName: null };
+    }
+  }
+  return next;
 }
 
 export function buildSearchRecordsBody(input: {
@@ -448,4 +478,6 @@ export const REQUIRED_PIT_SCOPES = [
   "Custom object schema: read",
   "Custom object records: read",
   "Custom object records: write",
+  "Associations / relations: read",
+  "Contacts: read",
 ];

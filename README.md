@@ -201,5 +201,8 @@ Server-only env (never `NEXT_PUBLIC_`, never git, never Postgres):
 - Optional `GHL_API_VERSION` (default `2021-07-28`)
 - Optional `GHL_OBJECT_BAND_SUBMISSION` / `GHL_OBJECT_PRIVATE_EVENTS` if object labels do not match. Band submissions default to `custom_objects.band_inquiries`.
 
-PIT scopes: custom object schema read, custom object record read and write. Unset token/location turns the inbox into a setup state, same idea as unset Stripe.
+PIT scopes: custom object schema read, custom object record read and write, associations/relations read, and contacts read. Unset token/location turns the inbox into a setup state, same idea as unset Stripe.
+
+Linked contact name/email/phone come from `GET /associations/relations/{recordId}` then `GET /contacts/{contactId}` — the custom-object record id is never treated as a contact id.
+
 

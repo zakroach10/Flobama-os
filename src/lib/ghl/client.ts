@@ -157,3 +157,25 @@ export async function updateRecord(
     { ...deps, config },
   );
 }
+
+export async function listRecordRelationsPage(
+  recordId: string,
+  params: { locationId: string; skip: number; limit: number },
+  deps?: GhlDeps,
+): Promise<unknown> {
+  return ghlFetch(
+    `/associations/relations/${encodeURIComponent(recordId)}`,
+    {
+      searchParams: {
+        locationId: params.locationId,
+        skip: String(params.skip),
+        limit: String(params.limit),
+      },
+    },
+    deps,
+  );
+}
+
+export async function getContactById(contactId: string, deps?: GhlDeps): Promise<unknown> {
+  return ghlFetch(`/contacts/${encodeURIComponent(contactId)}`, {}, deps);
+}

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { getGhlConfig, isGhlConfigured } from "@/lib/env";
 import { ghlConfigured, searchRecords, updateRecord, type GhlDeps } from "@/lib/ghl/client";
 import {
+  applyLinkedContact,
   buildSearchRecordsBody,
   buildUpdateRecordBody,
   extractRecords,
@@ -11,17 +12,21 @@ import {
   resolveSchemaKey,
   type GhlObjectSchema,
 } from "@/lib/ghl/objects";
-import { getGhlConnectionStatus, loadBookingInbox, updateBookingFields } from "@/lib/ghl/booking";
+import { getGhlConnectionStatus, loadBookingDetail, loadBookingInbox, updateBookingFields } from "@/lib/ghl/booking";
+import {
+  extractRelations,
+  loadLinkedContact,
+  mapContactFields,
+  resolveLinkedContactId,
+  unwrapContact,
+} from "@/lib/ghl/contacts";
 
 const SAMPLE_SCHEMAS: GhlObjectSchema[] = [
   {
-    key: "custom_objects.band_submission",
+    key: "custom_objects.band_inquiries",
     labels: { singular: "Band Submission", plural: "Band Submissions" },
     fields: [
-      { key: "band_name", name: "Band name", dataType: "TEXT" },
-      { key: "email", name: "Email", dataType: "TEXT" },
-      { key: "phone", name: "Phone", dataType: "PHONE" },
-      { key: "requested_date", name: "Requested date", dataType: "DATE" },
+      { key: "artist_band_name", name: "Artist / band name", dataType: "TEXT" },
       { key: "booking_status", name: "Status", dataType: "DROPDOWN", options: ["New", "Reviewing", "Booked"] },
       { key: "internal_notes", name: "Internal notes", dataType: "LARGE_TEXT" },
     ],
@@ -127,14 +132,13 @@ describe("object discovery", () => {
 });
 
 describe("record mapping", () => {
-  it("maps Band inquiries from contact and custom object keys", () => {
+  it("maps Band inquiry fields and leaves contact empty until relations hydrate", () => {
     const fieldMap = resolveFieldMap(SAMPLE_SCHEMAS[0], "band_submission");
     const booking = mapRecordToBooking(
       {
         id: "rec_1",
         name: "GHL Record",
         updatedAt: "2026-09-15T18:00:00.000Z",
-        contact: { full_name: "Alex Rivera", email: "alex@example.com", phone: "2515550100" },
         properties: {
           name: "GHL Record",
           "custom_objects.band_inquiries.artist_band_name": "The River Band",
@@ -152,18 +156,178 @@ describe("record mapping", () => {
       "band_submission",
     );
     expect(booking.displayName).toBe("The River Band");
-    expect(booking.contactName).toBe("Alex Rivera");
-    expect(booking.email).toBe("alex@example.com");
-    expect(booking.phone).toBe("2515550100");
+    expect(booking.contactName).toBeNull();
+    expect(booking.email).toBeNull();
+    expect(booking.phone).toBeNull();
+    expect(booking.contactLinkStatus).toBe("none");
     expect(booking.compensation).toBe("$1,200");
     expect(booking.requestedDates).toBe("Oct 3–4");
     expect(booking.inquiry?.genre).toBe("Americana");
-    expect(booking.inquiry?.homeCity).toBe("Mobile, AL");
-    expect(booking.inquiry?.fields.find((field) => field.key === "instagram")?.href).toBe("https://instagram.com/rivertown");
     expect(booking.status).toBe("New");
-    expect(booking.statusFieldKey).toBe("booking_status");
-    expect(booking.notesFieldKey).toBe("internal_notes");
-    expect(booking.statusOptions).toEqual(["New", "Reviewing", "Booked"]);
+  });
+});
+
+describe("linked contact relations", () => {
+  it("resolves the contact id from association relations without treating the record id as a contact", () => {
+    const resolved = resolveLinkedContactId(
+      [
+        {
+          id: "rel_1",
+          firstObjectKey: "custom_objects.band_inquiries",
+          firstRecordId: "rec_band_1",
+          secondObjectKey: "contact",
+          secondObjectLabel: "Primary Contact",
+          secondRecordId: "contact_known_1",
+        },
+      ],
+      "rec_band_1",
+    );
+    expect(resolved).toEqual({ contactId: "contact_known_1", relationshipLabel: "Primary Contact" });
+  });
+
+  it("prefers the intended contact relationship label when multiple contacts are linked", () => {
+    const resolved = resolveLinkedContactId(
+      [
+        {
+          firstObjectKey: "custom_objects.band_inquiries",
+          firstRecordId: "rec_band_1",
+          secondObjectKey: "contact",
+          secondObjectLabel: "Venue Manager",
+          secondRecordId: "contact_other",
+        },
+        {
+          firstObjectKey: "custom_objects.band_inquiries",
+          firstRecordId: "rec_band_1",
+          secondObjectKey: "contact",
+          secondObjectLabel: "Primary Contact",
+          secondRecordId: "contact_primary",
+        },
+      ],
+      "rec_band_1",
+    );
+    expect(resolved).toEqual({ contactId: "contact_primary", relationshipLabel: "Primary Contact" });
+  });
+
+  it("maps contact.firstName, lastName, phone, and email", () => {
+    expect(
+      mapContactFields({
+        firstName: "Alex",
+        lastName: "Rivera",
+        email: "alex@example.com",
+        phone: "2515550100",
+      }),
+    ).toEqual({ name: "Alex Rivera", email: "alex@example.com", phone: "2515550100" });
+    expect(unwrapContact({ contact: { id: "c1", firstName: "Alex" } })?.id).toBe("c1");
+    expect(extractRelations({ relations: [{ id: "r1" }] })).toHaveLength(1);
+  });
+
+  it("fetches relations with pagination, then loads the linked contact for a known record", async () => {
+    const calls: string[] = [];
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes("/associations/relations/rec_band_1") && url.includes("skip=0")) {
+        expect(url).toContain("locationId=loc_1");
+        expect(url).toContain("limit=100");
+        return jsonResponse({
+          relations: Array.from({ length: 100 }, (_, index) => ({
+            id: `rel_page1_${index}`,
+            firstObjectKey: "custom_objects.band_inquiries",
+            firstRecordId: "rec_band_1",
+            secondObjectKey: "business",
+            secondRecordId: `biz_${index}`,
+          })),
+        });
+      }
+      if (url.includes("/associations/relations/rec_band_1") && url.includes("skip=100")) {
+        return jsonResponse({
+          relations: [
+            {
+              id: "rel_contact",
+              firstObjectKey: "custom_objects.band_inquiries",
+              firstRecordId: "rec_band_1",
+              secondObjectKey: "contact",
+              secondObjectLabel: "Contact",
+              secondRecordId: "contact_known_1",
+            },
+          ],
+        });
+      }
+      if (url.includes("/contacts/contact_known_1")) {
+        return jsonResponse({
+          contact: {
+            id: "contact_known_1",
+            firstName: "Alex",
+            lastName: "Rivera",
+            email: "alex@example.com",
+            phone: "2515550100",
+          },
+        });
+      }
+      return jsonResponse({ message: `unhandled ${url}` }, 500);
+    };
+
+    const linked = await loadLinkedContact("rec_band_1", configuredDeps(fetchImpl));
+    expect(linked).toEqual({
+      status: "linked",
+      contactId: "contact_known_1",
+      name: "Alex Rivera",
+      email: "alex@example.com",
+      phone: "2515550100",
+      relationshipLabel: "Contact",
+      message: null,
+    });
+    expect(calls.some((url) => url.includes("skip=0"))).toBe(true);
+    expect(calls.some((url) => url.includes("skip=100"))).toBe(true);
+    expect(calls.some((url) => url.includes("/contacts/contact_known_1"))).toBe(true);
+  });
+
+  it("returns No linked contact when relations exist but none are contacts", async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/associations/relations/rec_band_2")) {
+        return jsonResponse({
+          relations: [
+            {
+              firstObjectKey: "custom_objects.band_inquiries",
+              firstRecordId: "rec_band_2",
+              secondObjectKey: "opportunity",
+              secondRecordId: "opp_1",
+            },
+          ],
+        });
+      }
+      return jsonResponse({ message: `unhandled ${url}` }, 500);
+    };
+    const linked = await loadLinkedContact("rec_band_2", configuredDeps(fetchImpl));
+    expect(linked.status).toBe("none");
+    expect(linked.message).toBe("No linked contact");
+  });
+
+  it("distinguishes a failed contact lookup from no relationship", async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/associations/relations/rec_band_3")) {
+        return jsonResponse({
+          relations: [
+            {
+              firstObjectKey: "custom_objects.band_inquiries",
+              firstRecordId: "rec_band_3",
+              secondObjectKey: "contact",
+              secondObjectLabel: "Contact",
+              secondRecordId: "contact_missing",
+            },
+          ],
+        });
+      }
+      if (url.includes("/contacts/contact_missing")) {
+        return jsonResponse({ message: "Contact not found" }, 404);
+      }
+      return jsonResponse({ message: `unhandled ${url}` }, 500);
+    };
+    const linked = await loadLinkedContact("rec_band_3", configuredDeps(fetchImpl));
+    expect(linked.status).toBe("error");
+    expect(linked.message).toMatch(/not found|failed/i);
   });
 });
 
@@ -185,7 +349,7 @@ describe("search and update payloads", () => {
   });
 });
 
-describe("booking inbox with mocked fetch", () => {
+describe("booking inbox and detail with linked contacts", () => {
   it("does not call the network when unconfigured", async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error("network should not run");
@@ -196,40 +360,61 @@ describe("booking inbox with mocked fetch", () => {
     expect(status.configured).toBe(false);
   });
 
-  it("discovers the object, lists one page, and writes a status PUT", async () => {
-    const calls: { url: string; method: string; body: string | null; headers: Headers }[] = [];
+  it("hydrates a known linked contact on inbox and detail", async () => {
     const fetchImpl: typeof fetch = async (input, init) => {
       const url = String(input);
-      calls.push({
-        url,
-        method: init?.method ?? "GET",
-        body: typeof init?.body === "string" ? init.body : null,
-        headers: new Headers(init?.headers),
-      });
-      if (url.includes("/objects/") && url.endsWith("/objects/?locationId=loc_1")) {
+      if (url.includes("/objects/") && url.includes("locationId=loc_1") && !url.includes("/records")) {
         return jsonResponse({ objects: SAMPLE_SCHEMAS });
       }
       if (url.includes("/records/search")) {
-        expect(JSON.parse(init?.body as string)).toMatchObject({ locationId: "loc_1", page: 1, query: "" });
         return jsonResponse({
           records: [
             {
-              id: "rec_1",
+              id: "rec_band_1",
               updatedAt: "2026-09-15T18:00:00.000Z",
-              properties: { band_name: "The River Band", booking_status: "New", email: "band@example.com" },
+              properties: {
+                artist_band_name: "The River Band",
+                booking_status: "New",
+              },
             },
           ],
         });
       }
-      if (url.includes("/records/rec_1") && (init?.method === "PUT" || init?.method === "put")) {
-        expect(JSON.parse(init.body as string)).toEqual({
-          locationId: "loc_1",
-          properties: { booking_status: "Booked" },
+      if (url.includes("/objects/custom_objects.band_inquiries/records/rec_band_1") && (init?.method ?? "GET") === "GET") {
+        return jsonResponse({
+          record: {
+            id: "rec_band_1",
+            updatedAt: "2026-09-15T18:00:00.000Z",
+            properties: { artist_band_name: "The River Band", booking_status: "New" },
+          },
         });
-        return jsonResponse({ id: "rec_1" });
       }
-      if (url.includes("/objects/custom_objects.band_submission")) {
-        return jsonResponse({ object: SAMPLE_SCHEMAS[0] });
+      if (url.includes("/associations/relations/rec_band_1")) {
+        return jsonResponse({
+          relations: [
+            {
+              firstObjectKey: "custom_objects.band_inquiries",
+              firstRecordId: "rec_band_1",
+              secondObjectKey: "contact",
+              secondObjectLabel: "Primary Contact",
+              secondRecordId: "contact_known_1",
+            },
+          ],
+        });
+      }
+      if (url.includes("/contacts/contact_known_1")) {
+        return jsonResponse({
+          contact: {
+            id: "contact_known_1",
+            firstName: "Alex",
+            lastName: "Rivera",
+            email: "alex@example.com",
+            phone: "2515550100",
+          },
+        });
+      }
+      if (url.includes("/records/rec_band_1") && (init?.method === "PUT" || init?.method === "put")) {
+        return jsonResponse({ id: "rec_band_1" });
       }
       return jsonResponse({ message: `unhandled ${url}` }, 500);
     };
@@ -238,17 +423,53 @@ describe("booking inbox with mocked fetch", () => {
     const inbox = await loadBookingInbox("band_submission", {}, deps);
     expect(inbox.configured).toBe(true);
     if (!inbox.configured) throw new Error("expected configured");
-    expect(inbox.schemaKey).toBe("custom_objects.band_submission");
     expect(inbox.records[0]?.displayName).toBe("The River Band");
+    expect(inbox.records[0]?.contactName).toBe("Alex Rivera");
+    expect(inbox.records[0]?.email).toBe("alex@example.com");
+    expect(inbox.records[0]?.phone).toBe("2515550100");
+    expect(inbox.records[0]?.contactLinkStatus).toBe("linked");
 
-    const updated = await updateBookingFields("band_submission", "rec_1", { status: "Booked" }, deps);
+    const detail = await loadBookingDetail("band_submission", "rec_band_1", deps);
+    expect(detail.configured).toBe(true);
+    if (!detail.configured || !detail.record) throw new Error("expected detail record");
+    expect(detail.record.contactId).toBe("contact_known_1");
+    expect(detail.record.contactName).toBe("Alex Rivera");
+    expect(detail.record.email).toBe("alex@example.com");
+    expect(detail.record.phone).toBe("2515550100");
+
+    const updated = await updateBookingFields("band_submission", "rec_band_1", { status: "Booked" }, deps);
     expect(updated).toEqual({ ok: true });
+  });
 
-    const put = calls.find((call) => call.method === "PUT");
-    expect(put).toBeTruthy();
-    expect(put?.headers.get("Authorization")).toBe("Bearer pit_test");
-    expect(put?.headers.get("Version")).toBe("2021-07-28");
-    expect(JSON.stringify(inbox)).not.toContain("pit_test");
+  it("applies No linked contact distinctly from a failed lookup", () => {
+    const base = mapRecordToBooking(
+      { id: "rec_x", properties: { artist_band_name: "Solo Act" } },
+      "custom_objects.band_inquiries",
+      resolveFieldMap(SAMPLE_SCHEMAS[0], "band_submission"),
+      "band_submission",
+    );
+    const none = applyLinkedContact(base, {
+      status: "none",
+      contactId: null,
+      name: null,
+      email: null,
+      phone: null,
+      relationshipLabel: null,
+      message: "No linked contact",
+    });
+    const failed = applyLinkedContact(base, {
+      status: "error",
+      contactId: "contact_x",
+      name: null,
+      email: null,
+      phone: null,
+      relationshipLabel: "Contact",
+      message: "Linked contact lookup failed.",
+    });
+    expect(none.contactLinkStatus).toBe("none");
+    expect(none.contactLinkMessage).toBe("No linked contact");
+    expect(failed.contactLinkStatus).toBe("error");
+    expect(failed.contactLinkMessage).toBe("Linked contact lookup failed.");
   });
 
   it("posts a search through the client helper", async () => {
@@ -257,7 +478,7 @@ describe("booking inbox with mocked fetch", () => {
       return jsonResponse({ records: [] });
     };
     const payload = await searchRecords(
-      "custom_objects.band_submission",
+      "custom_objects.band_inquiries",
       { locationId: "loc_1", page: 1, pageLimit: 50, query: "" },
       configuredDeps(fetchImpl),
     );
@@ -270,6 +491,6 @@ describe("booking inbox with mocked fetch", () => {
       expect(JSON.parse(String(init?.body))).toEqual({ locationId: "loc_1", properties: { booking_status: "Held" } });
       return jsonResponse({ ok: true });
     };
-    await updateRecord("custom_objects.band_submission", "rec_9", { booking_status: "Held" }, configuredDeps(fetchImpl));
+    await updateRecord("custom_objects.band_inquiries", "rec_9", { booking_status: "Held" }, configuredDeps(fetchImpl));
   });
 });

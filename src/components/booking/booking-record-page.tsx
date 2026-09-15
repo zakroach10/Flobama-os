@@ -80,12 +80,29 @@ function GenericBookingDetail({ record }: { record: BookingRecord }) {
   const extras = Object.entries(record.properties).filter(([, value]) => value);
   return (
     <>
-      <dl className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
-        <Detail term="Email" value={record.email} />
-        <Detail term="Phone" value={record.phone} />
-        <Detail term="Requested dates" value={record.requestedDates} />
-        <Detail term="Updated" value={record.updatedAt} />
-      </dl>
+      <section className="rounded-xl border bg-card p-4">
+        <h3 className="text-lg font-semibold">Contact</h3>
+        {record.contactLinkStatus === "none" ? (
+          <p className="mt-3 text-sm text-muted-foreground">No linked contact</p>
+        ) : null}
+        {record.contactLinkStatus === "error" ? (
+          <p className="mt-3 text-sm text-destructive">{record.contactLinkMessage || "Contact lookup failed"}</p>
+        ) : null}
+        {record.contactLinkStatus === "linked" ? (
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Detail term="Name" value={record.contactName} />
+            <Detail term="Email" value={record.email} href={record.email ? `mailto:${record.email}` : null} />
+            <Detail term="Phone" value={record.phone} href={record.phone ? `tel:${record.phone}` : null} />
+            <Detail term="Requested dates" value={record.requestedDates} />
+            <Detail term="Updated" value={record.updatedAt} />
+          </dl>
+        ) : (
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Detail term="Requested dates" value={record.requestedDates} />
+            <Detail term="Updated" value={record.updatedAt} />
+          </dl>
+        )}
+      </section>
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">All GHL fields</h3>
         {extras.length === 0 ? (
@@ -118,12 +135,24 @@ function BandInquiryDetail({ record }: { record: BookingRecord }) {
     <>
       <section className="rounded-xl border bg-card p-4">
         <h3 className="text-lg font-semibold">Contact</h3>
-        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Detail term="Name" value={record.contactName} />
-          <Detail term="Email" value={record.email} href={record.email ? `mailto:${record.email}` : null} />
-          <Detail term="Phone" value={record.phone} href={record.phone ? `tel:${record.phone}` : null} />
-          <Detail term="Expected compensation" value={record.compensation} />
-        </dl>
+        {record.contactLinkStatus === "none" ? (
+          <p className="mt-3 text-sm text-muted-foreground">No linked contact</p>
+        ) : null}
+        {record.contactLinkStatus === "error" ? (
+          <p className="mt-3 text-sm text-destructive">{record.contactLinkMessage || "Contact lookup failed"}</p>
+        ) : null}
+        {record.contactLinkStatus === "linked" ? (
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Detail term="Name" value={record.contactName} />
+            <Detail term="Email" value={record.email} href={record.email ? `mailto:${record.email}` : null} />
+            <Detail term="Phone" value={record.phone} href={record.phone ? `tel:${record.phone}` : null} />
+            <Detail term="Expected compensation" value={record.compensation} />
+          </dl>
+        ) : (
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Detail term="Expected compensation" value={record.compensation} />
+          </dl>
+        )}
       </section>
       {(Object.keys(SECTION_TITLES) as Array<keyof typeof SECTION_TITLES>).map((section) => {
         const fields = inquiry?.fields.filter((field) => field.section === section && field.key !== "artist_band_name") ?? [];
