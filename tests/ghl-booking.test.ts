@@ -107,6 +107,20 @@ describe("object discovery", () => {
     expect(resolved).toEqual({ key: "custom_objects.other", schema: null, matchedBy: "override" });
   });
 
+  it("uses custom_objects.band_inquiries for Band submissions when labels differ", () => {
+    const byKey = resolveSchemaKey(
+      [{ key: "custom_objects.band_inquiries", labels: { singular: "Something else" } }],
+      "band_submission",
+    );
+    expect(byKey).toEqual({
+      key: "custom_objects.band_inquiries",
+      schema: expect.any(Object),
+      matchedBy: "key",
+    });
+    const fallback = resolveSchemaKey([{ key: "custom_objects.unrelated", labels: { singular: "Other" } }], "band_submission");
+    expect(fallback).toEqual({ key: "custom_objects.band_inquiries", schema: null, matchedBy: "key" });
+  });
+
   it("extracts schemas from a list payload", () => {
     expect(extractSchemas({ objects: SAMPLE_SCHEMAS })).toHaveLength(2);
   });

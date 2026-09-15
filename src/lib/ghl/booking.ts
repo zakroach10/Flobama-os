@@ -31,7 +31,7 @@ export type BookingInboxResult =
   | {
       configured: true;
       schemaKey: string | null;
-      matchedBy: "override" | "label" | null;
+      matchedBy: "override" | "label" | "key" | null;
       records: BookingRecord[];
       statusOptions: string[];
       error?: string;
@@ -46,7 +46,7 @@ export type GhlConnectionStatus = {
   configured: boolean;
   locationId: string | null;
   apiVersion: string | null;
-  objects: { kind: BookingKind; title: string; key: string | null; matchedBy: "override" | "label" | null }[];
+      objects: { kind: BookingKind; title: string; key: string | null; matchedBy: "override" | "label" | "key" | null }[];
   discoveredLabels: string[];
   requiredScopes: string[];
   error?: string;

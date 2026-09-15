@@ -5,14 +5,22 @@ export type BookingKind = (typeof BOOKING_KINDS)[number];
 
 export const BOOKING_KIND_META: Record<
   BookingKind,
-  { title: string; plural: string; href: string; envKey: keyof GhlConfig["objectKeys"]; aliases: string[] }
+  {
+    title: string;
+    plural: string;
+    href: string;
+    envKey: keyof GhlConfig["objectKeys"];
+    aliases: string[];
+    knownKeys: string[];
+  }
 > = {
   band_submission: {
     title: "Band Submission",
     plural: "Band submissions",
     href: "/booking/submissions",
     envKey: "bandSubmission",
-    aliases: ["band submission", "band submissions"],
+    aliases: ["band submission", "band submissions", "band inquiry", "band inquiries"],
+    knownKeys: ["custom_objects.band_inquiries"],
   },
   private_events: {
     title: "Private events",
@@ -20,8 +28,11 @@ export const BOOKING_KIND_META: Record<
     href: "/booking/private-events",
     envKey: "privateEvents",
     aliases: ["private events", "private event"],
+    knownKeys: [],
   },
 };
+
+export type SchemaMatchBy = "override" | "label" | "key";
 
 export type GhlField = {
   key?: string;
@@ -133,7 +144,7 @@ export function resolveSchemaKey(
   schemas: GhlObjectSchema[],
   kind: BookingKind,
   override?: string | null,
-): { key: string; schema: GhlObjectSchema | null; matchedBy: "override" | "label" } | null {
+): { key: string; schema: GhlObjectSchema | null; matchedBy: SchemaMatchBy } | null {
   const trimmedOverride = override?.trim();
   if (trimmedOverride) {
     const schema =
@@ -142,15 +153,28 @@ export function resolveSchemaKey(
   }
 
   const match = schemas.find((schema) => {
+    const key = schemaKeyOf(schema);
+    if (key && BOOKING_KIND_META[kind].knownKeys.some((known) => known.toLowerCase() === key.toLowerCase())) {
+      return true;
+    }
     const labels = [schema.labels?.singular, schema.labels?.plural, schema.label, schema.name].filter(
       (value): value is string => Boolean(value),
     );
     return labels.some((label) => labelsMatchKind(label, kind));
   });
-  if (!match) return null;
-  const key = schemaKeyOf(match);
-  if (!key) return null;
-  return { key, schema: match, matchedBy: "label" };
+  if (match) {
+    const key = schemaKeyOf(match);
+    if (key) {
+      const byKnownKey = BOOKING_KIND_META[kind].knownKeys.some((known) => known.toLowerCase() === key.toLowerCase());
+      return { key, schema: match, matchedBy: byKnownKey ? "key" : "label" };
+    }
+  }
+
+  const knownKey = BOOKING_KIND_META[kind].knownKeys[0];
+  if (knownKey) {
+    return { key: knownKey, schema: null, matchedBy: "key" };
+  }
+  return null;
 }
 
 export function schemaFields(schema: GhlObjectSchema | null | undefined): GhlField[] {

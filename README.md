@@ -199,7 +199,7 @@ Server-only env (never `NEXT_PUBLIC_`, never git, never Postgres):
 - `GHL_PRIVATE_TOKEN` — Private Integration Token
 - `GHL_LOCATION_ID`
 - Optional `GHL_API_VERSION` (default `2021-07-28`)
-- Optional `GHL_OBJECT_BAND_SUBMISSION` / `GHL_OBJECT_PRIVATE_EVENTS` if object labels do not match
+- Optional `GHL_OBJECT_BAND_SUBMISSION` / `GHL_OBJECT_PRIVATE_EVENTS` if object labels do not match. Band submissions default to `custom_objects.band_inquiries`.
 
 PIT scopes: custom object schema read, custom object record read and write. Unset token/location turns the inbox into a setup state, same idea as unset Stripe.
 

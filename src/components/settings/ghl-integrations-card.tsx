@@ -47,7 +47,7 @@ export async function GhlIntegrationsCard() {
                 {object.key ? (
                   <span className="font-mono text-xs">
                     {object.key}
-                    {object.matchedBy === "override" ? " (env override)" : ""}
+                    {object.matchedBy === "override" ? " (env override)" : object.matchedBy === "key" ? " (known key)" : ""}
                   </span>
                 ) : (
                   <span className="text-muted-foreground">not found</span>
@@ -67,8 +67,9 @@ export async function GhlIntegrationsCard() {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Names vary slightly in the Private Integration UI — pick the Objects / Records read and write pair. Optional
-            overrides: <code>GHL_OBJECT_BAND_SUBMISSION</code>, <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
+            Names vary slightly in the Private Integration UI — pick the Objects / Records read and write pair. Band
+            submissions default to <code>custom_objects.band_inquiries</code>. Optional overrides:{" "}
+            <code>GHL_OBJECT_BAND_SUBMISSION</code>, <code>GHL_OBJECT_PRIVATE_EVENTS</code>.
           </p>
         </div>
       </div>
