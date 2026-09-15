@@ -60,3 +60,63 @@ export function getSiteUrl(): string {
 export function getPublicAppUrl(): string {
   return normalizeOrigin(readEnv("NEXT_PUBLIC_SITE_URL")) ?? PRODUCTION_SITE_URL;
 }
+
+export const DEFAULT_GHL_API_VERSION = "2021-07-28";
+
+export type GhlConfig = {
+  token: string;
+  locationId: string;
+  apiVersion: string;
+  objectKeys: {
+    bandSubmission?: string;
+    privateEvents?: string;
+  };
+};
+
+export function getGhlConfig(): GhlConfig | null {
+  const token = readEnv("GHL_PRIVATE_TOKEN");
+  const locationId = readEnv("GHL_LOCATION_ID");
+  if (!token || !locationId) return null;
+  return {
+    token,
+    locationId,
+    apiVersion: readEnv("GHL_API_VERSION") ?? DEFAULT_GHL_API_VERSION,
+    objectKeys: {
+      bandSubmission: readEnv("GHL_OBJECT_BAND_SUBMISSION"),
+      privateEvents: readEnv("GHL_OBJECT_PRIVATE_EVENTS"),
+    },
+  };
+}
+
+export function isGhlConfigured(): boolean {
+  return getGhlConfig() !== null;
+}
+
+export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+
+export type OpenAiConfig = {
+  apiKey: string;
+  model: string;
+};
+
+function readOpenAiApiKey(): string | undefined {
+  // Static access so Next/Vercel reliably expose the secret on the server runtime.
+  return process.env.OPENAI_API_KEY?.trim() || undefined;
+}
+
+function readOpenAiModel(): string | undefined {
+  return process.env.OPENAI_MODEL?.trim() || undefined;
+}
+
+export function getOpenAiConfig(): OpenAiConfig | null {
+  const apiKey = readOpenAiApiKey();
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    model: readOpenAiModel() ?? DEFAULT_OPENAI_MODEL,
+  };
+}
+
+export function isOpenAiConfigured(): boolean {
+  return getOpenAiConfig() !== null;
+}

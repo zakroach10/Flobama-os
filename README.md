@@ -189,3 +189,26 @@ Public:
 Checkout uses a labeled mock payment adapter. Do not set `STRIPE_SECRET_KEY` until Stripe is wired; V1 will refuse a live Stripe charge rather than pretend.
 
 Holds last 10 minutes. Table inventory uses `UPDATE … WHERE status = 'available'` (and the demo store’s equivalent) so two buyers cannot take the same table.
+
+## GoHighLevel booking
+
+Staff **Booking** (managers and admins) lists **Band Submission** and **Private events** custom objects from GoHighLevel. GHL remains the source of truth; records are not copied into Supabase.
+
+Server-only env (never `NEXT_PUBLIC_`, never git, never Postgres):
+
+- `GHL_PRIVATE_TOKEN` — Private Integration Token
+- `GHL_LOCATION_ID`
+- Optional `GHL_API_VERSION` (default `2021-07-28`)
+- Optional `GHL_OBJECT_BAND_SUBMISSION` / `GHL_OBJECT_PRIVATE_EVENTS` if object labels do not match. Band submissions default to `custom_objects.band_inquiries`.
+
+PIT scopes: custom object schema read, custom object record read and write, associations/relations read, and contacts read. Unset token/location turns the inbox into a setup state, same idea as unset Stripe.
+
+Linked contact name/email/phone come from `GET /associations/relations/{recordId}` then `GET /contacts/{contactId}` — the custom-object record id is never treated as a contact id.
+
+## Band booking fit analysis
+
+Opening a **Band Submission** detail page automatically asks OpenAI for an advisory booking-fit note using only GHL Band Inquiry fields (bio, socials/EPK URLs, draw, compensation, etc.). No live social scraping. The Band submissions list also shows each row’s fit verdict and score.
+
+Server-only: `OPENAI_API_KEY` (optional `OPENAI_MODEL`, default `gpt-4.1-mini`). Unset key shows a setup state on the analysis panel and does not block the rest of the page. Analysis never writes status back to GHL.
+
+
