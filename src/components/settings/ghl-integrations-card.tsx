@@ -1,11 +1,12 @@
 import { getGhlConnectionStatus } from "@/lib/ghl/booking";
-import { isOpenAiConfigured, DEFAULT_OPENAI_MODEL, getOpenAiConfig } from "@/lib/env";
+import { getPublicAppUrl, isOpenAiConfigured, DEFAULT_OPENAI_MODEL, getOpenAiConfig } from "@/lib/env";
 import { Badge } from "@/components/ui/badge";
 
 export async function GhlIntegrationsCard() {
   const status = await getGhlConnectionStatus();
   const openAi = getOpenAiConfig();
   const openAiConfigured = isOpenAiConfigured();
+  const bandWebhookUrl = `${getPublicAppUrl()}/api/webhooks/ghl/band-submission`;
 
   return (
     <section className="space-y-4">
@@ -42,6 +43,15 @@ export async function GhlIntegrationsCard() {
           </p>
         )}
         {status.error ? <p className="text-sm text-destructive">{status.error}</p> : null}
+        <div>
+          <p className="text-sm font-medium">Band submission push webhook</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Optional for near-instant alerts: in a GHL workflow on Band Inquiry create, POST to this URL with{" "}
+            <code className="text-xs">Authorization: Bearer $GHL_WEBHOOK_SECRET</code> (or{" "}
+            <code className="text-xs">CRON_SECRET</code>). FloBama OS also polls every 15 minutes as a backup.
+          </p>
+          <p className="mt-2 break-all font-mono text-xs">{bandWebhookUrl}</p>
+        </div>
         <div>
           <p className="text-sm font-medium">Discovered objects</p>
           <ul className="mt-2 space-y-1 text-sm">

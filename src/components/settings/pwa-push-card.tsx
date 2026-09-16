@@ -132,7 +132,9 @@ export function PwaPushCard({ vapidConfigured }: { vapidConfigured: boolean }) {
       <div>
         <h2 className="text-lg font-semibold">App & notifications</h2>
         <p className="text-sm text-muted-foreground">
-          Install FloBama OS as a Progressive Web App and enable push alerts on this device.
+          Install FloBama OS as a Progressive Web App and enable push alerts on this device. You’ll get notified for{" "}
+          <span className="font-medium text-foreground">new band submissions</span> and a{" "}
+          <span className="font-medium text-foreground">Monday reminder</span> to post the weekly schedule.
         </p>
       </div>
 

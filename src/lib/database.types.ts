@@ -293,6 +293,38 @@ export type Database = {
           },
         ];
       };
+      push_notification_cursors: {
+        Row: {
+          venue_id: string;
+          kind: string;
+          last_run_at: string | null;
+          cursor_json: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          kind: string;
+          last_run_at?: string | null;
+          cursor_json?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          last_run_at?: string | null;
+          cursor_json?: Json;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_cursors_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       screen_wall_state: {
         Row: {
           venue_id: string;
