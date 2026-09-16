@@ -61,13 +61,13 @@ export function socialPosterRows(days: WeekSlideDay[]): SocialPosterRow[] {
 export function socialPosterScale(id: WeekSocialFormatId) {
   switch (id) {
     case "story":
-      return { header: 520, logo: 430, title: 52, date: 34, name: 42, ordinal: 20, gap: 28, padX: 56, listTop: 36, columns: 1 as const };
+      return { header: 520, logo: 520, title: 52, date: 34, name: 42, ordinal: 20, gap: 28, padX: 56, listTop: 36, columns: 1 as const };
     case "ig-portrait":
-      return { header: 430, logo: 390, title: 46, date: 30, name: 38, ordinal: 18, gap: 22, padX: 48, listTop: 32, columns: 1 as const };
+      return { header: 430, logo: 460, title: 46, date: 30, name: 38, ordinal: 18, gap: 22, padX: 48, listTop: 32, columns: 1 as const };
     case "ig-square":
-      return { header: 360, logo: 320, title: 36, date: 24, name: 30, ordinal: 15, gap: 18, padX: 40, listTop: 28, columns: 1 as const };
+      return { header: 360, logo: 420, title: 36, date: 24, name: 30, ordinal: 15, gap: 18, padX: 40, listTop: 28, columns: 1 as const };
     case "landscape":
-      return { header: 320, logo: 280, title: 34, date: 24, name: 30, ordinal: 14, gap: 18, padX: 56, listTop: 24, columns: 2 as const };
+      return { header: 320, logo: 420, title: 34, date: 24, name: 30, ordinal: 14, gap: 18, padX: 56, listTop: 24, columns: 2 as const };
   }
 }
 

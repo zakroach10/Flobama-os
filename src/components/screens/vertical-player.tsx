@@ -13,7 +13,6 @@ import {
 } from "@/lib/screens/playlist";
 import { displayRevision, normalizePublicTakeover, type PublicTakeover } from "@/lib/screens/takeover";
 import type { WeekSlidePayload } from "@/lib/screens/week";
-import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
 export function VerticalPlayer({
@@ -136,8 +135,7 @@ export function VerticalPlayer({
       >
         {!current ? (
           <div className="flex h-full w-full flex-col items-center justify-center bg-[#1b1612] px-16 text-center">
-            <FlobamaLogo className="w-[720px]" />
-            <p className="mt-12 font-black tracking-[0.22em] text-[#f4ebe3] uppercase text-[40px]">
+            <p className="font-black tracking-[0.22em] text-[#f4ebe3] uppercase text-[40px]">
               Vertical screens
             </p>
             <p className="mt-5 text-[28px] font-medium tracking-[0.08em] text-[#8a7368]">Waiting for playlist</p>
@@ -180,7 +178,6 @@ export function VerticalPlayer({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={current.url} alt={current.title} className="h-full w-full object-contain" />
                 )}
-                <FlobamaLogo className="pointer-events-none absolute top-10 left-1/2 z-10 w-[280px] -translate-x-1/2 drop-shadow-[0_10px_22px_rgba(0,0,0,0.55)]" />
               </div>
             )}
           </div>

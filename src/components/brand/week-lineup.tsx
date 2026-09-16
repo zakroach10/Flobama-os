@@ -37,11 +37,11 @@ export function WeekLineup({
           "border-[#d36b4a]",
         )}
       >
-        <FlobamaLogo className={kiosk ? "w-[880px]" : "w-[520px]"} priority />
+        {!kiosk ? <FlobamaLogo className="w-[520px]" priority /> : null}
         <h1
           className={cn(
             "font-black tracking-tight uppercase",
-            kiosk ? "mt-8 font-serif text-[110px] leading-[0.82]" : "mt-2 font-serif text-[96px] leading-[0.82]",
+            kiosk ? "mt-0 font-serif text-[110px] leading-[0.82]" : "mt-2 font-serif text-[96px] leading-[0.82]",
           )}
         >
           This week
