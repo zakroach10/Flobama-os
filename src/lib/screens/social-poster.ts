@@ -24,6 +24,19 @@ export type SocialPosterRow = {
   name: string;
 };
 
+export type SocialPosterScale = {
+  header: number;
+  logo: number;
+  title: number;
+  date: number;
+  name: number;
+  ordinal: number;
+  gap: number;
+  padX: number;
+  listTop: number;
+  columns: 1 | 2;
+};
+
 export function englishOrdinal(day: number) {
   const teens = day % 100;
   if (teens >= 11 && teens <= 13) return "TH";
@@ -58,16 +71,48 @@ export function socialPosterRows(days: WeekSlideDay[]): SocialPosterRow[] {
   );
 }
 
-export function socialPosterScale(id: WeekSocialFormatId) {
+/**
+ * Scale type for the full week on one graphic.
+ * Square keeps larger type; busy weeks switch to two columns instead of shrinking to unreadably small.
+ */
+export function socialPosterScale(id: WeekSocialFormatId, eventCount = 0): SocialPosterScale {
+  const busy = eventCount >= 6;
+  const packed = eventCount >= 9;
+
   switch (id) {
     case "story":
-      return { header: 520, logo: 520, title: 52, date: 34, name: 42, ordinal: 20, gap: 28, padX: 56, listTop: 36, columns: 1 as const };
+      if (!busy) {
+        return { header: 520, logo: 520, title: 52, date: 34, name: 42, ordinal: 20, gap: 28, padX: 56, listTop: 36, columns: 1 };
+      }
+      if (!packed) {
+        return { header: 440, logo: 420, title: 40, date: 26, name: 34, ordinal: 15, gap: 16, padX: 40, listTop: 24, columns: 2 };
+      }
+      return { header: 380, logo: 360, title: 34, date: 22, name: 28, ordinal: 13, gap: 12, padX: 32, listTop: 18, columns: 2 };
+
     case "ig-portrait":
-      return { header: 430, logo: 460, title: 46, date: 30, name: 38, ordinal: 18, gap: 22, padX: 48, listTop: 32, columns: 1 as const };
+      if (!busy) {
+        return { header: 430, logo: 460, title: 46, date: 32, name: 40, ordinal: 18, gap: 22, padX: 48, listTop: 32, columns: 1 };
+      }
+      if (!packed) {
+        return { header: 340, logo: 380, title: 34, date: 24, name: 30, ordinal: 14, gap: 14, padX: 36, listTop: 20, columns: 2 };
+      }
+      return { header: 300, logo: 340, title: 30, date: 20, name: 26, ordinal: 12, gap: 10, padX: 28, listTop: 16, columns: 2 };
+
     case "ig-square":
-      return { header: 360, logo: 420, title: 36, date: 24, name: 30, ordinal: 15, gap: 18, padX: 40, listTop: 28, columns: 1 as const };
+      // Prefer one readable page: larger type than before, two columns when the week is busy.
+      if (!busy) {
+        return { header: 300, logo: 380, title: 40, date: 30, name: 38, ordinal: 17, gap: 20, padX: 44, listTop: 28, columns: 1 };
+      }
+      if (!packed) {
+        return { header: 260, logo: 340, title: 32, date: 22, name: 28, ordinal: 13, gap: 12, padX: 28, listTop: 18, columns: 2 };
+      }
+      return { header: 230, logo: 300, title: 28, date: 18, name: 24, ordinal: 11, gap: 8, padX: 22, listTop: 14, columns: 2 };
+
     case "landscape":
-      return { header: 320, logo: 420, title: 34, date: 24, name: 30, ordinal: 14, gap: 18, padX: 56, listTop: 24, columns: 2 as const };
+      if (eventCount < 9) {
+        return { header: 300, logo: 400, title: 36, date: 26, name: 32, ordinal: 14, gap: 16, padX: 48, listTop: 22, columns: 2 };
+      }
+      return { header: 240, logo: 340, title: 28, date: 20, name: 26, ordinal: 12, gap: 10, padX: 36, listTop: 14, columns: 2 };
   }
 }
 

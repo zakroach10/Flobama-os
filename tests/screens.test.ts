@@ -39,6 +39,7 @@ import {
   socialPosterColumns,
   socialPosterDateParts,
   socialPosterRows,
+  socialPosterScale,
 } from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
 import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
@@ -311,7 +312,11 @@ describe("this week slide", () => {
     expect(socialGraphicFileName("Sep 6–12, 2026", "story", 2, 3)).toBe(
       "Flobama-this-week-Sep-6-12-2026-story-p2.png",
     );
-    expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-square"))).toHaveLength(1);
+    expect(weekSocialPages(DEMO_WEEK_SLIDE.days)).toHaveLength(1);
+    expect(socialPosterScale("ig-square", 3).columns).toBe(1);
+    expect(socialPosterScale("ig-square", 3).name).toBeGreaterThanOrEqual(36);
+    expect(socialPosterScale("ig-square", 8).columns).toBe(2);
+    expect(socialPosterScale("ig-square", 8).name).toBeGreaterThanOrEqual(24);
     expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
       "/api/public/v1/screens/week/social?size=ig-square&demo=1",
     );

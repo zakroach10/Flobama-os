@@ -19,8 +19,8 @@ export function WeekSocialGraphic({
   days: WeekSlideDay[];
   pageLabel?: string | null;
 }) {
-  const scale = socialPosterScale(format.id);
   const rows = socialPosterRows(days);
+  const scale = socialPosterScale(format.id, rows.length);
   const columns = socialPosterColumns(rows, scale.columns);
 
   return (
