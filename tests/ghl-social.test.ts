@@ -13,6 +13,12 @@ import {
   isAllowedSocialAccount,
   isImageCapablePlatform,
   listSocialAccounts,
+  formatSocialPlatform,
+  resolvePostPlatforms,
+  accountsForLivePreview,
+  extractSocialAvatarUrl,
+  instagramHandleFromName,
+  mapSocialAccount,
   resolveSocialUserId,
   weekSocialMediaItems,
   weekSocialMediaUrls,
@@ -35,6 +41,104 @@ function configuredDeps(fetchImpl: typeof fetch): GhlDeps {
     fetchImpl,
   };
 }
+
+describe("social platform labels", () => {
+  it("formats known platforms and resolves unique platforms for a post", () => {
+    expect(formatSocialPlatform("instagram")).toBe("Instagram");
+    expect(formatSocialPlatform("facebook")).toBe("Facebook");
+    expect(formatSocialPlatform("google")).toBe("Google");
+
+    const accounts: Pick<SocialAccount, "id" | "platform">[] = [
+      { id: "a1", platform: "facebook" },
+      { id: "a2", platform: "instagram" },
+      { id: "a3", platform: "facebook" },
+      { id: "a4", platform: "google" },
+    ];
+    expect(resolvePostPlatforms(["a1", "a2", "a3", "a4"], accounts)).toEqual([
+      "facebook",
+      "instagram",
+      "google",
+    ]);
+    expect(resolvePostPlatforms(["missing"], accounts)).toEqual([]);
+  });
+});
+
+describe("live social previews helpers", () => {
+  it("extracts avatar urls from common GHL account shapes", () => {
+    expect(extractSocialAvatarUrl({ id: "1" })).toBeNull();
+    expect(
+      extractSocialAvatarUrl({
+        avatarUrl: "https://cdn.example.com/a.jpg",
+      }),
+    ).toBe("https://cdn.example.com/a.jpg");
+    expect(
+      extractSocialAvatarUrl({
+        meta: { profilePictureUrl: "https://cdn.example.com/meta.jpg" },
+      }),
+    ).toBe("https://cdn.example.com/meta.jpg");
+    expect(
+      extractSocialAvatarUrl({
+        picture: { data: { url: "https://cdn.example.com/pic.jpg" } },
+      }),
+    ).toBe("https://cdn.example.com/pic.jpg");
+
+    const mapped = mapSocialAccount({
+      id: "acc_1",
+      name: "Flobama Downtown",
+      platform: "facebook",
+      profileImageUrl: "https://cdn.example.com/fb.jpg",
+      isExpired: false,
+    });
+    expect(mapped?.avatarUrl).toBe("https://cdn.example.com/fb.jpg");
+  });
+
+  it("filters selected FB/IG/Google accounts for live preview", () => {
+    const accounts: SocialAccount[] = [
+      {
+        id: "fb",
+        name: "Flobama Downtown",
+        platform: "facebook",
+        type: null,
+        profileId: "p1",
+        avatarUrl: null,
+        isExpired: false,
+        imageCapable: true,
+      },
+      {
+        id: "ig",
+        name: "Flobama Instagram",
+        platform: "instagram",
+        type: null,
+        profileId: "p2",
+        avatarUrl: null,
+        isExpired: false,
+        imageCapable: true,
+      },
+      {
+        id: "yt",
+        name: "Flobama YouTube",
+        platform: "youtube",
+        type: null,
+        profileId: "p3",
+        avatarUrl: null,
+        isExpired: false,
+        imageCapable: false,
+      },
+      {
+        id: "expired",
+        name: "Flobama Google",
+        platform: "google",
+        type: null,
+        profileId: "p4",
+        avatarUrl: null,
+        isExpired: true,
+        imageCapable: true,
+      },
+    ];
+    expect(accountsForLivePreview(["fb", "ig", "yt", "expired"], accounts).map((a) => a.id)).toEqual(["fb", "ig"]);
+    expect(instagramHandleFromName("Flobama Downtown")).toBe("flobamadowntown");
+  });
+});
 
 describe("week social media URLs", () => {
   it("builds absolute HTTPS PNG URLs for each page", () => {
@@ -137,6 +241,7 @@ describe("account mapping", () => {
         platform: "instagram",
         type: null,
         profileId: "p1",
+        avatarUrl: null,
         isExpired: false,
         imageCapable: true,
       },
@@ -146,6 +251,7 @@ describe("account mapping", () => {
         platform: "youtube",
         type: null,
         profileId: "p2",
+        avatarUrl: null,
         isExpired: false,
         imageCapable: false,
       },
@@ -155,6 +261,7 @@ describe("account mapping", () => {
         platform: "facebook",
         type: null,
         profileId: "p3",
+        avatarUrl: null,
         isExpired: true,
         imageCapable: true,
       },
@@ -194,6 +301,7 @@ describe("account mapping", () => {
           platform: "facebook",
           type: null,
           profileId: "p1",
+          avatarUrl: null,
           isExpired: false,
           imageCapable: true,
         },
@@ -203,6 +311,7 @@ describe("account mapping", () => {
           platform: "instagram",
           type: null,
           profileId: "p2",
+          avatarUrl: null,
           isExpired: false,
           imageCapable: true,
         },
@@ -212,6 +321,7 @@ describe("account mapping", () => {
           platform: "google",
           type: null,
           profileId: "p3",
+          avatarUrl: null,
           isExpired: false,
           imageCapable: true,
         },
@@ -221,6 +331,7 @@ describe("account mapping", () => {
           platform: "instagram",
           type: null,
           profileId: "p4",
+          avatarUrl: null,
           isExpired: false,
           imageCapable: true,
         },

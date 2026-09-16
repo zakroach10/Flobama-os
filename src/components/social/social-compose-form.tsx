@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { SocialLivePreviews } from "@/components/social/social-live-previews";
 import {
   DEFAULT_WEEK_SOCIAL_CAPTION,
   defaultSelectedAccountIds,
@@ -41,6 +42,7 @@ export function SocialComposeForm({
   const [formatId, setFormatId] = useState<WeekSocialFormatId>(initialFormatId);
   const [status, setStatus] = useState<"draft" | "scheduled" | "published">("published");
   const [scheduleLocal, setScheduleLocal] = useState("");
+  const [urlsOpen, setUrlsOpen] = useState(false);
   const pageCount = Math.max(1, pageCountByFormat[formatId] ?? 1);
 
   const mediaPreviewUrls = useMemo(
@@ -85,7 +87,7 @@ export function SocialComposeForm({
     status === "published" ? "Post now in GHL" : status === "scheduled" ? "Schedule in GHL" : "Save draft in GHL";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
       <div className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="social-summary">Caption</Label>
@@ -195,21 +197,45 @@ export function SocialComposeForm({
         </div>
       </div>
 
-      <aside className="space-y-3">
-        <h2 className="text-sm font-medium">Media preview URLs</h2>
-        <ul className="space-y-2 text-xs break-all text-muted-foreground">
-          {mediaPreviewUrls.map((url) => (
-            <li key={url} className="rounded-lg border bg-card p-2 font-mono">
-              <a href={url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
-                {url}
-              </a>
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-muted-foreground">
-          GoHighLevel fetches these public HTTPS PNGs when publishing. Use Post now to publish immediately, Schedule for
-          a later time, or Draft to review in Social Planner first.
-        </p>
+      <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+        <div>
+          <h2 className="text-sm font-medium">Live preview</h2>
+          <p className="text-xs text-muted-foreground">
+            Facebook, Instagram, and Google as they’ll look with this graphic and caption.
+          </p>
+        </div>
+        <SocialLivePreviews
+          accounts={accounts}
+          selectedIds={selected}
+          summary={summary}
+          mediaPreviewUrls={mediaPreviewUrls}
+          formatId={formatId}
+        />
+        <div className="rounded-xl border bg-card/80">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-medium"
+            onClick={() => setUrlsOpen((open) => !open)}
+            aria-expanded={urlsOpen}
+          >
+            Media URLs for GHL
+            <span className="text-muted-foreground">{urlsOpen ? "Hide" : "Show"}</span>
+          </button>
+          {urlsOpen ? (
+            <ul className="space-y-2 border-t px-3 py-2 text-xs break-all text-muted-foreground">
+              {mediaPreviewUrls.map((url) => (
+                <li key={url} className="rounded-lg border bg-background p-2 font-mono">
+                  <a href={url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                    {url}
+                  </a>
+                </li>
+              ))}
+              <li className="pb-1 text-[11px] text-muted-foreground">
+                GoHighLevel fetches these public HTTPS PNGs when publishing.
+              </li>
+            </ul>
+          ) : null}
+        </div>
       </aside>
     </div>
   );
