@@ -344,7 +344,8 @@ describe("this week slide", () => {
     });
     const rows = socialPosterRows(DEMO_WEEK_SLIDE.days);
     expect(rows.map((row) => row.name)).toEqual(["SLAW DOGS", "KARAOKE", "LATE SET"]);
-    expect(socialPosterColumns(rows, 2)).toHaveLength(1);
+    expect(socialPosterColumns(rows, 1)).toHaveLength(1);
+    expect(socialPosterColumns(rows, 2)).toHaveLength(2);
     expect(socialPosterColumns(rows.concat(rows), 2)).toHaveLength(2);
   });
 
