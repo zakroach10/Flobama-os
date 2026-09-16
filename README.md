@@ -164,7 +164,7 @@ Upload stills or short videos on Screens (50 MB max). Files go straight to the `
 
 **Weekly flyer:** Events or Screens → **Print this week’s flyer** opens a US Letter handout at `/print/week`. Use Print and choose Save as PDF. It lists every day of the current Sunday–Saturday week from the same public calendar. Local sample: http://localhost:43123/print/week?demo=1
 
-**Social graphics:** Events, Dashboard, or Screens → **Social sizes** opens `/print/week/social`. Downloads use FloBama’s Live Music This Week look (orange crumpled header, torn paper, blue lineup). Pick Instagram square (1080×1080), Instagram portrait (1080×1350), Story/Reels (1080×1920), or landscape (1920×1080). Square keeps the full week in one column; landscape fills leftover space with a tighter header. Local sample: http://localhost:43123/print/week/social?demo=1
+**Social graphics:** Events, Dashboard, or Screens → **Social sizes** opens `/print/week/social`. Downloads use FloBama’s Live Music This Week look (orange crumpled header, torn paper, blue lineup). Pick Instagram square (1080×1080), Instagram portrait (1080×1350), Story/Reels (1080×1920), or landscape (1920×1080). Square, 4:5, and story are always one column with large lineup type; only landscape uses two columns. Local sample: http://localhost:43123/print/week/social?demo=1
 
 The player contain-fits the 1080×1920 stage to the TV viewport so ads and the lineup stay on screen. Images and videos use `object-contain` instead of cropping or zooming to fill.
 

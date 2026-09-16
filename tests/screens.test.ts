@@ -313,14 +313,14 @@ describe("this week slide", () => {
       "Flobama-this-week-Sep-6-12-2026-story-p2.png",
     );
     expect(weekSocialPages(DEMO_WEEK_SLIDE.days)).toHaveLength(1);
-    expect(socialPosterScale("ig-square", 3).columns).toBe(1);
     expect(socialPosterScale("ig-square", 8).columns).toBe(1);
-    expect(socialPosterScale("ig-square", 12).columns).toBe(1);
+    expect(socialPosterScale("ig-portrait", 10).columns).toBe(1);
+    expect(socialPosterScale("story", 12).columns).toBe(1);
+    expect(socialPosterScale("landscape", 6).columns).toBe(2);
     expect(socialPosterScale("ig-square", 5).name).toBeGreaterThanOrEqual(36);
-    expect(socialPosterScale("ig-square", 8).name).toBeGreaterThanOrEqual(28);
+    expect(socialPosterScale("ig-portrait", 5).name).toBeGreaterThanOrEqual(40);
+    expect(socialPosterScale("story", 5).name).toBeGreaterThanOrEqual(40);
     expect(socialPosterScale("landscape", 6).listJustify).toBe("start");
-    expect(socialPosterScale("landscape", 6).header).toBeLessThanOrEqual(200);
-    expect(socialPosterScale("landscape", 3).columns).toBe(1);
     expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
       "/api/public/v1/screens/week/social?size=ig-square&demo=1",
     );
