@@ -74,147 +74,147 @@ export function socialPosterRows(days: WeekSlideDay[]): SocialPosterRow[] {
   );
 }
 
-/** Instagram square: always one column; scale type so the full week fits with little bottom pad. */
+/** Instagram square: always one column; enlarge lineup type so the week fills the cream area. */
 function igSquareScale(eventCount: number): SocialPosterScale {
   const count = Math.max(1, eventCount);
-  // Available list area ≈ 1080 - header - listTop - padBottom.
-  // Target ~ (date + name + gap) * count fits with a few px spare.
   if (count <= 3) {
     return {
-      header: 300,
-      logo: 380,
-      title: 40,
-      date: 30,
-      name: 38,
-      ordinal: 17,
-      gap: 18,
-      padX: 44,
-      listTop: 20,
-      padBottom: 14,
+      header: 280,
+      logo: 360,
+      title: 38,
+      date: 34,
+      name: 44,
+      ordinal: 18,
+      gap: 22,
+      padX: 40,
+      listTop: 24,
+      padBottom: 20,
       columns: 1,
       listJustify: "start",
     };
   }
   if (count <= 5) {
     return {
-      header: 270,
-      logo: 340,
+      header: 250,
+      logo: 320,
       title: 34,
-      date: 26,
-      name: 32,
-      ordinal: 14,
-      gap: 12,
+      date: 30,
+      name: 40,
+      ordinal: 16,
+      gap: 16,
       padX: 36,
-      listTop: 14,
-      padBottom: 12,
+      listTop: 18,
+      padBottom: 16,
       columns: 1,
       listJustify: "start",
     };
   }
   if (count <= 7) {
     return {
-      header: 240,
-      logo: 300,
+      header: 220,
+      logo: 280,
       title: 30,
-      date: 22,
-      name: 28,
-      ordinal: 12,
-      gap: 8,
+      date: 26,
+      name: 34,
+      ordinal: 14,
+      gap: 12,
       padX: 32,
-      listTop: 10,
-      padBottom: 10,
+      listTop: 14,
+      padBottom: 12,
       columns: 1,
       listJustify: "start",
     };
   }
   if (count <= 9) {
     return {
-      header: 210,
-      logo: 260,
+      header: 200,
+      logo: 250,
       title: 26,
-      date: 18,
-      name: 24,
-      ordinal: 11,
-      gap: 6,
+      date: 22,
+      name: 30,
+      ordinal: 12,
+      gap: 8,
       padX: 28,
-      listTop: 8,
-      padBottom: 8,
+      listTop: 10,
+      padBottom: 10,
       columns: 1,
       listJustify: "start",
     };
   }
-  // 10+ shows: densest single-column pack
   return {
     header: 180,
     logo: 220,
-    title: 22,
-    date: 15,
-    name: 20,
-    ordinal: 9,
-    gap: 4,
+    title: 24,
+    date: 18,
+    name: 24,
+    ordinal: 10,
+    gap: 6,
     padX: 24,
-    listTop: 6,
-    padBottom: 6,
+    listTop: 8,
+    padBottom: 8,
     columns: 1,
     listJustify: "start",
   };
 }
 
-/** Landscape: smaller header, larger lineup type, spread rows to cut cream dead space. */
+/**
+ * Landscape: compact header + larger stacked type in two tight columns,
+ * top-aligned (no stretched gaps between shows).
+ */
 function landscapeScale(eventCount: number): SocialPosterScale {
   const count = Math.max(1, eventCount);
   if (count <= 4) {
     return {
-      header: 220,
-      logo: 380,
-      title: 34,
-      date: 30,
-      name: 38,
-      ordinal: 16,
-      gap: 20,
-      padX: 56,
-      listTop: 28,
-      padBottom: 28,
-      columns: 2,
-      listJustify: "center",
+      header: 200,
+      logo: 360,
+      title: 32,
+      date: 28,
+      name: 36,
+      ordinal: 15,
+      gap: 18,
+      padX: 48,
+      listTop: 36,
+      padBottom: 40,
+      columns: 1,
+      listJustify: "start",
     };
   }
   if (count <= 8) {
     return {
-      header: 200,
-      logo: 340,
-      title: 30,
-      date: 26,
-      name: 34,
-      ordinal: 14,
+      header: 180,
+      logo: 320,
+      title: 28,
+      date: 24,
+      name: 32,
+      ordinal: 13,
       gap: 14,
-      padX: 44,
-      listTop: 18,
-      padBottom: 18,
+      padX: 40,
+      listTop: 24,
+      padBottom: 28,
       columns: 2,
-      listJustify: "between",
+      listJustify: "start",
     };
   }
   return {
-    header: 170,
+    header: 160,
     logo: 280,
-    title: 26,
+    title: 24,
     date: 20,
     name: 26,
     ordinal: 11,
-    gap: 8,
-    padX: 36,
-    listTop: 12,
-    padBottom: 12,
+    gap: 10,
+    padX: 32,
+    listTop: 16,
+    padBottom: 20,
     columns: 2,
-    listJustify: "between",
+    listJustify: "start",
   };
 }
 
 /**
  * Scale type for the full week on one graphic.
- * Square stays one column and packs denser for busy weeks.
- * Landscape fills leftover height instead of leaving a large cream band.
+ * Square stays one column with larger lineup type.
+ * Landscape uses a compact header and top-aligned columns (no stretched gaps).
  */
 export function socialPosterScale(id: WeekSocialFormatId, eventCount = 0): SocialPosterScale {
   const busy = eventCount >= 6;
