@@ -68,9 +68,81 @@ export type SocialAccount = {
   platform: string;
   type: string | null;
   profileId: string | null;
+  avatarUrl: string | null;
   isExpired: boolean;
   imageCapable: boolean;
 };
+
+/** Platforms that get a live compose feed mock. */
+export const LIVE_PREVIEW_PLATFORMS = new Set(["facebook", "instagram", "google"]);
+
+export function isLivePreviewPlatform(platform: string | null | undefined): boolean {
+  return LIVE_PREVIEW_PLATFORMS.has((platform ?? "").trim().toLowerCase());
+}
+
+/** Selected accounts that should render Facebook / Instagram / Google live previews. */
+export function accountsForLivePreview(
+  selectedIds: string[],
+  accounts: SocialAccount[],
+): SocialAccount[] {
+  const selected = new Set(selectedIds);
+  return accounts.filter(
+    (account) => selected.has(account.id) && isLivePreviewPlatform(account.platform) && !account.isExpired,
+  );
+}
+
+export function instagramHandleFromName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._]+/g, "")
+    .slice(0, 30);
+}
+
+export function accountInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
+}
+
+export function extractSocialAvatarUrl(raw: Record<string, unknown>): string | null {
+  const directKeys = [
+    "avatar",
+    "avatarUrl",
+    "profileImageUrl",
+    "profilePictureUrl",
+    "profilePicture",
+    "pictureUrl",
+    "picture",
+    "imageUrl",
+    "photoUrl",
+  ];
+  for (const key of directKeys) {
+    const value = asString(raw[key]);
+    if (value && /^https?:\/\//i.test(value)) return value;
+  }
+
+  for (const nestKey of ["meta", "profile", "user", "account"]) {
+    const nested = asRecord(raw[nestKey]);
+    if (!nested) continue;
+    for (const key of directKeys) {
+      const value = asString(nested[key]);
+      if (value && /^https?:\/\//i.test(value)) return value;
+    }
+    const picture = asRecord(nested.picture);
+    const pictureData = picture ? asRecord(picture.data) : null;
+    const nestedPictureUrl = asString(picture?.url) ?? asString(pictureData?.url);
+    if (nestedPictureUrl && /^https?:\/\//i.test(nestedPictureUrl)) return nestedPictureUrl;
+  }
+
+  const picture = asRecord(raw.picture);
+  const pictureData = picture ? asRecord(picture.data) : null;
+  const pictureUrl = asString(picture?.url) ?? asString(pictureData?.url);
+  if (pictureUrl && /^https?:\/\//i.test(pictureUrl)) return pictureUrl;
+
+  return null;
+}
 
 export type SocialPost = {
   id: string;
@@ -214,6 +286,7 @@ export function mapSocialAccount(raw: unknown): SocialAccount | null {
     platform,
     type: asString(record.type),
     profileId: asString(record.profileId),
+    avatarUrl: extractSocialAvatarUrl(record),
     isExpired: Boolean(record.isExpired),
     imageCapable: isImageCapablePlatform(platform),
   };
