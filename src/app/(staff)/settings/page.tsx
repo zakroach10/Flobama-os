@@ -3,8 +3,9 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { SettingsForms } from "@/components/settings/settings-forms";
 import { WebsiteEmbedCard } from "@/components/settings/website-embed-card";
 import { GhlIntegrationsCard } from "@/components/settings/ghl-integrations-card";
+import { PwaPushCard } from "@/components/settings/pwa-push-card";
 import { RolePermissionGuide, StaffDirectory } from "@/components/settings/staff-admin";
-import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
+import { getPublicAppUrl, isPushConfigured, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listVenueStaff } from "@/lib/queries/staff";
 import { canManageStaff } from "@/lib/auth/permissions";
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">Account, roles, and venue defaults for this staff workspace.</p>
       </div>
+      <PwaPushCard vapidConfigured={isPushConfigured()} />
       <RolePermissionGuide />
       {error ? (
         <ErrorState

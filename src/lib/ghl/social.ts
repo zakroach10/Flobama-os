@@ -129,6 +129,44 @@ export function isImageCapablePlatform(platform: string | null | undefined): boo
   return IMAGE_CAPABLE_PLATFORMS.has(platform.trim().toLowerCase());
 }
 
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  google: "Google",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  threads: "Threads",
+  twitter: "X",
+  x: "X",
+  pinterest: "Pinterest",
+  bluesky: "Bluesky",
+  community: "Community",
+};
+
+export function formatSocialPlatform(platform: string | null | undefined): string {
+  const key = (platform ?? "").trim().toLowerCase();
+  if (!key) return "Unknown";
+  return PLATFORM_LABELS[key] ?? key.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Unique platforms for a post, ordered by account list / first appearance. */
+export function resolvePostPlatforms(
+  accountIds: string[],
+  accounts: Pick<SocialAccount, "id" | "platform">[],
+): string[] {
+  const byId = new Map(accounts.map((account) => [account.id, account.platform]));
+  const seen = new Set<string>();
+  const platforms: string[] = [];
+  for (const id of accountIds) {
+    const platform = (byId.get(id) ?? "").trim().toLowerCase();
+    if (!platform || seen.has(platform)) continue;
+    seen.add(platform);
+    platforms.push(platform);
+  }
+  return platforms;
+}
+
 export function normalizeSocialAccountLabel(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }

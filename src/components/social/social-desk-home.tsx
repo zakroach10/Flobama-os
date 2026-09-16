@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState, ErrorState } from "@/components/states";
+import { PlatformBadges } from "@/components/social/platform-badges";
 import type { SocialAccount, SocialPost } from "@/lib/ghl/social";
 import { cn } from "@/lib/utils";
 
@@ -60,10 +61,10 @@ export function SocialDeskHome({
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
             {accounts.map((account) => (
-              <li key={account.id} className="rounded-xl border bg-card p-3 text-sm">
+              <li key={account.id} className="rounded-xl border bg-card/90 p-3 text-sm shadow-sm shadow-foreground/5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{account.name}</span>
-                  <Badge variant="secondary">{account.platform}</Badge>
+                  <PlatformBadges accountIds={[account.id]} accounts={[account]} />
                   {account.isExpired ? <Badge variant="destructive">Expired</Badge> : null}
                   {!account.imageCapable ? <Badge variant="outline">Not image default</Badge> : null}
                 </div>
@@ -83,12 +84,16 @@ export function SocialDeskHome({
             actionLabel="Compose week graphic"
           />
         ) : (
-          <ul className="divide-y rounded-xl border bg-card">
+          <ul className="divide-y overflow-hidden rounded-2xl border bg-card/90 shadow-sm shadow-foreground/5">
             {posts.map((post) => (
               <li key={post.id}>
-                <Link href={`/social/posts/${post.id}`} className="flex flex-col gap-1 px-4 py-3 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
+                <Link
+                  href={`/social/posts/${post.id}`}
+                  className="flex flex-col gap-2 px-4 py-3.5 transition-colors hover:bg-muted/45 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 space-y-1.5">
                     <p className="truncate font-medium">{post.summary || "(No caption)"}</p>
+                    <PlatformBadges accountIds={post.accountIds} accounts={accounts} />
                     <p className="text-xs text-muted-foreground">
                       {post.accountIds.length} account{post.accountIds.length === 1 ? "" : "s"} · updated{" "}
                       {formatWhen(post.updatedAt ?? post.createdAt)}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PlatformBadges } from "@/components/social/platform-badges";
 import type { SocialAccount, SocialPost } from "@/lib/ghl/social";
 
 function formatWhen(value: string | null): string {
@@ -95,6 +96,7 @@ export function SocialPostDetail({
 
       <section className="space-y-2 rounded-xl border bg-card p-4 text-sm">
         <h2 className="font-semibold">Targets</h2>
+        <PlatformBadges accountIds={post.accountIds} accounts={accounts} />
         <p className="text-muted-foreground">{accountNames || "No accounts"}</p>
         {post.scheduleDate ? (
           <p>

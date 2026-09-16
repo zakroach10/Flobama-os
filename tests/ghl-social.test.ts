@@ -13,6 +13,8 @@ import {
   isAllowedSocialAccount,
   isImageCapablePlatform,
   listSocialAccounts,
+  formatSocialPlatform,
+  resolvePostPlatforms,
   resolveSocialUserId,
   weekSocialMediaItems,
   weekSocialMediaUrls,
@@ -35,6 +37,27 @@ function configuredDeps(fetchImpl: typeof fetch): GhlDeps {
     fetchImpl,
   };
 }
+
+describe("social platform labels", () => {
+  it("formats known platforms and resolves unique platforms for a post", () => {
+    expect(formatSocialPlatform("instagram")).toBe("Instagram");
+    expect(formatSocialPlatform("facebook")).toBe("Facebook");
+    expect(formatSocialPlatform("google")).toBe("Google");
+
+    const accounts: Pick<SocialAccount, "id" | "platform">[] = [
+      { id: "a1", platform: "facebook" },
+      { id: "a2", platform: "instagram" },
+      { id: "a3", platform: "facebook" },
+      { id: "a4", platform: "google" },
+    ];
+    expect(resolvePostPlatforms(["a1", "a2", "a3", "a4"], accounts)).toEqual([
+      "facebook",
+      "instagram",
+      "google",
+    ]);
+    expect(resolvePostPlatforms(["missing"], accounts)).toEqual([]);
+  });
+});
 
 describe("week social media URLs", () => {
   it("builds absolute HTTPS PNG URLs for each page", () => {
