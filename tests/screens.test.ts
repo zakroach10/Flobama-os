@@ -314,9 +314,11 @@ describe("this week slide", () => {
     );
     expect(weekSocialPages(DEMO_WEEK_SLIDE.days)).toHaveLength(1);
     expect(socialPosterScale("ig-square", 3).columns).toBe(1);
-    expect(socialPosterScale("ig-square", 3).name).toBeGreaterThanOrEqual(36);
-    expect(socialPosterScale("ig-square", 8).columns).toBe(2);
-    expect(socialPosterScale("ig-square", 8).name).toBeGreaterThanOrEqual(24);
+    expect(socialPosterScale("ig-square", 8).columns).toBe(1);
+    expect(socialPosterScale("ig-square", 12).columns).toBe(1);
+    expect(socialPosterScale("ig-square", 8).padBottom).toBeLessThanOrEqual(12);
+    expect(socialPosterScale("landscape", 6).header).toBeLessThanOrEqual(220);
+    expect(socialPosterScale("landscape", 6).listJustify).toBe("between");
     expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
       "/api/public/v1/screens/week/social?size=ig-square&demo=1",
     );

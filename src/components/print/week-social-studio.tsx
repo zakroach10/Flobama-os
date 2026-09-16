@@ -43,7 +43,7 @@ export function WeekSocialStudio({
           <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
             Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG or post
-            it through GoHighLevel Social Planner. The full week stays on one graphic; busy weeks use two columns.
+            it through GoHighLevel Social Planner. Instagram square keeps every band in one column on a single graphic.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

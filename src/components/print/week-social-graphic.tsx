@@ -2,6 +2,7 @@ import {
   SOCIAL_POSTER,
   SOCIAL_POSTER_ASSETS,
   socialPosterColumns,
+  socialPosterListJustify,
   socialPosterRows,
   socialPosterScale,
 } from "@/lib/screens/social-poster";
@@ -22,6 +23,7 @@ export function WeekSocialGraphic({
   const rows = socialPosterRows(days);
   const scale = socialPosterScale(format.id, rows.length);
   const columns = socialPosterColumns(rows, scale.columns);
+  const bottomPad = pageLabel ? Math.max(scale.padBottom, 28) : scale.padBottom;
 
   return (
     <div
@@ -42,7 +44,7 @@ export function WeekSocialGraphic({
         />
         <div
           className="relative z-10 flex h-full flex-col items-center justify-center"
-          style={{ paddingTop: 18, paddingBottom: Math.round(scale.header * 0.18) }}
+          style={{ paddingTop: 12, paddingBottom: Math.round(scale.header * 0.14) }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -54,7 +56,7 @@ export function WeekSocialGraphic({
           <h1
             className="font-bold tracking-[0.02em] uppercase"
             style={{
-              marginTop: Math.round(scale.title * 0.45),
+              marginTop: Math.round(scale.title * 0.35),
               fontSize: scale.title,
               color: SOCIAL_POSTER.title,
               lineHeight: 1,
@@ -85,22 +87,25 @@ export function WeekSocialGraphic({
             paddingLeft: scale.padX,
             paddingRight: scale.padX,
             paddingTop: scale.listTop,
-            paddingBottom: pageLabel ? 28 : 36,
-            justifyContent: "flex-start",
-            gap: columns.length === 2 ? 32 : scale.gap,
+            paddingBottom: bottomPad,
+            justifyContent: columns.length === 2 ? "flex-start" : socialPosterListJustify(scale.listJustify),
+            gap: columns.length === 2 ? 28 : scale.gap,
           }}
         >
           {columns.map((column, index) => (
             <ul
               key={index}
-              className="flex flex-1 flex-col justify-start"
-              style={{ gap: scale.gap }}
+              className="flex flex-1 flex-col"
+              style={{
+                gap: scale.gap,
+                justifyContent: socialPosterListJustify(scale.listJustify),
+              }}
             >
               {column.map((row) => (
                 <li key={row.id} className="text-center">
                   <p
                     className="uppercase"
-                    style={{ color: SOCIAL_POSTER.ink, fontSize: scale.date, lineHeight: 1.15 }}
+                    style={{ color: SOCIAL_POSTER.ink, fontSize: scale.date, lineHeight: 1.1 }}
                   >
                     <span>{row.lead}</span>
                     <sup
@@ -116,8 +121,8 @@ export function WeekSocialGraphic({
                     style={{
                       color: SOCIAL_POSTER.blue,
                       fontSize: scale.name,
-                      lineHeight: 1.15,
-                      marginTop: 2,
+                      lineHeight: 1.1,
+                      marginTop: 1,
                     }}
                   >
                     {row.name}

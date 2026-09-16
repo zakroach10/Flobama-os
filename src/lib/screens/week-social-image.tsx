@@ -1,6 +1,7 @@
 import {
   SOCIAL_POSTER,
   socialPosterColumns,
+  socialPosterListJustify,
   socialPosterRows,
   socialPosterScale,
 } from "@/lib/screens/social-poster";
@@ -38,6 +39,8 @@ export function WeekSocialOgGraphic({
   const rows = socialPosterRows(days);
   const columns = socialPosterColumns(rows, scale.columns);
   const split = columns.length === 2;
+  const bottomPad = pageLabel ? Math.max(scale.padBottom, 28) : scale.padBottom;
+  const listJustify = socialPosterListJustify(scale.listJustify);
 
   return (
     <div
@@ -61,8 +64,8 @@ export function WeekSocialOgGraphic({
           height: scale.header,
           position: "relative",
           overflow: "hidden",
-          paddingTop: 18,
-          paddingBottom: Math.round(scale.header * 0.18),
+          paddingTop: 12,
+          paddingBottom: Math.round(scale.header * 0.14),
         }}
       >
         {paperSrc ? (
@@ -99,7 +102,7 @@ export function WeekSocialOgGraphic({
         )}
         <Text
           style={{
-            marginTop: Math.round(scale.title * 0.45),
+            marginTop: Math.round(scale.title * 0.35),
             fontSize: scale.title,
             fontWeight: 700,
             letterSpacing: 1,
@@ -148,12 +151,12 @@ export function WeekSocialOgGraphic({
             display: "flex",
             flexDirection: split ? "row" : "column",
             flex: 1,
-            justifyContent: "flex-start",
+            justifyContent: split ? "flex-start" : listJustify,
             paddingLeft: scale.padX,
             paddingRight: scale.padX,
             paddingTop: scale.listTop,
-            paddingBottom: pageLabel ? 28 : 36,
-            gap: split ? 32 : scale.gap,
+            paddingBottom: bottomPad,
+            gap: split ? 28 : scale.gap,
           }}
         >
           {columns.map((column, index) => (
@@ -163,7 +166,7 @@ export function WeekSocialOgGraphic({
                 display: "flex",
                 flexDirection: "column",
                 flex: 1,
-                justifyContent: "flex-start",
+                justifyContent: listJustify,
                 alignItems: "center",
                 gap: scale.gap,
               }}
@@ -218,12 +221,13 @@ export function WeekSocialOgGraphic({
                   </div>
                   <Text
                     style={{
-                      marginTop: 2,
+                      marginTop: 1,
                       fontSize: scale.name,
                       fontWeight: 700,
                       color: SOCIAL_POSTER.blue,
                       textTransform: "uppercase",
                       textAlign: "center",
+                      lineHeight: 1.1,
                     }}
                   >
                     {row.name}
