@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FloBama OS V1 — Product Overview</title>
+  <style>
+    @page {
+      size: Letter;
+      margin: 0.55in 0.6in 0.6in 0.6in;
+    }
+
+    :root {
+      --ink: #1a1614;
+      --muted: #5c534c;
+      --line: #d9d0c8;
+      --paper: #faf7f4;
+      --panel: #ffffff;
+      --accent: #d36b4a;
+      --accent-deep: #a84a30;
+      --charcoal: #2a2623;
+      --soft: #f0e8e1;
+      --ok: #2f6b4f;
+      --blue: #3d5a73;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      position: relative;
+      height: 9.9in;
+      max-height: 9.9in;
+      overflow: hidden;
+      padding-bottom: 0.4in;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .card, .diagram, .flow-steps, table, .callout, .grid-2, .grid-3 {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .footer {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 6px;
+    }
+
+    h1, h2, h3 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0 0 0.35em;
+      color: var(--charcoal);
+    }
+    h1 { font-size: 26pt; line-height: 1.15; }
+    h2 { font-size: 16pt; margin-top: 0.15in; }
+    h3 { font-size: 11.5pt; margin-top: 0.12in; color: var(--accent-deep); }
+
+    p { margin: 0 0 0.55em; }
+    .lede { font-size: 11.5pt; color: var(--muted); max-width: 6.6in; }
+    .small { font-size: 9pt; color: var(--muted); }
+    .tag {
+      display: inline-block;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-deep);
+      background: #f6e4dc;
+      border: 1px solid #e8c4b4;
+      padding: 3px 8px;
+      margin-bottom: 10px;
+    }
+
+    .hero {
+      background:
+        radial-gradient(ellipse at 85% 15%, rgba(211,107,74,0.18), transparent 45%),
+        linear-gradient(160deg, #2a2623 0%, #3a322e 55%, #4a3530 100%);
+      color: #f7f1ec;
+      margin: -0.55in -0.6in 0.28in;
+      padding: 0.7in 0.65in 0.55in;
+      min-height: 3.4in;
+    }
+    .hero h1 { color: #fff; font-size: 34pt; margin-top: 0.15in; }
+    .hero .lede { color: #e8ddd4; max-width: 5.8in; }
+    .hero-meta {
+      display: flex; gap: 18px; margin-top: 0.35in; flex-wrap: wrap;
+      font-size: 9pt; color: #d8c8bc;
+    }
+    .hero-meta strong { color: #fff; display: block; font-size: 10pt; }
+    .logo {
+      height: 42px; width: auto; display: block;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+    .card h3 { margin-top: 0; }
+    .card ul { margin: 0; padding-left: 1.1em; }
+    .card li { margin-bottom: 0.25em; }
+
+    .role-admin { border-top: 3px solid var(--accent); }
+    .role-manager { border-top: 3px solid var(--blue); }
+    .role-viewer { border-top: 3px solid var(--ok); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 0.1in 0 0.2in;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--soft);
+      font-weight: 700;
+      color: var(--charcoal);
+    }
+    code, .mono {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 8.5pt;
+    }
+    code {
+      background: #f3eee9;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .diagram {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      margin: 0.12in 0 0.18in;
+    }
+    .diagram svg { width: 100%; height: auto; display: block; }
+    .diagram-caption {
+      font-size: 8.5pt;
+      color: var(--muted);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .stack-list {
+      display: flex; flex-wrap: wrap; gap: 6px; margin: 0.08in 0 0.15in;
+    }
+    .chip {
+      font-size: 8.5pt;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: var(--charcoal);
+    }
+
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 0.1in 0 0.15in;
+    }
+    .flow-step {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      position: relative;
+    }
+    .flow-step .n {
+      font-family: Georgia, serif;
+      font-size: 14pt;
+      color: var(--accent);
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .flow-step strong { display: block; font-size: 9.5pt; margin-bottom: 2px; }
+    .flow-step span { font-size: 8.5pt; color: var(--muted); }
+
+    .callout {
+      background: #fff8f4;
+      border-left: 3px solid var(--accent);
+      padding: 10px 12px;
+      margin: 0.12in 0;
+      font-size: 9.5pt;
+    }
+
+    .two-col-tight {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    ul.compact { margin: 0.2em 0 0.6em; padding-left: 1.15em; }
+    ul.compact li { margin-bottom: 0.2em; }
+
+    .cover-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 0.25in;
+    }
+    .stat {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .stat .v { font-family: Georgia, serif; font-size: 16pt; color: #fff; }
+    .stat .l { font-size: 8pt; color: #d8c8bc; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== COVER ===================== -->
+  <section class="page">
+    <div class="hero">
+      <img class="logo" src="../public/flobama-logo.png" alt="FloBama" />
+      <div class="tag" style="background:rgba(211,107,74,0.25);border-color:rgba(211,107,74,0.45);color:#ffd4c4;margin-top:18px;">Product overview · Version 1</div>
+      <h1>FloBama OS</h1>
+      <p class="lede">
+        The internal operations platform for FloBama Music Hall — events, artists,
+        public listings, screens, ticketing, booking, and social — built so staff
+        can run the room without touching the public website stack.
+      </p>
+      <div class="hero-meta">
+        <div><strong>Venue</strong>FloBama Music Hall · America/Chicago</div>
+        <div><strong>Stack</strong>Next.js · Supabase · GoHighLevel · OpenAI</div>
+        <div><strong>Production</strong>flobama-os.vercel.app</div>
+        <div><strong>Audience</strong>Staff (admin / manager / viewer)</div>
+      </div>
+      <div class="cover-stats">
+        <div class="stat"><div class="v">Events</div><div class="l">Calendar, publish, sheet sync</div></div>
+        <div class="stat"><div class="v">Screens</div><div class="l">LED wall + vertical TVs</div></div>
+        <div class="stat"><div class="v">Tickets</div><div class="l">GA, VIP, tables, door QR</div></div>
+        <div class="stat"><div class="v">Booking</div><div class="l">GHL inbox + band-fit AI</div></div>
+      </div>
+    </div>
+
+    <div class="two-col-tight">
+      <div>
+        <h2>What V1 is</h2>
+        <p>
+          FloBama OS is a single Next.js App Router application with a Supabase
+          Postgres backend. Staff authenticate with email/password; roles are
+          venue-scoped and enforced in both server actions and row-level security.
+          Public consumers never read internal event rows — they hit projection
+          views and a versioned JSON API.
+        </p>
+        <p>
+          The product deliberately does <em>not</em> edit flobamadowntown.com,
+          Pick'em, or other production sites. WordPress embeds, OBS overlays, and
+          kiosk displays consume FloBama OS as a source of truth for listings and
+          screens.
+        </p>
+      </div>
+      <div class="card">
+        <h3>In this document</h3>
+        <ul class="compact">
+          <li>Product modules &amp; staff roles</li>
+          <li>Architecture &amp; data flow</li>
+          <li>External APIs and how they are used</li>
+          <li>Database layout diagrams</li>
+          <li>Ticketing &amp; screens runtime flows</li>
+          <li>Public surface endpoints</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer"><span>FloBama OS V1</span><span>Confidential · Internal product overview</span></div>
+  </section>
+
+  <!-- ===================== PRODUCT & FEATURES ===================== -->
+  <section class="page">
+    <div class="tag">Product</div>
+    <h1>Features by module</h1>
+    <p class="lede">Everything lives in one staff app. Modules share the venue record, timezone, and role matrix.</p>
+
+    <div class="grid-2" style="margin-top:0.08in;">
+      <div class="card">
+        <h3>Dashboard &amp; Events</h3>
+        <ul>
+          <li>Today overlap, 7-day count, drafts, attention queue</li>
+          <li>Create / edit / duplicate / publish / archive</li>
+          <li>Ticketed flag, ticket URL, cover labels</li>
+          <li><strong>Events → Update</strong> syncs master Google Sheet by <code>legacy_source_id</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Artists</h3>
+        <ul>
+          <li>Directory: search, create, edit, archive</li>
+          <li>Linked upcoming and past events</li>
+          <li>Genre, bio, website; karaoke import does not invent a “Karaoke” artist</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Public listings</h3>
+        <ul>
+          <li>JSON API with CORS <code>*</code> on GET</li>
+          <li>HTML embed + iframe resizer for WordPress</li>
+          <li>OBS overlay at 1920×1080; internal notes stay staff-only</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Screens</h3>
+        <ul>
+          <li>LED wall: OBS WebSocket v5 Ads vs Band scenes</li>
+          <li>Vertical 1080×1920 playlist + this-week slide</li>
+          <li>Timed takeovers; weekly flyer &amp; social exports</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Ticketing</h3>
+        <ul>
+          <li>GA / VIP, whole-table reservations, guest checkout</li>
+          <li>10-minute holds; conditional table inventory updates</li>
+          <li>QR passes + door check-in; mock payments in V1</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Booking &amp; Social</h3>
+        <ul>
+          <li>GHL Band Submission &amp; Private Events inbox (GHL is source of truth)</li>
+          <li>OpenAI booking-fit advisory on submissions</li>
+          <li>GHL Social Planner for weekly graphics</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Staff roles</h2>
+    <div class="grid-3">
+      <div class="card role-admin">
+        <h3>Admin</h3>
+        <p class="small">Full control — staff, venue rename, all modules</p>
+      </div>
+      <div class="card role-manager">
+        <h3>Manager</h3>
+        <p class="small">Events, artists, screens, ticketing — no staff admin</p>
+      </div>
+      <div class="card role-viewer">
+        <h3>Viewer</h3>
+        <p class="small">Read-only calendar, artists, sales views</p>
+      </div>
+    </div>
+    <div class="callout">
+      No public signup. First admin is bootstrapped in SQL; later logins via Settings → Staff.
+      Master admin <code>zak@view360.marketing</code> cannot be removed or demoted by other staff.
+    </div>
+    <div class="footer"><span>FloBama OS V1 · Features</span><span>2</span></div>
+  </section>
+
+  <!-- ===================== ARCHITECTURE ===================== -->
+  <section class="page">
+    <div class="tag">Architecture</div>
+    <h1>How the app works</h1>
+    <p class="lede">Staff sessions, public projections, and external services stay separated by design.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Application architecture diagram">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#5c534c"/>
+          </marker>
+        </defs>
+        <rect width="760" height="420" fill="#faf7f4"/>
+
+        <!-- Clients -->
+        <text x="28" y="28" font-family="Georgia,serif" font-size="14" fill="#2a2623" font-weight="700">Clients</text>
+        <rect x="20" y="40" width="140" height="54" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="90" y="62" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">Staff browser</text>
+        <text x="90" y="78" text-anchor="middle" font-size="9" fill="#5c534c">cookie session</text>
+
+        <rect x="20" y="108" width="140" height="54" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="90" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">Public / WordPress</text>
+        <text x="90" y="146" text-anchor="middle" font-size="9" fill="#5c534c">embed · API · tickets</text>
+
+        <rect x="20" y="176" width="140" height="54" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="90" y="198" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">OBS booth PC</text>
+        <text x="90" y="214" text-anchor="middle" font-size="9" fill="#5c534c">overlay + WebSocket</text>
+
+        <rect x="20" y="244" width="140" height="54" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="90" y="266" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">Vertical TVs</text>
+        <text x="90" y="282" text-anchor="middle" font-size="9" fill="#5c534c">/display/vertical</text>
+
+        <!-- App -->
+        <rect x="220" y="40" width="280" height="258" rx="10" fill="#2a2623"/>
+        <text x="360" y="68" text-anchor="middle" font-size="14" fill="#fff" font-family="Georgia,serif" font-weight="700">Next.js App Router</text>
+        <text x="360" y="86" text-anchor="middle" font-size="9" fill="#d8c8bc">flobama-os · port 43123 / Vercel</text>
+
+        <rect x="238" y="104" width="118" height="70" rx="5" fill="#3a322e" stroke="#d36b4a"/>
+        <text x="297" y="128" text-anchor="middle" font-size="10" fill="#ffd4c4" font-weight="700">Staff routes</text>
+        <text x="297" y="146" text-anchor="middle" font-size="8" fill="#e8ddd4">server actions</text>
+        <text x="297" y="160" text-anchor="middle" font-size="8" fill="#e8ddd4">RLS-aware clients</text>
+
+        <rect x="364" y="104" width="118" height="70" rx="5" fill="#3a322e" stroke="#a8b8c4"/>
+        <text x="423" y="128" text-anchor="middle" font-size="10" fill="#d6e4ef" font-weight="700">Public API</text>
+        <text x="423" y="146" text-anchor="middle" font-size="8" fill="#e8ddd4">/api/public/v1/*</text>
+        <text x="423" y="160" text-anchor="middle" font-size="8" fill="#e8ddd4">anon + projections</text>
+
+        <rect x="238" y="190" width="244" height="88" rx="5" fill="#3a322e" stroke="#6a9080"/>
+        <text x="360" y="214" text-anchor="middle" font-size="10" fill="#c8e0d4" font-weight="700">Integrations (server-only)</text>
+        <text x="360" y="234" text-anchor="middle" font-size="8" fill="#e8ddd4">GHL PIT · OpenAI · OBS WS (browser) · Storage</text>
+        <text x="360" y="252" text-anchor="middle" font-size="8" fill="#e8ddd4">Zod validation · Luxon America/Chicago</text>
+
+        <!-- Data -->
+        <rect x="560" y="40" width="180" height="258" rx="10" fill="#fff" stroke="#d36b4a" stroke-width="2"/>
+        <text x="650" y="68" text-anchor="middle" font-size="13" fill="#a84a30" font-family="Georgia,serif" font-weight="700">Supabase</text>
+        <text x="650" y="88" text-anchor="middle" font-size="9" fill="#5c534c">Postgres + Auth + Storage</text>
+
+        <rect x="575" y="108" width="150" height="36" rx="4" fill="#f6e4dc"/>
+        <text x="650" y="131" text-anchor="middle" font-size="10" fill="#2a2623">auth.users · profiles</text>
+        <rect x="575" y="152" width="150" height="36" rx="4" fill="#f0e8e1"/>
+        <text x="650" y="175" text-anchor="middle" font-size="10" fill="#2a2623">events · artists · RLS</text>
+        <rect x="575" y="196" width="150" height="36" rx="4" fill="#f0e8e1"/>
+        <text x="650" y="219" text-anchor="middle" font-size="10" fill="#2a2623">ticketing · screens</text>
+        <rect x="575" y="240" width="150" height="36" rx="4" fill="#eef3f0"/>
+        <text x="650" y="263" text-anchor="middle" font-size="10" fill="#2a2623">event_listings views</text>
+
+        <!-- External -->
+        <text x="28" y="330" font-family="Georgia,serif" font-size="14" fill="#2a2623" font-weight="700">External systems</text>
+        <rect x="20" y="342" width="160" height="48" rx="6" fill="#fff" stroke="#3d5a73"/>
+        <text x="100" y="362" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2623">GoHighLevel</text>
+        <text x="100" y="378" text-anchor="middle" font-size="8" fill="#5c534c">booking + social</text>
+
+        <rect x="200" y="342" width="160" height="48" rx="6" fill="#fff" stroke="#3d5a73"/>
+        <text x="280" y="362" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2623">OpenAI</text>
+        <text x="280" y="378" text-anchor="middle" font-size="8" fill="#5c534c">band-fit analysis</text>
+
+        <rect x="380" y="342" width="160" height="48" rx="6" fill="#fff" stroke="#3d5a73"/>
+        <text x="460" y="362" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2623">Google Sheet</text>
+        <text x="460" y="378" text-anchor="middle" font-size="8" fill="#5c534c">master calendar CSV</text>
+
+        <rect x="560" y="342" width="180" height="48" rx="6" fill="#fff" stroke="#3d5a73"/>
+        <text x="650" y="362" text-anchor="middle" font-size="10" font-weight="700" fill="#2a2623">OBS WebSocket v5</text>
+        <text x="650" y="378" text-anchor="middle" font-size="8" fill="#5c534c">LAN booth only</text>
+
+        <!-- arrows -->
+        <line x1="160" y1="67" x2="218" y2="120" stroke="#5c534c" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="160" y1="135" x2="218" y2="140" stroke="#5c534c" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="160" y1="203" x2="218" y2="160" stroke="#5c534c" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="160" y1="271" x2="218" y2="200" stroke="#5c534c" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="500" y1="170" x2="558" y2="170" stroke="#d36b4a" stroke-width="2" marker-end="url(#arrow)"/>
+        <line x1="360" y1="298" x2="100" y2="340" stroke="#5c534c" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="360" y1="298" x2="280" y2="340" stroke="#5c534c" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="360" y1="298" x2="460" y2="340" stroke="#5c534c" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <line x1="500" y1="250" x2="560" y2="342" stroke="#5c534c" stroke-width="1.2" marker-end="url(#arrow)"/>
+      </svg>
+      <div class="diagram-caption">Figure 1 — Runtime topology: staff UI, public surfaces, Supabase, and third-party APIs</div>
+    </div>
+
+    <h3>Request paths (simplified)</h3>
+    <table>
+      <thead>
+        <tr><th>Surface</th><th>Auth</th><th>Data path</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Staff pages / server actions</td>
+          <td>Supabase cookie session + membership role</td>
+          <td>Authenticated client → tables under RLS; service role only for creating logins</td>
+        </tr>
+        <tr>
+          <td><code>/api/public/v1/*</code></td>
+          <td>Anonymous (CORS * on GET)</td>
+          <td>Anon client → <code>event_listings</code> / screen listing views / ticketing public handlers</td>
+        </tr>
+        <tr>
+          <td>Booking / Social</td>
+          <td>Staff session + GHL PIT on server</td>
+          <td>Server fetches GHL; records are not copied into Postgres</td>
+        </tr>
+        <tr>
+          <td>OBS LED wall</td>
+          <td>Staff session on booth PC</td>
+          <td>Browser holds OBS host/port/password in <code>sessionStorage</code>; cuts scenes from <code>/now</code> + takeover state</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="footer"><span>FloBama OS V1 · Architecture</span><span>3</span></div>
+  </section>
+
+  <!-- ===================== APIs ===================== -->
+  <section class="page">
+    <div class="tag">Integrations</div>
+    <h1>APIs used — and how</h1>
+    <p class="lede">V1 leans on a small set of external services. Secrets are server-only unless noted.</p>
+
+    <table>
+      <thead>
+        <tr><th>API / service</th><th>Used for</th><th>How FloBama OS calls it</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Supabase</strong><br/><span class="small">Auth · Postgres · Storage</span></td>
+          <td>Identity, all operational data, screen-ad files</td>
+          <td>
+            <code>@supabase/ssr</code> cookie sessions; anon key for public views;
+            service role for staff user creation; <code>screen-ads</code> storage bucket for vertical media
+          </td>
+        </tr>
+        <tr>
+          <td><strong>GoHighLevel</strong><br/><span class="small">services.leadconnectorhq.com</span></td>
+          <td>Band submissions, private events, Social Planner</td>
+          <td>
+            Private Integration Token + location id. Custom objects read/write;
+            associations → contacts for name/email/phone; Social Planner accounts/posts for weekly graphics
+          </td>
+        </tr>
+        <tr>
+          <td><strong>OpenAI</strong></td>
+          <td>Advisory band booking-fit scores</td>
+          <td>
+            Server-side chat completion (default <code>gpt-4.1-mini</code>) from GHL Band Inquiry fields only —
+            no live social scraping; never writes status back to GHL
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Google Sheets</strong><br/><span class="small">published CSV</span></td>
+          <td>Master calendar import</td>
+          <td>
+            Staff <strong>Events → Update</strong> fetches the published FloBama sheet CSV, upserts by
+            <code>legacy_source_id</code>, withdraws unpublished/archived rows
+          </td>
+        </tr>
+        <tr>
+          <td><strong>OBS WebSocket v5</strong></td>
+          <td>LED wall scene cutting</td>
+          <td>
+            <code>obs-websocket-js</code> from the booth browser; credentials never stored in DB or git
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Stripe</strong> <span class="small">(reserved)</span></td>
+          <td>Future card checkout</td>
+          <td>V1 uses a labeled mock payment adapter; setting a live Stripe key without wiring refuses charges</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Public HTTP API (owned by FloBama OS)</h2>
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">GET /api/public/v1/events</td><td>Upcoming public listings (<code>from</code>, <code>to</code>, <code>limit</code>)</td></tr>
+        <tr><td class="mono">GET /api/public/v1/events/[id]</td><td>Single public event detail</td></tr>
+        <tr><td class="mono">GET /api/public/v1/now</td><td>Today’s overlapping shows + booth now-playing if public</td></tr>
+        <tr><td class="mono">GET /api/public/v1/screens/vertical</td><td>Vertical TV playlist JSON (kiosks poll)</td></tr>
+        <tr><td class="mono">GET /api/public/v1/screens/week</td><td>This week’s events for the live slide</td></tr>
+        <tr><td class="mono">GET /api/public/v1/screens/week/social</td><td>Social graphic render helper</td></tr>
+        <tr><td class="mono">POST /api/public/v1/ticketing/hold</td><td>Hold GA qty / tables (≈10 min)</td></tr>
+        <tr><td class="mono">POST /api/public/v1/ticketing/checkout</td><td>Guest checkout → order + QR tickets</td></tr>
+        <tr><td class="mono">GET /api/public/v1/ticketing/events/[id]</td><td>Public ticketed event catalog + map</td></tr>
+        <tr><td class="mono">GET /api/public/v1/ticketing/tickets/[token]</td><td>Resolve ticket pass by QR token</td></tr>
+      </tbody>
+    </table>
+
+    <h3>GHL booking call pattern</h3>
+    <p class="small" style="margin-bottom:0.08in;">
+      <strong>1. List</strong> custom object records →
+      <strong>2. Relations</strong> <code>GET /associations/relations/{recordId}</code> →
+      <strong>3. Contact</strong> <code>GET /contacts/{id}</code> →
+      <strong>4. Analyze</strong> OpenAI fit note from inquiry fields only (never writes status back to GHL).
+    </p>
+    <div class="footer"><span>FloBama OS V1 · APIs</span><span>4</span></div>
+  </section>
+
+  <!-- ===================== DATABASE ===================== -->
+  <section class="page">
+    <div class="tag">Data model</div>
+    <h1>Database layout</h1>
+    <p class="lede">Single venue seed. Timezone locked to America/Chicago. Anonymous roles cannot SELECT internal tables.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 470" xmlns="http://www.w3.org/2000/svg" aria-label="Core database ER diagram">
+        <rect width="760" height="470" fill="#faf7f4"/>
+        <text x="20" y="24" font-family="Georgia,serif" font-size="13" font-weight="700" fill="#2a2623">Core domain</text>
+
+        <!-- venues -->
+        <rect x="280" y="40" width="200" height="70" rx="6" fill="#2a2623"/>
+        <text x="380" y="68" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">venues</text>
+        <text x="380" y="88" text-anchor="middle" fill="#d8c8bc" font-size="8">id · name · timezone=Chicago</text>
+
+        <!-- profiles / memberships -->
+        <rect x="40" y="150" width="160" height="64" rx="6" fill="#fff" stroke="#d36b4a" stroke-width="1.5"/>
+        <text x="120" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#a84a30">profiles</text>
+        <text x="120" y="192" text-anchor="middle" font-size="8" fill="#5c534c">id → auth.users · display_name</text>
+
+        <rect x="220" y="150" width="180" height="64" rx="6" fill="#fff" stroke="#d36b4a" stroke-width="1.5"/>
+        <text x="310" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#a84a30">venue_memberships</text>
+        <text x="310" y="192" text-anchor="middle" font-size="8" fill="#5c534c">venue_id · user_id · role</text>
+
+        <rect x="430" y="150" width="140" height="64" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="500" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">artists</text>
+        <text x="500" y="192" text-anchor="middle" font-size="8" fill="#5c534c">venue_id · name · genre…</text>
+
+        <rect x="590" y="150" width="150" height="64" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="665" y="174" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">events</text>
+        <text x="665" y="192" text-anchor="middle" font-size="8" fill="#5c534c">status · visibility · times</text>
+
+        <rect x="500" y="260" width="160" height="56" rx="6" fill="#fff" stroke="#d9d0c8"/>
+        <text x="580" y="284" text-anchor="middle" font-size="11" font-weight="700" fill="#2a2623">event_artists</text>
+        <text x="580" y="300" text-anchor="middle" font-size="8" fill="#5c534c">event_id · artist_id · order</text>
+
+        <rect x="40" y="260" width="160" height="56" rx="6" fill="#eef3f0" stroke="#6a9080"/>
+        <text x="120" y="284" text-anchor="middle" font-size="11" font-weight="700" fill="#2f6b4f">event_listings</text>
+        <text x="120" y="300" text-anchor="middle" font-size="8" fill="#5c534c">public view (no notes)</text>
+
+        <rect x="220" y="260" width="180" height="56" rx="6" fill="#eef3f0" stroke="#6a9080"/>
+        <text x="310" y="284" text-anchor="middle" font-size="11" font-weight="700" fill="#2f6b4f">event_listing_artists</text>
+        <text x="310" y="300" text-anchor="middle" font-size="8" fill="#5c534c">public artist names</text>
+
+        <rect x="40" y="360" width="160" height="56" rx="6" fill="#fff" stroke="#3d5a73"/>
+        <text x="120" y="384" text-anchor="middle" font-size="11" font-weight="700" fill="#3d5a73">booth_state</text>
+        <text x="120" y="400" text-anchor="middle" font-size="8" fill="#5c534c">live_event_id · lower_third</text>
+
+        <rect x="240" y="360" width="200" height="56" rx="6" fill="#fff8f4" stroke="#d36b4a"/>
+        <text x="340" y="384" text-anchor="middle" font-size="10" font-weight="700" fill="#a84a30">events extras</text>
+        <text x="340" y="400" text-anchor="middle" font-size="8" fill="#5c534c">legacy_source_id · ticketed · cover</text>
+
+        <!-- connectors -->
+        <line x1="120" y1="150" x2="300" y2="110" stroke="#5c534c" stroke-width="1"/>
+        <line x1="310" y1="150" x2="360" y2="110" stroke="#d36b4a" stroke-width="1.5"/>
+        <line x1="500" y1="150" x2="420" y2="110" stroke="#5c534c" stroke-width="1"/>
+        <line x1="665" y1="150" x2="440" y2="110" stroke="#5c534c" stroke-width="1"/>
+        <line x1="500" y1="214" x2="560" y2="260" stroke="#5c534c" stroke-width="1"/>
+        <line x1="665" y1="214" x2="600" y2="260" stroke="#5c534c" stroke-width="1"/>
+        <line x1="665" y1="214" x2="120" y2="260" stroke="#6a9080" stroke-width="1" stroke-dasharray="4 3"/>
+        <line x1="120" y1="316" x2="120" y2="360" stroke="#3d5a73" stroke-width="1"/>
+      </svg>
+      <div class="diagram-caption">Figure 2 — Core schema: venue membership, events/artists, and public projection views</div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Security highlights</h3>
+        <ul>
+          <li>RLS forced on operational tables</li>
+          <li>Anon: no SELECT on <code>events</code></li>
+          <li>Public consumers use security-definer views</li>
+          <li>Ticketing PII (orders, tickets, payments) staff-only</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Key enums</h3>
+        <ul>
+          <li><code>staff_role</code>: admin · manager · viewer</li>
+          <li><code>event_status</code>: draft · published · cancelled</li>
+          <li><code>event_visibility</code>: public · private</li>
+          <li><code>event_type</code>: live_music · karaoke · dj · sports · private_event · other</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer"><span>FloBama OS V1 · Database</span><span>5</span></div>
+  </section>
+
+  <!-- ===================== TICKETING + SCREENS DB ===================== -->
+  <section class="page">
+    <div class="tag">Data model</div>
+    <h1>Ticketing &amp; screens schemas</h1>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 430" xmlns="http://www.w3.org/2000/svg" aria-label="Ticketing ER diagram">
+        <rect width="760" height="430" fill="#faf7f4"/>
+        <text x="20" y="24" font-family="Georgia,serif" font-size="13" font-weight="700" fill="#2a2623">Ticketing</text>
+
+        <rect x="20" y="44" width="130" height="48" rx="5" fill="#2a2623"/>
+        <text x="85" y="73" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">events</text>
+
+        <rect x="180" y="40" width="150" height="56" rx="5" fill="#fff" stroke="#d36b4a" stroke-width="1.5"/>
+        <text x="255" y="62" text-anchor="middle" font-size="10" font-weight="700" fill="#a84a30">event_ticketing</text>
+        <text x="255" y="78" text-anchor="middle" font-size="7.5" fill="#5c534c">enabled · holds · fees</text>
+
+        <rect x="360" y="40" width="140" height="56" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="430" y="62" text-anchor="middle" font-size="10" font-weight="700">ticket_types</text>
+        <text x="430" y="78" text-anchor="middle" font-size="7.5" fill="#5c534c">GA / VIP · qty · price</text>
+
+        <rect x="530" y="40" width="140" height="56" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="600" y="62" text-anchor="middle" font-size="10" font-weight="700">ticket_holds</text>
+        <text x="600" y="78" text-anchor="middle" font-size="7.5" fill="#5c534c">session · expires_at</text>
+
+        <rect x="20" y="140" width="150" height="56" rx="5" fill="#fff" stroke="#3d5a73"/>
+        <text x="95" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#3d5a73">venue_layouts</text>
+        <text x="95" y="178" text-anchor="middle" font-size="7.5" fill="#5c534c">master room (Tables 1–28)</text>
+
+        <rect x="190" y="140" width="160" height="56" rx="5" fill="#fff" stroke="#3d5a73"/>
+        <text x="270" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#3d5a73">venue_layout_objects</text>
+        <text x="270" y="178" text-anchor="middle" font-size="7.5" fill="#5c534c">table · bar · stage · …</text>
+
+        <rect x="380" y="140" width="140" height="56" rx="5" fill="#fff" stroke="#d36b4a"/>
+        <text x="450" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#a84a30">event_layouts</text>
+        <text x="450" y="178" text-anchor="middle" font-size="7.5" fill="#5c534c">per-show snapshot</text>
+
+        <rect x="550" y="140" width="180" height="56" rx="5" fill="#fff" stroke="#d36b4a"/>
+        <text x="640" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#a84a30">event_layout_objects</text>
+        <text x="640" y="178" text-anchor="middle" font-size="7.5" fill="#5c534c">status: available/held/sold</text>
+
+        <rect x="80" y="250" width="160" height="56" rx="5" fill="#fff" stroke="#2f6b4f" stroke-width="1.5"/>
+        <text x="160" y="272" text-anchor="middle" font-size="10" font-weight="700" fill="#2f6b4f">ticketing_orders</text>
+        <text x="160" y="288" text-anchor="middle" font-size="7.5" fill="#5c534c">guest PII · totals · status</text>
+
+        <rect x="270" y="250" width="160" height="56" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="350" y="272" text-anchor="middle" font-size="10" font-weight="700">order_items</text>
+        <text x="350" y="288" text-anchor="middle" font-size="7.5" fill="#5c534c">ticket · table · comp</text>
+
+        <rect x="460" y="250" width="130" height="56" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="525" y="272" text-anchor="middle" font-size="10" font-weight="700">tickets</text>
+        <text x="525" y="288" text-anchor="middle" font-size="7.5" fill="#5c534c">qr_token · admissions</text>
+
+        <rect x="620" y="250" width="120" height="56" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="680" y="272" text-anchor="middle" font-size="10" font-weight="700">checkins</text>
+        <text x="680" y="288" text-anchor="middle" font-size="7.5" fill="#5c534c">door scans</text>
+
+        <rect x="200" y="350" width="150" height="48" rx="5" fill="#f0e8e1" stroke="#d9d0c8"/>
+        <text x="275" y="370" text-anchor="middle" font-size="10" font-weight="700">payments</text>
+        <text x="275" y="386" text-anchor="middle" font-size="7.5" fill="#5c534c">mock · stripe · manual</text>
+
+        <rect x="390" y="350" width="150" height="48" rx="5" fill="#f0e8e1" stroke="#d9d0c8"/>
+        <text x="465" y="370" text-anchor="middle" font-size="10" font-weight="700">refunds</text>
+        <text x="465" y="386" text-anchor="middle" font-size="7.5" fill="#5c534c">optional policy</text>
+
+        <line x1="150" y1="68" x2="180" y2="68" stroke="#5c534c"/>
+        <line x1="330" y1="68" x2="360" y2="68" stroke="#5c534c"/>
+        <line x1="500" y1="68" x2="530" y2="68" stroke="#5c534c"/>
+        <line x1="95" y1="196" x2="95" y2="44" stroke="#5c534c" stroke-dasharray="3 2"/>
+        <line x1="170" y1="168" x2="190" y2="168" stroke="#3d5a73"/>
+        <line x1="350" y1="168" x2="380" y2="168" stroke="#d36b4a"/>
+        <line x1="520" y1="168" x2="550" y2="168" stroke="#d36b4a"/>
+        <line x1="255" y1="96" x2="160" y2="250" stroke="#2f6b4f"/>
+        <line x1="240" y1="278" x2="270" y2="278" stroke="#5c534c"/>
+        <line x1="430" y1="278" x2="460" y2="278" stroke="#5c534c"/>
+        <line x1="590" y1="278" x2="620" y2="278" stroke="#5c534c"/>
+        <line x1="160" y1="306" x2="275" y2="350" stroke="#5c534c"/>
+        <line x1="160" y1="306" x2="465" y2="350" stroke="#5c534c"/>
+      </svg>
+      <div class="diagram-caption">Figure 3 — Ticketing: master layout → event snapshot → holds → orders → QR tickets</div>
+    </div>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg" aria-label="Screens schema diagram">
+        <rect width="760" height="200" fill="#faf7f4"/>
+        <text x="20" y="24" font-family="Georgia,serif" font-size="13" font-weight="700" fill="#2a2623">Screens</text>
+
+        <rect x="30" y="50" width="160" height="70" rx="6" fill="#fff" stroke="#3d5a73" stroke-width="1.5"/>
+        <text x="110" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#3d5a73">screen_wall_state</text>
+        <text x="110" y="96" text-anchor="middle" font-size="8" fill="#5c534c">auto/manual · scene names</text>
+
+        <rect x="220" y="50" width="150" height="70" rx="6" fill="#fff" stroke="#d36b4a" stroke-width="1.5"/>
+        <text x="295" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#a84a30">screen_ads</text>
+        <text x="295" y="96" text-anchor="middle" font-size="8" fill="#5c534c">media · order · transition</text>
+
+        <rect x="400" y="50" width="160" height="70" rx="6" fill="#eef3f0" stroke="#6a9080"/>
+        <text x="480" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#2f6b4f">screen_ad_listings</text>
+        <text x="480" y="96" text-anchor="middle" font-size="8" fill="#5c534c">public playlist view</text>
+
+        <rect x="590" y="50" width="140" height="70" rx="6" fill="#fff" stroke="#d36b4a"/>
+        <text x="660" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#a84a30">screen_takeovers</text>
+        <text x="660" y="96" text-anchor="middle" font-size="8" fill="#5c534c">timed override graphic</text>
+
+        <rect x="220" y="140" width="320" height="40" rx="5" fill="#2a2623"/>
+        <text x="380" y="165" text-anchor="middle" fill="#ffd4c4" font-size="10">Storage bucket: screen-ads (public URLs for kiosks)</text>
+      </svg>
+      <div class="diagram-caption">Figure 4 — Screens tables: LED wall config, ad playlist, takeovers, and storage</div>
+    </div>
+    <div class="footer"><span>FloBama OS V1 · Database (modules)</span><span>6</span></div>
+  </section>
+
+  <!-- ===================== FLOWS ===================== -->
+  <section class="page">
+    <div class="tag">Runtime</div>
+    <h1>How key flows run</h1>
+
+    <h2>Public listing → website &amp; booth</h2>
+    <div class="diagram">
+      <svg viewBox="0 0 760 210" xmlns="http://www.w3.org/2000/svg">
+        <rect width="760" height="210" fill="#faf7f4"/>
+        <rect x="20" y="60" width="110" height="50" rx="5" fill="#2a2623"/>
+        <text x="75" y="90" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">Publish</text>
+        <text x="140" y="85" fill="#5c534c" font-size="16">→</text>
+        <rect x="160" y="60" width="120" height="50" rx="5" fill="#fff" stroke="#6a9080" stroke-width="1.5"/>
+        <text x="220" y="82" text-anchor="middle" font-size="10" font-weight="700" fill="#2f6b4f">event_listings</text>
+        <text x="220" y="98" text-anchor="middle" font-size="8" fill="#5c534c">projection</text>
+        <text x="290" y="85" fill="#5c534c" font-size="16">→</text>
+        <rect x="310" y="40" width="130" height="40" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="375" y="65" text-anchor="middle" font-size="9" font-weight="700">JSON API</text>
+        <rect x="310" y="90" width="130" height="40" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="375" y="115" text-anchor="middle" font-size="9" font-weight="700">/embed/events</text>
+        <rect x="310" y="140" width="130" height="40" rx="5" fill="#fff" stroke="#d9d0c8"/>
+        <text x="375" y="165" text-anchor="middle" font-size="9" font-weight="700">/overlay</text>
+        <text x="450" y="85" fill="#5c534c" font-size="16">→</text>
+        <rect x="470" y="40" width="120" height="40" rx="5" fill="#f6e4dc" stroke="#d36b4a"/>
+        <text x="530" y="65" text-anchor="middle" font-size="9" font-weight="700">WordPress</text>
+        <rect x="470" y="90" width="120" height="40" rx="5" fill="#f6e4dc" stroke="#d36b4a"/>
+        <text x="530" y="115" text-anchor="middle" font-size="9" font-weight="700">Partners / apps</text>
+        <rect x="470" y="140" width="120" height="40" rx="5" fill="#f6e4dc" stroke="#d36b4a"/>
+        <text x="530" y="165" text-anchor="middle" font-size="9" font-weight="700">OBS Browser</text>
+        <rect x="620" y="80" width="120" height="50" rx="5" fill="#fff" stroke="#3d5a73"/>
+        <text x="680" y="102" text-anchor="middle" font-size="9" font-weight="700" fill="#3d5a73">/api/.../now</text>
+        <text x="680" y="118" text-anchor="middle" font-size="8" fill="#5c534c">LED auto mode</text>
+      </svg>
+      <div class="diagram-caption">Figure 5 — Publishing fans out through views to embed, API, overlay, and LED automation</div>
+    </div>
+
+    <h2>Ticketing purchase path</h2>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="n">1</div><strong>Browse</strong><span><code>/tickets/[eventId]</code> loads public catalog + table map</span></div>
+      <div class="flow-step"><div class="n">2</div><strong>Hold</strong><span>POST hold locks GA qty / tables for ~10 minutes</span></div>
+      <div class="flow-step"><div class="n">3</div><strong>Checkout</strong><span>Guest details + mock payment → order + tickets</span></div>
+      <div class="flow-step"><div class="n">4</div><strong>Door</strong><span>QR at <code>/t/[token]</code>; staff check-in scans admissions</span></div>
+    </div>
+
+    <h2>Vertical screens loop</h2>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="n">1</div><strong>Upload</strong><span>Manager uploads stills/video to <code>screen-ads</code></span></div>
+      <div class="flow-step"><div class="n">2</div><strong>Playlist API</strong><span>Kiosk polls <code>/screens/vertical</code></span></div>
+      <div class="flow-step"><div class="n">3</div><strong>Render</strong><span><code>/display/vertical</code> contain-fits 1080×1920</span></div>
+      <div class="flow-step"><div class="n">4</div><strong>Takeover</strong><span>Timed override reloads players within seconds</span></div>
+    </div>
+
+    <div class="callout">
+      Table inventory uses conditional updates (<code>UPDATE … WHERE status = 'available'</code>) so two buyers cannot claim the same table.
+      Enabling Ticketing on an event copies the FloBama main-room layout onto that show only; later master-layout edits do not rewrite past event maps.
+    </div>
+
+    <h2>Tech stack chips</h2>
+    <div class="stack-list">
+      <span class="chip">Next.js 16 App Router</span>
+      <span class="chip">React 19</span>
+      <span class="chip">TypeScript</span>
+      <span class="chip">Tailwind + shadcn/ui</span>
+      <span class="chip">Supabase SSR</span>
+      <span class="chip">Zod</span>
+      <span class="chip">Luxon</span>
+      <span class="chip">obs-websocket-js</span>
+      <span class="chip">Vitest</span>
+    </div>
+    <div class="footer"><span>FloBama OS V1 · Flows</span><span>7</span></div>
+  </section>
+
+  <!-- ===================== SUMMARY ===================== -->
+  <section class="page">
+    <div class="tag">Summary</div>
+    <h1>V1 at a glance</h1>
+    <p class="lede">One staff OS for FloBama Music Hall — calendar through door scan — with a clean public edge.</p>
+
+    <div class="grid-2" style="margin-top:0.15in;">
+      <div class="card">
+        <h3>Shipped in V1</h3>
+        <ul>
+          <li>Role-based staff OS (admin / manager / viewer)</li>
+          <li>Events + artists with sheet sync</li>
+          <li>Public API, embed, OBS overlay</li>
+          <li>LED wall + vertical screens + flyer/social exports</li>
+          <li>Native ticketing with QR door check-in</li>
+          <li>GHL booking inbox + OpenAI fit notes</li>
+          <li>GHL Social Planner for weekly posts</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Explicitly out of scope</h3>
+        <ul>
+          <li>Editing flobamadowntown.com or Pick'em</li>
+          <li>SpotOn / sales reporting</li>
+          <li>Inventory, payroll, multi-venue UI</li>
+          <li>Recurring events, per-TV playlists</li>
+          <li>Public self-registration</li>
+          <li>Live Stripe charges (mock until wired)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Useful URLs</h2>
+    <table>
+      <thead><tr><th>Surface</th><th>Path</th></tr></thead>
+      <tbody>
+        <tr><td>Production app</td><td class="mono">https://flobama-os.vercel.app</td></tr>
+        <tr><td>Events embed</td><td class="mono">/embed/events</td></tr>
+        <tr><td>OBS overlay</td><td class="mono">/overlay</td></tr>
+        <tr><td>Vertical TV</td><td class="mono">/display/vertical</td></tr>
+        <tr><td>Weekly flyer</td><td class="mono">/print/week</td></tr>
+        <tr><td>Public tickets</td><td class="mono">/tickets/[eventId]</td></tr>
+        <tr><td>Ticket pass</td><td class="mono">/t/[token]</td></tr>
+      </tbody>
+    </table>
+
+    <div class="hero" style="margin:0.25in 0 0;min-height:auto;padding:0.35in 0.4in;">
+      <img class="logo" src="../public/flobama-logo.png" alt="FloBama" style="height:32px;" />
+      <p style="margin:12px 0 0;color:#e8ddd4;max-width:none;">
+        FloBama OS V1 — internal operations for FloBama Music Hall.<br/>
+        <span style="color:#d8c8bc;font-size:9pt;">Document generated from the product codebase · Warm accent #d36b4a</span>
+      </p>
+    </div>
+    <div class="footer"><span>FloBama OS V1 · Summary</span><span>8</span></div>
+  </section>
+
+</body>
+</html>

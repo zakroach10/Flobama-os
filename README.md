@@ -2,6 +2,8 @@
 
 Internal operations platform for FloBama Music Hall. This repository is the staff application for events, artists, and venue settings. It does not modify the public FloBama website, Pick'em, or other production systems.
 
+**Product overview:** see [`docs/flobama-os-v1.pdf`](./docs/flobama-os-v1.pdf) for V1 features, APIs, architecture, and database diagrams (regenerate with `python3 scripts/generate-flobama-os-v1-pdf.py`).
+
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
