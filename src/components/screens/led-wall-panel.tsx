@@ -20,6 +20,7 @@ import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wa
 import { agentStatusCopy } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
 export function LedWallPanel({
   scenes,
@@ -43,19 +44,26 @@ export function LedWallPanel({
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
   const visible = canConfigure ? scenes : scenes.filter((scene) => scene.enabled);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   return (
     <div className="space-y-8">
       <section className="space-y-4 rounded-xl border bg-card p-5">
-        <div>
-          <h2 className="text-lg font-semibold">LED wall</h2>
-          <p className="text-sm text-muted-foreground">
-            Choose a scene to put on the wall. The booth client switches OBS. Media scenes play from {displayUrl}.
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">{agentStatusCopy(agent)}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">LED wall</h2>
+            <p className="text-sm text-muted-foreground">Activate a scene to put it on the wall.</p>
+          </div>
+          {canConfigure ? (
+            <Button type="button" variant="outline" onClick={() => setSetupOpen((open) => !open)}>
+              {setupOpen ? "Hide OBS setup" : "OBS Setup"}
+            </Button>
+          ) : null}
         </div>
         {visible.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No scenes are ready yet. An admin can add them below.</p>
+          <p className="text-sm text-muted-foreground">
+            {canConfigure ? "No scenes yet. Add one below." : "No scenes are ready yet."}
+          </p>
         ) : (
           <ul className="space-y-3">
             {visible.map((scene) => (
@@ -72,13 +80,13 @@ export function LedWallPanel({
       </section>
       {canConfigure ? (
         <AdminLedWall
-          scenes={scenes}
           agent={agent}
           mediaObsSceneName={mediaObsSceneName}
           tokenIssuedAt={tokenIssuedAt}
           venueId={venueId}
           displayUrl={displayUrl}
           supabaseEnv={supabaseEnv}
+          setupOpen={setupOpen}
         />
       ) : null}
     </div>
@@ -189,21 +197,21 @@ function SceneRow({
 }
 
 function AdminLedWall({
-  scenes,
   agent,
   mediaObsSceneName,
   tokenIssuedAt,
   venueId,
   displayUrl,
   supabaseEnv,
+  setupOpen,
 }: {
-  scenes: LedWallSceneRow[];
   agent: LedWallAgentSnapshot;
   mediaObsSceneName: string;
   tokenIssuedAt: string | null;
   venueId: string;
   displayUrl: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  setupOpen: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -332,111 +340,107 @@ function AdminLedWall({
             {pending ? "Uploading…" : "Upload scene"}
           </Button>
         </form>
-        <form
-          className="grid gap-3 sm:grid-cols-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            startTransition(async () => {
-              const result = await saveLedWallMediaSceneAction({ mediaObsSceneName: browserScene });
-              if (!result.ok) toast.error(result.message);
-              else {
-                toast.success(result.message);
-                router.refresh();
-              }
-            });
-          }}
-        >
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="media-browser-scene">OBS scene for uploaded media</Label>
-            {reported.length > 0 || browserScene ? (
-              <select
-                id="media-browser-scene"
-                className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
-                value={browserScene}
-                onChange={(event) => setBrowserScene(event.target.value)}
-              >
-                <option value="">Select the browser-source scene</option>
-                {browserScene && !reported.includes(browserScene) ? (
-                  <option value={browserScene}>{browserScene}</option>
-                ) : null}
-                {reported.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <Input
-                id="media-browser-scene"
-                value={browserScene}
-                onChange={(event) => setBrowserScene(event.target.value)}
-                placeholder="OBS scene with the /display/led browser source"
-              />
-            )}
-            <p className="text-sm text-muted-foreground">
-              In that OBS scene, add a Browser Source pointed at {displayUrl}. Every uploaded scene uses this one OBS
-              scene. The page swaps the file.
-            </p>
-          </div>
-          <Button type="submit" variant="outline" disabled={pending}>
-            Save media scene
-          </Button>
-        </form>
       </section>
 
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <div>
-          <h2 className="text-lg font-semibold">Booth client</h2>
-          <p className="text-sm text-muted-foreground">
-            Install <span className="font-medium">clients/led-obs</span> on the booth PC. It keeps the OBS password on
-            that machine and polls this site for the active scene.
-          </p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Copy the clients/led-obs folder to the booth PC and run npm install inside it.</li>
-            <li>Copy config.example.json to led-obs.config.json.</li>
-            <li>Set apiBase to this site, paste the token, and set the OBS WebSocket host, port, and password.</li>
-            <li>Run node index.mjs and leave it running next to OBS.</li>
-          </ol>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {tokenIssuedAt ? "A booth token is already issued. Issuing another replaces it." : "No booth token yet."}
-            {scenes.length === 0 ? " Add at least one scene so staff have something to activate." : ""}
-          </p>
-        </div>
-        <Button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            startTransition(async () => {
-              const result = await issueLedWallAgentTokenAction();
-              if (!result.ok || !result.token) {
-                toast.error(result.message);
-                return;
-              }
-              setToken(result.token);
-              toast.success(result.message);
-              router.refresh();
-            });
-          }}
-        >
-          {tokenIssuedAt ? "Replace booth token" : "Create booth token"}
-        </Button>
-        {token ? (
-          <div className="space-y-2">
-            <Label htmlFor="booth-token">Booth token</Label>
-            <Input id="booth-token" readOnly value={token} />
+      {setupOpen ? (
+        <section className="space-y-4 rounded-xl border bg-card p-5">
+          <div>
+            <h2 className="text-lg font-semibold">OBS setup</h2>
+            <p className="text-sm text-muted-foreground">{agentStatusCopy(agent)}</p>
+          </div>
+          <ObsClientDownload />
+          <form
+            className="grid gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              startTransition(async () => {
+                const result = await saveLedWallMediaSceneAction({ mediaObsSceneName: browserScene });
+                if (!result.ok) toast.error(result.message);
+                else {
+                  toast.success(result.message);
+                  router.refresh();
+                }
+              });
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="media-browser-scene">OBS scene for uploaded media</Label>
+              {reported.length > 0 || browserScene ? (
+                <select
+                  id="media-browser-scene"
+                  className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+                  value={browserScene}
+                  onChange={(event) => setBrowserScene(event.target.value)}
+                >
+                  <option value="">Select the browser-source scene</option>
+                  {browserScene && !reported.includes(browserScene) ? (
+                    <option value={browserScene}>{browserScene}</option>
+                  ) : null}
+                  {reported.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="media-browser-scene"
+                  value={browserScene}
+                  onChange={(event) => setBrowserScene(event.target.value)}
+                  placeholder="OBS scene with the /display/led browser source"
+                />
+              )}
+              <p className="text-sm text-muted-foreground">
+                In that OBS scene, add a Browser Source pointed at {displayUrl}. Every uploaded scene uses this one OBS
+                scene. The page swaps the file.
+              </p>
+            </div>
+            <Button type="submit" variant="outline" disabled={pending}>
+              Save media scene
+            </Button>
+          </form>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {tokenIssuedAt ? "A booth token is already issued. Issuing another replaces it." : "No booth token yet."}{" "}
+              Open the Mac app and paste the token. Leave its window running next to OBS.
+            </p>
             <Button
               type="button"
-              variant="outline"
+              disabled={pending}
               onClick={() => {
-                void navigator.clipboard.writeText(token);
-                toast.success("Copied booth token");
+                startTransition(async () => {
+                  const result = await issueLedWallAgentTokenAction();
+                  if (!result.ok || !result.token) {
+                    toast.error(result.message);
+                    return;
+                  }
+                  setToken(result.token);
+                  toast.success(result.message);
+                  router.refresh();
+                });
               }}
             >
-              Copy token
+              {tokenIssuedAt ? "Replace booth token" : "Create booth token"}
             </Button>
+            {token ? (
+              <div className="space-y-2">
+                <Label htmlFor="booth-token">Booth token</Label>
+                <Input id="booth-token" readOnly value={token} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(token);
+                    toast.success("Copied booth token");
+                  }}
+                >
+                  Copy token
+                </Button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
     </>
   );
 }

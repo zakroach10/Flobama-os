@@ -2,9 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { requestPasswordResetAction, signInAction, type AuthActionResult } from "@/actions/auth";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { LED_OBS_DMG_HREF } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { ObsClientDownload } from "@/components/screens/obs-client-download";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
@@ -48,9 +47,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         <p className="text-sm text-muted-foreground">
           Booth Macs can download the LED wall OBS client. The first open asks for the booth token from Screens.
         </p>
-        <a href={LED_OBS_DMG_HREF} download className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
-          Download OBS client (.dmg)
-        </a>
+        <ObsClientDownload className="w-full" />
       </div>
     </>
   );

@@ -60,11 +60,7 @@ export default async function ScreensPage({
     <div className="mx-auto max-w-4xl space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
-        <p className="text-muted-foreground">
-          {canConfigure
-            ? "Configure LED wall scenes for the booth client, then anyone on staff can activate them."
-            : "Activate a preconfigured LED wall scene. The booth client sends it to OBS."}
-        </p>
+        <p className="text-muted-foreground">Choose a scene for the LED wall.</p>
       </header>
       <ScreensWorkspace
         defaultTab={tab}
