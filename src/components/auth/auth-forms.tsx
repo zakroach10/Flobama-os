@@ -45,7 +45,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       </form>
       <div className="mt-4 space-y-2 border-t pt-4">
         <p className="text-sm text-muted-foreground">
-          Booth Macs can download the LED wall OBS client. The first open asks for the booth token from Screens.
+          Download OBS client 1.0.1 for the booth Mac. Eject any disk named FloBama LED OBS first. Terminal must start with FloBama LED OBS 1.0.1.
         </p>
         <ObsClientDownload className="w-full" />
       </div>
