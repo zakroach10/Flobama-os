@@ -146,9 +146,9 @@ This cloud preview cannot reach a booth PC on your LAN. Staff activate scenes in
 
 ### LED wall client
 
-Admins open **Screens → LED wall**, add OBS scene names (or upload an MP4 loop / PNG), name the OBS scene that contains the `/display/led` browser source, and create a booth token. Managers and viewers see the enabled list and can activate a scene. Uploaded media plays full-screen from `https://flobama-os.vercel.app/display/led` (playlist JSON: `/api/public/v1/screens/led`). The page polls about once a second, so a second upload can replace the first without refreshing the browser source.
+Admins open **Screens → LED wall** to add scene names or upload an MP4 loop / PNG. **OBS Setup** on that page names the OBS scene that contains the `/display/led` browser source and creates the booth token. Managers and viewers see the enabled list and can activate a scene. Uploaded media plays full-screen from `https://flobama-os.vercel.app/display/led` (playlist JSON: `/api/public/v1/screens/led`). The page polls about once a second, so a second upload can replace the first without refreshing the browser source.
 
-On the sign-in page, **Download OBS client (.dmg)** is the Mac app. Drag it to Applications and open it. The first launch downloads Node.js and asks for the booth token. If macOS blocks the app, right-click it and choose Open.
+On the sign-in page and in **Settings**, **Download OBS client (.dmg)** is the Mac app. Drag it to Applications and open it. The first launch downloads Node.js and asks for the booth token. If macOS blocks the app, right-click it and choose Open.
 
 To run the same client from a terminal instead:
 

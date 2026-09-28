@@ -9,6 +9,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listVenueStaff } from "@/lib/queries/staff";
 import { canManageStaff } from "@/lib/auth/permissions";
 import { ErrorState } from "@/components/states";
+import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,13 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">Account, roles, and venue defaults for this staff workspace.</p>
       </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">LED wall OBS client</h2>
+        <p className="text-sm text-muted-foreground">
+          Install this on the booth Mac. The first open asks for the booth token from Screens → OBS Setup.
+        </p>
+        <ObsClientDownload />
+      </section>
       <RolePermissionGuide />
       {error ? (
         <ErrorState
