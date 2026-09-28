@@ -1,8 +1,8 @@
-FloBama LED OBS 1.0.1
+FloBama LED OBS 1.0.2
 
 Eject any older disk named FloBama LED OBS before opening this one.
 Drag FloBama LED OBS into Applications, then open it.
-Terminal must start with: FloBama LED OBS 1.0.1
+Terminal must start with: FloBama LED OBS 1.0.2
 The first launch downloads Node.js and asks for the booth token from FloBama OS (Screens, LED wall).
 Leave the Terminal window open next to OBS.
 

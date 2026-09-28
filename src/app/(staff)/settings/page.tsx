@@ -30,7 +30,7 @@ export default async function SettingsPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">LED wall OBS client</h2>
         <p className="text-sm text-muted-foreground">
-          Download 1.0.1 onto the booth Mac. Eject any disk named FloBama LED OBS first. Terminal must start with FloBama LED OBS 1.0.1, then ask for the token from Screens → OBS Setup.
+          Download 1.0.2 onto the booth Mac. Eject any older FloBama LED OBS disk first. Terminal must start with FloBama LED OBS 1.0.2, then ask for the token from Screens → OBS Setup.
         </p>
         <ObsClientDownload />
       </section>

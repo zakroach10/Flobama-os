@@ -80,8 +80,8 @@ async function tick() {
     console.error(`Sync failed (${response.status}): ${body}`);
     return;
   }
-  const desired = (await response.json()) as { desiredObsScene?: string | null };
-  const sceneName = desired.desiredObsScene?.trim() ?? "";
+  const desired = await response.json();
+  const sceneName = typeof desired?.desiredObsScene === "string" ? desired.desiredObsScene.trim() : "";
   if (!sceneName || !snapshot.obsConnected || sceneName === snapshot.programScene) return;
   try {
     await obs.call("SetCurrentProgramScene", { sceneName });
