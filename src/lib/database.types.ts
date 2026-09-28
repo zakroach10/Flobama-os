@@ -333,6 +333,174 @@ export type Database = {
           },
         ];
       };
+      led_wall_scenes: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          kind: "obs" | "media";
+          obs_scene_name: string | null;
+          media_kind: "image" | "video" | "week_events" | null;
+          storage_path: string | null;
+          public_url: string | null;
+          sort_order: number;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          title: string;
+          kind: "obs" | "media";
+          obs_scene_name?: string | null;
+          media_kind?: "image" | "video" | "week_events" | null;
+          storage_path?: string | null;
+          public_url?: string | null;
+          sort_order?: number;
+          enabled?: boolean;
+        };
+        Update: {
+          title?: string;
+          kind?: "obs" | "media";
+          obs_scene_name?: string | null;
+          media_kind?: "image" | "video" | "week_events" | null;
+          storage_path?: string | null;
+          public_url?: string | null;
+          sort_order?: number;
+          enabled?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "led_wall_scenes_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      led_wall_settings: {
+        Row: {
+          venue_id: string;
+          media_obs_scene_name: string | null;
+          agent_token_issued_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          media_obs_scene_name?: string | null;
+          agent_token_issued_at?: string | null;
+        };
+        Update: {
+          media_obs_scene_name?: string | null;
+          agent_token_issued_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "led_wall_settings_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      led_wall_agent_secrets: {
+        Row: {
+          venue_id: string;
+          token_hash: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          token_hash: string;
+        };
+        Update: {
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "led_wall_agent_secrets_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      led_wall_runtime: {
+        Row: {
+          venue_id: string;
+          active_scene_id: string | null;
+          activated_by: string | null;
+          activated_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          active_scene_id?: string | null;
+          activated_by?: string | null;
+          activated_at?: string | null;
+        };
+        Update: {
+          active_scene_id?: string | null;
+          activated_by?: string | null;
+          activated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "led_wall_runtime_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "led_wall_runtime_active_scene_id_fkey";
+            columns: ["active_scene_id"];
+            isOneToOne: false;
+            referencedRelation: "led_wall_scenes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      led_wall_agent_status: {
+        Row: {
+          venue_id: string;
+          last_seen_at: string;
+          obs_connected: boolean;
+          program_scene: string | null;
+          obs_scenes: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          last_seen_at?: string;
+          obs_connected?: boolean;
+          program_scene?: string | null;
+          obs_scenes?: Json;
+        };
+        Update: {
+          last_seen_at?: string;
+          obs_connected?: boolean;
+          program_scene?: string | null;
+          obs_scenes?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "led_wall_agent_status_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       screen_takeovers: {
         Row: {
           venue_id: string;
@@ -407,6 +575,17 @@ export type Database = {
         };
         Relationships: [];
       };
+      led_wall_active_media: {
+        Row: {
+          venue_id: string;
+          scene_id: string;
+          title: string;
+          media_kind: "image" | "video" | "week_events" | null;
+          public_url: string | null;
+          activated_at: string | null;
+        };
+        Relationships: [];
+      };
       screen_takeover_listings: {
         Row: {
           venue_id: string;
@@ -462,6 +641,7 @@ export type Database = {
       screen_wall_mode: "auto" | "manual";
       screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
+      led_wall_scene_kind: "obs" | "media";
     };
     CompositeTypes: {
       [_ in never]: never;

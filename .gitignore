@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# booth PC OBS client
+clients/led-obs/node_modules
+clients/led-obs/led-obs.config.json
+
 # vercel
 .vercel
 
