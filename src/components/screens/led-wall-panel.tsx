@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
-import { agentStatusCopy } from "@/lib/screens/led-wall";
+import { agentStatusCopy, ledMediaKindForFile } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
@@ -52,7 +52,7 @@ export function LedWallPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">LED wall</h2>
-            <p className="text-sm text-muted-foreground">Activate a scene to put it on the wall.</p>
+            <p className="text-sm text-muted-foreground">Activate a configuration to put it on the wall.</p>
           </div>
           {canConfigure ? (
             <Button type="button" variant="outline" onClick={() => setSetupOpen((open) => !open)}>
@@ -62,10 +62,10 @@ export function LedWallPanel({
         </div>
         {visible.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {canConfigure ? "No scenes yet. Add one below." : "No scenes are ready yet."}
+            {canConfigure ? "No configurations yet. Add one below." : "No configurations are ready yet."}
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {visible.map((scene) => (
               <SceneRow
                 key={scene.id}
@@ -107,12 +107,14 @@ function SceneRow({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(scene.title);
-  const detail =
-    scene.kind === "obs"
+  const detail = scene.rolls_until_showtime
+    ? "Ad roll. Loops until the next show starts, then cuts to that artist’s configuration."
+    : scene.kind === "obs"
       ? `OBS scene: ${scene.obs_scene_name}`
       : scene.media_kind === "video"
-        ? "MP4 loop on the FloBama display page"
-        : "PNG on the FloBama display page";
+        ? "Video loop on the FloBama display page"
+        : "Image on the FloBama display page";
+  const kind = scene.rolls_until_showtime ? "Ad roll" : scene.kind === "obs" ? "OBS scene" : scene.media_kind === "video" ? "Video" : "Image";
 
   function run(action: () => Promise<{ ok: boolean; message: string }>) {
     startTransition(async () => {
@@ -126,9 +128,19 @@ function SceneRow({
   }
 
   return (
-    <li className="space-y-3 rounded-lg border p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <li className="flex flex-col gap-3 rounded-lg border p-4">
+      {scene.kind === "media" && scene.public_url ? (
+        scene.media_kind === "video" ? (
+          <video className="h-36 w-full rounded-md bg-black object-contain" src={scene.public_url} muted playsInline loop />
+        ) : (
+          <img className="h-36 w-full rounded-md bg-black object-contain" src={scene.public_url} alt="" />
+        )
+      ) : (
+        <div className="flex h-36 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">OBS scene</div>
+      )}
+      <div className="flex flex-1 flex-col gap-3">
         <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{kind}</p>
           <p className="font-medium">
             {scene.title}
             {!scene.enabled ? <span className="ml-2 text-xs text-muted-foreground">Disabled</span> : null}
@@ -166,6 +178,25 @@ function SceneRow({
           >
             {scene.enabled ? "Disable" : "Enable"}
           </Button>
+          {scene.media_kind === "video" ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                run(() =>
+                  updateLedWallSceneAction({
+                    id: scene.id,
+                    title: scene.title,
+                    enabled: scene.enabled,
+                    rollsUntilShowtime: !scene.rolls_until_showtime,
+                  }),
+                )
+              }
+            >
+              {scene.rolls_until_showtime ? "Clear ad roll" : "Use as ad roll"}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -219,6 +250,7 @@ function AdminLedWall({
   const [obsName, setObsName] = useState("");
   const [mediaTitle, setMediaTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [adRoll, setAdRoll] = useState(false);
   const [fileKey, setFileKey] = useState(0);
   const [browserScene, setBrowserScene] = useState(mediaObsSceneName);
   const [token, setToken] = useState<string | null>(null);
@@ -307,6 +339,7 @@ function AdminLedWall({
                 venueId,
                 title: mediaTitle,
                 supabaseEnv,
+                rollsUntilShowtime: adRoll,
               });
               if (!result.ok) {
                 toast.error(result.message);
@@ -315,6 +348,7 @@ function AdminLedWall({
               toast.success(result.message);
               setMediaTitle("");
               setFile(null);
+              setAdRoll(false);
               setFileKey((value) => value + 1);
               router.refresh();
             });
@@ -332,10 +366,20 @@ function AdminLedWall({
               type="file"
               accept="video/mp4,image/png,.mp4,.png"
               className="block w-full text-sm"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                const next = event.target.files?.[0] ?? null;
+                setFile(next);
+                if (!next || ledMediaKindForFile(next) !== "video") setAdRoll(false);
+              }}
             />
             <p className="text-xs text-muted-foreground">50 MB max ({Math.round(MAX_SCREEN_AD_BYTES / (1024 * 1024))} MB).</p>
           </div>
+          {file && ledMediaKindForFile(file) === "video" ? (
+            <label className="flex items-start gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" className="mt-1" checked={adRoll} onChange={(event) => setAdRoll(event.target.checked)} />
+              <span>Ad roll. Loop this video until the next artist’s showtime, then cut to that artist’s configuration.</span>
+            </label>
+          ) : null}
           <Button type="submit" disabled={pending}>
             {pending ? "Uploading…" : "Upload scene"}
           </Button>

@@ -3,6 +3,8 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadDashboard } from "@/lib/queries/dashboard";
 import { artistNames } from "@/lib/queries/events";
+import { artistsMissingLedConfiguration, ledShowtimeSqlHint } from "@/lib/screens/led-wall";
+import { LedNotReady } from "@/components/screens/led-not-ready";
 import { formatVenueDateTime, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,7 @@ export default async function DashboardPage() {
       </header>
 
       {error || !data ? (
-        <ErrorState title="Dashboard query failed" description={error ?? "Unknown error"} />
+        <ErrorState title="Dashboard query failed" description={ledShowtimeSqlHint(error ?? "Unknown error")} />
       ) : (
         <>
           <section className="space-y-3">
@@ -167,6 +169,7 @@ export default async function DashboardPage() {
                           {formatVenueDateTime(event.starts_at, context.venue.timezone)}
                           {artistNames(event).length > 0 ? ` · ${artistNames(event).join(", ")}` : ""}
                         </p>
+                        <LedNotReady names={artistsMissingLedConfiguration(event, new Date())} />
                       </div>
                       <StatusBadge status={event.status} />
                     </Link>

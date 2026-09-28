@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
-import { LED_WALL_SQL } from "@/lib/constants";
+import { LED_WALL_SHOWTIME_SQL, LED_WALL_SQL } from "@/lib/constants";
 import { createLedAgentToken, hashLedAgentToken, isMissingLedWallRelation } from "@/lib/screens/led-wall";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -15,6 +15,7 @@ import {
   ledWallMediaSceneNameSchema,
   reorderLedWallScenesSchema,
   updateLedWallSceneSchema,
+  assignArtistLedWallSchema,
 } from "@/lib/validation/schemas";
 
 export type LedWallActionResult = { ok: boolean; message: string; token?: string };
@@ -25,8 +26,9 @@ function fieldMessage(error: z.ZodError) {
 
 function ledSqlMessage(message: string) {
   if (isMissingLedWallRelation(message)) {
-    return `Apply ${LED_WALL_SQL} in the Supabase SQL editor, then try again.`;
+    return `Apply ${LED_WALL_SQL} and ${LED_WALL_SHOWTIME_SQL} in the Supabase SQL editor, then try again.`;
   }
+  if (/only admins can assign/i.test(message)) return "Only admins can assign an LED wall configuration.";
   if (/not available/i.test(message)) return "That scene is not available.";
   return message;
 }
@@ -105,11 +107,22 @@ export async function createLedObsSceneAction(input: unknown): Promise<LedWallAc
   return { ok: true, message: `${parsed.data.title} was added.` };
 }
 
+async function clearAdRoll(supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>, venueId: string, exceptId?: string) {
+  let query = supabase.from("led_wall_scenes").update({ rolls_until_showtime: false }).eq("venue_id", venueId).eq("rolls_until_showtime", true);
+  if (exceptId) query = query.neq("id", exceptId);
+  return query;
+}
+
 export async function createLedMediaSceneAction(input: unknown): Promise<LedWallActionResult> {
   const gate = await staffGate(true);
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = createLedMediaSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  if (parsed.data.rollsUntilShowtime) {
+    const { error: clearError } = await clearAdRoll(gate.supabase, gate.context.venue.id);
+    if (clearError) return { ok: false, message: ledSqlMessage(clearError.message) };
+  }
 
   const { error } = await gate.supabase.from("led_wall_scenes").insert({
     id: parsed.data.id,
@@ -121,6 +134,7 @@ export async function createLedMediaSceneAction(input: unknown): Promise<LedWall
     public_url: parsed.data.publicUrl,
     sort_order: await nextSortOrder(gate.supabase, gate.context.venue.id),
     enabled: true,
+    rolls_until_showtime: parsed.data.rollsUntilShowtime,
   });
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
   revalidateLedWall();
@@ -133,11 +147,27 @@ export async function updateLedWallSceneAction(input: unknown): Promise<LedWallA
   const parsed = updateLedWallSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
 
+  if (parsed.data.rollsUntilShowtime === true) {
+    const { data: scene, error: sceneError } = await gate.supabase
+      .from("led_wall_scenes")
+      .select("id, kind, media_kind")
+      .eq("id", parsed.data.id)
+      .eq("venue_id", gate.context.venue.id)
+      .maybeSingle();
+    if (sceneError) return { ok: false, message: ledSqlMessage(sceneError.message) };
+    if (!scene || scene.kind !== "media" || scene.media_kind !== "video") {
+      return { ok: false, message: "Only an MP4 can roll until showtime." };
+    }
+    const { error: clearError } = await clearAdRoll(gate.supabase, gate.context.venue.id, scene.id);
+    if (clearError) return { ok: false, message: ledSqlMessage(clearError.message) };
+  }
+
   const { error } = await gate.supabase
     .from("led_wall_scenes")
     .update({
       title: parsed.data.title,
       enabled: parsed.data.enabled,
+      ...(parsed.data.rollsUntilShowtime === undefined ? {} : { rolls_until_showtime: parsed.data.rollsUntilShowtime }),
     })
     .eq("id", parsed.data.id)
     .eq("venue_id", gate.context.venue.id);
@@ -236,4 +266,23 @@ export async function issueLedWallAgentTokenAction(): Promise<LedWallActionResul
     token,
     message: "Booth token created. Copy it into the client config now. It will not be shown again.",
   };
+}
+
+export async function assignArtistLedWallAction(input: unknown): Promise<LedWallActionResult> {
+  const gate = await staffGate(true);
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = assignArtistLedWallSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const { error } = await gate.supabase
+    .from("artists")
+    .update({ led_wall_scene_id: parsed.data.sceneId })
+    .eq("id", parsed.data.artistId)
+    .eq("venue_id", gate.context.venue.id);
+  if (error) return { ok: false, message: ledSqlMessage(error.message) };
+  revalidateLedWall();
+  revalidatePath("/dashboard");
+  revalidatePath("/events");
+  revalidatePath(`/artists/${parsed.data.artistId}`);
+  return { ok: true, message: parsed.data.sceneId ? "LED configuration saved for this artist." : "LED configuration cleared for this artist." };
 }

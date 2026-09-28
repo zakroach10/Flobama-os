@@ -8,6 +8,8 @@ import {
   ledAgentTokensMatch,
   ledMediaKindForFile,
   resolveDesiredObsScene,
+  resolveShowtimeHandoff,
+  artistsMissingLedConfiguration,
   toPublicLedMedia,
 } from "@/lib/screens/led-wall";
 
@@ -140,5 +142,95 @@ describe("LED wall access", () => {
     expect(authorizeLedWallConfigure("manager").allowed).toBe(false);
     expect(authorizeLedWallConfigure("admin").allowed).toBe(true);
     expect(authorizeLedWallActivate(null).allowed).toBe(false);
+  });
+});
+
+describe("LED wall showtime", () => {
+  const adRoll = { id: "ads", enabled: true, rollsUntilShowtime: true };
+  const headliner = { id: "band", enabled: true };
+  const showStartsAt = new Date("2026-09-28T20:00:00.000Z");
+
+  it("keeps the ad roll up before showtime", () => {
+    expect(
+      resolveShowtimeHandoff({
+        now: new Date("2026-09-28T19:59:00.000Z"),
+        active: adRoll,
+        showStartsAt,
+        headliner,
+      }),
+    ).toEqual({ sceneId: "ads", advanceTo: null });
+  });
+
+  it("cuts to the first artist at showtime", () => {
+    expect(
+      resolveShowtimeHandoff({
+        now: showStartsAt,
+        active: adRoll,
+        showStartsAt,
+        headliner,
+      }),
+    ).toEqual({ sceneId: "band", advanceTo: "band" });
+  });
+
+  it("leaves the ad roll up when the first artist has no configuration", () => {
+    expect(
+      resolveShowtimeHandoff({
+        now: showStartsAt,
+        active: adRoll,
+        showStartsAt,
+        headliner: null,
+      }),
+    ).toEqual({ sceneId: "ads", advanceTo: null });
+    expect(
+      resolveShowtimeHandoff({
+        now: showStartsAt,
+        active: adRoll,
+        showStartsAt: null,
+        headliner,
+      }),
+    ).toEqual({ sceneId: "ads", advanceTo: null });
+  });
+
+  it("leaves any other active card alone", () => {
+    expect(
+      resolveShowtimeHandoff({
+        now: showStartsAt,
+        active: { id: "still", enabled: true, rollsUntilShowtime: false },
+        showStartsAt,
+        headliner,
+      }),
+    ).toEqual({ sceneId: "still", advanceTo: null });
+  });
+});
+
+describe("LED wall missing artist configurations", () => {
+  const now = new Date("2026-09-28T18:00:00.000Z");
+  const event = {
+    status: "published",
+    ends_at: "2026-09-28T23:00:00.000Z",
+    archived_at: null,
+    event_artists: [
+      { display_order: 1, artists: { name: "Opener", archived_at: null, led_wall_scene_id: null } },
+      { display_order: 0, artists: { name: "Headliner", archived_at: null, led_wall_scene_id: "band" } },
+    ],
+  };
+
+  it("names the attached artists who are not ready", () => {
+    expect(artistsMissingLedConfiguration(event, now)).toEqual(["Opener"]);
+  });
+
+  it("stays quiet for a ready bill, a show with no artists, a past show, and a cancelled show", () => {
+    expect(
+      artistsMissingLedConfiguration(
+        {
+          ...event,
+          event_artists: [{ display_order: 0, artists: { name: "Headliner", archived_at: null, led_wall_scene_id: "band" } }],
+        },
+        now,
+      ),
+    ).toEqual([]);
+    expect(artistsMissingLedConfiguration({ ...event, event_artists: [] }, now)).toEqual([]);
+    expect(artistsMissingLedConfiguration({ ...event, ends_at: "2026-09-28T17:00:00.000Z" }, now)).toEqual([]);
+    expect(artistsMissingLedConfiguration({ ...event, status: "cancelled" }, now)).toEqual([]);
   });
 });

@@ -7,7 +7,7 @@ export type EventRow = Database["public"]["Tables"]["events"]["Row"] & {
   event_artists: Array<{
     artist_id: string;
     display_order: number;
-    artists: { id: string; name: string; archived_at: string | null } | null;
+    artists: { id: string; name: string; archived_at: string | null; led_wall_scene_id: string | null } | null;
   }>;
 };
 
@@ -25,7 +25,7 @@ const EVENT_SELECT = `
   event_artists (
     artist_id,
     display_order,
-    artists ( id, name, archived_at )
+    artists ( id, name, archived_at, led_wall_scene_id )
   )
 `;
 

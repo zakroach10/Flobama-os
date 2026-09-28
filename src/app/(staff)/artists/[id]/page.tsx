@@ -4,7 +4,9 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getArtistById, listArtistEvents } from "@/lib/queries/artists";
 import { ArtistForm } from "@/components/artists/artist-form";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permissions";
+import { listLedWallScenes } from "@/lib/queries/led-wall";
+import { LED_WALL_SHOWTIME_SQL, LED_WALL_SQL } from "@/lib/constants";
 import { ErrorState } from "@/components/states";
 import { formatVenueDateTime } from "@/lib/timezone";
 import { StatusBadge } from "@/components/status-badge";
@@ -27,6 +29,7 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
     artist.id,
     new Date().toISOString(),
   );
+  const ledScenes = await listLedWallScenes(supabase, context.venue.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -37,7 +40,17 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
       </p>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.name}</h1>
       {artist.archived_at ? <p className="text-sm text-muted-foreground">This artist is archived.</p> : null}
-      <ArtistForm artist={artist} canEdit={canManageProgramming(context.role) && !artist.archived_at} />
+      <ArtistForm
+        artist={artist}
+        canEdit={canManageProgramming(context.role) && !artist.archived_at}
+        ledScenes={ledScenes.scenes.map((scene) => ({ id: scene.id, title: scene.title, enabled: scene.enabled }))}
+        canAssignLed={canConfigureLedWall(context.role) && !artist.archived_at && !ledScenes.missingTable}
+      />
+      {ledScenes.missingTable ? (
+        <p className="text-sm text-muted-foreground">
+          Apply {LED_WALL_SQL} and {LED_WALL_SHOWTIME_SQL} before assigning an LED configuration.
+        </p>
+      ) : null}
 
       {eventError ? (
         <ErrorState title="Could not load linked events" description={eventError} />

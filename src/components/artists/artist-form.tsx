@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { archiveArtistAction, saveArtistAction } from "@/actions/records";
+import { assignArtistLedWallAction } from "@/actions/led-wall";
 import { checkDuplicateArtistNameAction } from "@/actions/artists-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +22,13 @@ import type { ArtistRow } from "@/lib/queries/artists";
 export function ArtistForm({
   artist,
   canEdit,
+  ledScenes = [],
+  canAssignLed = false,
 }: {
   artist?: ArtistRow;
   canEdit: boolean;
+  ledScenes?: { id: string; title: string; enabled: boolean }[];
+  canAssignLed?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -65,6 +70,7 @@ export function ArtistForm({
   }
 
   return (
+    <>
     <form onSubmit={onSubmit} className="space-y-5">
       <fieldset className="space-y-4" disabled={!canEdit || pending}>
         <div className="space-y-2">
@@ -131,5 +137,85 @@ export function ArtistForm({
         </DialogContent>
       </Dialog>
     </form>
+    {artist ? (
+      <ArtistLedAssign
+        artistId={artist.id}
+        sceneId={artist.led_wall_scene_id}
+        scenes={ledScenes}
+        canAssign={canAssignLed && !artist.archived_at}
+      />
+    ) : null}
+    </>
+  );
+}
+
+function ArtistLedAssign({
+  artistId,
+  sceneId,
+  scenes,
+  canAssign,
+}: {
+  artistId: string;
+  sceneId: string | null;
+  scenes: { id: string; title: string; enabled: boolean }[];
+  canAssign: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [selected, setSelected] = useState(sceneId ?? "");
+  const current = scenes.find((scene) => scene.id === sceneId);
+
+  return (
+    <section className="space-y-3 rounded-xl border bg-card p-5">
+      <div>
+        <h2 className="text-lg font-semibold">LED wall</h2>
+        <p className="text-sm text-muted-foreground">
+          {current ? `Configuration: ${current.title}` : "No configuration attached. The wall cannot cut to this artist at showtime."}
+        </p>
+      </div>
+      {canAssign ? (
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            startTransition(async () => {
+              const result = await assignArtistLedWallAction({
+                artistId,
+                sceneId: selected || null,
+              });
+              if (!result.ok) {
+                toast.error(result.message);
+                return;
+              }
+              toast.success(result.message);
+              router.refresh();
+            });
+          }}
+        >
+          <div className="space-y-2">
+            <Label htmlFor="artist-led-scene">Configuration</Label>
+            <select
+              id="artist-led-scene"
+              className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+              value={selected}
+              onChange={(event) => setSelected(event.target.value)}
+            >
+              <option value="">No configuration</option>
+              {scenes
+                .filter((scene) => scene.enabled || scene.id === sceneId)
+                .map((scene) => (
+                  <option key={scene.id} value={scene.id}>
+                    {scene.title}
+                    {scene.enabled ? "" : " (disabled)"}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save LED configuration"}
+          </Button>
+        </form>
+      ) : null}
+    </section>
   );
 }

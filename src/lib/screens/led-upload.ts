@@ -17,6 +17,7 @@ export async function uploadLedMediaFromBrowser(input: {
   venueId: string;
   title: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  rollsUntilShowtime?: boolean;
 }) {
   const mediaKind = ledMediaKindForFile(input.file);
   if (!mediaKind) return { ok: false as const, message: "Use an MP4 loop or a PNG." };
@@ -50,6 +51,7 @@ export async function uploadLedMediaFromBrowser(input: {
     mediaKind,
     storagePath,
     publicUrl,
+    rollsUntilShowtime: mediaKind === "video" && input.rollsUntilShowtime === true,
   });
   if (!result.ok) {
     await supabase.storage.from("screen-ads").remove([storagePath]);

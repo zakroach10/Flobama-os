@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { applyLedShowtimeHandoff } from "@/lib/queries/led-wall";
 import {
   blankToNull,
   hashLedAgentToken,
@@ -66,42 +67,33 @@ export async function POST(request: Request) {
   );
   if (statusError) return NextResponse.json({ error: "Could not record booth status." }, { status: 500 });
 
-  const [{ data: runtime }, { data: settings }] = await Promise.all([
-    admin.from("led_wall_runtime").select("active_scene_id, activated_at").eq("venue_id", secret.venue_id).maybeSingle(),
+  const [{ data: settings }, playback] = await Promise.all([
     admin.from("led_wall_settings").select("media_obs_scene_name").eq("venue_id", secret.venue_id).maybeSingle(),
+    applyLedShowtimeHandoff(admin, secret.venue_id),
   ]);
-
-  let activeScene: {
-    id: string;
-    kind: "obs" | "media";
-    enabled: boolean;
-    obsSceneName: string | null;
-  } | null = null;
-  if (runtime?.active_scene_id) {
-    const { data: scene } = await admin
-      .from("led_wall_scenes")
-      .select("id, kind, enabled, obs_scene_name")
-      .eq("id", runtime.active_scene_id)
-      .eq("venue_id", secret.venue_id)
-      .maybeSingle();
-    if (scene) {
-      activeScene = {
-        id: scene.id,
-        kind: scene.kind,
-        enabled: scene.enabled,
-        obsSceneName: scene.obs_scene_name,
-      };
-    }
+  if (playback.error) {
+    const message = playback.missingTable
+      ? `Apply ${LED_WALL_SQL} before starting the booth client.`
+      : "Could not resolve the LED wall scene.";
+    return NextResponse.json({ error: message }, { status: playback.missingTable ? 503 : 500 });
   }
 
+  const scene = playback.scene;
   const desiredObsScene = resolveDesiredObsScene({
-    activeScene,
+    activeScene: scene
+      ? {
+          id: scene.id,
+          kind: scene.kind,
+          enabled: scene.enabled,
+          obsSceneName: scene.obs_scene_name,
+        }
+      : null,
     mediaObsSceneName: settings?.media_obs_scene_name ?? null,
   });
 
   return NextResponse.json({
     desiredObsScene,
-    activeSceneId: activeScene?.enabled ? activeScene.id : null,
-    revision: runtime?.activated_at ?? null,
+    activeSceneId: playback.activeSceneId,
+    revision: scene?.updated_at ?? null,
   });
 }

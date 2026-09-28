@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listEvents, artistNames } from "@/lib/queries/events";
+import { artistsMissingLedConfiguration, ledShowtimeSqlHint } from "@/lib/screens/led-wall";
+import { LedNotReady } from "@/components/screens/led-not-ready";
 import { parseEventListFilters } from "@/lib/queries/filters";
 import { EVENT_PAGE_SIZE, EVENT_STATUS_LABELS, EVENT_TYPE_LABELS } from "@/lib/constants";
 import { formatVenueDateTime } from "@/lib/timezone";
@@ -29,11 +31,12 @@ export default async function EventsPage({
 
   const params = await searchParams;
   const filters = parseEventListFilters(params, EVENT_PAGE_SIZE, context.venue.timezone);
+  const now = new Date();
   const { events, count, error } = await listEvents(
     supabase,
     context.venue.id,
     filters,
-    new Date().toISOString(),
+    now.toISOString(),
   );
   const totalPages = Math.max(1, Math.ceil(count / EVENT_PAGE_SIZE));
   const window = filters.window;
@@ -100,7 +103,7 @@ export default async function EventsPage({
       </form>
 
       {error ? (
-        <ErrorState title="Could not load events" description={error} />
+        <ErrorState title="Could not load events" description={ledShowtimeSqlHint(error)} />
       ) : events.length === 0 ? (
         q || filters.status !== "all" || filters.eventType !== "all" || filters.fromDate || filters.toDate || window !== "upcoming" ? (
           <EmptyState title="No matching events" description="Nothing matches these filters. Clear search or switch windows." />
@@ -121,6 +124,7 @@ export default async function EventsPage({
                   <th className="px-4 py-3 font-medium">When</th>
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Artists</th>
+                  <th className="px-4 py-3 font-medium">LED</th>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                 </tr>
@@ -138,6 +142,9 @@ export default async function EventsPage({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {artistNames(event).join(", ") || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <LedNotReady names={artistsMissingLedConfiguration(event, now)} />
                     </td>
                     <td className="px-4 py-3">
                       <TypeBadge type={event.event_type} />
@@ -163,6 +170,7 @@ export default async function EventsPage({
                     {formatVenueDateTime(event.starts_at, context.venue.timezone)}
                   </p>
                   <p className="text-sm">{artistNames(event).join(", ") || "No artists attached"}</p>
+                  <LedNotReady names={artistsMissingLedConfiguration(event, now)} />
                   <TypeBadge type={event.event_type} />
                 </Link>
               </li>

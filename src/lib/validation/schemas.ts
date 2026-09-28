@@ -210,12 +210,16 @@ export const createLedMediaSceneSchema = z.object({
   mediaKind: z.enum(["image", "video"]),
   storagePath: z.string().trim().min(1).max(500),
   publicUrl: z.string().trim().min(8).max(800),
+  rollsUntilShowtime: z.boolean().default(false),
+}).refine((value) => !value.rollsUntilShowtime || value.mediaKind === "video", {
+  message: "Only an MP4 can roll until showtime.",
 });
 
 export const updateLedWallSceneSchema = z.object({
   id: z.string().uuid(),
   title: z.string().trim().min(1, "Title is required.").max(160),
   enabled: z.boolean(),
+  rollsUntilShowtime: z.boolean().optional(),
 });
 
 export const reorderLedWallScenesSchema = z.object({
@@ -228,6 +232,11 @@ export const ledWallMediaSceneNameSchema = z.object({
 
 export const activateLedWallSceneSchema = z.object({
   sceneId: z.string().uuid(),
+});
+
+export const assignArtistLedWallSchema = z.object({
+  artistId: z.string().uuid(),
+  sceneId: z.string().uuid().nullable(),
 });
 
 export const ledWallSyncSchema = z.object({
