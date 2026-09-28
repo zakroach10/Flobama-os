@@ -23,6 +23,13 @@ const nextConfig: NextConfig = {
         source: "/display/:path*",
         headers: embeddable,
       },
+      {
+        source: "/downloads/:file*",
+        headers: [
+          { key: "Content-Type", value: "application/x-apple-diskimage" },
+          { key: "Content-Disposition", value: 'attachment; filename="FloBama-LED-OBS.dmg"' },
+        ],
+      },
     ];
   },
 };

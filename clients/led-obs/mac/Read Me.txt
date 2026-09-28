@@ -1,0 +1,11 @@
+FloBama LED OBS
+
+Drag FloBama LED OBS into Applications, then open it.
+The first launch downloads Node.js and asks for the booth token from FloBama OS (Screens, LED wall).
+Leave the Terminal window open next to OBS.
+
+If macOS says the app cannot be opened, right-click FloBama LED OBS and choose Open.
+
+In OBS, turn on the WebSocket server (Tools, WebSocket Server Settings) and add a Browser Source for the uploaded-media scene pointed at the FloBama /display/led page.
+
+Reset settings on this disk image clears the saved token and OBS password.
