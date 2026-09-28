@@ -39,20 +39,23 @@ if [[ ! -x "$NODE_HOME/bin/node" ]]; then
 fi
 
 ask() {
-  local message="$1"
-  local preset="$2"
-  local hidden="${3:-}"
-  osascript - "$message" "$preset" "$hidden" <<'APPLESCRIPT'
+  osascript - "$1" "$2" <<'APPLESCRIPT'
 on run argv
-  set msg to item 1 of argv
-  set preset to item 2 of argv
-  set hidden to item 3 of argv
   try
-    if hidden is "hidden" then
-      set reply to display dialog msg default answer preset with title "FloBama LED OBS" with hidden answer buttons {"Cancel", "Continue"} default button "Continue"
-    else
-      set reply to display dialog msg default answer preset with title "FloBama LED OBS" buttons {"Cancel", "Continue"} default button "Continue"
-    end if
+    set reply to display dialog (item 1 of argv) default answer (item 2 of argv) with title "FloBama LED OBS" buttons {"Cancel", "Continue"} default button "Continue"
+    return text returned of reply
+  on error
+    error number -128
+  end try
+end run
+APPLESCRIPT
+}
+
+ask_secret() {
+  osascript - "$1" <<'APPLESCRIPT'
+on run argv
+  try
+    set reply to display dialog (item 1 of argv) default answer "" with hidden answer with title "FloBama LED OBS" buttons {"Cancel", "Continue"} default button "Continue"
     return text returned of reply
   on error
     error number -128
@@ -69,7 +72,7 @@ if [[ ! -f "$CONFIG" ]]; then
   done
   host="$(ask "OBS WebSocket host" "127.0.0.1")" || exit 1
   port="$(ask "OBS WebSocket port" "4455")" || exit 1
-  pass="$(ask "OBS WebSocket password" "" hidden)" || exit 1
+  pass="$(ask_secret "OBS WebSocket password")" || exit 1
   "$NODE_HOME/bin/node" -e '
     const fs = require("fs");
     const [file, apiBase, token, obsHost, obsPort, obsPassword] = process.argv.slice(1);
