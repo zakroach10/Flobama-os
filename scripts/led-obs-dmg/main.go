@@ -13,7 +13,7 @@ func main() {
 		os.Exit(2)
 	}
 	image := &dmg.DMG{
-		VolumeName: "FloBama LED OBS",
+		VolumeName: "FloBama LED OBS 1.0.1",
 		OwnerID:    dmg.OwnerIDUnset,
 		GroupID:    dmg.OwnerIDUnset,
 	}

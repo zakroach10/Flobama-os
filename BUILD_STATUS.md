@@ -21,7 +21,7 @@
 - Events → Update syncs published, unarchived rows from the live FloBama master sheet (idempotent `legacy_source_id`)
 - Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
 - Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
-- OBS overlay at `/overlay` (1920×1080 browser source) and LED wall scene list on Screens. A booth client (`clients/led-obs`) polls `/api/agent/v1/led-wall/sync` and cuts OBS. The sign-in page downloads `FloBama-LED-OBS.dmg`. Admins configure scenes and MP4/PNG uploads; every staff role can activate. Uploads play at `/display/led`
+- OBS overlay at `/overlay` (1920×1080 browser source) and LED wall scene list on Screens. A booth client (`clients/led-obs`) polls `/api/agent/v1/led-wall/sync` and cuts OBS. The sign-in page downloads `FloBama-LED-OBS-1.0.1.dmg`. Admins configure scenes and MP4/PNG uploads; every staff role can activate. Uploads play at `/display/led`
 - Screens: LED wall OBS scene mapping (auto ads vs band), shared vertical 1080×1920 ad rotation, a live “this week” events slide, timed takeovers, and a US Letter weekly flyer at `/print/week`
 - Setup-required state when Supabase env vars are missing
 - Unit tests for timezone, validation, permissions, redirects, CSV parser, public-field filter, OBS helpers
