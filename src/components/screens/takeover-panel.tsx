@@ -39,14 +39,16 @@ export function TakeoverPanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [adId, setAdId] = useState(takeover?.adId ?? ads[0]?.id ?? "");
+  const [syncedTakeoverId, setSyncedTakeoverId] = useState(takeover?.adId ?? "");
   const [untilCleared, setUntilCleared] = useState(takeover ? takeover.endsAt == null : false);
   const [minutes, setMinutes] = useState("30");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    if (takeover?.adId) setAdId(takeover.adId);
-  }, [takeover?.adId]);
+  const incomingTakeoverId = takeover?.adId ?? "";
+  if (incomingTakeoverId !== syncedTakeoverId) {
+    setSyncedTakeoverId(incomingTakeoverId);
+    if (incomingTakeoverId) setAdId(incomingTakeoverId);
+  }
 
   if (missingTable) {
     return (

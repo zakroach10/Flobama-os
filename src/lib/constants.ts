@@ -65,6 +65,9 @@ export const VERTICAL_PLAYLIST_POLL_MS = 4000;
 export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
 export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
 export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
+export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
+export const LED_DISPLAY_POLL_MS = 1000;
+export const LED_AGENT_STALE_MS = 15_000;
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",

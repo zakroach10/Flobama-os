@@ -37,7 +37,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       venueName={context.venue.name}
       roleLabel={STAFF_ROLE_LABELS[context.role]}
       userLabel={context.profile?.display_name || context.email || "Staff"}
-      showScreens={canManageProgramming(context.role)}
+      showScreens
       showBooking={canManageProgramming(context.role)}
       showSocial={canManageProgramming(context.role)}
     >

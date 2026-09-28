@@ -12,7 +12,9 @@ export function revalidatePublicSurfaces() {
   revalidatePath("/api/public/v1/now");
   revalidatePath("/screens");
   revalidatePath("/display/vertical");
+  revalidatePath("/display/led");
   revalidatePath("/api/public/v1/screens/vertical");
+  revalidatePath("/api/public/v1/screens/led");
   revalidatePath("/api/public/v1/screens/week");
   revalidatePath("/print/week");
   revalidatePath("/print/week/social");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -10,17 +10,24 @@ export function ScreensWorkspace({
   defaultTab,
   led,
   vertical,
+  showVertical = true,
 }: {
   defaultTab: ScreensTab;
   led: React.ReactNode;
   vertical: React.ReactNode;
+  showVertical?: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<ScreensTab>(defaultTab);
-
-  useEffect(() => {
+  const [syncedTab, setSyncedTab] = useState(defaultTab);
+  if (syncedTab !== defaultTab) {
+    setSyncedTab(defaultTab);
     setTab(defaultTab);
-  }, [defaultTab]);
+  }
+
+  if (!showVertical) {
+    return <div className="space-y-8">{led}</div>;
+  }
 
   return (
     <Tabs

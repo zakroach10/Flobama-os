@@ -199,6 +199,43 @@ export const reorderScreenAdsSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
 });
 
+export const createLedObsSceneSchema = z.object({
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  obsSceneName: z.string().trim().min(1, "Choose an OBS scene.").max(200),
+});
+
+export const createLedMediaSceneSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  mediaKind: z.enum(["image", "video"]),
+  storagePath: z.string().trim().min(1).max(500),
+  publicUrl: z.string().trim().min(8).max(800),
+});
+
+export const updateLedWallSceneSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  enabled: z.boolean(),
+});
+
+export const reorderLedWallScenesSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+});
+
+export const ledWallMediaSceneNameSchema = z.object({
+  mediaObsSceneName: optionalScene,
+});
+
+export const activateLedWallSceneSchema = z.object({
+  sceneId: z.string().uuid(),
+});
+
+export const ledWallSyncSchema = z.object({
+  obsConnected: z.boolean(),
+  programScene: z.string().trim().max(200).nullable().optional(),
+  scenes: z.array(z.string().trim().min(1).max(200)).max(200),
+});
+
 export const startScreenTakeoverSchema = z.object({
   adId: z.string().uuid(),
   minutes: z.number().int().min(1).max(SCREEN_TAKEOVER_MAX_MINUTES).nullable(),

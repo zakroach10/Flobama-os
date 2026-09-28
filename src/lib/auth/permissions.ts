@@ -10,7 +10,8 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Create and edit events and artists",
     "Update events from the master sheet",
     "Manage Booking from GoHighLevel custom objects",
-    "Manage LED wall scenes and vertical ads",
+    "Configure LED wall scenes and the booth client",
+    "Manage vertical ads",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the calendar and settings",
   ],
@@ -18,13 +19,15 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Create and edit events and artists",
     "Update events from the master sheet",
     "Manage Booking from GoHighLevel custom objects",
-    "Manage LED wall scenes and vertical ads",
+    "Activate LED wall scenes",
+    "Manage vertical ads",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the staff directory",
     "View the calendar and settings",
   ],
   viewer: [
     "View the calendar, artists, and staff directory",
+    "View and activate LED wall scenes",
     "View ticketing sales, orders, and check-in status without selling or refunding",
     "View settings (read-only)",
   ],
@@ -36,6 +39,10 @@ export function isMasterAdminEmail(email: string | null | undefined): boolean {
 
 export function canManageProgramming(role: StaffRole): boolean {
   return role === "admin" || role === "manager";
+}
+
+export function canConfigureLedWall(role: StaffRole): boolean {
+  return role === "admin";
 }
 
 export function canManageVenueSettings(role: StaffRole): boolean {
@@ -55,6 +62,19 @@ export type AuthzDecision = { allowed: true } | { allowed: false; reason: string
 function requireRole(role: StaffRole | null): AuthzDecision {
   if (!role || !STAFF_ROLES.includes(role)) {
     return { allowed: false, reason: "You do not have access to this venue." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeLedWallActivate(role: StaffRole | null): AuthzDecision {
+  return requireRole(role);
+}
+
+export function authorizeLedWallConfigure(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canConfigureLedWall(role!)) {
+    return { allowed: false, reason: "Only admins can configure LED wall scenes." };
   }
   return { allowed: true };
 }

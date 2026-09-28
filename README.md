@@ -32,7 +32,7 @@ cp .env.example .env.local
 - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
 3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
-   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, `20260909000008_ticketing.sql`, `20260909000009_master_admin.sql`, and `20260909000010_layout_object_types.sql`.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, `20260909000008_ticketing.sql`, `20260909000009_master_admin.sql`, `20260909000010_layout_object_types.sql`, and `20260928000011_led_wall.sql`.  
 
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 
@@ -72,7 +72,7 @@ npm run dev
 | --- | --- |
 | Admin | Create staff, change roles, rename the venue, edit events/artists, screens, ticketing |
 | Manager | Edit events/artists, import listings, screens, ticketing. Cannot create staff or rename the venue |
-| Viewer | Read-only calendar, artists, staff directory, ticketing sales |
+| Viewer | Read-only calendar, artists, staff directory, ticketing sales. Can activate LED wall scenes |
 
 There is still no public registration. The **first** admin is created once:
 
@@ -138,19 +138,35 @@ This repository does not change flobamadowntown.com.
 ## OBS booth (LAN)
 
 1. In OBS: **Tools → WebSocket Server Settings**. Enable the v5 server. Note host (usually `127.0.0.1`), port (`4455`), and password.
-2. Add a **Browser Source** at `{origin}/overlay`, width **1920**, height **1080**.
-3. Sign in to FloBama OS on the booth PC as admin or manager. Open **Screens → LED wall**.
-4. Connect OBS from that page. Host, port, and password stay in `sessionStorage` on that machine — they are never stored in git or the database.
+2. Add a **Browser Source** at `{origin}/overlay`, width **1920**, height **1080**, for the lower third.
+3. For uploaded LED media, add another scene whose **Browser Source** is `{origin}/display/led` at the wall’s pixel size.
+4. On the booth PC, install the local client (below). OBS host, port, and password stay in that machine’s config file. They are never stored in git or the database.
 
-This cloud preview cannot reach a booth PC on your LAN. Viewers can see the overlay and API; they cannot write `booth_state` or use OBS controls.
+This cloud preview cannot reach a booth PC on your LAN. Staff activate scenes in FloBama OS. The booth client pulls the desired scene and calls OBS.
+
+### LED wall client
+
+Admins open **Screens → LED wall**, add OBS scene names (or upload an MP4 loop / PNG), name the OBS scene that contains the `/display/led` browser source, and create a booth token. Managers and viewers see the enabled list and can activate a scene. Uploaded media plays full-screen from `https://flobama-os.vercel.app/display/led` (playlist JSON: `/api/public/v1/screens/led`). The page polls about once a second, so a second upload can replace the first without refreshing the browser source.
+
+On the booth PC:
+
+```bash
+cd clients/led-obs
+npm install
+cp config.example.json led-obs.config.json
+# set apiBase, token, and the OBS WebSocket password
+node index.mjs
+```
+
+`led-obs.config.json` is gitignored. Leave `node index.mjs` running beside OBS. It POSTs to `/api/agent/v1/led-wall/sync` about once a second.
 
 ## Screens
 
-Admin and manager: **Screens**. Apply `supabase/migrations/20260908000005_screens.sql` (creates `screen_wall_state`, `screen_ads`, and the public `screen-ads` storage bucket). Timed takeovers also need `supabase/migrations/20260908000007_screen_takeover.sql`.
+Every staff role can open **Screens**. Viewers get the LED wall list. Admins and managers also get vertical screens. Apply `supabase/migrations/20260908000005_screens.sql` (creates `screen_wall_state`, `screen_ads`, and the public `screen-ads` storage bucket). Timed takeovers also need `supabase/migrations/20260908000007_screen_takeover.sql`. LED wall scenes need `supabase/migrations/20260928000011_led_wall.sql`.
 
 ### LED wall
 
-Screens has two tabs: **LED wall** and **Vertical screens**. OBS scenes stay prebuilt (ads loop vs band logo). On the booth PC, open Screens → LED wall, connect OBS, pick the Ads and Band scene names, and save Auto. The page cuts to Band when `/api/public/v1/now` reports now-playing or an overlapping public event, or when a vertical takeover is running; otherwise Ads. Manual mode cuts to a chosen scene.
+Screens has two tabs: **LED wall** and **Vertical screens**. Viewers only see LED wall. Admins preconfigure the scene list. Every staff role can activate one. Apply `supabase/migrations/20260928000011_led_wall.sql` after the screens migration. The older ads/band auto cut is no longer driven from the browser; `screen_wall_state` remains in the database for that earlier migration.
 
 ### Vertical TVs
 

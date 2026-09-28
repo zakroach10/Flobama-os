@@ -21,7 +21,7 @@
 - Events → Update syncs published, unarchived rows from the live FloBama master sheet (idempotent `legacy_source_id`)
 - Public JSON API: `/api/public/v1/events`, `/events/[id]`, `/now`
 - Public HTML embed at `/embed/events` plus iframe resizer `/embed/events.js`
-- OBS overlay at `/overlay` (1920×1080 browser source) and LED wall OBS controls on Screens (obs-websocket v5, sessionStorage credentials)
+- OBS overlay at `/overlay` (1920×1080 browser source) and LED wall scene list on Screens. A booth client (`clients/led-obs`) polls `/api/agent/v1/led-wall/sync` and cuts OBS. Admins configure scenes and MP4/PNG uploads; every staff role can activate. Uploads play at `/display/led`
 - Screens: LED wall OBS scene mapping (auto ads vs band), shared vertical 1080×1920 ad rotation, a live “this week” events slide, timed takeovers, and a US Letter weekly flyer at `/print/week`
 - Setup-required state when Supabase env vars are missing
 - Unit tests for timezone, validation, permissions, redirects, CSV parser, public-field filter, OBS helpers
@@ -42,7 +42,7 @@
 - Timezone is not editable in the UI
 - The first admin is still bootstrapped with SQL; later staff are created in Settings
 - Public origin is `https://flobama-os.vercel.app` (`NEXT_PUBLIC_SITE_URL`); embed/overlay allow iframe embedding
-- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, and `20260908000007_screen_takeover.sql`
+- Hosted Supabase must apply `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, and `20260928000011_led_wall.sql`
 - Creating logins requires `SUPABASE_SERVICE_ROLE_KEY` on the server only
 - Search filters for events use PostgREST `or` + artist id lists; very large catalogs may need a dedicated search index later
 

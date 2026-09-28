@@ -1,0 +1,7 @@
+{
+  "apiBase": "https://flobama-os.vercel.app",
+  "token": "paste-the-booth-token",
+  "obsHost": "127.0.0.1",
+  "obsPort": 4455,
+  "obsPassword": ""
+}
