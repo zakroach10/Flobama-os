@@ -41,7 +41,7 @@ import {
   socialPosterRows,
 } from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
-import { mediaKindForFile, MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { mediaKindForFile, MAX_SCREEN_AD_BYTES, screenAdTooLargeMessage } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
 
 const sample: StaffScreenAd[] = [
@@ -200,7 +200,8 @@ describe("vertical playlist", () => {
     expect(mediaKindForFile({ type: "image/png", name: "happy.png" })).toBe("image");
     expect(mediaKindForFile({ type: "video/mp4", name: "spot.mp4" })).toBe("video");
     expect(mediaKindForFile({ type: "application/pdf", name: "menu.pdf" })).toBeNull();
-    expect(MAX_SCREEN_AD_BYTES).toBe(50 * 1024 * 1024);
+    expect(MAX_SCREEN_AD_BYTES).toBe(2 * 1024 * 1024 * 1024);
+    expect(screenAdTooLargeMessage()).toBe("File must be 2 GB or smaller.");
   });
 
   it("requires a hold time for the week slide", () => {

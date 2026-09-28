@@ -18,7 +18,7 @@ import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button
 import { uploadScreenAdFromBrowser } from "@/lib/screens/browser-upload";
 import { isWeekEventsAd, type StaffScreenAd } from "@/lib/screens/playlist";
 import type { PublicSupabaseEnv } from "@/lib/env";
-import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { MAX_SCREEN_AD_BYTES, screenAdTooLargeMessage } from "@/lib/screens/upload";
 
 export function VerticalAdsPanel({
   ads,
@@ -105,7 +105,7 @@ export function VerticalAdsPanel({
               const next = e.target.files?.[0] ?? null;
               setFile(next);
               if (next && next.size > MAX_SCREEN_AD_BYTES) {
-                toast.error("File must be 50 MB or smaller.");
+                toast.error(screenAdTooLargeMessage());
                 setFile(null);
                 e.target.value = "";
                 return;

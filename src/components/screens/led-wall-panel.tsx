@@ -19,7 +19,7 @@ import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
 import { agentStatusCopy, ledMediaKindForFile } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
-import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { screenAdSizeLimitLabel } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
 export function LedWallPanel({
@@ -372,7 +372,7 @@ function AdminLedWall({
                 if (!next || ledMediaKindForFile(next) !== "video") setAdRoll(false);
               }}
             />
-            <p className="text-xs text-muted-foreground">50 MB max ({Math.round(MAX_SCREEN_AD_BYTES / (1024 * 1024))} MB).</p>
+            <p className="text-xs text-muted-foreground">{screenAdSizeLimitLabel()} max.</p>
           </div>
           {file && ledMediaKindForFile(file) === "video" ? (
             <label className="flex items-start gap-2 text-sm sm:col-span-2">

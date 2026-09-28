@@ -176,7 +176,7 @@ Every 1080×1920 player opens the same page:
 
 `https://flobama-os.vercel.app/display/vertical`
 
-Upload stills or short videos on Screens (50 MB max). Files go straight to the `screen-ads` bucket, then the playlist row is saved. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`. Open kiosks poll that API every few seconds and reload `/display/vertical` when the playlist changes.
+Upload stills or short videos on Screens (2 GB max). Files go straight to the `screen-ads` bucket, then the playlist row is saved. Set order, hold time, and transition (`cut` / `fade` / `slide`). Disabled and archived ads never appear on the TV URL. Playlist JSON: `/api/public/v1/screens/vertical`. Open kiosks poll that API every few seconds and reload `/display/vertical` when the playlist changes.
 
 **This week:** Screens → **Add this week’s events** inserts one live slide. It lists published public shows for the current Sunday–Saturday week in America/Chicago (name, time, artists). Cover charge is not shown. The kiosk refreshes that list from `/api/public/v1/screens/week`. Busy weeks paginate inside the slide. If the hosted enum does not include `week_events` yet, the slide is stored as a dynamic playlist row and still plays correctly.
 
