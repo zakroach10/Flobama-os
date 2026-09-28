@@ -14,7 +14,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama LED OBS 1.0.1"
+echo "FloBama LED OBS 1.0.2"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama LED OBS"

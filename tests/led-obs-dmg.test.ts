@@ -25,21 +25,25 @@ function diskImageText(bytes: Buffer) {
 }
 
 describe("LED OBS disk image", () => {
-  it("publishes version 1.0.1 without the broken password prompt", () => {
-    expect(LED_OBS_DMG_HREF).toBe("/downloads/FloBama-LED-OBS-1.0.1.dmg");
+  it("publishes the current client without TypeScript or the broken password prompt", () => {
+    expect(LED_OBS_DMG_HREF).toBe(`/downloads/FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`);
     const script = readFileSync(path.join(process.cwd(), "clients/led-obs/mac/led-obs.sh"), "utf8");
+    const client = readFileSync(path.join(process.cwd(), "clients/led-obs/index.mjs"), "utf8");
     expect(script).toContain(`echo "FloBama LED OBS ${LED_OBS_CLIENT_VERSION}"`);
     expect(script).toContain("ask_secret");
     expect(script).not.toContain("set hidden");
+    expect(client).not.toMatch(/\sas\s+\{/);
 
     const file = path.join(process.cwd(), "public", LED_OBS_DMG_HREF);
     const bytes = readFileSync(file);
     expect(bytes.byteLength).toBeGreaterThan(100_000);
     expect(bytes.subarray(bytes.byteLength - 512, bytes.byteLength - 508).toString()).toBe("koly");
     const text = diskImageText(bytes);
-    expect(text).toContain("FloBama LED OBS 1.0.1");
+    expect(text).toContain(`FloBama LED OBS ${LED_OBS_CLIENT_VERSION}`);
     expect(text).toContain("ask_secret");
+    expect(text).toContain("desiredObsScene");
     expect(text).not.toContain("set hidden");
     expect(text).not.toContain("item 3 of argv");
+    expect(text).not.toContain("as { desiredObsScene");
   });
 });

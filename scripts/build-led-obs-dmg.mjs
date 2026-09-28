@@ -7,8 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "led-obs");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "led-obs-dmg");
-const output = path.join(root, "public", "downloads", "FloBama-LED-OBS-1.0.1.dmg");
-const previous = path.join(root, "public", "downloads", "FloBama-LED-OBS.dmg");
+const output = path.join(root, "public", "downloads", "FloBama-LED-OBS-1.0.2.dmg");
+const previous = path.join(root, "public", "downloads", "FloBama-LED-OBS-1.0.1.dmg");
 
 await rm(staging, { recursive: true, force: true });
 const app = path.join(staging, "FloBama LED OBS.app", "Contents");
