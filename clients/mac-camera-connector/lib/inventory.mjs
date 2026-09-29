@@ -126,7 +126,7 @@ export function buildLocalCameras({
       supportsPresetSave: false,
       supportsFocus: false,
       online: true,
-      lastError: "Discovered on Mac. Preview available. Enable PTZ in Camera setup if this unit supports NDI PTZ.",
+      lastError: null,
       connectionTarget: src.name,
       connectionPort: null,
       linkStatus: "ndi_live",

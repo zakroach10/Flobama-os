@@ -1,78 +1,38 @@
 #!/bin/bash
 set -euo pipefail
 
-EXPECTED_VERSION="1.4.1"
-
-if [[ "${FLOBAMA_MAC_CAMERA_TERMINAL:-}" != "1" ]]; then
-  osascript - "$0" <<'APPLESCRIPT'
-on run argv
-  set runner to item 1 of argv
-  tell application "Terminal"
-    activate
-    do script "export FLOBAMA_MAC_CAMERA_TERMINAL=1; exec " & quoted form of runner
-  end tell
-end run
-APPLESCRIPT
-  exit 0
-fi
-
+EXPECTED_VERSION="1.4.2"
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
 NODE_HOME="$SUPPORT/node"
 CONFIG="$SUPPORT/mac-camera.config.json"
+LOG_DIR="$HOME/Library/Logs/FloBamaMacConnector"
+LOG_FILE="$LOG_DIR/connector.log"
+PID_FILE="$SUPPORT/connector.pid"
 NODE_VERSION="v22.22.2"
-mkdir -p "$SUPPORT"
-mkdir -p "$HOME/Library/Logs/FloBamaMacConnector"
+
+mkdir -p "$SUPPORT" "$LOG_DIR"
 
 BUNDLE_VERSION="$EXPECTED_VERSION"
 if [[ -f "$APP_ROOT/VERSION" ]]; then
   BUNDLE_VERSION="$(tr -d '[:space:]' < "$APP_ROOT/VERSION")"
 fi
 
-echo "=========================================="
-echo " FloBama Mac Camera ${BUNDLE_VERSION}"
-echo "=========================================="
-if [[ "$BUNDLE_VERSION" != "$EXPECTED_VERSION" ]]; then
-  echo "WARNING: launcher expects ${EXPECTED_VERSION} but app bundle reports ${BUNDLE_VERSION}."
-  echo "Delete /Applications/FloBama Mac Camera.app and reinstall from Cameras → Download."
-fi
-if [[ "$BUNDLE_VERSION" != "1.4.1" && "$BUNDLE_VERSION" != "1.4.0" ]]; then
-  echo ""
-  echo "This looks like an OLD install (not 1.4.x)."
-  echo "NDI discovery will not work until you replace the app:"
-  echo "  1) Quit this Terminal window"
-  echo "  2) Eject any old FloBama Mac Camera disks"
-  echo "  3) Delete /Applications/FloBama Mac Camera.app"
-  echo "  4) Download Mac Camera 1.4.1 from FloBama OS → Cameras"
-  echo "  5) Drag the NEW app into Applications, then open it"
-  echo ""
-fi
+notify() {
+  osascript - "$1" "FloBama Mac Camera ${BUNDLE_VERSION}" <<'APPLESCRIPT' >/dev/null 2>&1 || true
+on run argv
+  display notification (item 1 of argv) with title (item 2 of argv)
+end run
+APPLESCRIPT
+}
 
-if [[ ! -x "$NODE_HOME/bin/node" ]]; then
-  echo "Downloading Node.js ${NODE_VERSION}…"
-  case "$(uname -m)" in
-    arm64) plat="darwin-arm64" ;;
-    x86_64) plat="darwin-x64" ;;
-    *)
-      echo "This Mac architecture is not supported: $(uname -m)"
-      exit 1
-      ;;
-  esac
-  tmp="$(mktemp -d)"
-  curl -fL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${plat}.tar.gz" | tar -xz -C "$tmp"
-  rm -rf "$NODE_HOME"
-  mv "$tmp/node-${NODE_VERSION}-${plat}" "$NODE_HOME"
-  rm -rf "$tmp"
-fi
-
-export PATH="$NODE_HOME/bin:$PATH"
-if [[ -f "$APP_ROOT/package.json" ]]; then
-  echo "Installing/updating NDI bindings (grandi)…"
-  (
-    cd "$APP_ROOT"
-    npm install --omit=dev --no-fund --no-audit
-  ) || echo "Warning: npm install failed. NDI discovery may be unavailable until dependencies install."
-fi
+alert() {
+  osascript - "$1" "FloBama Mac Camera ${BUNDLE_VERSION}" <<'APPLESCRIPT' >/dev/null 2>&1 || true
+on run argv
+  display dialog (item 1 of argv) buttons {"OK"} default button "OK" with title (item 2 of argv)
+end run
+APPLESCRIPT
+}
 
 ask() {
   osascript - "$1" "$2" <<'APPLESCRIPT'
@@ -87,11 +47,61 @@ end run
 APPLESCRIPT
 }
 
-echo ""
-echo "NDI discovery needs Local Network permission for Terminal (this window)."
-echo "If macOS shows a Local Network prompt, click Allow."
-echo "Otherwise open: System Settings → Privacy & Security → Local Network → enable Terminal."
-echo ""
+log_line() {
+  local line="[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] $1"
+  echo "$line" | tee -a "$LOG_FILE" >/dev/null
+  echo "$1"
+}
+
+# Stop a previous instance started by this app.
+if [[ -f "$PID_FILE" ]]; then
+  old_pid="$(tr -d '[:space:]' < "$PID_FILE" || true)"
+  if [[ -n "${old_pid:-}" ]] && kill -0 "$old_pid" 2>/dev/null; then
+    kill "$old_pid" 2>/dev/null || true
+    sleep 0.5
+  fi
+  rm -f "$PID_FILE"
+fi
+
+log_line "=========================================="
+log_line " FloBama Mac Camera ${BUNDLE_VERSION}"
+log_line "=========================================="
+log_line "Running as the FloBama Mac Camera app (not Terminal) so Local Network permission can appear for this app."
+
+if [[ "$BUNDLE_VERSION" != "$EXPECTED_VERSION" ]]; then
+  alert "This app bundle reports ${BUNDLE_VERSION}, but the launcher expects ${EXPECTED_VERSION}. Delete /Applications/FloBama Mac Camera.app and reinstall from FloBama OS → Cameras."
+fi
+
+if [[ ! -x "$NODE_HOME/bin/node" ]]; then
+  notify "Downloading Node.js…"
+  log_line "Downloading Node.js ${NODE_VERSION}…"
+  case "$(uname -m)" in
+    arm64) plat="darwin-arm64" ;;
+    x86_64) plat="darwin-x64" ;;
+    *)
+      alert "This Mac architecture is not supported: $(uname -m)"
+      exit 1
+      ;;
+  esac
+  tmp="$(mktemp -d)"
+  curl -fL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${plat}.tar.gz" | tar -xz -C "$tmp"
+  rm -rf "$NODE_HOME"
+  mv "$tmp/node-${NODE_VERSION}-${plat}" "$NODE_HOME"
+  rm -rf "$tmp"
+fi
+
+export PATH="$NODE_HOME/bin:$PATH"
+if [[ -f "$APP_ROOT/package.json" ]]; then
+  notify "Installing NDI bindings…"
+  log_line "Installing/updating NDI bindings (grandi)…"
+  (
+    cd "$APP_ROOT"
+    npm install --omit=dev --no-fund --no-audit
+  ) >>"$LOG_FILE" 2>&1 || log_line "Warning: npm install failed. NDI discovery may be unavailable."
+fi
+
+# Probe Local Network while this process is still the FloBama Mac Camera app binary.
+log_line "Probing Local Network (allow FloBama Mac Camera if macOS asks)…"
 open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork" 2>/dev/null \
   || open "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork" 2>/dev/null \
   || true
@@ -107,8 +117,8 @@ open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Pri
       process.exit(0);
     });
   });
-  setTimeout(() => process.exit(0), 1200);
-' || true
+  setTimeout(() => process.exit(0), 1500);
+' >>"$LOG_FILE" 2>&1 || true
 
 if [[ ! -f "$CONFIG" ]]; then
   api="$(ask "FloBama OS address" "https://flobama-os.vercel.app")" || exit 1
@@ -133,18 +143,35 @@ if [[ ! -f "$CONFIG" ]]; then
       logDir: "~/Library/Logs/FloBamaMacConnector"
     }, null, 2) + "\n");
   ' "$CONFIG" "$api" "$label"
-  echo "Pairing with FloBama OS…"
+  log_line "Pairing with FloBama OS…"
   cd "$APP_ROOT"
-  if ! "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" --pair --code="$code" "$CONFIG"; then
+  if ! "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" --pair --code="$code" "$CONFIG" >>"$LOG_FILE" 2>&1; then
     rm -f "$CONFIG"
-    echo "Pairing failed. Open Cameras in FloBama OS for a new code, then try again."
+    alert "Pairing failed. Create a new code in FloBama OS → Cameras, then open this app again. Details: ${LOG_FILE}"
     exit 1
   fi
 fi
 
-echo "FloBama Mac Camera ${BUNDLE_VERSION} is running. Leave this window open during shows."
-echo "In FloBama OS → Cameras, Mac connector should show Connector ${BUNDLE_VERSION}."
-echo "To re-pair, double-click Reset settings on the disk image, then open this app again."
-echo "If NDI cameras do not appear: enable Local Network for Terminal, then restart this app."
+alert "FloBama Mac Camera ${BUNDLE_VERSION} is running.
+
+Look for Cam ● in the menu bar (click it to see NDI sources).
+
+If macOS asks for Local Network, click Allow for FloBama Mac Camera.
+You cannot manually add apps to that list — open this app once so it appears.
+
+Logs: ${LOG_FILE}"
+
+notify "Running — Cam ● in menu bar"
+log_line "Connector starting under app process (Local Network subject: FloBama Mac Camera)."
+
 cd "$APP_ROOT"
-exec "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG"
+# Keep this app binary as the parent process so Local Network TCC attaches to the .app,
+# not Terminal. Do not exec/replace this shell with node.
+"$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG" >>"$LOG_FILE" 2>&1 &
+NODE_PID=$!
+echo "$NODE_PID" >"$PID_FILE"
+trap 'kill "$NODE_PID" 2>/dev/null || true; rm -f "$PID_FILE"' EXIT INT TERM
+wait "$NODE_PID"
+exit_code=$?
+rm -f "$PID_FILE"
+exit "$exit_code"

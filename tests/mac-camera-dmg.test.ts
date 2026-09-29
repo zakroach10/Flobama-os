@@ -30,9 +30,12 @@ describe("Mac Camera disk image", () => {
     const script = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/mac/mac-camera.sh"), "utf8");
     const client = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/index.mjs"), "utf8");
     expect(script).toContain(`EXPECTED_VERSION="${CAMERA_CONNECTOR_VERSION}"`);
-    expect(script).toContain('echo " FloBama Mac Camera ${BUNDLE_VERSION}"');
+    expect(script).toContain("FloBama Mac Camera");
     expect(script).toContain("--pair");
     expect(script).toContain("Pairing code from FloBama OS");
+    expect(script).not.toContain("tell application \"Terminal\"");
+    expect(script).toContain("Local Network");
+    expect(script).toContain("connector.pid");
     expect(client).toContain("/api/agent/v1/cameras/sync");
     expect(client).toContain(`const VERSION = "${CAMERA_CONNECTOR_VERSION}"`);
     expect(client).toContain("startMenubarHelper");
