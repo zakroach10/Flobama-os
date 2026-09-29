@@ -21,7 +21,7 @@ import {
   takeoverRemainingLabel,
   type StaffTakeover,
 } from "@/lib/screens/takeover";
-import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { MAX_SCREEN_AD_BYTES, screenAdTooLargeMessage } from "@/lib/screens/upload";
 
 export function TakeoverPanel({
   ads,
@@ -131,7 +131,7 @@ export function TakeoverPanel({
             onChange={(e) => {
               const next = e.target.files?.[0] ?? null;
               if (next && next.size > MAX_SCREEN_AD_BYTES) {
-                toast.error("File must be 50 MB or smaller.");
+                toast.error(screenAdTooLargeMessage());
                 setFile(null);
                 e.target.value = "";
                 return;

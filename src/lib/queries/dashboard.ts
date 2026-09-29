@@ -10,7 +10,7 @@ const EVENT_SELECT = `
   event_artists (
     artist_id,
     display_order,
-    artists ( id, name, archived_at )
+    artists ( id, name, archived_at, led_wall_scene_id )
   )
 `;
 

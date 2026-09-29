@@ -66,6 +66,7 @@ export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
 export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
 export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
 export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
+export const LED_WALL_SHOWTIME_SQL = "supabase/migrations/20260928000012_led_wall_showtime.sql";
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
 export const LED_OBS_DMG_HREF = `/downloads/${LED_OBS_DMG_FILENAME}`;

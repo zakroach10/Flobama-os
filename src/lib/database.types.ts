@@ -75,6 +75,7 @@ export type Database = {
           bio: string | null;
           website_url: string | null;
           archived_at: string | null;
+          led_wall_scene_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -86,6 +87,7 @@ export type Database = {
           bio?: string | null;
           website_url?: string | null;
           archived_at?: string | null;
+          led_wall_scene_id?: string | null;
         };
         Update: {
           name?: string;
@@ -93,6 +95,7 @@ export type Database = {
           bio?: string | null;
           website_url?: string | null;
           archived_at?: string | null;
+          led_wall_scene_id?: string | null;
         };
         Relationships: [
           {
@@ -100,6 +103,13 @@ export type Database = {
             columns: ["venue_id"];
             isOneToOne: false;
             referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "artists_led_wall_scene_id_fkey";
+            columns: ["led_wall_scene_id"];
+            isOneToOne: false;
+            referencedRelation: "led_wall_scenes";
             referencedColumns: ["id"];
           },
         ];
@@ -345,6 +355,7 @@ export type Database = {
           public_url: string | null;
           sort_order: number;
           enabled: boolean;
+          rolls_until_showtime: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -359,6 +370,7 @@ export type Database = {
           public_url?: string | null;
           sort_order?: number;
           enabled?: boolean;
+          rolls_until_showtime?: boolean;
         };
         Update: {
           title?: string;
@@ -369,6 +381,7 @@ export type Database = {
           public_url?: string | null;
           sort_order?: number;
           enabled?: boolean;
+          rolls_until_showtime?: boolean;
         };
         Relationships: [
           {

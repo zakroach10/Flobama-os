@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permissions";
-import { LED_WALL_SQL } from "@/lib/constants";
+import { LED_WALL_SHOWTIME_SQL, LED_WALL_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
-import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
+import { applyLedShowtimeHandoff, getLedWallAgentStatus, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
@@ -29,26 +29,26 @@ export default async function ScreensPage({
 
   const requested = (await searchParams).tab;
   const tab: ScreensTab = canProgram && requested === "vertical" ? "vertical" : "led";
-  const [{ scenes, missingTable, error: scenesError }, runtimeRes, agentRes, settingsRes, adsRes, takeoverRes] =
+  const [{ scenes, missingTable, error: scenesError }, playback, agentRes, settingsRes, adsRes, takeoverRes] =
     await Promise.all([
       listLedWallScenes(supabase, context.venue.id),
-      getLedWallRuntime(supabase, context.venue.id),
+      applyLedShowtimeHandoff(supabase, context.venue.id),
       getLedWallAgentStatus(supabase, context.venue.id),
       canConfigure ? getLedWallSettings(supabase, context.venue.id) : Promise.resolve(null),
       canProgram ? listStaffScreenAds(supabase, context.venue.id) : Promise.resolve(null),
       canProgram ? getStaffTakeover(supabase, context.venue.id) : Promise.resolve(null),
     ]);
 
-  if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
+  if (missingTable || playback.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
     return (
       <ErrorState
         title="Could not load LED wall scenes"
-        description={`Apply ${LED_WALL_SQL} in the Supabase SQL editor, then reload Screens.`}
+        description={`Apply ${LED_WALL_SQL} and ${LED_WALL_SHOWTIME_SQL} in the Supabase SQL editor, then reload Screens.`}
       />
     );
   }
   if (scenesError) return <ErrorState title="Could not load LED wall scenes" description={scenesError} />;
-  if (runtimeRes.error) return <ErrorState title="Could not load the active scene" description={runtimeRes.error} />;
+  if (playback.error) return <ErrorState title="Could not load the active scene" description={playback.error} />;
   if (agentRes.error) return <ErrorState title="Could not load booth client status" description={agentRes.error} />;
   if (settingsRes?.error) return <ErrorState title="Could not load LED wall settings" description={settingsRes.error} />;
   if (adsRes?.error) return <ErrorState title="Could not load ads" description={adsRes.error} />;
@@ -57,10 +57,10 @@ export default async function ScreensPage({
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
-        <p className="text-muted-foreground">Choose a scene for the LED wall.</p>
+        <p className="text-muted-foreground">Choose a configuration for the LED wall.</p>
       </header>
       <ScreensWorkspace
         defaultTab={tab}
@@ -68,7 +68,7 @@ export default async function ScreensPage({
         led={
           <LedWallPanel
             scenes={scenes}
-            activeSceneId={runtimeRes.runtime?.active_scene_id ?? null}
+            activeSceneId={playback.activeSceneId}
             agent={agentRes.agent}
             canConfigure={canConfigure}
             mediaObsSceneName={settingsRes?.settings?.media_obs_scene_name ?? ""}

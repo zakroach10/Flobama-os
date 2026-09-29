@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { DateTime } from "luxon";
-import { DEFAULT_VENUE_TIMEZONE, LED_AGENT_STALE_MS } from "@/lib/constants";
+import { DEFAULT_VENUE_TIMEZONE, LED_AGENT_STALE_MS, LED_WALL_SHOWTIME_SQL } from "@/lib/constants";
 
 export type LedWallSceneKind = "obs" | "media";
 export type LedWallMediaKind = "image" | "video";
@@ -78,6 +78,55 @@ export function parseReportedObsScenes(value: unknown): string[] {
 
 export function isMissingLedWallRelation(message: string | null | undefined) {
   return /led_wall_/i.test(message ?? "") && /does not exist|schema cache|could not find/i.test(message ?? "");
+}
+
+export function ledShowtimeSqlHint(message: string | null | undefined) {
+  if (!/led_wall_scene_id|rolls_until_showtime/i.test(message ?? "")) return message ?? "";
+  return `${message} Apply ${LED_WALL_SHOWTIME_SQL} in the Supabase SQL editor, then reload.`;
+}
+
+export type ShowtimeSceneRef = { id: string; enabled: boolean };
+
+export function resolveShowtimeHandoff(input: {
+  now: Date;
+  active: { id: string; enabled: boolean; rollsUntilShowtime: boolean } | null;
+  showStartsAt: Date | null;
+  headliner: ShowtimeSceneRef | null;
+}): { sceneId: string | null; advanceTo: string | null } {
+  if (!input.active?.enabled) return { sceneId: null, advanceTo: null };
+  const beforeShow = !input.showStartsAt || input.now.getTime() < input.showStartsAt.getTime();
+  if (!input.active.rollsUntilShowtime || beforeShow) {
+    return { sceneId: input.active.id, advanceTo: null };
+  }
+  if (!input.headliner?.enabled || input.headliner.id === input.active.id) {
+    return { sceneId: input.active.id, advanceTo: null };
+  }
+  return { sceneId: input.headliner.id, advanceTo: input.headliner.id };
+}
+
+export function artistsMissingLedConfiguration(
+  event: {
+    status: string;
+    ends_at: string;
+    archived_at: string | null;
+    event_artists: Array<{
+      display_order: number;
+      artists: { name: string; archived_at: string | null; led_wall_scene_id: string | null } | null;
+    }>;
+  },
+  now: Date,
+): string[] {
+  if (event.archived_at || event.status === "cancelled") return [];
+  const ends = Date.parse(event.ends_at);
+  if (!Number.isFinite(ends) || ends <= now.getTime()) return [];
+  return [...event.event_artists]
+    .sort((left, right) => left.display_order - right.display_order)
+    .flatMap((row) => {
+      const artist = row.artists;
+      if (!artist || artist.archived_at || artist.led_wall_scene_id) return [];
+      const name = artist.name.trim();
+      return name ? [name] : [];
+    });
 }
 
 export function ledMediaKindForFile(file: { type: string; name: string }): LedWallMediaKind | null {

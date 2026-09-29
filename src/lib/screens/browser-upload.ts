@@ -1,7 +1,7 @@
 import { createScreenAdRecordAction } from "@/actions/screens";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { ScreenTransition } from "@/lib/constants";
-import { describeUploadFailure, extensionForFile, MAX_SCREEN_AD_BYTES, mediaKindForFile } from "@/lib/screens/upload";
+import { describeUploadFailure, extensionForFile, MAX_SCREEN_AD_BYTES, mediaKindForFile, screenAdTooLargeMessage } from "@/lib/screens/upload";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 export async function uploadScreenAdFromBrowser(input: {
@@ -17,7 +17,7 @@ export async function uploadScreenAdFromBrowser(input: {
   const mediaKind = mediaKindForFile(input.file);
   if (!mediaKind) return { ok: false as const, message: "Use an image (JPEG, PNG, WebP, GIF) or a video (MP4, WebM)." };
   if (input.file.size === 0) return { ok: false as const, message: "Choose an image or video file." };
-  if (input.file.size > MAX_SCREEN_AD_BYTES) return { ok: false as const, message: "File must be 50 MB or smaller." };
+  if (input.file.size > MAX_SCREEN_AD_BYTES) return { ok: false as const, message: screenAdTooLargeMessage() };
 
   const supabase = createBrowserSupabaseClient(input.supabaseEnv);
   if (!supabase) {

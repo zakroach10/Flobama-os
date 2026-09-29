@@ -4,6 +4,7 @@ import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import {
   isMissingLedWallRelation,
   parseReportedObsScenes,
+  resolveShowtimeHandoff,
   toPublicLedMedia,
   type PublicLedMedia,
 } from "@/lib/screens/led-wall";
@@ -95,6 +96,103 @@ export async function getPublicLedMedia(
           }
         : null,
     ),
+    error: null,
+  };
+}
+
+function headlinerSceneId(value: unknown) {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row || typeof row !== "object") return null;
+  const id = (row as { led_wall_scene_id?: string | null }).led_wall_scene_id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+export async function applyLedShowtimeHandoff(client: Client, venueId: string, now = new Date()) {
+  const { data: runtime, error: runtimeError } = await client
+    .from("led_wall_runtime")
+    .select("active_scene_id, activated_at")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  if (runtimeError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(runtimeError.message) };
+  if (!runtime?.active_scene_id) {
+    return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, missingTable: false, error: null };
+  }
+
+  const { data: active, error: activeError } = await client
+    .from("led_wall_scenes")
+    .select("*")
+    .eq("id", runtime.active_scene_id)
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  if (activeError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(activeError.message) };
+  if (!active) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, missingTable: false, error: null };
+
+  let showStartsAt: Date | null = null;
+  let headliner: { id: string; enabled: boolean } | null = null;
+  if (active.rolls_until_showtime && active.enabled) {
+    const { data: shows, error: showError } = await client
+      .from("events")
+      .select("id, starts_at")
+      .eq("venue_id", venueId)
+      .is("archived_at", null)
+      .neq("status", "cancelled")
+      .gt("ends_at", now.toISOString())
+      .order("starts_at", { ascending: true })
+      .limit(1);
+    if (showError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, missingTable: false, error: showError.message };
+    const show = shows?.[0];
+    if (show) {
+      showStartsAt = new Date(show.starts_at);
+      const { data: links, error: linkError } = await client
+        .from("event_artists")
+        .select("display_order, artists(led_wall_scene_id)")
+        .eq("event_id", show.id)
+        .order("display_order", { ascending: true })
+        .limit(1);
+      if (linkError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(linkError.message) };
+      const sceneId = headlinerSceneId(links?.[0]?.artists);
+      if (sceneId) {
+        const { data: headlinerScene, error: headlinerError } = await client
+          .from("led_wall_scenes")
+          .select("id, enabled")
+          .eq("id", sceneId)
+          .eq("venue_id", venueId)
+          .maybeSingle();
+        if (headlinerError) {
+          return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(headlinerError.message) };
+        }
+        if (headlinerScene) headliner = headlinerScene;
+      }
+    }
+  }
+
+  const handoff = resolveShowtimeHandoff({
+    now,
+    active: { id: active.id, enabled: active.enabled, rollsUntilShowtime: active.rolls_until_showtime },
+    showStartsAt,
+    headliner,
+  });
+  if (!handoff.advanceTo) {
+    return { scene: active, activeSceneId: handoff.sceneId, missingTable: false, error: null };
+  }
+
+  const { error: updateError } = await client
+    .from("led_wall_runtime")
+    .update({ active_scene_id: handoff.advanceTo })
+    .eq("venue_id", venueId);
+  if (updateError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(updateError.message) };
+
+  const { data: nextScene, error: nextError } = await client
+    .from("led_wall_scenes")
+    .select("*")
+    .eq("id", handoff.advanceTo)
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  if (nextError) return { scene: null as LedWallSceneRow | null, activeSceneId: null as string | null, ...missingOrError(nextError.message) };
+  return {
+    scene: nextScene,
+    activeSceneId: nextScene?.enabled ? nextScene.id : null,
+    missingTable: false,
     error: null,
   };
 }
