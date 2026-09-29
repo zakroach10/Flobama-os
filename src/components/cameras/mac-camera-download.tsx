@@ -30,24 +30,31 @@ export function MacCameraDownload({
       {outdated ? (
         <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
           Mac is reporting connector <span className="font-mono">{running}</span>, but production needs{" "}
-          <span className="font-mono">{CAMERA_CONNECTOR_VERSION}</span>. An old app in Applications or an old
-          .dmg in Downloads is still running — that also blocks NDI discovery.
+          <span className="font-mono">{CAMERA_CONNECTOR_VERSION}</span>. Replace the app in Applications.
           <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>Quit the current Terminal / Cam status helper</li>
-            <li>Eject every “FloBama Mac Camera” disk (including 1.0.0)</li>
+            <li>Quit Cam ● / any old FloBama Mac Camera process</li>
+            <li>Eject every “FloBama Mac Camera” disk</li>
             <li>
               Delete <span className="font-mono">/Applications/FloBama Mac Camera.app</span>
             </li>
-            <li>Download the button above (filename must end in {CAMERA_CONNECTOR_VERSION}.dmg)</li>
-            <li>Open that disk — Finder title must say FloBama Mac Camera {CAMERA_CONNECTOR_VERSION}</li>
-            <li>Drag into Applications, open it, confirm Terminal says {CAMERA_CONNECTOR_VERSION}</li>
+            <li>Download {CAMERA_CONNECTOR_VERSION} below and drag into Applications</li>
+            <li>Open the app — allow Local Network for “FloBama Mac Camera” if asked</li>
           </ol>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          After download: eject old disks, replace the app in Applications, then confirm Terminal starts with
-          “FloBama Mac Camera {CAMERA_CONNECTOR_VERSION}”.
-        </p>
+        <div className="space-y-2 text-xs text-muted-foreground">
+          <p>
+            After install, open the app from Applications (not an old disk). Look for{" "}
+            <span className="font-medium">Cam ●</span> in the menu bar — no Terminal window is required in{" "}
+            {CAMERA_CONNECTOR_VERSION}+.
+          </p>
+          <p>
+            Local Network: macOS only lists apps that have requested access. You cannot manually add
+            FloBama. Open Mac Camera {CAMERA_CONNECTOR_VERSION}, then enable{" "}
+            <span className="font-medium">FloBama Mac Camera</span> under System Settings → Privacy &amp;
+            Security → Local Network if the prompt was dismissed.
+          </p>
+        </div>
       )}
     </div>
   );

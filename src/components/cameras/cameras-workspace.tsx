@@ -153,10 +153,11 @@ export function CamerasWorkspace({
               ) : null}
             </p>
             <p className="text-xs text-muted-foreground">
-              On the Mac, look for <span className="font-medium">Cam ●</span> in the top menu bar while the
-              connector is running. Click it to see NDI source names. NDI discovery needs{" "}
-              <span className="font-medium">Local Network</span> enabled for Terminal (System Settings →
-              Privacy &amp; Security → Local Network).
+              On the Mac, look for <span className="font-medium">Cam ●</span> in the menu bar while the
+              connector is running (click it for NDI names). Local Network must be allowed for{" "}
+              <span className="font-medium">FloBama Mac Camera</span> — macOS will not let you add it
+              manually; open the app once so it appears in System Settings → Privacy &amp; Security → Local
+              Network.
             </p>
           </div>
           <Badge
@@ -206,7 +207,7 @@ export function CamerasWorkspace({
                 ? activeDevice?.connectorVersion &&
                   activeDevice.connectorVersion !== CAMERA_CONNECTOR_VERSION
                   ? `Mac is on connector ${activeDevice.connectorVersion}, which cannot report NDI correctly. Reinstall Mac Camera ${CAMERA_CONNECTOR_VERSION} (delete the old app in Applications first).`
-                  : "The Mac has not listed any NDI broadcasts yet. Confirm Local Network for Terminal and that cameras/Ecamm are publishing NDI on the same LAN."
+                  : "The Mac has not listed any NDI broadcasts yet. Allow Local Network for FloBama Mac Camera, and confirm cameras/Ecamm are publishing NDI on the same LAN."
                 : `Pair and start Mac Camera ${CAMERA_CONNECTOR_VERSION} to see LAN NDI source names here.`}
             </p>
           )}
@@ -399,7 +400,14 @@ export function CamerasWorkspace({
                   {linkStatusLabel(selected.linkStatus)}
                   {selected.connectionTarget ? ` · target “${selected.connectionTarget}”` : ""}
                 </p>
-                {selected.lastError ? <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">{selected.lastError}</p> : null}
+                {selected.lastError ? (
+                  <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">{selected.lastError}</p>
+                ) : selected.linkStatus === "ndi_live" && !selected.supportsPtz ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Discovered on Mac — preview available. Add it in Camera setup with PTZ enabled if this
+                    unit supports NDI PTZ.
+                  </p>
+                ) : null}
               </div>
 
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -463,7 +471,7 @@ export function CamerasWorkspace({
                         setPreviewError(
                           link.online
                             ? "Waiting for a frame from the Mac connector…"
-                            : "Mac connector offline — reconnect to preview.",
+                            : "Mac Camera app is not heartbeating. Open FloBama Mac Camera on the venue Mac (look for Cam ●), then tap Refresh preview.",
                         )
                       }
                     />
@@ -476,7 +484,7 @@ export function CamerasWorkspace({
                 ) : (
                   <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
                     {!link.online
-                      ? "Mac connector offline — reconnect to preview."
+                      ? "Mac Camera app is not heartbeating. Open FloBama Mac Camera on the venue Mac until Cam ● appears, then tap Refresh preview."
                       : canOperate
                         ? "Select a camera or tap Refresh preview."
                         : "Operators can start an authorized preview session."}

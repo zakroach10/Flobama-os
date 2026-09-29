@@ -1,21 +1,18 @@
-FloBama Mac Camera 1.4.1
+FloBama Mac Camera 1.4.2
 
 IMPORTANT — replace any older install
-1. Quit Terminal windows from older FloBama Mac Camera runs
-2. Eject every disk named FloBama Mac Camera (including 1.0.0 / 1.1.0)
-3. Delete /Applications/FloBama Mac Camera.app (move to Trash)
-4. Download Mac Camera 1.4.1 from FloBama OS → Cameras (do not reopen an old .dmg in Downloads)
-5. Open THIS disk (title must say FloBama Mac Camera 1.4.1)
-6. Drag FloBama Mac Camera into Applications, then open it
-7. Terminal must start with: FloBama Mac Camera 1.4.1
+1. Quit any old FloBama Mac Camera / Terminal windows and Cam ● menu item
+2. Eject every disk named FloBama Mac Camera
+3. Delete /Applications/FloBama Mac Camera.app
+4. Download Mac Camera 1.4.2 from FloBama OS → Cameras
+5. Open THIS disk (title must say FloBama Mac Camera 1.4.2)
+6. Drag into Applications, then open it
 
-If Terminal still says 1.0.0, you are launching the old app in Applications — delete it and drag again from this 1.4.1 disk.
+This version runs as the FloBama Mac Camera app (not Terminal).
+When macOS asks for Local Network, click Allow for “FloBama Mac Camera”.
+You cannot manually add apps to that privacy list — opening this app creates the entry.
 
-NDI discovery requires Local Network permission for Terminal.
-When prompted, click Allow. Or open:
-  System Settings → Privacy & Security → Local Network → enable Terminal
-
-Click the Cam ● menu-bar item to see NDI source names.
+Look for Cam ● in the menu bar. Click it to see discovered NDI source names.
 The same list appears in FloBama OS → Cameras under “NDI sources on Mac”.
 
-Leave the Terminal window open while staff use remote cameras.
+Logs: ~/Library/Logs/FloBamaMacConnector/connector.log
