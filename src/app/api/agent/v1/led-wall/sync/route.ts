@@ -10,6 +10,7 @@ import {
 } from "@/lib/screens/led-wall";
 import { LED_WALL_SQL } from "@/lib/constants";
 import { ledWallSyncSchema } from "@/lib/validation/schemas";
+import { getPublicLedPlayback, resolvePlaylistActiveScene } from "@/lib/queries/led-playlists";
 
 export const dynamic = "force-dynamic";
 
@@ -66,9 +67,14 @@ export async function POST(request: Request) {
   );
   if (statusError) return NextResponse.json({ error: "Could not record booth status." }, { status: 500 });
 
-  const [{ data: runtime }, { data: settings }] = await Promise.all([
-    admin.from("led_wall_runtime").select("active_scene_id, activated_at").eq("venue_id", secret.venue_id).maybeSingle(),
+  const [{ data: runtime }, { data: settings }, playbackRes] = await Promise.all([
+    admin
+      .from("led_wall_runtime")
+      .select("active_scene_id, active_playlist_id, activated_at")
+      .eq("venue_id", secret.venue_id)
+      .maybeSingle(),
     admin.from("led_wall_settings").select("media_obs_scene_name").eq("venue_id", secret.venue_id).maybeSingle(),
+    getPublicLedPlayback(admin, secret.venue_id),
   ]);
 
   let activeScene: {
@@ -77,7 +83,25 @@ export async function POST(request: Request) {
     enabled: boolean;
     obsSceneName: string | null;
   } | null = null;
-  if (runtime?.active_scene_id) {
+
+  if (playbackRes.playback.mode === "playlist") {
+    const current = resolvePlaylistActiveScene(playbackRes.playback);
+    if (current) {
+      activeScene = {
+        id: current.id,
+        kind: current.kind,
+        enabled: current.enabled,
+        obsSceneName: current.obsSceneName,
+      };
+    } else if (playbackRes.playback.playlist.some((item) => item.kind === "media")) {
+      activeScene = {
+        id: "playlist-media",
+        kind: "media",
+        enabled: true,
+        obsSceneName: null,
+      };
+    }
+  } else if (runtime?.active_scene_id) {
     const { data: scene } = await admin
       .from("led_wall_scenes")
       .select("id, kind, enabled, obs_scene_name")
@@ -102,6 +126,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     desiredObsScene,
     activeSceneId: activeScene?.enabled ? activeScene.id : null,
-    revision: runtime?.activated_at ?? null,
+    activePlaylistId: runtime?.active_playlist_id ?? null,
+    revision: playbackRes.playback.revision || runtime?.activated_at || null,
   });
 }

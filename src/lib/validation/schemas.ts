@@ -293,6 +293,36 @@ export const updateMenuSpecialSchema = z.object({
   enabled: z.boolean(),
 });
 
+export const createLedPlaylistSchema = z.object({
+  name: z.string().trim().min(1, "Playlist name is required.").max(120),
+});
+
+export const renameLedPlaylistSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1, "Playlist name is required.").max(120),
+});
+
+export const activateLedPlaylistSchema = z.object({
+  playlistId: z.string().uuid(),
+});
+
+export const addLedPlaylistItemSchema = z.object({
+  playlistId: z.string().uuid(),
+  sceneId: z.string().uuid(),
+  durationSeconds: z.number().int().min(1).max(600).optional(),
+});
+
+export const updateLedPlaylistItemSchema = z.object({
+  id: z.string().uuid(),
+  durationSeconds: z.number().int().min(1).max(600),
+  enabled: z.boolean(),
+});
+
+export const reorderLedPlaylistItemsSchema = z.object({
+  playlistId: z.string().uuid(),
+  ids: z.array(z.string().uuid()).min(1),
+});
+
 export const createLedObsSceneSchema = z.object({
   title: z.string().trim().min(1, "Title is required.").max(160),
   obsSceneName: z.string().trim().min(1, "Choose an OBS scene.").max(200),

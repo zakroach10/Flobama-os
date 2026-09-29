@@ -101,13 +101,23 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
     await endTriviaSession(gate.supabase, gate.context.venue.id);
   }
 
-  const { error } = await gate.supabase.from("led_wall_runtime").upsert(
+  let { error } = await gate.supabase.from("led_wall_runtime").upsert(
     {
       venue_id: gate.context.venue.id,
       active_scene_id: scene.id,
+      active_playlist_id: null,
     },
     { onConflict: "venue_id" },
   );
+  if (error && /active_playlist_id/i.test(error.message)) {
+    ({ error } = await gate.supabase.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.context.venue.id,
+        active_scene_id: scene.id,
+      },
+      { onConflict: "venue_id" },
+    ));
+  }
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
   revalidateLedWall();
   if (scene.kind === "trivia") {
