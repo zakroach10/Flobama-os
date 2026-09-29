@@ -57,6 +57,39 @@ describe("Mac NDI inventory merge", () => {
     );
   });
 
+  it("omits hidden source keys from inventory, discovery, and sims", () => {
+    const script = `
+      import { buildLocalCameras } from "./lib/inventory.mjs";
+      const cameras = buildLocalCameras({
+        inventory: [
+          {
+            id: "inv-1",
+            sourceKey: "stage-left",
+            title: "Stage left",
+            protocol: "ndi_ptz",
+            connectionTarget: "CAM 1",
+            enabled: true,
+          },
+        ],
+        discoveredNdi: [
+          { name: "Ecamm Live", urlAddress: null, sourceKey: "ndi-ecamm-live" },
+        ],
+        hiddenSourceKeys: ["stage-left", "ndi-ecamm-live", "sim-cam-a"],
+        includeBuiltinSims: true,
+      });
+      console.log(JSON.stringify(cameras.map((c) => c.sourceKey)));
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: path.join(process.cwd(), "clients/mac-camera-connector"),
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(0);
+    const keys = JSON.parse(result.stdout.trim());
+    expect(keys).not.toContain("stage-left");
+    expect(keys).not.toContain("ndi-ecamm-live");
+    expect(keys).not.toContain("sim-cam-a");
+  });
+
   it("marks inventory NDI as pending when not discovered", () => {
     const script = `
       import { buildLocalCameras } from "./lib/inventory.mjs";

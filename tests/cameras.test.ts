@@ -212,3 +212,13 @@ describe("camera sync schema", () => {
     expect(parsed.success).toBe(true);
   });
 });
+
+describe("camera source delete schema", () => {
+  it("requires a camera id", async () => {
+    const { cameraSourceDeleteSchema } = await import("@/lib/validation/schemas");
+    expect(
+      cameraSourceDeleteSchema.safeParse({ cameraId: "11111111-1111-4111-8111-111111111111" }).success,
+    ).toBe(true);
+    expect(cameraSourceDeleteSchema.safeParse({}).success).toBe(false);
+  });
+});

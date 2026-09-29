@@ -25,7 +25,7 @@ Rebuild the disk image from this repo with:
 npm run build:dmg:cameras
 ```
 
-Output: `public/downloads/FloBama-Mac-Camera-1.2.0.dmg`
+Output: `public/downloads/FloBama-Mac-Camera-1.3.0.dmg`
 
 ## Install (developer / CLI)
 
@@ -89,7 +89,9 @@ tail -f ~/Library/Logs/FloBamaMacConnector/connector.log
 
 ## Real NDI / VISCA cameras
 
-**NDI discovery + preview (1.2.0+):** the connector finds LAN NDI sources, matches them to inventory by NDI name, auto-lists unmatched sources, and grabs low-bandwidth preview frames when receive works. Run `node index.mjs --doctor` to list what the Mac can see.
+**NDI discovery + preview (1.3.0+):** the connector finds LAN NDI sources, matches them to inventory by NDI name, auto-lists unmatched sources, and grabs low-bandwidth preview frames when receive works. Run `node index.mjs --doctor` to list what the Mac can see.
+
+Because the .dmg opens **Terminal**, enable **Local Network for Terminal** in System Settings → Privacy & Security → Local Network (macOS will often prompt on first discovery).
 
 **NDI / VISCA PTZ move commands** stay stubbed until you confirm:
 
