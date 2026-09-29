@@ -2,14 +2,16 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permissions";
-import { LED_WALL_SQL } from "@/lib/constants";
+import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
+import { getStaffTriviaSession, listTriviaPacks } from "@/lib/queries/trivia";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
 import { TakeoverPanel } from "@/components/screens/takeover-panel";
+import { TriviaPanel } from "@/components/screens/trivia-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
 import { ErrorState } from "@/components/states";
 
@@ -28,16 +30,32 @@ export default async function ScreensPage({
   if (!supabase) redirect("/login");
 
   const requested = (await searchParams).tab;
-  const tab: ScreensTab = canProgram && requested === "vertical" ? "vertical" : "led";
-  const [{ scenes, missingTable, error: scenesError }, runtimeRes, agentRes, settingsRes, adsRes, takeoverRes] =
-    await Promise.all([
-      listLedWallScenes(supabase, context.venue.id),
-      getLedWallRuntime(supabase, context.venue.id),
-      getLedWallAgentStatus(supabase, context.venue.id),
-      canConfigure ? getLedWallSettings(supabase, context.venue.id) : Promise.resolve(null),
-      canProgram ? listStaffScreenAds(supabase, context.venue.id) : Promise.resolve(null),
-      canProgram ? getStaffTakeover(supabase, context.venue.id) : Promise.resolve(null),
-    ]);
+  const tab: ScreensTab =
+    requested === "trivia"
+      ? "trivia"
+      : canProgram && requested === "vertical"
+        ? "vertical"
+        : "led";
+
+  const [
+    { scenes, missingTable, error: scenesError },
+    runtimeRes,
+    agentRes,
+    settingsRes,
+    adsRes,
+    takeoverRes,
+    packsRes,
+    triviaSessionRes,
+  ] = await Promise.all([
+    listLedWallScenes(supabase, context.venue.id),
+    getLedWallRuntime(supabase, context.venue.id),
+    getLedWallAgentStatus(supabase, context.venue.id),
+    canConfigure ? getLedWallSettings(supabase, context.venue.id) : Promise.resolve(null),
+    canProgram ? listStaffScreenAds(supabase, context.venue.id) : Promise.resolve(null),
+    canProgram ? getStaffTakeover(supabase, context.venue.id) : Promise.resolve(null),
+    listTriviaPacks(supabase, context.venue.id),
+    getStaffTriviaSession(supabase, context.venue.id),
+  ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
     return (
@@ -52,15 +70,22 @@ export default async function ScreensPage({
   if (agentRes.error) return <ErrorState title="Could not load booth client status" description={agentRes.error} />;
   if (settingsRes?.error) return <ErrorState title="Could not load LED wall settings" description={settingsRes.error} />;
   if (adsRes?.error) return <ErrorState title="Could not load ads" description={adsRes.error} />;
+  if (packsRes.error) {
+    return <ErrorState title="Could not load trivia packs" description={packsRes.error} />;
+  }
+  if (triviaSessionRes.error) {
+    return <ErrorState title="Could not load trivia session" description={triviaSessionRes.error} />;
+  }
 
   const supabaseEnv = getPublicSupabaseEnv();
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
+  const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
-        <p className="text-muted-foreground">Choose a scene for the LED wall.</p>
+        <p className="text-muted-foreground">Choose a scene for the LED wall, or run automated trivia.</p>
       </header>
       <ScreensWorkspace
         defaultTab={tab}
@@ -76,6 +101,7 @@ export default async function ScreensPage({
             venueId={context.venue.id}
             displayUrl={displayUrl}
             supabaseEnv={supabaseEnv}
+            hasTriviaScene={scenes.some((scene) => scene.kind === "trivia")}
           />
         }
         vertical={
@@ -97,7 +123,21 @@ export default async function ScreensPage({
             </>
           ) : null
         }
+        trivia={
+          <TriviaPanel
+            packs={packsRes.packs}
+            session={triviaSessionRes.session}
+            missingTable={packsRes.missingTable || triviaSessionRes.missingTable}
+            canConfigure={canProgram}
+            joinBaseUrl={joinBaseUrl}
+          />
+        }
       />
+      {packsRes.missingTable ? (
+        <p className="text-sm text-muted-foreground">
+          Trivia needs {TRIVIA_SQL} applied on the hosted Supabase project.
+        </p>
+      ) : null}
     </div>
   );
 }

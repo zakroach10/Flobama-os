@@ -4,10 +4,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
-import { LED_WALL_SQL } from "@/lib/constants";
+import {
+  LED_TRIVIA_SCENE_ID,
+  LED_WALL_SQL,
+  TRIVIA_DEFAULT_LOBBY_SECONDS,
+  TRIVIA_DEFAULT_PACK_ID,
+  TRIVIA_DEFAULT_QUESTION_COUNT,
+  TRIVIA_DEFAULT_QUESTION_SECONDS,
+} from "@/lib/constants";
 import { createLedAgentToken, hashLedAgentToken, isMissingLedWallRelation } from "@/lib/screens/led-wall";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { endTriviaSession, startTriviaSession } from "@/lib/trivia/runtime";
 import {
   activateLedWallSceneSchema,
   createLedMediaSceneSchema,
@@ -47,7 +55,10 @@ async function staffGate(configure: boolean) {
 function revalidateLedWall() {
   revalidatePath("/screens");
   revalidatePath("/display/led");
+  revalidatePath("/display/vertical");
   revalidatePath("/api/public/v1/screens/led");
+  revalidatePath("/api/public/v1/screens/vertical");
+  revalidatePath("/api/public/v1/trivia/wall");
 }
 
 async function nextSortOrder(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, venueId: string) {
@@ -67,12 +78,28 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
 
   const { data: scene, error: sceneError } = await gate.supabase
     .from("led_wall_scenes")
-    .select("id, title, enabled")
+    .select("id, title, enabled, kind")
     .eq("id", parsed.data.sceneId)
     .eq("venue_id", gate.context.venue.id)
     .maybeSingle();
   if (sceneError) return { ok: false, message: ledSqlMessage(sceneError.message) };
   if (!scene || !scene.enabled) return { ok: false, message: "That scene is not available." };
+
+  if (scene.kind === "trivia") {
+    const started = await startTriviaSession(gate.supabase, {
+      venueId: gate.context.venue.id,
+      packId: TRIVIA_DEFAULT_PACK_ID,
+      questionCount: TRIVIA_DEFAULT_QUESTION_COUNT,
+      lobbySeconds: TRIVIA_DEFAULT_LOBBY_SECONDS,
+      questionSeconds: TRIVIA_DEFAULT_QUESTION_SECONDS,
+      startedBy: gate.context.userId,
+    });
+    if (!started.ok && !/already running/i.test(started.message)) {
+      return { ok: false, message: started.message };
+    }
+  } else {
+    await endTriviaSession(gate.supabase, gate.context.venue.id);
+  }
 
   const { error } = await gate.supabase.from("led_wall_runtime").upsert(
     {
@@ -83,7 +110,40 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
   );
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
   revalidateLedWall();
+  if (scene.kind === "trivia") {
+    return {
+      ok: true,
+      message: `${scene.title} is live — QR join, questions, and the timer are on the LED wall.`,
+    };
+  }
   return { ok: true, message: `${scene.title} is the active LED wall scene.` };
+}
+
+export async function ensureLedTriviaSceneAction(): Promise<LedWallActionResult> {
+  const gate = await staffGate(true);
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const { data: existing, error: existingError } = await gate.supabase
+    .from("led_wall_scenes")
+    .select("id")
+    .eq("venue_id", gate.context.venue.id)
+    .eq("kind", "trivia")
+    .limit(1)
+    .maybeSingle();
+  if (existingError) return { ok: false, message: ledSqlMessage(existingError.message) };
+  if (existing) return { ok: true, message: "Trivia scene ready." };
+
+  const { error } = await gate.supabase.from("led_wall_scenes").insert({
+    id: LED_TRIVIA_SCENE_ID,
+    venue_id: gate.context.venue.id,
+    title: "Shoals Trivia",
+    kind: "trivia",
+    sort_order: await nextSortOrder(gate.supabase, gate.context.venue.id),
+    enabled: true,
+  });
+  if (error) return { ok: false, message: ledSqlMessage(error.message) };
+  revalidateLedWall();
+  return { ok: true, message: "Shoals Trivia was added to the LED wall." };
 }
 
 export async function createLedObsSceneAction(input: unknown): Promise<LedWallActionResult> {

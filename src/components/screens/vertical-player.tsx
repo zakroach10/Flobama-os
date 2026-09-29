@@ -14,28 +14,38 @@ import {
 import { displayRevision, normalizePublicTakeover, type PublicTakeover } from "@/lib/screens/takeover";
 import type { WeekSlidePayload } from "@/lib/screens/week";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { TriviaKioskSlide, type TriviaKioskPromo } from "@/components/screens/trivia-kiosk-slide";
 import { WeekEventsSlide } from "@/components/screens/week-events-slide";
 
 export function VerticalPlayer({
   initialAds,
   initialWeek = null,
   initialTakeover = null,
+  initialTrivia = null,
   lockPlaylist = false,
   initialIndex = 0,
 }: {
   initialAds: PublicScreenAd[];
   initialWeek?: WeekSlidePayload | null;
   initialTakeover?: PublicTakeover | null;
+  initialTrivia?: TriviaKioskPromo | null;
   lockPlaylist?: boolean;
   initialIndex?: number;
 }) {
   const [ads, setAds] = useState(() => normalizePublicPlaylist(initialAds));
   const [week, setWeek] = useState(initialWeek);
   const [takeover, setTakeover] = useState(() => normalizePublicTakeover(initialTakeover));
+  const [trivia, setTrivia] = useState<TriviaKioskPromo | null>(initialTrivia);
   const [index, setIndex] = useState(initialIndex);
   const [visible, setVisible] = useState(true);
   const adsRef = useRef(ads);
-  const revisionRef = useRef(displayRevision(normalizePublicPlaylist(initialAds), normalizePublicTakeover(initialTakeover)));
+  const revisionRef = useRef(
+    displayRevision(
+      normalizePublicPlaylist(initialAds),
+      normalizePublicTakeover(initialTakeover),
+      initialTrivia ? `${initialTrivia.joinCode}:${initialTrivia.status}:${initialTrivia.playerCount}` : null,
+    ),
+  );
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -66,11 +76,16 @@ export function VerticalPlayer({
           revision?: string;
           week?: WeekSlidePayload | null;
           takeover?: PublicTakeover | null;
+          trivia?: TriviaKioskPromo | null;
         };
         if (cancelled || !Array.isArray(playlist.ads)) return;
         const next = normalizePublicPlaylist(playlist.ads);
         const nextTakeover = normalizePublicTakeover(playlist.takeover);
-        const nextRevision = playlist.revision ?? displayRevision(next, nextTakeover);
+        const nextTrivia = playlist.trivia ?? null;
+        const triviaKey = nextTrivia
+          ? `${nextTrivia.joinCode}:${nextTrivia.status}:${nextTrivia.playerCount}`
+          : null;
+        const nextRevision = playlist.revision ?? displayRevision(next, nextTakeover, triviaKey);
         if (nextRevision !== revisionRef.current) {
           revisionRef.current = nextRevision;
           window.location.reload();
@@ -78,6 +93,7 @@ export function VerticalPlayer({
         }
         setAds((currentAds) => (playlistsEqual(currentAds, next) ? currentAds : next));
         setTakeover(nextTakeover);
+        setTrivia(nextTrivia);
         if (playlist.week && Array.isArray(playlist.week.days)) setWeek(playlist.week);
       } catch {
         // keep current playlist
@@ -91,7 +107,7 @@ export function VerticalPlayer({
     };
   }, [lockPlaylist]);
 
-  const holding = Boolean(takeover);
+  const holding = Boolean(trivia) || Boolean(takeover);
   const current = takeover?.ad ?? (ads.length > 0 ? ads[index % ads.length] : null);
   const currentId = current?.id ?? null;
   const showingWeek = current ? isWeekEventsAd(current) : false;
@@ -134,7 +150,9 @@ export function VerticalPlayer({
           transformOrigin: "center center",
         }}
       >
-        {!current ? (
+        {trivia ? (
+          <TriviaKioskSlide promo={trivia} />
+        ) : !current ? (
           <div className="flex h-full w-full flex-col items-center justify-center bg-[#1b1612] px-16 text-center">
             <FlobamaLogo className="w-[720px]" />
             <p className="mt-12 font-black tracking-[0.22em] text-[#f4ebe3] uppercase text-[40px]">

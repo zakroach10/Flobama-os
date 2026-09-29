@@ -66,11 +66,21 @@ export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
 export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
 export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
 export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
+export const LED_TRIVIA_SCENE_SQL = "supabase/migrations/20260929000013_led_trivia_scene.sql";
+export const LED_TRIVIA_SCENE_ID = "33333333-3333-4333-8333-333333333333";
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
 export const LED_OBS_DMG_HREF = `/downloads/${LED_OBS_DMG_FILENAME}`;
 export const LED_DISPLAY_POLL_MS = 1000;
 export const LED_AGENT_STALE_MS = 15_000;
+
+export const TRIVIA_SQL = "supabase/migrations/20260929000012_trivia.sql";
+export const TRIVIA_PLAYER_COOKIE = "flobama_trivia_player";
+export const TRIVIA_POLL_MS = 1000;
+export const TRIVIA_DEFAULT_PACK_ID = "22222222-2222-4222-8222-222222222222";
+export const TRIVIA_DEFAULT_LOBBY_SECONDS = 60;
+export const TRIVIA_DEFAULT_QUESTION_SECONDS = 20;
+export const TRIVIA_DEFAULT_QUESTION_COUNT = 10;
 
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",

@@ -32,7 +32,7 @@ cp .env.example .env.local
 - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role (server only; needed to create staff logins)
 
 3. Apply the schema. SQL editor: paste the files in `supabase/migrations/` in filename order.  
-   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, `20260909000008_ticketing.sql`, `20260909000009_master_admin.sql`, `20260909000010_layout_object_types.sql`, and `20260928000011_led_wall.sql`.  
+   Needed for this app: `20240908000001_init_flobama_os.sql`, `20260908000002_public_listings_and_booth.sql`, `20260908000003_staff_admin.sql`, `20260908000005_screens.sql`, `20260908000006_week_events_slide.sql`, `20260908000007_screen_takeover.sql`, `20260909000008_ticketing.sql`, `20260909000009_master_admin.sql`, `20260909000010_layout_object_types.sql`, `20260928000011_led_wall.sql`, `20260929000012_trivia.sql`, and `20260929000013_led_trivia_scene.sql`.  
 
    Or with the CLI after `npx supabase login` and `npx supabase link --project-ref <ref>`:
 

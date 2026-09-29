@@ -68,9 +68,13 @@ export function normalizePublicTakeover(raw: unknown, now: Date = new Date()): P
   };
 }
 
-export function displayRevision(ads: PublicScreenAd[], takeover: PublicTakeover | null) {
+export function displayRevision(
+  ads: PublicScreenAd[],
+  takeover: PublicTakeover | null,
+  triviaKey: string | null = null,
+) {
   const key = takeover
     ? [takeover.ad.id, takeover.ad.url, takeover.ad.mediaKind, takeover.endsAt ?? "open"].join(":")
     : "";
-  return `${playlistRevision(ads)}#t:${key}`;
+  return `${playlistRevision(ads)}#t:${key}#tr:${triviaKey ?? ""}`;
 }

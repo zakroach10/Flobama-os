@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { DateTime } from "luxon";
 import { DEFAULT_VENUE_TIMEZONE, LED_AGENT_STALE_MS } from "@/lib/constants";
 
-export type LedWallSceneKind = "obs" | "media";
+export type LedWallSceneKind = "obs" | "media" | "trivia";
 export type LedWallMediaKind = "image" | "video";
 
 export type LedSceneRef = {
@@ -30,8 +30,24 @@ export function resolveDesiredObsScene(input: {
 }): string | null {
   if (!input.activeScene?.enabled) return null;
   if (input.activeScene.kind === "obs") return blankToNull(input.activeScene.obsSceneName);
-  if (input.activeScene.kind === "media") return blankToNull(input.mediaObsSceneName);
+  // Media uploads and trivia both render in the /display/led browser source.
+  if (input.activeScene.kind === "media" || input.activeScene.kind === "trivia") {
+    return blankToNull(input.mediaObsSceneName);
+  }
   return null;
+}
+
+export function ledSceneDetail(scene: {
+  kind: LedWallSceneKind | string;
+  obs_scene_name?: string | null;
+  media_kind?: string | null;
+}) {
+  if (scene.kind === "obs") return `OBS scene: ${scene.obs_scene_name}`;
+  if (scene.kind === "trivia") {
+    return "Automated trivia on the LED wall · QR join, questions, timer, top 3";
+  }
+  if (scene.media_kind === "video") return "MP4 loop on the FloBama display page";
+  return "PNG on the FloBama display page";
 }
 
 export function toPublicLedMedia(row: {

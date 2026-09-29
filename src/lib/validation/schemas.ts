@@ -240,3 +240,25 @@ export const startScreenTakeoverSchema = z.object({
   adId: z.string().uuid(),
   minutes: z.number().int().min(1).max(SCREEN_TAKEOVER_MAX_MINUTES).nullable(),
 });
+
+export const startTriviaSchema = z.object({
+  packId: z.string().uuid(),
+  questionCount: z.number().int().min(1).max(50).optional(),
+  lobbySeconds: z.number().int().min(15).max(600).optional(),
+  questionSeconds: z.number().int().min(8).max(120).optional(),
+});
+
+export const importTriviaCsvSchema = z.object({
+  packId: z.string().uuid(),
+  csvText: z.string().trim().min(1).max(500_000),
+  replace: z.boolean().default(true),
+});
+
+export const triviaJoinSchema = z.object({
+  joinCode: z.string().trim().min(4).max(8),
+  displayName: z.string().trim().min(1).max(24),
+});
+
+export const triviaAnswerSchema = z.object({
+  choiceIndex: z.number().int().min(0).max(3),
+});
