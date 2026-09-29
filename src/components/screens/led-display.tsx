@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LED_DISPLAY_POLL_MS } from "@/lib/constants";
 import type { PublicLedMedia } from "@/lib/screens/led-wall";
 import {
@@ -19,6 +19,7 @@ type LedApiPayload = {
   startedAt?: string | null;
   revision?: string;
   reloadNonce?: number;
+  error?: string;
 };
 
 export function LedDisplay({
@@ -42,9 +43,11 @@ export function LedDisplay({
   const [playlist, setPlaylist] = useState<PublicLedPlaylistItem[]>(initialPlaylist);
   const [mode, setMode] = useState<"idle" | "scene" | "playlist">(initialMode);
   const [revision, setRevision] = useState(initialRevision);
-  const [reloadNonce, setReloadNonce] = useState(initialReloadNonce);
   const [index, setIndex] = useState(0);
   const [trivia, setTrivia] = useState<TriviaWallState | null>(initialTrivia);
+  const reloadNonceRef = useRef(initialReloadNonce);
+  const revisionRef = useRef(initialRevision);
+  const modeRef = useRef(initialMode);
 
   useEffect(() => {
     if (lockTriviaDemo) return;
@@ -55,19 +58,25 @@ export function LedDisplay({
           fetch("/api/public/v1/screens/led", { cache: "no-store" }),
           fetch("/api/public/v1/trivia/wall", { cache: "no-store" }),
         ]);
+        if (!ledRes.ok) return;
         const ledJson = (await ledRes.json()) as LedApiPayload;
         const triviaJson = (await triviaRes.json()) as { trivia?: TriviaWallState | null };
-        if (cancelled) return;
-        const nextReload = typeof ledJson.reloadNonce === "number" ? ledJson.reloadNonce : reloadNonce;
-        if (nextReload !== reloadNonce) {
+        if (cancelled || ledJson.error) return;
+
+        if (typeof ledJson.reloadNonce === "number" && ledJson.reloadNonce !== reloadNonceRef.current) {
+          reloadNonceRef.current = ledJson.reloadNonce;
           window.location.reload();
           return;
         }
+
         setTrivia(triviaJson.trivia ?? null);
         const nextRevision = ledJson.revision ?? "idle";
         const nextMode = ledJson.mode ?? (ledJson.active ? "scene" : "idle");
         const nextPlaylist = ledJson.playlist ?? [];
-        if (nextRevision !== revision || nextMode !== mode) {
+
+        if (nextRevision !== revisionRef.current || nextMode !== modeRef.current) {
+          revisionRef.current = nextRevision;
+          modeRef.current = nextMode;
           setRevision(nextRevision);
           setMode(nextMode);
           setPlaylist(nextPlaylist);
@@ -75,15 +84,15 @@ export function LedDisplay({
           setMedia(ledJson.active ?? null);
           return;
         }
+
         if (nextMode === "playlist") {
           setPlaylist(nextPlaylist);
         } else {
           setMedia(ledJson.active ?? null);
           setPlaylist([]);
         }
-        setReloadNonce(nextReload);
       } catch {
-        /* keep current frame */
+        /* keep current frame on network errors */
       }
     }
     const timer = window.setInterval(() => void refresh(), LED_DISPLAY_POLL_MS);
@@ -91,7 +100,7 @@ export function LedDisplay({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [lockTriviaDemo, mode, revision, reloadNonce]);
+  }, [lockTriviaDemo]);
 
   useEffect(() => {
     if (mode !== "playlist" || playlist.length === 0 || trivia) return;

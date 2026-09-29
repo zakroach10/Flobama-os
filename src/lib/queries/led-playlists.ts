@@ -56,14 +56,16 @@ export async function listStaffLedPlaylistItems(client: Client, venueId: string,
         .from("led_wall_scenes")
         .select("id, title, kind, media_kind, public_url, obs_scene_name")
         .in("id", sceneIds)
-    : { data: [] as Array<{
-        id: string;
-        title: string;
-        kind: StaffLedPlaylistItem["kind"];
-        media_kind: StaffLedPlaylistItem["media_kind"];
-        public_url: string | null;
-        obs_scene_name: string | null;
-      }> };
+    : {
+        data: [] as Array<{
+          id: string;
+          title: string;
+          kind: StaffLedPlaylistItem["kind"];
+          media_kind: StaffLedPlaylistItem["media_kind"];
+          public_url: string | null;
+          obs_scene_name: string | null;
+        }>,
+      };
 
   const byId = new Map((scenes ?? []).map((scene) => [scene.id, scene]));
   const items: StaffLedPlaylistItem[] = rows.map((row) => {
@@ -86,91 +88,23 @@ export async function listStaffLedPlaylistItems(client: Client, venueId: string,
   return { items, missingTable: false, error: null };
 }
 
+/**
+ * Public playback must only touch anon-readable views.
+ * Never select led_wall_runtime here — RLS blocks anon and blanks the wall.
+ */
 export async function getPublicLedPlayback(
   client: Client,
   venueId = FLO_BAMA_VENUE_ID,
 ): Promise<{ playback: PublicLedPlayback; error: string | null }> {
-  const { data: runtime, error: runtimeError } = await client
-    .from("led_wall_runtime")
-    .select("active_scene_id, active_playlist_id, activated_at")
+  const playlistRes = await client
+    .from("led_wall_active_playlist_listings")
+    .select("*")
     .eq("venue_id", venueId)
-    .maybeSingle();
+    .order("sort_order", { ascending: true });
 
-  if (runtimeError) {
-    if (isMissingLedPlaylistRelation(runtimeError.message) || /active_playlist_id/i.test(runtimeError.message)) {
-      const { media, error } = await getPublicLedMedia(client, venueId);
-      return {
-        playback: {
-          mode: media ? "scene" : "idle",
-          active: media,
-          playlist: [],
-          playlistId: null,
-          startedAt: null,
-          revision: media?.id ?? "idle",
-        },
-        error,
-      };
-    }
-    if (/led_wall_runtime/i.test(runtimeError.message) && /does not exist|schema cache/i.test(runtimeError.message)) {
-      return {
-        playback: {
-          mode: "idle",
-          active: null,
-          playlist: [],
-          playlistId: null,
-          startedAt: null,
-          revision: "idle",
-        },
-        error: null,
-      };
-    }
-    return {
-      playback: {
-        mode: "idle",
-        active: null,
-        playlist: [],
-        playlistId: null,
-        startedAt: null,
-        revision: "idle",
-      },
-      error: runtimeError.message,
-    };
-  }
-
-  if (runtime?.active_playlist_id) {
-    const { data, error } = await client
-      .from("led_wall_active_playlist_listings")
-      .select("*")
-      .eq("venue_id", venueId)
-      .order("sort_order", { ascending: true });
-    if (error) {
-      if (isMissingLedPlaylistRelation(error.message)) {
-        const { media, error: mediaError } = await getPublicLedMedia(client, venueId);
-        return {
-          playback: {
-            mode: media ? "scene" : "idle",
-            active: media,
-            playlist: [],
-            playlistId: null,
-            startedAt: null,
-            revision: media?.id ?? "idle",
-          },
-          error: mediaError,
-        };
-      }
-      return {
-        playback: {
-          mode: "idle",
-          active: null,
-          playlist: [],
-          playlistId: null,
-          startedAt: null,
-          revision: "idle",
-        },
-        error: error.message,
-      };
-    }
-    const playlist = (data ?? []).map((row) =>
+  if (!playlistRes.error && (playlistRes.data?.length ?? 0) > 0) {
+    const rows = playlistRes.data ?? [];
+    const playlist = rows.map((row) =>
       toPublicLedPlaylistItem({
         id: row.id,
         scene_id: row.scene_id,
@@ -182,19 +116,25 @@ export async function getPublicLedPlayback(
         duration_seconds: row.duration_seconds,
       }),
     );
-    const index = ledPlaylistIndexAt(playlist, runtime.activated_at);
+    const startedAt = rows[0]?.activated_at ?? null;
+    const playlistId = rows[0]?.playlist_id ?? null;
+    const index = ledPlaylistIndexAt(playlist, startedAt);
     const current = playlist[index] ?? null;
     return {
       playback: {
         mode: "playlist",
         active: current ? mediaFromPlaylistItem(current) : null,
         playlist,
-        playlistId: runtime.active_playlist_id,
-        startedAt: runtime.activated_at,
-        revision: playlistRevision(playlist, runtime.activated_at, runtime.active_playlist_id),
+        playlistId,
+        startedAt,
+        revision: playlistRevision(playlist, startedAt, playlistId),
       },
       error: null,
     };
+  }
+
+  if (playlistRes.error && !isMissingLedPlaylistRelation(playlistRes.error.message)) {
+    // Fall through to single-scene media so a playlist view glitch cannot black out the wall.
   }
 
   const { media, error } = await getPublicLedMedia(client, venueId);
@@ -204,16 +144,14 @@ export async function getPublicLedPlayback(
       active: media,
       playlist: [],
       playlistId: null,
-      startedAt: runtime?.activated_at ?? null,
-      revision: `${runtime?.active_scene_id ?? "idle"}:${runtime?.activated_at ?? ""}`,
+      startedAt: null,
+      revision: media?.id ?? "idle",
     },
     error,
   };
 }
 
-export function resolvePlaylistActiveScene(
-  playback: PublicLedPlayback,
-): LedSceneRef | null {
+export function resolvePlaylistActiveScene(playback: PublicLedPlayback): LedSceneRef | null {
   if (playback.mode !== "playlist" || playback.playlist.length === 0) return null;
   const index = ledPlaylistIndexAt(playback.playlist, playback.startedAt);
   const item = playback.playlist[index];

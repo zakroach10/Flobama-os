@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   );
   if (statusError) return NextResponse.json({ error: "Could not record booth status." }, { status: 500 });
 
-  const [{ data: runtime }, { data: settings }, playbackRes] = await Promise.all([
+  const [runtimeRes, settingsRes, playbackRes] = await Promise.all([
     admin
       .from("led_wall_runtime")
       .select("active_scene_id, active_playlist_id, activated_at")
@@ -76,6 +76,19 @@ export async function POST(request: Request) {
     admin.from("led_wall_settings").select("media_obs_scene_name").eq("venue_id", secret.venue_id).maybeSingle(),
     getPublicLedPlayback(admin, secret.venue_id),
   ]);
+
+  let runtime = runtimeRes.data;
+  if (runtimeRes.error && /active_playlist_id/i.test(runtimeRes.error.message)) {
+    const fallback = await admin
+      .from("led_wall_runtime")
+      .select("active_scene_id, activated_at")
+      .eq("venue_id", secret.venue_id)
+      .maybeSingle();
+    runtime = fallback.data
+      ? { ...fallback.data, active_playlist_id: null }
+      : null;
+  }
+  const settings = settingsRes.data;
 
   let activeScene: {
     id: string;
@@ -130,3 +143,4 @@ export async function POST(request: Request) {
     revision: playbackRes.playback.revision || runtime?.activated_at || null,
   });
 }
+
