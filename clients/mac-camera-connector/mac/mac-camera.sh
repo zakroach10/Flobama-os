@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-EXPECTED_VERSION="1.4.3"
+EXPECTED_VERSION="1.4.4"
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
 NODE_HOME="$SUPPORT/node"

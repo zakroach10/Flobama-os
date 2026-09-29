@@ -16,7 +16,7 @@ import { createMoveWatchdog } from "./lib/watchdog.mjs";
 import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.4.3";
+const VERSION = "1.4.4";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));

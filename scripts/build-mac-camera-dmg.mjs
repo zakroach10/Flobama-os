@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, chmod, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, chmod, rm, symlink, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,8 +7,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "mac-camera-connector");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "mac-camera-dmg");
-const version = "1.4.3";
+const version = "1.4.4";
 const output = path.join(root, "public", "downloads", `FloBama-Mac-Camera-${version}.dmg`);
+
+const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");
+let pkg;
+try {
+  pkg = JSON.parse(pkgRaw);
+} catch (error) {
+  console.error("Invalid clients/mac-camera-connector/package.json — refusing to build DMG.");
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
+if (pkg.version !== version) {
+  console.error(`package.json version ${pkg.version} does not match DMG version ${version}`);
+  process.exit(1);
+}
 
 await rm(staging, { recursive: true, force: true });
 const app = path.join(staging, "FloBama Mac Camera.app", "Contents");
@@ -46,7 +60,7 @@ const writer = spawnSync("go", ["run", ".", staging, output], {
   },
 });
 if (writer.status !== 0) process.exit(writer.status ?? 1);
-for (const old of ["1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.4.1", "1.4.2"]) {
+for (const old of ["1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.4.1", "1.4.2", "1.4.3"]) {
   await rm(path.join(root, "public", "downloads", `FloBama-Mac-Camera-${old}.dmg`), { force: true });
 }
 console.log(output);
