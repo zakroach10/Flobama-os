@@ -2,10 +2,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: (id: string) => `/events/${id}`, label: "Overview" },
-  { href: (id: string) => `/events/${id}/ticketing`, label: "Ticketing" },
-  { href: (id: string) => `/events/${id}/tables`, label: "Table map" },
-  { href: (id: string) => `/events/${id}/sales`, label: "Sales" },
+  { href: (id: string) => `/programming/${id}`, label: "Overview" },
+  { href: (id: string) => `/programming/${id}/ticketing`, label: "Ticketing" },
+  { href: (id: string) => `/programming/${id}/tables`, label: "Table map" },
+  { href: (id: string) => `/programming/${id}/sales`, label: "Sales" },
 ];
 
 export function EventSectionNav({ eventId, current }: { eventId: string; current: "overview" | "ticketing" | "tables" | "sales" }) {

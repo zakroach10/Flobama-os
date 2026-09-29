@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 export function revalidatePublicSurfaces() {
   revalidatePath("/dashboard");
+  revalidatePath("/programming");
   revalidatePath("/events");
   revalidatePath("/artists");
   revalidatePath("/settings");

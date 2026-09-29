@@ -36,7 +36,7 @@ function revalidateTicketing(eventId?: string) {
   revalidatePath("/ticketing/layout");
   revalidatePath("/ticketing/reports");
   if (eventId) {
-    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/programming/${eventId}`);
     revalidatePath(`/ticketing/check-in/${eventId}`);
     revalidatePath(`/tickets/${eventId}`);
   }

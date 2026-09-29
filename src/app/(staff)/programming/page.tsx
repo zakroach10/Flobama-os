@@ -52,7 +52,7 @@ export default async function EventsPage({
           {canManageProgramming(context.role) ? (
             <>
               <ImportLegacyButton />
-              <Button className="w-full sm:w-auto" render={<Link href="/events/new" />}>
+              <Button className="w-full sm:w-auto" render={<Link href="/programming/new" />}>
                 Add event
               </Button>
             </>
@@ -108,7 +108,7 @@ export default async function EventsPage({
           <EmptyState
             title="No upcoming events"
             description="Create the first show to start the operational calendar."
-            actionHref={canManageProgramming(context.role) ? "/events/new" : undefined}
+            actionHref={canManageProgramming(context.role) ? "/programming/new" : undefined}
             actionLabel={canManageProgramming(context.role) ? "Add event" : undefined}
           />
         )
@@ -132,7 +132,7 @@ export default async function EventsPage({
                       {formatVenueDateTime(event.starts_at, context.venue.timezone)}
                     </td>
                     <td className="px-4 py-3">
-                      <Link className="font-medium underline-offset-4 hover:underline" href={`/events/${event.id}`}>
+                      <Link className="font-medium underline-offset-4 hover:underline" href={`/programming/${event.id}`}>
                         {event.title}
                       </Link>
                     </td>
@@ -154,7 +154,7 @@ export default async function EventsPage({
           <ul className="space-y-3 md:hidden">
             {events.map((event) => (
               <li key={event.id} className="rounded-xl border bg-card p-4">
-                <Link href={`/events/${event.id}`} className="block space-y-2">
+                <Link href={`/programming/${event.id}`} className="block space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold">{event.title}</p>
                     <StatusBadge status={event.status} />
@@ -198,13 +198,13 @@ function Pagination({
   next.set("page", String(Math.min(totalPages, page + 1)));
   return (
     <div className="flex items-center justify-between gap-3">
-      <Button variant="outline" disabled={page <= 1} render={<Link href={`/events?${prev.toString()}`} />}>
+      <Button variant="outline" disabled={page <= 1} render={<Link href={`/programming?${prev.toString()}`} />}>
         Previous
       </Button>
       <p className="text-sm text-muted-foreground">
         Page {page} of {totalPages}
       </p>
-      <Button variant="outline" disabled={page >= totalPages} render={<Link href={`/events?${next.toString()}`} />}>
+      <Button variant="outline" disabled={page >= totalPages} render={<Link href={`/programming?${next.toString()}`} />}>
         Next
       </Button>
     </div>
