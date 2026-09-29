@@ -7,7 +7,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "mac-camera-connector");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "mac-camera-dmg");
-const output = path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.1.0.dmg");
+const version = "1.2.0";
+const output = path.join(root, "public", "downloads", `FloBama-Mac-Camera-${version}.dmg`);
 
 await rm(staging, { recursive: true, force: true });
 const app = path.join(staging, "FloBama Mac Camera.app", "Contents");
@@ -21,6 +22,7 @@ await chmod(path.join(app, "MacOS", "mac-camera"), 0o755);
 await cp(path.join(clientDir, "index.mjs"), path.join(resourcesApp, "index.mjs"));
 await cp(path.join(clientDir, "package.json"), path.join(resourcesApp, "package.json"));
 await cp(path.join(clientDir, "lib", "adapters.mjs"), path.join(resourcesApp, "lib", "adapters.mjs"));
+await cp(path.join(clientDir, "lib", "ndi.mjs"), path.join(resourcesApp, "lib", "ndi.mjs"));
 await cp(path.join(clientDir, "lib", "sim-cameras.mjs"), path.join(resourcesApp, "lib", "sim-cameras.mjs"));
 await cp(path.join(clientDir, "lib", "watchdog.mjs"), path.join(resourcesApp, "lib", "watchdog.mjs"));
 await cp(path.join(clientDir, "lib", "inventory.mjs"), path.join(resourcesApp, "lib", "inventory.mjs"));
@@ -40,4 +42,5 @@ const writer = spawnSync("go", ["run", ".", staging, output], {
 });
 if (writer.status !== 0) process.exit(writer.status ?? 1);
 await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.0.0.dmg"), { force: true });
+await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.1.0.dmg"), { force: true });
 console.log(output);

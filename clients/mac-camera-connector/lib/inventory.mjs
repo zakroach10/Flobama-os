@@ -1,13 +1,24 @@
 import { listSimulatedCameras, applySimCommand } from "./sim-cameras.mjs";
+import { sourceKeyForNdiName } from "./ndi.mjs";
+
+function namesMatch(a, b) {
+  const left = String(a || "")
+    .trim()
+    .toLowerCase();
+  const right = String(b || "")
+    .trim()
+    .toLowerCase();
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
 
 /**
- * Build the local camera set from staff inventory + optional built-in sims.
- * NDI/VISCA stay pending until a real adapter/runtime is present — never invent live links.
+ * Build local cameras from staff inventory + live NDI discovery + optional sims.
  */
-
-export function buildLocalCameras({ inventory, includeBuiltinSims }) {
+export function buildLocalCameras({ inventory, discoveredNdi = [], includeBuiltinSims }) {
   const cameras = [];
   const byKey = new Map();
+  const discovered = Array.isArray(discoveredNdi) ? discoveredNdi : [];
 
   for (const item of inventory || []) {
     if (!item?.sourceKey || item.enabled === false) continue;
@@ -17,14 +28,25 @@ export function buildLocalCameras({ inventory, includeBuiltinSims }) {
     let linkStatus = "unknown";
     let online = false;
     let lastError = null;
+    let ndiSource = null;
 
     if (isSim) {
       linkStatus = "simulated";
       online = true;
     } else if (protocol === "ndi_ptz") {
-      linkStatus = "ndi_pending";
-      lastError =
-        "NDI source configured in FloBama OS. Install NDI runtime on this Mac and confirm the source name matches Ecamm/NDI tools. Live NDI receive is not enabled until the SDK adapter is verified.";
+      ndiSource =
+        discovered.find((src) => namesMatch(src.name, item.connectionTarget)) ||
+        discovered.find((src) => namesMatch(src.name, item.title)) ||
+        null;
+      if (ndiSource) {
+        linkStatus = "ndi_live";
+        online = true;
+        lastError = null;
+      } else {
+        linkStatus = "ndi_pending";
+        lastError =
+          "NDI source not visible on this Mac yet. Confirm the exact NDI name, Local Network permission, and that the camera/Ecamm is publishing NDI.";
+      }
     } else if (protocol === "visca_udp" || protocol === "visca_tcp") {
       linkStatus = "visca_pending";
       lastError = `VISCA target configured (${item.connectionTarget || "missing host"}). Hardware adapter pending model confirmation.`;
@@ -46,10 +68,11 @@ export function buildLocalCameras({ inventory, includeBuiltinSims }) {
       supportsFocus: isProgram ? false : Boolean(item.supportsFocus),
       online,
       lastError,
-      connectionTarget: item.connectionTarget || null,
+      connectionTarget: ndiSource?.name || item.connectionTarget || null,
       connectionPort: item.connectionPort ?? null,
       linkStatus,
       inventoryId: item.id || null,
+      ndiUrlAddress: ndiSource?.urlAddress || null,
       sortOrder: item.sortOrder ?? cameras.length,
       capabilities: {
         ptz: isProgram ? false : Boolean(item.supportsPtz),
@@ -73,7 +96,50 @@ export function buildLocalCameras({ inventory, includeBuiltinSims }) {
     byKey.set(camera.sourceKey, camera);
   }
 
-  if (includeBuiltinSims && cameras.every((c) => !c.isSimulated)) {
+  // Auto-surface discovered NDI sources that are not already in inventory.
+  for (const src of discovered) {
+    const already = [...byKey.values()].some(
+      (cam) => namesMatch(cam.connectionTarget, src.name) || namesMatch(cam.title, src.name),
+    );
+    if (already) continue;
+    const sourceKey = src.sourceKey || sourceKeyForNdiName(src.name);
+    if (byKey.has(sourceKey)) continue;
+    const camera = {
+      sourceKey,
+      title: src.name,
+      protocol: "ndi_ptz",
+      isSimulated: false,
+      isProgramOutput: false,
+      supportsPtz: false,
+      supportsZoom: false,
+      supportsPresets: false,
+      supportsPresetSave: false,
+      supportsFocus: false,
+      online: true,
+      lastError: "Discovered on Mac. Preview available. Enable PTZ in Camera setup if this unit supports NDI PTZ.",
+      connectionTarget: src.name,
+      connectionPort: null,
+      linkStatus: "ndi_live",
+      inventoryId: null,
+      ndiUrlAddress: src.urlAddress || null,
+      sortOrder: 1000 + cameras.length,
+      capabilities: {
+        ptz: false,
+        zoom: false,
+        presets: false,
+        presetSave: false,
+        focus: false,
+        preview: true,
+        speeds: [1, 2, 4, 8, 12, 16],
+        presetsList: [],
+      },
+      state: { pan: 0, tilt: 0, zoom: 10, moving: false, zooming: false },
+    };
+    cameras.push(camera);
+    byKey.set(sourceKey, camera);
+  }
+
+  if (includeBuiltinSims && !cameras.some((c) => c.isSimulated)) {
     for (const sim of listSimulatedCameras()) {
       if (byKey.has(sim.sourceKey)) continue;
       cameras.push({
@@ -82,6 +148,7 @@ export function buildLocalCameras({ inventory, includeBuiltinSims }) {
         connectionPort: null,
         linkStatus: "simulated",
         inventoryId: null,
+        ndiUrlAddress: null,
       });
     }
   }

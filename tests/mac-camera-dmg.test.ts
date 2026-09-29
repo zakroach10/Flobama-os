@@ -35,7 +35,15 @@ describe("Mac Camera disk image", () => {
     expect(client).toContain("/api/agent/v1/cameras/sync");
     expect(client).toContain("startMenubarHelper");
     expect(client).toContain("buildLocalCameras");
+    expect(client).toContain("discoverNdiSources");
+    expect(client).toContain("captureNdiPreviewPng");
     expect(client).not.toContain("execSync");
+    expect(script).toContain("npm install");
+    expect(script).toContain("grandi");
+
+    const ndi = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/lib/ndi.mjs"), "utf8");
+    expect(ndi).toContain("grandi");
+    expect(ndi).toContain("export async function discoverNdiSources");
 
     const file = path.join(process.cwd(), "public", CAMERA_CONNECTOR_DMG_HREF);
     const bytes = readFileSync(file);
@@ -47,5 +55,7 @@ describe("Mac Camera disk image", () => {
     expect(text).toContain("startMenubarHelper");
     expect(text).toContain("CONTROLLING");
     expect(text).toContain("moveWatchdogMs");
+    expect(text).toContain("discoverNdiSources");
+    expect(text).toContain("grandi");
   });
 });

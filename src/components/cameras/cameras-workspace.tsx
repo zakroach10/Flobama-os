@@ -49,6 +49,7 @@ export function CamerasWorkspace({
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [previewSessionId, setPreviewSessionId] = useState<string | null>(null);
   const [previewTick, setPreviewTick] = useState(0);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const resolvedSelectedId =
     selectedId && cameras.some((camera) => camera.id === selectedId) ? selectedId : (cameras[0]?.id ?? null);
   const selected = cameras.find((camera) => camera.id === resolvedSelectedId) ?? null;
@@ -67,6 +68,10 @@ export function CamerasWorkspace({
     const id = window.setInterval(() => setPreviewTick((n) => n + 1), 900);
     return () => window.clearInterval(id);
   }, [previewSessionId]);
+
+  useEffect(() => {
+    setPreviewError(null);
+  }, [previewSessionId, resolvedSelectedId]);
 
   useEffect(() => {
     if (!canOperate || !selected || !iHoldLease) return;
@@ -108,8 +113,9 @@ export function CamerasWorkspace({
       toast.error(result.message);
       return;
     }
+    setPreviewError(null);
     setPreviewSessionId(result.previewSessionId ?? null);
-    toast.success("Preview requested");
+    toast.success("Preview requested — waiting for Mac frames…");
   }
 
   return (
@@ -117,7 +123,8 @@ export function CamerasWorkspace({
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Cameras</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Remote preview and PTZ for FloBama cameras through the venue Mac. Ecamm program output stays
+          Remote preview and PTZ for FloBama cameras through the venue Mac. The connector discovers NDI
+          sources on that Mac and merges them with cameras you create here. Ecamm program output stays
           separate from controllable camera sources.
         </p>
       </header>
@@ -327,13 +334,28 @@ export function CamerasWorkspace({
 
               <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
                 {previewSessionId && canOperate ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={`${previewSessionId}-${previewTick}`}
-                    src={`/api/media/v1/cameras/preview/${previewSessionId}?t=${previewTick}`}
-                    alt={`Preview of ${selected.title}`}
-                    className="h-full w-full object-contain"
-                  />
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      key={`${previewSessionId}-${previewTick}`}
+                      src={`/api/media/v1/cameras/preview/${previewSessionId}?t=${previewTick}`}
+                      alt={`Preview of ${selected.title}`}
+                      className="h-full w-full object-contain"
+                      onLoad={() => setPreviewError(null)}
+                      onError={() =>
+                        setPreviewError(
+                          link.online
+                            ? "Waiting for a frame from the Mac connector…"
+                            : "Mac connector offline — reconnect to preview.",
+                        )
+                      }
+                    />
+                    {previewError ? (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center text-sm text-white/80">
+                        {previewError}
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
                     {!link.online

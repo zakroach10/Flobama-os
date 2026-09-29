@@ -27,42 +27,76 @@ export async function GET(_request: Request, { params }: Params) {
 
   const { data: session, error } = await admin
     .from("camera_preview_sessions")
-    .select("id, venue_id, requester_user_id, status, snapshot_path, expires_at, mode")
+    .select("id, venue_id, requester_user_id, status, snapshot_path, snapshot_base64, expires_at, mode")
     .eq("id", sessionId)
     .maybeSingle();
-  if (error || !session) return NextResponse.json({ error: "Preview session not found." }, { status: 404 });
-  if (session.venue_id !== context.venue.id) {
+
+  // Fallback select if snapshot_base64 column is missing.
+  let row = session;
+  if (error && /snapshot_base64/i.test(error.message)) {
+    const fallback = await admin
+      .from("camera_preview_sessions")
+      .select("id, venue_id, requester_user_id, status, snapshot_path, expires_at, mode")
+      .eq("id", sessionId)
+      .maybeSingle();
+    if (fallback.error || !fallback.data) {
+      return NextResponse.json({ error: "Preview session not found." }, { status: 404 });
+    }
+    row = { ...fallback.data, snapshot_base64: null };
+  } else if (error || !session) {
     return NextResponse.json({ error: "Preview session not found." }, { status: 404 });
   }
 
-  // Operators can view any venue preview; viewers only their own if somehow created (they cannot start).
+  if (!row || row.venue_id !== context.venue.id) {
+    return NextResponse.json({ error: "Preview session not found." }, { status: 404 });
+  }
+
   const canOperate = authorizeCameraOperate(context.role);
-  if (!canOperate.allowed && session.requester_user_id !== context.userId) {
+  if (!canOperate.allowed && row.requester_user_id !== context.userId) {
     return NextResponse.json({ error: "Not authorized for this preview." }, { status: 403 });
   }
 
-  if (session.status === "ended" || session.status === "failed" || Date.parse(session.expires_at) <= Date.now()) {
+  if (row.status === "ended" || row.status === "failed" || Date.parse(row.expires_at) <= Date.now()) {
     return NextResponse.json({ error: "Preview session ended." }, { status: 410 });
   }
-  if (!session.snapshot_path) {
-    return NextResponse.json({ error: "Snapshot not ready.", status: session.status }, { status: 404 });
+
+  if (row.snapshot_base64) {
+    const bytes = Buffer.from(row.snapshot_base64, "base64");
+    const contentType = row.snapshot_path?.endsWith(".jpg") ? "image/jpeg" : "image/png";
+    return new NextResponse(bytes, {
+      status: 200,
+      headers: {
+        "content-type": contentType,
+        "cache-control": "no-store, max-age=0",
+        "x-preview-mode": row.mode,
+        "x-preview-source": "inline",
+      },
+    });
+  }
+
+  if (!row.snapshot_path) {
+    return NextResponse.json(
+      { error: "Snapshot not ready. Waiting for Mac connector…", status: row.status },
+      { status: 404 },
+    );
   }
 
   const { data: file, error: downloadError } = await admin.storage
     .from("camera-previews")
-    .download(session.snapshot_path);
+    .download(row.snapshot_path);
   if (downloadError || !file) {
     return NextResponse.json({ error: "Could not load preview frame." }, { status: 404 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const contentType = session.snapshot_path.endsWith(".png") ? "image/png" : "image/jpeg";
+  const contentType = row.snapshot_path.endsWith(".png") ? "image/png" : "image/jpeg";
   return new NextResponse(bytes, {
     status: 200,
     headers: {
       "content-type": contentType,
       "cache-control": "no-store, max-age=0",
-      "x-preview-mode": session.mode,
+      "x-preview-mode": row.mode,
+      "x-preview-source": "storage",
     },
   });
 }

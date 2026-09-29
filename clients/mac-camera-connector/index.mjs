@@ -5,12 +5,12 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { applySimCommand } from "./lib/sim-cameras.mjs";
 import { buildLocalCameras } from "./lib/inventory.mjs";
-import { createAdapter, discoverNdiSources } from "./lib/adapters.mjs";
+import { createAdapter, discoverNdiSources, captureNdiPreviewPng, ndiRuntimeStatus } from "./lib/adapters.mjs";
 import { createMoveWatchdog } from "./lib/watchdog.mjs";
-import { renderCameraPreviewPng } from "./lib/preview-render.mjs";
+import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));
@@ -104,18 +104,24 @@ async function doctor(config, log) {
   await log(`Remote control: ${config.remoteControlEnabled ? "enabled" : "DISABLED locally"}`);
   await log(`Builtin sims when inventory empty of sims: ${config.useSimulatedCameras ? "ON" : "off"}`);
   await log(`Menu bar: ${config.menubarEnabled ? "enabled" : "disabled"}`);
-  const ndi = discoverNdiSources();
-  await log(`NDI: ${ndi.note}`);
+  const runtime = ndiRuntimeStatus();
+  await log(`NDI runtime: ${runtime.note}`);
+  const ndi = await discoverNdiSources({ force: true, waitMs: 2500 });
+  await log(`NDI discovery: ${ndi.note}`);
+  for (const source of ndi.sources.slice(0, 20)) {
+    await log(`  · ${source.name}${source.urlAddress ? ` (${source.urlAddress})` : ""}`);
+  }
 }
 
 function toReport(camera) {
-  const { state: _state, ...rest } = camera;
+  const { state: _state, ndiUrlAddress: _url, ...rest } = camera;
   return rest;
 }
 
-async function publishStatus(config, cameras, controlledKeys, syncOk) {
+async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote) {
   const onlineCount = cameras.filter((c) => c.online).length;
   const pendingNdi = cameras.filter((c) => c.linkStatus === "ndi_pending").length;
+  const liveNdi = cameras.filter((c) => c.linkStatus === "ndi_live").length;
   const controlling = controlledKeys?.[0] ? cameras.find((c) => c.sourceKey === controlledKeys[0]) : null;
   let title = "Cam ○";
   let detail = "Mac connector offline from FloBama OS";
@@ -128,7 +134,11 @@ async function publishStatus(config, cameras, controlledKeys, syncOk) {
       detail = `Controlling ${controlling.title}`;
     } else {
       title = "Cam ●";
-      detail = `Connected · ${onlineCount} live / ${cameras.length} cameras` + (pendingNdi ? ` · ${pendingNdi} NDI pending` : "");
+      detail =
+        `Connected · ${onlineCount} live / ${cameras.length} cameras` +
+        (liveNdi ? ` · ${liveNdi} NDI` : "") +
+        (pendingNdi ? ` · ${pendingNdi} NDI pending` : "");
+      if (ndiNote && !liveNdi && pendingNdi) detail += ` · ${ndiNote}`;
     }
   }
   await writeMenubarStatus({
@@ -138,10 +148,31 @@ async function publishStatus(config, cameras, controlledKeys, syncOk) {
     cameraCount: cameras.length,
     onlineCount,
     pendingNdi,
+    liveNdi,
     controlling: controlling?.title || null,
     updatedAt: new Date().toISOString(),
   });
   return detail;
+}
+
+async function buildPreviewPng(camera, controlling) {
+  if (camera.linkStatus === "ndi_live" && camera.connectionTarget) {
+    const live = await captureNdiPreviewPng(
+      { name: camera.connectionTarget, urlAddress: camera.ndiUrlAddress },
+      {
+        encodeRgbaPng: (w, h, rgba) =>
+          encodeRgbaPng(w, h, rgba, {
+            title: camera.title,
+            controlling,
+          }),
+      },
+    );
+    if (live) return live;
+  }
+  return renderCameraPreviewPng(camera, {
+    controlling,
+    linkStatus: camera.linkStatus,
+  });
 }
 
 async function run() {
@@ -173,12 +204,14 @@ async function run() {
   }
 
   let inventory = [];
-  let cameras = buildLocalCameras({ inventory, includeBuiltinSims: config.useSimulatedCameras });
+  let discoveredNdi = [];
+  let ndiNote = "NDI discovery starting…";
+  let cameras = buildLocalCameras({ inventory, discoveredNdi, includeBuiltinSims: config.useSimulatedCameras });
   let byKey = new Map(cameras.map((camera) => [camera.sourceKey, camera]));
   let controlledKeys = [];
 
   if (config.menubarEnabled) {
-    await publishStatus(config, cameras, controlledKeys, false);
+    await publishStatus(config, cameras, controlledKeys, false, ndiNote);
     startMenubarHelper(log);
   }
 
@@ -213,13 +246,35 @@ async function run() {
       ? "Remote control ENABLED. Set remoteControlEnabled=false in config to disable locally."
       : "Remote control DISABLED on this Mac.",
   );
-  await log("Create cameras in FloBama OS → Cameras. NDI cameras stay pending until NDI runtime/SDK is verified.");
+  await log("Discovering NDI sources on this Mac and merging with Cameras inventory.");
 
+  let lastNdiLog = "";
   while (true) {
     try {
       await reloadRemoteFlag();
       const commandResults = [];
       const previewUpdates = [];
+
+      const discovery = await discoverNdiSources();
+      discoveredNdi = discovery.sources;
+      ndiNote = discovery.note;
+      if (discovery.note !== lastNdiLog) {
+        await log(`NDI: ${discovery.note}`);
+        lastNdiLog = discovery.note;
+      }
+
+      cameras = buildLocalCameras({
+        inventory,
+        discoveredNdi,
+        includeBuiltinSims: config.useSimulatedCameras && inventory.length === 0,
+      });
+      const prev = byKey;
+      byKey = new Map();
+      for (const camera of cameras) {
+        const old = prev.get(camera.sourceKey);
+        if (old?.state) camera.state = old.state;
+        byKey.set(camera.sourceKey, camera);
+      }
 
       const response = await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
         method: "POST",
@@ -231,7 +286,7 @@ async function run() {
           hostname: hostname(),
           connectorVersion: VERSION,
           remoteControlEnabled: config.remoteControlEnabled,
-          statusDetail: await publishStatus(config, cameras, controlledKeys, true),
+          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote),
           cameras: cameras.map(toReport),
           commandResults: [],
           previewUpdates: [],
@@ -245,7 +300,7 @@ async function run() {
           applySimCommand(camera, "ptz_stop", {});
           watchdog.clear(camera.sourceKey);
         }
-        await publishStatus(config, cameras, [], false);
+        await publishStatus(config, cameras, [], false, ndiNote);
         await delay(config.pollMs);
         continue;
       }
@@ -255,13 +310,14 @@ async function run() {
       controlledKeys = desired.controlledSourceKeys ?? [];
       cameras = buildLocalCameras({
         inventory,
+        discoveredNdi,
         includeBuiltinSims: config.useSimulatedCameras && inventory.length === 0,
       });
       // Preserve motion state across rebuilds for matching keys.
-      const prev = byKey;
+      const afterInventory = byKey;
       byKey = new Map();
       for (const camera of cameras) {
-        const old = prev.get(camera.sourceKey);
+        const old = afterInventory.get(camera.sourceKey);
         if (old?.state) camera.state = old.state;
         byKey.set(camera.sourceKey, camera);
       }
@@ -337,45 +393,47 @@ async function run() {
           });
           continue;
         }
-        const png = renderCameraPreviewPng(camera, {
-          controlling: controlledKeys.includes(camera.sourceKey),
-          linkStatus: camera.linkStatus,
-        });
-        previewUpdates.push({
-          sessionId: session.id,
-          status: "active",
-          snapshotBase64: png.toString("base64"),
-          snapshotContentType: "image/png",
-        });
+        try {
+          const png = await buildPreviewPng(camera, controlledKeys.includes(camera.sourceKey));
+          previewUpdates.push({
+            sessionId: session.id,
+            status: "active",
+            snapshotBase64: png.toString("base64"),
+            snapshotContentType: "image/png",
+          });
+        } catch (error) {
+          previewUpdates.push({
+            sessionId: session.id,
+            status: "failed",
+            error: error instanceof Error ? error.message : "Preview render failed.",
+          });
+        }
       }
 
-      if (commandResults.length || previewUpdates.length || inventory.length) {
-        await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${config.token}`,
-          },
-          body: JSON.stringify({
-            hostname: hostname(),
-            connectorVersion: VERSION,
-            remoteControlEnabled: config.remoteControlEnabled,
-            statusDetail: await publishStatus(config, cameras, controlledKeys, true),
-            cameras: cameras.map(toReport),
-            commandResults,
-            previewUpdates,
-          }),
-        });
-      } else {
-        await publishStatus(config, cameras, controlledKeys, true);
-      }
+      // Always push camera/discovery state + any command/preview results.
+      await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${config.token}`,
+        },
+        body: JSON.stringify({
+          hostname: hostname(),
+          connectorVersion: VERSION,
+          remoteControlEnabled: config.remoteControlEnabled,
+          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote),
+          cameras: cameras.map(toReport),
+          commandResults,
+          previewUpdates,
+        }),
+      });
     } catch (error) {
       await log(error instanceof Error ? error.message : "Connector tick failed.");
       for (const camera of cameras) {
         applySimCommand(camera, "ptz_stop", {});
       }
       watchdog.clearAll();
-      await publishStatus(config, cameras, [], false);
+      await publishStatus(config, cameras, [], false, ndiNote);
     }
     await delay(config.pollMs);
   }
