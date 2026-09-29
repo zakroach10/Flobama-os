@@ -47,6 +47,12 @@ describe("Mac Camera disk image", () => {
     expect(script).toContain("grandi");
     expect(script).toContain("Delete /Applications/FloBama Mac Camera.app");
 
+    const pkg = JSON.parse(
+      readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/package.json"), "utf8"),
+    );
+    expect(pkg.version).toBe(CAMERA_CONNECTOR_VERSION);
+    expect(pkg.dependencies?.grandi).toBeTruthy();
+
     const ndi = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/lib/ndi.mjs"), "utf8");
     expect(ndi).toContain("grandi");
     expect(ndi).toContain("export async function discoverNdiSources");
