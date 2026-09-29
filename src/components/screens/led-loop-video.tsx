@@ -37,6 +37,14 @@ export function LedLoopVideo({
 
     video.addEventListener("ended", wrap);
     video.addEventListener("timeupdate", onTimeUpdate);
+    // OBS often stops emitting media events on the last frame. A timer still runs.
+    const watch = window.setInterval(() => {
+      if (video.currentTime < 0.25) {
+        wrapped = false;
+        return;
+      }
+      if (video.ended || videoNearsEnd(video.currentTime, video.duration)) wrap();
+    }, 250);
     if (autoPlay) {
       try {
         const pending = video.play();
@@ -47,6 +55,7 @@ export function LedLoopVideo({
     }
 
     return () => {
+      window.clearInterval(watch);
       video.removeEventListener("ended", wrap);
       video.removeEventListener("timeupdate", onTimeUpdate);
     };
