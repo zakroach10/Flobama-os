@@ -11,7 +11,22 @@ Outbound agent that runs on the venue Mac (same LAN as cameras / Ecamm Live). It
 - Staff admin account to create a pairing code under **Cameras**
 - For real cameras later: official NDI runtime (if using NDI), camera model/protocol details, and Local Network permission for the Node binary
 
-## Install
+## Install (recommended: .dmg)
+
+1. In FloBama OS → **Cameras**, download **FloBama Mac Camera (.dmg)**.
+2. Drag **FloBama Mac Camera** into Applications and open it.
+3. Create a pairing code (admin), then enter the FloBama OS address and code when prompted.
+4. Leave the Terminal window open during shows.
+
+Rebuild the disk image from this repo with:
+
+```bash
+npm run build:dmg:cameras
+```
+
+Output: `public/downloads/FloBama-Mac-Camera-1.0.0.dmg`
+
+## Install (developer / CLI)
 
 ```bash
 cd clients/mac-camera-connector
@@ -19,7 +34,7 @@ cp config.example.json mac-camera.config.json
 # Edit apiBase to your FloBama OS origin, e.g. https://os.flobama.example
 ```
 
-## Pair (one-time)
+## Pair (one-time, CLI)
 
 1. In FloBama OS → **Cameras** → **Create pairing code** (admin).
 2. On the Mac:
@@ -28,7 +43,7 @@ cp config.example.json mac-camera.config.json
 node index.mjs --pair --code=YOURCODE
 ```
 
-The device token is written to `mac-camera.config.json`. It is never shown in the browser after pairing.
+The device token is written to `mac-camera.config.json` (or Application Support when using the .dmg). It is never shown in the browser after pairing.
 
 ## Start / stop / update
 

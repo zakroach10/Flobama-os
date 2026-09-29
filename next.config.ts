@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
-import { LED_OBS_DMG_FILENAME } from "./src/lib/constants";
+import { CAMERA_CONNECTOR_DMG_FILENAME, LED_OBS_DMG_FILENAME } from "./src/lib/constants";
 
 const embeddable = [{ key: "Content-Security-Policy", value: "frame-ancestors *" }];
+const dmgHeaders = (filename: string) => [
+  { key: "Content-Type", value: "application/x-apple-diskimage" },
+  { key: "Content-Disposition", value: `attachment; filename="${filename}"` },
+];
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -25,11 +29,12 @@ const nextConfig: NextConfig = {
         headers: embeddable,
       },
       {
-        source: "/downloads/:file*",
-        headers: [
-          { key: "Content-Type", value: "application/x-apple-diskimage" },
-          { key: "Content-Disposition", value: `attachment; filename="${LED_OBS_DMG_FILENAME}"` },
-        ],
+        source: `/downloads/${LED_OBS_DMG_FILENAME}`,
+        headers: dmgHeaders(LED_OBS_DMG_FILENAME),
+      },
+      {
+        source: `/downloads/${CAMERA_CONNECTOR_DMG_FILENAME}`,
+        headers: dmgHeaders(CAMERA_CONNECTOR_DMG_FILENAME),
       },
     ];
   },

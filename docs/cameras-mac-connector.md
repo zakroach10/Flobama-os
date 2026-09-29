@@ -32,14 +32,19 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, age
 
 ## Mac setup (exact)
 
-See `clients/mac-camera-connector/README.md` for install/pair/start/stop/uninstall, launch agent, logs, NDI notes, and sleep settings.
+### Recommended (.dmg)
 
-Summary:
+1. Apply SQL migration and deploy FloBama OS with service role env.
+2. On the venue Mac: open **Cameras** in FloBama OS → **Download Mac Camera (.dmg)**.
+3. Drag **FloBama Mac Camera** into Applications, open it (right-click → Open if Gatekeeper blocks).
+4. Admin creates a pairing code; enter FloBama OS address + code in the first-run prompts.
+5. Leave Terminal open; open **Cameras** as admin/manager; select a simulated camera; preview + PTZ.
 
-1. Apply SQL migration.
-2. Deploy FloBama OS with service role env.
-3. On Mac: Node 20+, copy config, set `apiBase`, pair with admin code, `npm start` or `macos/install.sh`.
-4. Open **Cameras** as admin/manager; select a simulated camera; preview + PTZ.
+Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.0.0.dmg`
+
+### CLI / launch agent
+
+See `clients/mac-camera-connector/README.md` for Node CLI install, `--pair`, launch agent, logs, NDI notes, and sleep settings.
 
 ## Roles
 

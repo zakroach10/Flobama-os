@@ -18,6 +18,7 @@ import type { CameraLeaseRow } from "@/lib/queries/cameras";
 import type { StaffCameraDevice, StaffCameraSource } from "@/lib/cameras/types";
 import { describeCameraConnectorLink, formatCameraHeartbeat } from "@/lib/cameras/status";
 import { CameraPtzPad } from "@/components/cameras/camera-ptz-pad";
+import { MacCameraDownload } from "@/components/cameras/mac-camera-download";
 import { cn } from "@/lib/utils";
 
 export function CamerasWorkspace({
@@ -139,6 +140,10 @@ export function CamerasWorkspace({
           </Badge>
         </div>
 
+        <div className="mt-4">
+          <MacCameraDownload />
+        </div>
+
         {canConfigure ? (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button
@@ -185,7 +190,8 @@ export function CamerasWorkspace({
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">One-time pairing code</p>
             <p className="mt-1 font-mono text-2xl tracking-[0.25em]">{pairingCode}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              On the Mac: run the connector pair command with this code. API base:{" "}
+              On the Mac: open the FloBama Mac Camera app from the .dmg and enter this code when prompted.
+              API base should be{" "}
               <span className="font-mono text-xs">{apiBase || "(set NEXT_PUBLIC_SITE_URL)"}</span>
             </p>
           </div>

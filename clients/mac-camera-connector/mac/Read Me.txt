@@ -1,0 +1,17 @@
+FloBama Mac Camera 1.0.0
+
+Eject any older disk named FloBama Mac Camera before opening this one.
+Drag FloBama Mac Camera into Applications, then open it.
+Terminal must start with: FloBama Mac Camera 1.0.0
+
+The first launch downloads Node.js and asks for:
+  1) your FloBama OS address
+  2) a one-time pairing code from FloBama OS → Cameras (admin)
+  3) an optional Mac label
+
+Leave the Terminal window open while staff use remote cameras.
+This app does not replace Ecamm Live; it only connects the venue Mac to FloBama OS.
+
+If macOS says the app cannot be opened, right-click FloBama Mac Camera and choose Open.
+
+Reset settings on this disk image clears the saved device credential so you can pair again.

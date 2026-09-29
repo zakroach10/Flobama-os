@@ -6,6 +6,7 @@
     "dev": "next dev --port 43123",
     "build": "next build",
     "build:dmg": "node scripts/build-led-obs-dmg.mjs",
+    "build:dmg:cameras": "node scripts/build-mac-camera-dmg.mjs",
     "start": "next start --port 43123",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
