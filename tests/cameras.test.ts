@@ -213,6 +213,20 @@ describe("camera sync schema", () => {
   });
 });
 
+describe("camera discovered NDI sync", () => {
+  it("accepts discovered NDI source reports", () => {
+    const parsed = cameraConnectorSyncSchema.safeParse({
+      remoteControlEnabled: true,
+      ndiNote: "Found 1 NDI source(s) on this Mac.",
+      discoveredNdi: [
+        { name: "CAM 1 (Studio)", urlAddress: "192.168.1.20:5961", sourceKey: "ndi-cam-1-studio" },
+      ],
+      cameras: [],
+    });
+    expect(parsed.success).toBe(true);
+  });
+});
+
 describe("camera source delete schema", () => {
   it("requires a camera id", async () => {
     const { cameraSourceDeleteSchema } = await import("@/lib/validation/schemas");

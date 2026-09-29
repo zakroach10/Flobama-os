@@ -79,6 +79,12 @@ export type StaffCameraInventoryItem = {
   sortOrder: number;
 };
 
+export type DiscoveredNdiSource = {
+  name: string;
+  urlAddress: string | null;
+  sourceKey: string;
+};
+
 export type StaffCameraDevice = {
   id: string;
   label: string;
@@ -89,6 +95,7 @@ export type StaffCameraDevice = {
   revokedAt: string | null;
   online: boolean;
   statusDetail?: string | null;
+  discoveredNdi?: DiscoveredNdiSource[];
 };
 
 export type ConnectorReportedCamera = {
@@ -130,7 +137,8 @@ export type DesiredCameraInventory = {
 };
 
 export const CAMERA_CONNECTOR_SQL = "supabase/migrations/20260929000018_camera_connector.sql";
-export const CAMERA_CONNECTOR_STALE_MS = 8_000;
+/** Heartbeats can stretch while NDI discovery/preview runs; keep online through those gaps. */
+export const CAMERA_CONNECTOR_STALE_MS = 25_000;
 export const CAMERA_COMMAND_TTL_MS = 2_500;
 export const CAMERA_LEASE_TTL_MS = 20_000;
 export const CAMERA_PAIRING_TTL_MS = 10 * 60_000;

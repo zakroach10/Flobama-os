@@ -2,7 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { toStaffCameraSource, toStaffInventoryItem, type CameraSourceRow } from "@/lib/cameras/map";
 import { describeCameraConnectorLink, isMissingCameraRelation } from "@/lib/cameras/status";
-import type { StaffCameraDevice, StaffCameraInventoryItem, StaffCameraSource } from "@/lib/cameras/types";
+import type {
+  DiscoveredNdiSource,
+  StaffCameraDevice,
+  StaffCameraInventoryItem,
+  StaffCameraSource,
+} from "@/lib/cameras/types";
 
 type Client = SupabaseClient<Database>;
 
@@ -12,20 +17,52 @@ export type CameraLeaseRow = {
   expiresAt: string;
 };
 
+function parseDiscoveredNdi(value: unknown): DiscoveredNdiSource[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const name = String(row.name ?? "").trim();
+      const sourceKey = String(row.sourceKey ?? "").trim();
+      if (!name || !sourceKey) return null;
+      const url = row.urlAddress == null ? null : String(row.urlAddress).trim() || null;
+      return { name, sourceKey, urlAddress: url };
+    })
+    .filter((item): item is DiscoveredNdiSource => Boolean(item));
+}
+
 export async function listCameraDevices(supabase: Client, venueId: string) {
-  const { data, error } = await supabase
+  const primary = await supabase
     .from("camera_connector_devices")
     .select(
-      "id, label, last_seen_at, connector_version, hostname, remote_control_enabled, revoked_at, status_detail",
+      "id, label, last_seen_at, connector_version, hostname, remote_control_enabled, revoked_at, status_detail, discovered_ndi",
     )
     .eq("venue_id", venueId)
     .order("created_at", { ascending: true });
 
-  if (error) {
+  let data = primary.data;
+  if (primary.error && /discovered_ndi/i.test(primary.error.message)) {
+    const fallback = await supabase
+      .from("camera_connector_devices")
+      .select(
+        "id, label, last_seen_at, connector_version, hostname, remote_control_enabled, revoked_at, status_detail",
+      )
+      .eq("venue_id", venueId)
+      .order("created_at", { ascending: true });
+    if (fallback.error) {
+      return {
+        devices: [] as StaffCameraDevice[],
+        missingTable: isMissingCameraRelation(fallback.error.message),
+        error: fallback.error.message,
+      };
+    }
+    data = fallback.data?.map((row) => ({ ...row, discovered_ndi: [] })) ?? [];
+  } else if (primary.error) {
     return {
       devices: [] as StaffCameraDevice[],
-      missingTable: isMissingCameraRelation(error.message),
-      error: error.message,
+      missingTable: isMissingCameraRelation(primary.error.message),
+      error: primary.error.message,
     };
   }
 
@@ -45,6 +82,7 @@ export async function listCameraDevices(supabase: Client, venueId: string) {
       revokedAt: row.revoked_at,
       online: link.online,
       statusDetail: (row as { status_detail?: string | null }).status_detail ?? null,
+      discoveredNdi: parseDiscoveredNdi((row as { discovered_ndi?: unknown }).discovered_ndi),
     };
   });
 

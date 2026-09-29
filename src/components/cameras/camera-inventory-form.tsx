@@ -31,8 +31,9 @@ export function CameraInventoryForm({
       <div>
         <h2 className="text-lg font-semibold">Camera setup</h2>
         <p className="text-sm text-muted-foreground">
-          Create each venue camera here. Use the exact NDI source name from Ecamm/NDI tools for NDI cameras.
-          Simulated cameras give a labeled preview for testing. Program output is preview-only.
+          Create each venue camera here. For NDI, paste the exact source name from “NDI sources on Mac”
+          above (or from Ecamm). Simulated cameras give a labeled preview for testing. Program output is
+          preview-only.
         </p>
       </div>
 

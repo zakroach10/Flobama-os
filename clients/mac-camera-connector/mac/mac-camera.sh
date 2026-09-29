@@ -14,7 +14,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Mac Camera 1.3.0"
+echo "FloBama Mac Camera 1.4.0"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"

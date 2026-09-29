@@ -977,6 +977,7 @@ export type Database = {
           remote_control_enabled: boolean;
           menubar_enabled: boolean;
           status_detail: string | null;
+          discovered_ndi: Json;
           last_seen_at: string | null;
           connector_version: string | null;
           hostname: string | null;
@@ -992,6 +993,7 @@ export type Database = {
           remote_control_enabled?: boolean;
           menubar_enabled?: boolean;
           status_detail?: string | null;
+          discovered_ndi?: Json;
           last_seen_at?: string | null;
           connector_version?: string | null;
           hostname?: string | null;
@@ -1005,6 +1007,7 @@ export type Database = {
           remote_control_enabled?: boolean;
           menubar_enabled?: boolean;
           status_detail?: string | null;
+          discovered_ndi?: Json;
           last_seen_at?: string | null;
           connector_version?: string | null;
           hostname?: string | null;

@@ -143,9 +143,12 @@ export function CamerasWorkspace({
             {activeDevice?.statusDetail ? (
               <p className="text-sm text-muted-foreground">Mac status: {activeDevice.statusDetail}</p>
             ) : null}
+            {activeDevice?.connectorVersion ? (
+              <p className="text-xs text-muted-foreground">Connector {activeDevice.connectorVersion}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               On the Mac, look for <span className="font-medium">Cam ●</span> in the top menu bar while the
-              connector is running. NDI discovery needs{" "}
+              connector is running. Click it to see NDI source names. NDI discovery needs{" "}
               <span className="font-medium">Local Network</span> enabled for Terminal (System Settings →
               Privacy &amp; Security → Local Network).
             </p>
@@ -159,6 +162,45 @@ export function CamerasWorkspace({
           >
             {link.label}
           </Badge>
+        </div>
+
+        <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold tracking-wide uppercase">NDI sources on Mac</h3>
+            <p className="text-xs text-muted-foreground">
+              {activeDevice?.discoveredNdi?.length
+                ? `${activeDevice.discoveredNdi.length} broadcast source${activeDevice.discoveredNdi.length === 1 ? "" : "s"}`
+                : link.online
+                  ? "None reported yet"
+                  : "Waiting for Mac heartbeat"}
+            </p>
+          </div>
+          {activeDevice?.discoveredNdi && activeDevice.discoveredNdi.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {activeDevice.discoveredNdi.map((source) => (
+                <li
+                  key={source.sourceKey}
+                  className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{source.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {source.urlAddress || "No URL address reported"}
+                      {" · "}
+                      <span className="font-mono">{source.sourceKey}</span>
+                    </p>
+                  </div>
+                  <Badge variant="secondary">Live on LAN</Badge>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {link.online
+                ? "The Mac has not listed any NDI broadcasts yet. Confirm Local Network for Terminal, that cameras/Ecamm are publishing NDI, and that connector 1.4.0+ is running."
+                : "Pair and start Mac Camera 1.4.0+ to see LAN NDI source names here."}
+            </p>
+          )}
         </div>
 
         <div className="mt-4">

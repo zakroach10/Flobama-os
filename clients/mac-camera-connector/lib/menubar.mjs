@@ -33,8 +33,19 @@ app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
 var item = $.NSStatusBar.systemStatusBar.statusItemWithLength($.NSVariableStatusItemLength);
 item.button.title = 'Cam ·';
 var menu = $.NSMenu.alloc.init;
-menu.addItem($.NSMenuItem.alloc.initWithTitleActionKeyEquivalent('Quit FloBama Cam status', 'terminate:', 'q'));
 item.menu = menu;
+
+function clearMenu() {
+  while (menu.numberOfItems > 0) {
+    menu.removeItemAtIndex(0);
+  }
+}
+
+function addDisabled(title) {
+  var mi = $.NSMenuItem.alloc.initWithTitleActionKeyEquivalent(title, null, '');
+  mi.enabled = false;
+  menu.addItem(mi);
+}
 
 function readStatus() {
   try {
@@ -48,10 +59,27 @@ function readStatus() {
 }
 
 while (true) {
-  var s = readStatus() || { title: 'Cam ·', detail: 'Waiting for FloBama Mac Camera…' };
+  var s = readStatus() || { title: 'Cam ·', detail: 'Waiting for FloBama Mac Camera…', ndiSources: [] };
   item.button.title = s.title || 'Cam ·';
   item.button.toolTip = s.detail || '';
-  $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(1.0));
+  clearMenu();
+  addDisabled(s.detail || 'FloBama Mac Camera');
+  menu.addItem($.NSMenuItem.separatorItem);
+  addDisabled('NDI sources on this Mac');
+  var sources = s.ndiSources || [];
+  if (!sources.length) {
+    addDisabled(s.ndiNote || 'None discovered yet');
+  } else {
+    for (var i = 0; i < Math.min(sources.length, 20); i++) {
+      var src = sources[i];
+      var label = src.name || 'NDI';
+      if (src.urlAddress) label = label + '  ·  ' + src.urlAddress;
+      addDisabled(label);
+    }
+  }
+  menu.addItem($.NSMenuItem.separatorItem);
+  menu.addItem($.NSMenuItem.alloc.initWithTitleActionKeyEquivalent('Quit FloBama Cam status', 'terminate:', 'q'));
+  $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(1.5));
 }
 `;
 

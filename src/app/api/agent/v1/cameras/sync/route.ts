@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     hostname: string | null;
     connector_version: string | null;
     status_detail?: string | null;
+    discovered_ndi?: Json;
   } = {
     last_seen_at: seenAt,
     remote_control_enabled: parsed.data.remoteControlEnabled,
@@ -41,14 +42,32 @@ export async function POST(request: Request) {
     connector_version: parsed.data.connectorVersion?.trim() || device.connector_version,
   };
   if (parsed.data.statusDetail !== undefined) {
-    devicePatch.status_detail = parsed.data.statusDetail;
+    const note = parsed.data.ndiNote?.trim();
+    const detail = parsed.data.statusDetail?.trim() || "";
+    devicePatch.status_detail = note && !detail.includes(note) ? `${detail}${detail ? " · " : ""}${note}`.slice(0, 500) : detail || null;
+  }
+  if (parsed.data.discoveredNdi !== undefined) {
+    devicePatch.discovered_ndi = parsed.data.discoveredNdi.map((source) => ({
+      name: source.name,
+      urlAddress: source.urlAddress ?? null,
+      sourceKey: source.sourceKey,
+    })) as unknown as Json;
   }
 
   const { error: deviceError } = await admin
     .from("camera_connector_devices")
     .update(devicePatch)
     .eq("id", device.id);
-  if (deviceError) return NextResponse.json({ error: "Could not update device status." }, { status: 500 });
+  if (deviceError) {
+    // Older DBs without discovered_ndi: retry without that column.
+    if (devicePatch.discovered_ndi !== undefined && /discovered_ndi/i.test(deviceError.message)) {
+      const { discovered_ndi: _drop, ...withoutDiscover } = devicePatch;
+      const retry = await admin.from("camera_connector_devices").update(withoutDiscover).eq("id", device.id);
+      if (retry.error) return NextResponse.json({ error: "Could not update device status." }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: "Could not update device status." }, { status: 500 });
+    }
+  }
 
   for (const result of parsed.data.commandResults ?? []) {
     const patch: {
