@@ -16,6 +16,7 @@ export function revalidatePublicSurfaces() {
   revalidatePath("/api/public/v1/screens/vertical");
   revalidatePath("/api/public/v1/screens/led");
   revalidatePath("/api/public/v1/screens/week");
+  revalidatePath("/api/public/v1/trivia/wall");
   revalidatePath("/print/week");
   revalidatePath("/print/week/social");
 }

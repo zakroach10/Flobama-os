@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export type ScreensTab = "led" | "vertical";
+export type ScreensTab = "led" | "vertical" | "trivia";
 
 export function ScreensWorkspace({
   defaultTab,
   led,
   vertical,
+  trivia,
   showVertical = true,
 }: {
   defaultTab: ScreensTab;
   led: React.ReactNode;
   vertical: React.ReactNode;
+  trivia: React.ReactNode;
   showVertical?: boolean;
 }) {
   const router = useRouter();
@@ -25,17 +27,15 @@ export function ScreensWorkspace({
     setTab(defaultTab);
   }
 
-  if (!showVertical) {
-    return <div className="space-y-8">{led}</div>;
-  }
-
   return (
     <Tabs
       value={tab}
       onValueChange={(value) => {
-        if (value !== "led" && value !== "vertical") return;
+        if (value !== "led" && value !== "vertical" && value !== "trivia") return;
         setTab(value);
-        router.replace(value === "vertical" ? "/screens?tab=vertical" : "/screens", { scroll: false });
+        const path =
+          value === "vertical" ? "/screens?tab=vertical" : value === "trivia" ? "/screens?tab=trivia" : "/screens";
+        router.replace(path, { scroll: false });
       }}
       className="gap-6"
     >
@@ -43,15 +43,25 @@ export function ScreensWorkspace({
         <TabsTrigger value="led" className="min-h-11 px-3">
           LED wall
         </TabsTrigger>
-        <TabsTrigger value="vertical" className="min-h-11 px-3">
-          Vertical screens
+        {showVertical ? (
+          <TabsTrigger value="vertical" className="min-h-11 px-3">
+            Vertical screens
+          </TabsTrigger>
+        ) : null}
+        <TabsTrigger value="trivia" className="min-h-11 px-3">
+          Trivia
         </TabsTrigger>
       </TabsList>
       <TabsContent value="led" className="space-y-8">
         {led}
       </TabsContent>
-      <TabsContent value="vertical" className="space-y-8">
-        {vertical}
+      {showVertical ? (
+        <TabsContent value="vertical" className="space-y-8">
+          {vertical}
+        </TabsContent>
+      ) : null}
+      <TabsContent value="trivia" className="space-y-8">
+        {trivia}
       </TabsContent>
     </Tabs>
   );
