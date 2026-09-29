@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import { restartLedVideo, samePublicLedMedia, videoNearsEnd } from "@/lib/screens/led-loop";
 import {
   createLedAgentToken,
   describeAgentLink,
@@ -234,3 +235,77 @@ describe("LED wall missing artist configurations", () => {
     expect(artistsMissingLedConfiguration({ ...event, status: "cancelled" }, now)).toEqual([]);
   });
 });
+
+describe("LED ad roll looping", () => {
+  const clip = { id: "ads", title: "Roll", url: "https://example.com/roll.mp4", mediaKind: "video" as const };
+
+  it("wraps near the end and ignores the opening frames", () => {
+    expect(videoNearsEnd(9.8, 10)).toBe(true);
+    expect(videoNearsEnd(9.6, 10)).toBe(false);
+    expect(videoNearsEnd(0.1, 10)).toBe(false);
+    expect(videoNearsEnd(Number.NaN, 10)).toBe(false);
+    expect(videoNearsEnd(0.2, 0.22)).toBe(false);
+  });
+
+  it("keeps the same clip when a poll repeats it", () => {
+    expect(samePublicLedMedia(clip, { ...clip })).toBe(true);
+    expect(samePublicLedMedia(clip, { ...clip, url: "https://example.com/other.mp4" })).toBe(false);
+    expect(samePublicLedMedia(clip, null)).toBe(false);
+    expect(samePublicLedMedia(null, null)).toBe(true);
+  });
+
+  it("seeks to the start when the file can be seeked", () => {
+    const video = fakeVideo();
+    restartLedVideo(video);
+    expect(video.currentTime).toBe(0);
+    expect(video.played).toBe(1);
+    expect(video.loaded).toBe(0);
+    expect(video.loop).toBe(true);
+  });
+
+  it("reloads when the file cannot seek back to the start", () => {
+    const unseekable = fakeVideo({ seekableLength: 0 });
+    restartLedVideo(unseekable);
+    expect(unseekable.loaded).toBe(1);
+    expect(unseekable.played).toBe(1);
+    expect(unseekable.currentTime).toBe(0);
+
+    const stuck = fakeVideo({ ignoreRewind: true });
+    restartLedVideo(stuck);
+    expect(stuck.loaded).toBe(1);
+    expect(stuck.played).toBe(1);
+    expect(stuck.currentTime).toBe(0);
+  });
+});
+
+function fakeVideo(options?: { ignoreRewind?: boolean; seekableLength?: number }) {
+  let time = 11.9;
+  const listeners: Array<() => void> = [];
+  return {
+    duration: 12,
+    seekable: { length: options?.seekableLength ?? 1 },
+    loop: false,
+    played: 0,
+    loaded: 0,
+    get currentTime() {
+      return time;
+    },
+    set currentTime(value: number) {
+      if (options?.ignoreRewind && value === 0) return;
+      time = value;
+    },
+    load() {
+      this.loaded += 1;
+      time = 0;
+    },
+    play() {
+      this.played += 1;
+      return Promise.resolve();
+    },
+    addEventListener(_type: "loadeddata", listener: () => void) {
+      listeners.push(listener);
+      listener();
+    },
+    removeEventListener() {},
+  };
+}

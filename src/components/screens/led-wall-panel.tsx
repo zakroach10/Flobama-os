@@ -20,6 +20,7 @@ import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wa
 import { agentStatusCopy, ledMediaKindForFile } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { formatByteSize, formatUploadProgress, screenAdSizeLimitLabel } from "@/lib/screens/upload";
+import { LedLoopVideo } from "@/components/screens/led-loop-video";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
 export function LedWallPanel({
@@ -131,7 +132,11 @@ function SceneRow({
     <li className="flex flex-col gap-3 rounded-lg border p-4">
       {scene.kind === "media" && scene.public_url ? (
         scene.media_kind === "video" ? (
-          <video className="h-36 w-full rounded-md bg-black object-contain" src={scene.public_url} muted playsInline loop />
+          <LedLoopVideo
+            src={scene.public_url}
+            autoPlay={false}
+            className="h-36 w-full rounded-md bg-black object-contain"
+          />
         ) : (
           <img className="h-36 w-full rounded-md bg-black object-contain" src={scene.public_url} alt="" />
         )
