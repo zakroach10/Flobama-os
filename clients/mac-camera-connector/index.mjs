@@ -16,7 +16,9 @@ import { createMoveWatchdog } from "./lib/watchdog.mjs";
 import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.4.4";
+const VERSION = "1.4.5";
+const NDI_PREVIEW_TIMEOUT_MS = 1800;
+const MAX_NDI_CAPTURES_PER_TICK = 1;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));
@@ -175,11 +177,27 @@ async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote, d
   return detail;
 }
 
-async function buildPreviewPng(camera, controlling) {
-  if (camera.linkStatus === "ndi_live" && camera.connectionTarget) {
+function labeledPreviewPng(camera, controlling) {
+  return renderCameraPreviewPng(camera, {
+    controlling,
+    linkStatus: camera.linkStatus,
+  });
+}
+
+/**
+ * Prefer a live NDI frame, but never block the poll loop — stuck receive() was
+ * freezing heartbeats (Connected flashing) and starving preview uploads.
+ */
+async function buildPreviewPng(camera, controlling, { allowNdiCapture = true } = {}) {
+  const fallback = labeledPreviewPng(camera, controlling);
+  if (!allowNdiCapture || camera.linkStatus !== "ndi_live" || !camera.connectionTarget) {
+    return fallback;
+  }
+  try {
     const live = await captureNdiPreviewPng(
       { name: camera.connectionTarget, urlAddress: camera.ndiUrlAddress },
       {
+        timeoutMs: NDI_PREVIEW_TIMEOUT_MS,
         encodeRgbaPng: (w, h, rgba) =>
           encodeRgbaPng(w, h, rgba, {
             title: camera.title,
@@ -188,11 +206,10 @@ async function buildPreviewPng(camera, controlling) {
       },
     );
     if (live) return live;
+  } catch {
+    /* labeled fallback */
   }
-  return renderCameraPreviewPng(camera, {
-    controlling,
-    linkStatus: camera.linkStatus,
-  });
+  return fallback;
 }
 
 async function run() {
@@ -287,8 +304,8 @@ async function run() {
       const previewUpdates = [];
 
       const discovery = await discoverNdiSources({
-        waitMs: firstDiscover ? 2500 : 800,
-        maxAgeMs: firstDiscover ? 0 : 4_000,
+        waitMs: firstDiscover ? 2500 : 500,
+        maxAgeMs: firstDiscover ? 0 : 6_000,
       });
       firstDiscover = false;
       discoveredNdi = discovery.sources;
@@ -450,10 +467,16 @@ async function run() {
         await log(`Command ${command.kind} on ${camera.sourceKey} (${camera.title})`);
       }
 
+      // Always push a labeled frame quickly so the browser never sits on 404s.
+      // At most one NDI capture per tick — extras get labels (keeps heartbeat alive).
+      let ndiCapturesLeft = MAX_NDI_CAPTURES_PER_TICK;
       for (const session of desired.previewSessions ?? []) {
+        if (!session.sourceKey) {
+          // Camera row may not be queryable yet — retry next tick, do not fail the session.
+          continue;
+        }
         const camera = byKey.get(session.sourceKey);
         if (!camera) {
-          previewUpdates.push({ sessionId: session.id, status: "failed", error: "Unknown camera." });
           continue;
         }
         if (session.mode === "webrtc") {
@@ -465,7 +488,11 @@ async function run() {
           continue;
         }
         try {
-          const png = await buildPreviewPng(camera, controlledKeys.includes(camera.sourceKey));
+          const allowNdiCapture = ndiCapturesLeft > 0 && camera.linkStatus === "ndi_live";
+          if (allowNdiCapture) ndiCapturesLeft -= 1;
+          const png = await buildPreviewPng(camera, controlledKeys.includes(camera.sourceKey), {
+            allowNdiCapture,
+          });
           previewUpdates.push({
             sessionId: session.id,
             status: "active",
@@ -473,11 +500,22 @@ async function run() {
             snapshotContentType: "image/png",
           });
         } catch (error) {
-          previewUpdates.push({
-            sessionId: session.id,
-            status: "failed",
-            error: error instanceof Error ? error.message : "Preview render failed.",
-          });
+          // Keep the session requested/active — a hard fail made the UI stuck forever.
+          try {
+            const png = labeledPreviewPng(camera, controlledKeys.includes(camera.sourceKey));
+            previewUpdates.push({
+              sessionId: session.id,
+              status: "active",
+              snapshotBase64: png.toString("base64"),
+              snapshotContentType: "image/png",
+            });
+          } catch {
+            await log(
+              `Preview render failed for ${session.sourceKey}: ${
+                error instanceof Error ? error.message : "unknown"
+              }`,
+            );
+          }
         }
       }
 

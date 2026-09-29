@@ -168,6 +168,8 @@ describe("camera mapping and status", () => {
   it("describes offline and disabled remote control", () => {
     const now = new Date("2026-09-29T12:00:00.000Z");
     expect(isCameraConnectorStale(null, now)).toBe(true);
+    expect(isCameraConnectorStale("2026-09-29T11:59:20.000Z", now)).toBe(false);
+    expect(isCameraConnectorStale("2026-09-29T11:59:00.000Z", now)).toBe(true);
     expect(
       describeCameraConnectorLink({
         lastSeenAt: "2026-09-29T11:59:55.000Z",

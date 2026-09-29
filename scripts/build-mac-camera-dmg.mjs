@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "mac-camera-connector");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "mac-camera-dmg");
-const version = "1.4.4";
+const version = "1.4.5";
 const output = path.join(root, "public", "downloads", `FloBama-Mac-Camera-${version}.dmg`);
 
 const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");

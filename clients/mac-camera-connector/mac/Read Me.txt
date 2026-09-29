@@ -1,14 +1,15 @@
-FloBama Mac Camera 1.4.4
+FloBama Mac Camera 1.4.5
 
 IMPORTANT — replace any older install
 1. Quit Cam ● / any old FloBama Mac Camera process
 2. Eject every disk named FloBama Mac Camera
 3. Delete /Applications/FloBama Mac Camera.app
-4. Download Mac Camera 1.4.4 from FloBama OS → Cameras
-5. Open THIS disk (title must say FloBama Mac Camera 1.4.4)
+4. Download Mac Camera 1.4.5 from FloBama OS → Cameras
+5. Open THIS disk (title must say FloBama Mac Camera 1.4.5)
 6. Drag into Applications, then open it
 
-1.4.3 had a broken package.json that blocked NDI bind installs — 1.4.4 fixes that.
+1.4.5 fixes preview hang: stuck NDI receive was freezing heartbeats (Connected flashing)
+and blocking “Waiting for a frame from the Mac connector”.
 
 Local Network: allow “FloBama Mac Camera” when prompted.
 Logs: ~/Library/Logs/FloBamaMacConnector/connector.log

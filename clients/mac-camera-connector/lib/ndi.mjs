@@ -175,16 +175,32 @@ export async function discoverNdiSources({ force = false, waitMs = 1200, maxAgeM
   return discoverInFlight;
 }
 
+function destroyReceiver(receiver) {
+  try {
+    receiver?.destroy?.();
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Grab one low-bandwidth preview frame as PNG bytes when possible.
- * Returns null when receive is unavailable; caller should use labeled fallback.
+ * Hard-timeouts so a stuck NDI receive cannot freeze the connector heartbeat.
+ * Returns null when receive is unavailable/slow; caller should use labeled fallback.
  */
-export async function captureNdiPreviewPng(source, { encodeRgbaPng }) {
+export async function captureNdiPreviewPng(source, { encodeRgbaPng, timeoutMs = 1800 } = {}) {
   const grandi = await loadGrandi();
   if (!grandi?.receive || !source?.name) return null;
 
+  const budget = Math.max(400, Math.min(Number(timeoutMs) || 1800, 4000));
   let receiver;
-  try {
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    destroyReceiver(receiver);
+  }, budget);
+
+  const work = (async () => {
     const colorFormat =
       grandi.COLOR_FORMAT_RGBX_RGBA ??
       grandi.COLOR_FORMAT_BGRX_BGRA ??
@@ -198,14 +214,15 @@ export async function captureNdiPreviewPng(source, { encodeRgbaPng }) {
       allowVideoFields: false,
       name: "FloBama Mac Camera preview",
     });
+    if (timedOut) return null;
 
-    const frame = await receiver.video(2500);
-    if (!frame?.data || !frame.xres || !frame.yres) return null;
+    const frame = await receiver.video(Math.min(1200, budget));
+    if (timedOut || !frame?.data || !frame.xres || !frame.yres) return null;
 
     const stride = Number(frame.lineStrideBytes || frame.xres * 4);
     if (stride < frame.xres * 3) return null;
 
-    const targetW = 640;
+    const targetW = 480;
     const targetH = Math.max(180, Math.round((frame.yres / frame.xres) * targetW));
     const rgba = Buffer.alloc(targetW * targetH * 4);
     const src = Buffer.isBuffer(frame.data) ? frame.data : Buffer.from(frame.data);
@@ -224,13 +241,20 @@ export async function captureNdiPreviewPng(source, { encodeRgbaPng }) {
     }
 
     return encodeRgbaPng(targetW, targetH, rgba);
+  })();
+
+  try {
+    const result = await Promise.race([
+      work,
+      new Promise((resolve) => {
+        setTimeout(() => resolve(null), budget + 50);
+      }),
+    ]);
+    return result;
   } catch {
     return null;
   } finally {
-    try {
-      receiver?.destroy?.();
-    } catch {
-      /* ignore */
-    }
+    clearTimeout(timer);
+    destroyReceiver(receiver);
   }
 }

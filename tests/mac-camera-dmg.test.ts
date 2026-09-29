@@ -56,6 +56,10 @@ describe("Mac Camera disk image", () => {
     const ndi = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/lib/ndi.mjs"), "utf8");
     expect(ndi).toContain("grandi");
     expect(ndi).toContain("export async function discoverNdiSources");
+    expect(ndi).toContain("timeoutMs");
+    expect(client).toContain("NDI_PREVIEW_TIMEOUT_MS");
+    expect(client).toContain("MAX_NDI_CAPTURES_PER_TICK");
+    expect(client).toContain("labeledPreviewPng");
 
     const file = path.join(process.cwd(), "public", CAMERA_CONNECTOR_DMG_HREF);
     const bytes = readFileSync(file);

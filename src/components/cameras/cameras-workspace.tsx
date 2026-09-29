@@ -52,6 +52,7 @@ export function CamerasWorkspace({
   const [previewSessionId, setPreviewSessionId] = useState<string | null>(null);
   const [previewTick, setPreviewTick] = useState(0);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewMisses, setPreviewMisses] = useState(0);
   const resolvedSelectedId =
     selectedId && cameras.some((camera) => camera.id === selectedId) ? selectedId : (cameras[0]?.id ?? null);
   const selected = cameras.find((camera) => camera.id === resolvedSelectedId) ?? null;
@@ -79,6 +80,7 @@ export function CamerasWorkspace({
 
   useEffect(() => {
     setPreviewError(null);
+    setPreviewMisses(0);
   }, [previewSessionId, resolvedSelectedId]);
 
   useEffect(() => {
@@ -475,20 +477,29 @@ export function CamerasWorkspace({
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      key={`${previewSessionId}-${previewTick}`}
                       src={`/api/media/v1/cameras/preview/${previewSessionId}?t=${previewTick}`}
                       alt={`Preview of ${selected.title}`}
                       className="h-full w-full object-contain"
-                      onLoad={() => setPreviewError(null)}
-                      onError={() =>
-                        setPreviewError(
-                          link.online
-                            ? "Waiting for a frame from the Mac connector…"
-                            : "Mac Camera app is not heartbeating. Open FloBama Mac Camera on the venue Mac (look for Cam ●), then tap Refresh preview.",
-                        )
-                      }
+                      onLoad={() => {
+                        setPreviewError(null);
+                        setPreviewMisses(0);
+                      }}
+                      onError={() => {
+                        setPreviewMisses((n) => {
+                          const next = n + 1;
+                          // Avoid flashing the overlay on every poll miss while the Mac catches up.
+                          if (next >= 3) {
+                            setPreviewError(
+                              link.online
+                                ? "Waiting for a frame from the Mac connector…"
+                                : "Mac Camera app is not heartbeating. Open FloBama Mac Camera on the venue Mac (look for Cam ●), then tap Refresh preview.",
+                            );
+                          }
+                          return next;
+                        });
+                      }}
                     />
-                    {previewError ? (
+                    {previewError && previewMisses >= 3 ? (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center text-sm text-white/80">
                         {previewError}
                       </div>

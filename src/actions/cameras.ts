@@ -385,8 +385,30 @@ export async function startCameraPreviewAction(input: unknown): Promise<CameraAc
     .maybeSingle();
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
   if (!camera) return { ok: false, message: "Camera not found." };
-  if (!camera.device_id) {
+
+  // Prefer the Mac that is actually heartbeating. Camera rows can still point at a
+  // revoked/zombie device_id after re-pair, which left previews waiting forever.
+  const { data: devices } = await gate.supabase
+    .from("camera_connector_devices")
+    .select("id, revoked_at, last_seen_at")
+    .eq("venue_id", gate.context.venue.id)
+    .is("revoked_at", null)
+    .order("last_seen_at", { ascending: false })
+    .limit(8);
+
+  const linkedStillLive = (devices ?? []).some((row) => row.id === camera.device_id);
+  const freshest = (devices ?? [])[0]?.id ?? null;
+  const deviceId = linkedStillLive ? camera.device_id : freshest;
+  if (!deviceId) {
     return { ok: false, message: "Mac connector has not linked this camera yet. Pair/start the Mac app first." };
+  }
+
+  if (camera.device_id !== deviceId) {
+    await gate.supabase
+      .from("camera_sources")
+      .update({ device_id: deviceId })
+      .eq("id", camera.id)
+      .eq("venue_id", gate.context.venue.id);
   }
 
   // End prior sessions for this user/camera.
@@ -403,7 +425,7 @@ export async function startCameraPreviewAction(input: unknown): Promise<CameraAc
     .insert({
       venue_id: gate.context.venue.id,
       camera_id: camera.id,
-      device_id: camera.device_id,
+      device_id: deviceId,
       requester_user_id: gate.context.userId,
       mode: parsed.data.mode,
       status: "requested",
@@ -419,7 +441,7 @@ export async function startCameraPreviewAction(input: unknown): Promise<CameraAc
     gate.context.userId,
     "preview_started",
     { mode: parsed.data.mode },
-    { deviceId: camera.device_id, cameraId: camera.id },
+    { deviceId, cameraId: camera.id },
   );
 
   return {
