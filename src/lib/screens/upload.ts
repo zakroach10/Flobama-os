@@ -57,6 +57,6 @@ export function describeUploadFailure(message: string) {
 }
 
 export function describeStorageSizeFailure(message: string) {
-  if (!/maximum allowed size|payload too large|entity too large/i.test(message)) return null;
-  return `${message} Apply supabase/migrations/20260928000013_screen_ad_upload_limit.sql. If Storage is still capped at 50 MB, raise the project file size limit in the Supabase dashboard as well.`;
+  if (!/maximum allowed size|maximum size exceeded|payload too large|entity too large/i.test(message)) return null;
+  return "Supabase rejected this file because the project is still limited to 50 MB. In the Supabase dashboard, open Storage settings and raise Global file size limit. Free projects cannot go above 50 MB. Then run supabase/migrations/20260928000013_screen_ad_upload_limit.sql so the screen-ads bucket matches.";
 }

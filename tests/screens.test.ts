@@ -41,7 +41,7 @@ import {
   socialPosterRows,
 } from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
-import { mediaKindForFile, MAX_SCREEN_AD_BYTES, formatUploadProgress, screenAdTooLargeMessage } from "@/lib/screens/upload";
+import { mediaKindForFile, MAX_SCREEN_AD_BYTES, describeStorageSizeFailure, formatUploadProgress, screenAdTooLargeMessage } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
 
 const sample: StaffScreenAd[] = [
@@ -206,6 +206,7 @@ describe("vertical playlist", () => {
       percent: 50,
       label: "Uploading 50% (200.0 MB of 400.0 MB)",
     });
+    expect(describeStorageSizeFailure("Maximum size exceeded")).toMatch(/Global file size limit/);
   });
 
   it("requires a hold time for the week slide", () => {
