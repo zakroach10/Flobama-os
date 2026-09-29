@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
-  if (!canManageProgramming(context.role)) redirect("/events");
+  if (!canManageProgramming(context.role)) redirect("/programming");
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
   const { id } = await params;
@@ -23,7 +23,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   ]);
   if (error) return <ErrorState title="Could not load event" description={error} />;
   if (!event || event.venue_id !== context.venue.id) notFound();
-  if (event.archived_at) redirect(`/events/${event.id}`);
+  if (event.archived_at) redirect(`/programming/${event.id}`);
 
   const linked = event.event_artists.map((row) => ({
     id: row.artist_id,

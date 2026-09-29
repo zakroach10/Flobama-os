@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 export function revalidatePublicSurfaces() {
   revalidatePath("/dashboard");
+  revalidatePath("/programming");
   revalidatePath("/events");
   revalidatePath("/artists");
   revalidatePath("/settings");
@@ -16,6 +17,7 @@ export function revalidatePublicSurfaces() {
   revalidatePath("/api/public/v1/screens/vertical");
   revalidatePath("/api/public/v1/screens/led");
   revalidatePath("/api/public/v1/screens/week");
+  revalidatePath("/api/public/v1/trivia/wall");
   revalidatePath("/print/week");
   revalidatePath("/print/week/social");
 }

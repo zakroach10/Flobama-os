@@ -69,7 +69,7 @@ function EventList({
         <ul className="space-y-2">
           {events.map((event) => (
             <li key={event.id} className="rounded-lg border bg-card px-3 py-2">
-              <Link href={`/events/${event.id}`} className="block">
+              <Link href={`/programming/${event.id}`} className="block">
                 <p className="font-medium">{event.title}</p>
                 <p className="text-xs text-muted-foreground">{formatVenueDateTime(event.starts_at, timeZone)}</p>
                 <StatusBadge status={event.status} />

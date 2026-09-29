@@ -112,7 +112,7 @@ export function EventForm({
         return;
       }
       toast.success(result.message);
-      router.push(`/events/${result.id}`);
+      router.push(`/programming/${result.id}`);
       router.refresh();
     });
   }

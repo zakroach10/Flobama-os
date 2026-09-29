@@ -15,7 +15,7 @@ export function EventPageHeader({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        <Link href="/events" className="underline-offset-4 hover:underline">
+        <Link href="/programming" className="underline-offset-4 hover:underline">
           Events
         </Link>
       </p>

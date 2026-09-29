@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { toPublicPlaylist, type PublicScreenAd, type StaffScreenAd } from "@/lib/screens/playlist";
+import type { PublicScreenAd, StaffScreenAd } from "@/lib/screens/playlist";
+import { listPublicVerticalAds as listPublicVerticalAdsFromPlaylists } from "@/lib/queries/playlists";
 import {
   isMissingScreenTakeoverRelation,
   isTakeoverActive,
@@ -34,26 +35,8 @@ export async function listPublicVerticalAds(
   client: Client,
   venueId = FLO_BAMA_VENUE_ID,
 ): Promise<{ ads: PublicScreenAd[]; error: string | null }> {
-  const { data, error } = await client
-    .from("screen_ad_listings")
-    .select("*")
-    .eq("venue_id", venueId)
-    .order("sort_order", { ascending: true });
-  if (error) return { ads: [], error: error.message };
-  const ads = toPublicPlaylist(
-    (data ?? []).map((row) => ({
-      id: row.id,
-      title: row.title,
-      public_url: row.public_url,
-      media_kind: row.media_kind,
-      duration_seconds: row.duration_seconds,
-      transition: row.transition,
-      sort_order: row.sort_order,
-      enabled: true,
-      archived_at: null,
-    })),
-  );
-  return { ads, error: null };
+  const result = await listPublicVerticalAdsFromPlaylists(client, venueId);
+  return { ads: result.ads, error: result.error };
 }
 
 export async function getStaffTakeover(client: Client, venueId: string) {

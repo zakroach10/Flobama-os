@@ -12,6 +12,7 @@ export async function uploadScreenAdFromBrowser(input: {
   transition: ScreenTransition;
   sortOrder: number;
   enabled?: boolean;
+  playlistId?: string | null;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
   const mediaKind = mediaKindForFile(input.file);
@@ -55,6 +56,7 @@ export async function uploadScreenAdFromBrowser(input: {
     storagePath,
     publicUrl,
     sortOrder: input.sortOrder,
+    playlistId: input.playlistId ?? null,
   });
   if (!result.ok) {
     await supabase.storage.from("screen-ads").remove([storagePath]);

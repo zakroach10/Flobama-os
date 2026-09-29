@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
   let activeScene: {
     id: string;
-    kind: "obs" | "media";
+    kind: "obs" | "media" | "trivia";
     enabled: boolean;
     obsSceneName: string | null;
   } | null = null;

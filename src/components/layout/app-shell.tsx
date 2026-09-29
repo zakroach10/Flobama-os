@@ -23,7 +23,7 @@ import { useState } from "react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
-  { href: "/events", label: "Events", icon: CalendarDaysIcon },
+  { href: "/programming", label: "Programming", icon: CalendarDaysIcon },
   { href: "/ticketing", label: "Ticketing", icon: TicketIcon },
   {
     href: "https://client.restaurantpos.spoton.com/b/",
@@ -113,7 +113,7 @@ function Brand() {
 }
 
 function mobileSection(pathname: string) {
-  if (pathname.startsWith("/events")) return "Events";
+  if (pathname.startsWith("/programming")) return "Programming";
   if (pathname.startsWith("/booking")) return "Booking";
   if (pathname.startsWith("/social")) return "Social";
   if (pathname.startsWith("/ticketing")) return "Ticketing";

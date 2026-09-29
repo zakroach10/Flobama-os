@@ -3,20 +3,40 @@
 import { useEffect, useState } from "react";
 import { LED_DISPLAY_POLL_MS } from "@/lib/constants";
 import type { PublicLedMedia } from "@/lib/screens/led-wall";
+import type { TriviaWallState } from "@/lib/trivia/types";
+import { TriviaWall } from "@/components/screens/trivia-wall";
 
-export function LedDisplay({ initial }: { initial: PublicLedMedia | null }) {
+export function LedDisplay({
+  initial,
+  initialTrivia = null,
+  lockTriviaDemo = false,
+}: {
+  initial: PublicLedMedia | null;
+  initialTrivia?: TriviaWallState | null;
+  lockTriviaDemo?: boolean;
+}) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
+  const [trivia, setTrivia] = useState<TriviaWallState | null>(initialTrivia);
 
   useEffect(() => {
+    if (lockTriviaDemo) return;
     let cancelled = false;
     async function refresh() {
       try {
-        const response = await fetch("/api/public/v1/screens/led", { cache: "no-store" });
-        const json = (await response.json()) as { active?: PublicLedMedia | null };
+        const [ledRes, triviaRes] = await Promise.all([
+          fetch("/api/public/v1/screens/led", { cache: "no-store" }),
+          fetch("/api/public/v1/trivia/wall", { cache: "no-store" }),
+        ]);
+        const ledJson = (await ledRes.json()) as { active?: PublicLedMedia | null };
+        const triviaJson = (await triviaRes.json()) as { trivia?: TriviaWallState | null };
         if (cancelled) return;
-        setMedia(json.active ?? null);
+        setMedia(ledJson.active ?? null);
+        setTrivia(triviaJson.trivia ?? null);
       } catch {
-        if (!cancelled) setMedia((current) => current);
+        if (!cancelled) {
+          setMedia((current) => current);
+          setTrivia((current) => current);
+        }
       }
     }
     const timer = window.setInterval(() => void refresh(), LED_DISPLAY_POLL_MS);
@@ -24,7 +44,9 @@ export function LedDisplay({ initial }: { initial: PublicLedMedia | null }) {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lockTriviaDemo]);
+
+  if (trivia) return <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />;
 
   if (!media) return <div className="h-full w-full bg-black" />;
 

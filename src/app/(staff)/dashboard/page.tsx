@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           <PrintWeekFlyerButton />
           <ExportWeekSocialButton />
           {canManageProgramming(context.role) ? (
-            <Button className="w-full sm:w-auto" render={<Link href="/events/new" />}>
+            <Button className="w-full sm:w-auto" render={<Link href="/programming/new" />}>
               Add event
             </Button>
           ) : null}
@@ -52,14 +52,14 @@ export default async function DashboardPage() {
               <EmptyState
                 title="Nothing on the floor today"
                 description="No events overlap the current venue-local day, including shows that started last night and run past midnight."
-                actionHref={canManageProgramming(context.role) ? "/events/new" : undefined}
+                actionHref={canManageProgramming(context.role) ? "/programming/new" : undefined}
                 actionLabel={canManageProgramming(context.role) ? "Add event" : undefined}
               />
             ) : (
               <ul className="divide-y rounded-xl border bg-card">
                 {data.today.map((event) => (
                   <li key={event.id}>
-                    <Link href={`/events/${event.id}`} className="flex min-h-11 flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Link href={`/programming/${event.id}`} className="flex min-h-11 flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-medium">{event.title}</p>
                         <p className="text-sm text-muted-foreground">
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
                       <ul className="space-y-2">
                         {data.draftEvents.map((event) => (
                           <li key={event.id}>
-                            <Link className="text-sm font-medium underline-offset-4 hover:underline" href={`/events/${event.id}`}>
+                            <Link className="text-sm font-medium underline-offset-4 hover:underline" href={`/programming/${event.id}`}>
                               {event.title} · {formatVenueDateTime(event.starts_at, context.venue.timezone)}
                             </Link>
                           </li>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
                       <ul className="space-y-2">
                         {data.liveMusicMissingArtists.map((event) => (
                           <li key={event.id}>
-                            <Link className="text-sm font-medium underline-offset-4 hover:underline" href={`/events/${event.id}/edit`}>
+                            <Link className="text-sm font-medium underline-offset-4 hover:underline" href={`/programming/${event.id}/edit`}>
                               {event.title}
                             </Link>
                           </li>
@@ -150,7 +150,7 @@ export default async function DashboardPage() {
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Upcoming</h2>
-              <Button variant="outline" render={<Link href="/events" />}>
+              <Button variant="outline" render={<Link href="/programming" />}>
                 Event manager
               </Button>
             </div>
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
               <ul className="divide-y rounded-xl border bg-card">
                 {data.upcoming.map((event) => (
                   <li key={event.id}>
-                    <Link href={`/events/${event.id}`} className="flex min-h-11 flex-col px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Link href={`/programming/${event.id}`} className="flex min-h-11 flex-col px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-medium">{event.title}</p>
                         <p className="text-sm text-muted-foreground">

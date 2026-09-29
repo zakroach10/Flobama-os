@@ -12,6 +12,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Manage Booking from GoHighLevel custom objects",
     "Configure LED wall scenes and the booth client",
     "Manage vertical ads",
+    "Start and end Shoals trivia; upload question spreadsheets",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the calendar and settings",
   ],
@@ -21,6 +22,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Manage Booking from GoHighLevel custom objects",
     "Activate LED wall scenes",
     "Manage vertical ads",
+    "Start and end Shoals trivia; upload question spreadsheets",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the staff directory",
     "View the calendar and settings",
@@ -28,6 +30,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   viewer: [
     "View the calendar, artists, and staff directory",
     "View and activate LED wall scenes",
+    "View and run Shoals trivia",
     "View ticketing sales, orders, and check-in status without selling or refunding",
     "View settings (read-only)",
   ],
@@ -68,6 +71,14 @@ function requireRole(role: StaffRole | null): AuthzDecision {
 
 export function authorizeLedWallActivate(role: StaffRole | null): AuthzDecision {
   return requireRole(role);
+}
+
+export function authorizeTriviaRun(role: StaffRole | null): AuthzDecision {
+  return requireRole(role);
+}
+
+export function authorizeTriviaConfigure(role: StaffRole | null): AuthzDecision {
+  return authorizeProgramming(role);
 }
 
 export function authorizeLedWallConfigure(role: StaffRole | null): AuthzDecision {

@@ -19,7 +19,7 @@ export default async function NewEventPage({
 }) {
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
-  if (!canManageProgramming(context.role)) redirect("/events");
+  if (!canManageProgramming(context.role)) redirect("/programming");
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
 

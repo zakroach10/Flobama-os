@@ -130,8 +130,8 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
   }
 
   revalidateOps();
-  revalidatePath(`/events/${id}`);
-  revalidatePath(`/events/${id}/edit`);
+  revalidatePath(`/programming/${id}`);
+  revalidatePath(`/programming/${id}/edit`);
   return { ok: true, message: eventId ? "Event saved." : "Event created.", id };
 }
 
@@ -153,7 +153,7 @@ export async function setEventStatusAction(
 
   if (error) return { ok: false, message: error.message };
   revalidateOps();
-  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/programming/${eventId}`);
   const messages = {
     draft: "Returned to draft. It no longer appears in the public listings, embed, or API.",
     published: "Published. Public listings, embed, and API include this event when visibility is public.",
@@ -176,7 +176,7 @@ export async function archiveEventAction(eventId: string): Promise<ActionResult>
 
   if (error) return { ok: false, message: error.message };
   revalidateOps();
-  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/programming/${eventId}`);
   return { ok: true, message: "Event archived.", id: eventId };
 }
 

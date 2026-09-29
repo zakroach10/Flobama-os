@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "FloBama OS",
-    template: "%s · FloBama OS",
+    default: "FloBama Music Hall",
+    template: "%s · FloBama",
   },
-  description: "Internal operations for FloBama Music Hall.",
+  description: "Southern food, live music, and FloBama staff operations in downtown Florence, Alabama.",
 };
 
 export const viewport: Viewport = {
@@ -31,7 +31,7 @@ export const viewport: Viewport = {
   themeColor: "#f7f3ea",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

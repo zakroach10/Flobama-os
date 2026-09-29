@@ -48,11 +48,11 @@ export function EventActions({
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
       {!archived ? (
-        <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/events/${eventId}/edit`} />}>
+        <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/programming/${eventId}/edit`} />}>
           Edit
         </Button>
       ) : null}
-      <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/events/new?from=${eventId}`} />}>
+      <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/programming/new?from=${eventId}`} />}>
         Duplicate
       </Button>
       {!archived && status !== "published" ? (

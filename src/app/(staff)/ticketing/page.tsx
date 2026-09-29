@@ -69,7 +69,7 @@ export default async function TicketingDashboardPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" render={<Link href={`/events/${event.id}/ticketing`} />}>
+                    <Button size="sm" render={<Link href={`/programming/${event.id}/ticketing`} />}>
                       Manage tickets
                     </Button>
                     <Button size="sm" variant="outline" render={<Link href={`/ticketing/check-in/${event.id}`} />}>
@@ -91,13 +91,13 @@ export default async function TicketingDashboardPage() {
                   <Stat label="Remaining" value={String(summary?.remainingCapacity ?? 0)} />
                 </dl>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" render={<Link href={`/events/${event.id}/tables`} />}>
+                  <Button size="sm" variant="outline" render={<Link href={`/programming/${event.id}/tables`} />}>
                     Manage tables
                   </Button>
-                  <Button size="sm" variant="outline" render={<Link href={`/events/${event.id}/sales`} />}>
+                  <Button size="sm" variant="outline" render={<Link href={`/programming/${event.id}/sales`} />}>
                     View orders
                   </Button>
-                  <Button size="sm" variant="outline" render={<Link href={`/events/${event.id}/ticketing`} />}>
+                  <Button size="sm" variant="outline" render={<Link href={`/programming/${event.id}/ticketing`} />}>
                     Ticketing settings
                   </Button>
                 </div>

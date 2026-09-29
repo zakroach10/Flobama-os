@@ -31,7 +31,7 @@ export default async function TicketedEventsPage() {
           if (!event) return null;
           return (
             <li key={event.id}>
-              <Link href={`/events/${event.id}/ticketing`} className="flex min-h-12 items-center justify-between px-4 py-3">
+              <Link href={`/programming/${event.id}/ticketing`} className="flex min-h-12 items-center justify-between px-4 py-3">
                 <span className="font-medium">{event.title}</span>
                 <span className="text-sm text-muted-foreground">
                   {formatVenueDateTime(event.starts_at, context.venue.timezone)}

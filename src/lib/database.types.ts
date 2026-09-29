@@ -333,12 +333,163 @@ export type Database = {
           },
         ];
       };
+      menu_specials: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          subtitle: string | null;
+          category: "food" | "drink";
+          price_label: string | null;
+          storage_path: string;
+          public_url: string;
+          media_kind: "image" | "video";
+          duration_seconds: number;
+          starts_at: string | null;
+          ends_at: string | null;
+          enabled: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          title: string;
+          subtitle?: string | null;
+          category: "food" | "drink";
+          price_label?: string | null;
+          storage_path: string;
+          public_url: string;
+          media_kind?: "image" | "video";
+          duration_seconds?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Update: {
+          title?: string;
+          subtitle?: string | null;
+          category?: "food" | "drink";
+          price_label?: string | null;
+          duration_seconds?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "menu_specials_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_playlists: {
+        Row: {
+          id: string;
+          venue_id: string;
+          name: string;
+          is_active: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          name: string;
+          is_active?: boolean;
+          archived_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          is_active?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_playlists_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_playlist_items: {
+        Row: {
+          id: string;
+          playlist_id: string;
+          venue_id: string;
+          source_kind: "media" | "special" | "week_events";
+          media_id: string | null;
+          special_id: string | null;
+          duration_seconds: number | null;
+          transition: "cut" | "fade" | "slide";
+          sort_order: number;
+          enabled: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          playlist_id: string;
+          venue_id: string;
+          source_kind: "media" | "special" | "week_events";
+          media_id?: string | null;
+          special_id?: string | null;
+          duration_seconds?: number | null;
+          transition?: "cut" | "fade" | "slide";
+          sort_order?: number;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Update: {
+          source_kind?: "media" | "special" | "week_events";
+          media_id?: string | null;
+          special_id?: string | null;
+          duration_seconds?: number | null;
+          transition?: "cut" | "fade" | "slide";
+          sort_order?: number;
+          enabled?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_playlist_items_playlist_id_fkey";
+            columns: ["playlist_id"];
+            isOneToOne: false;
+            referencedRelation: "screen_playlists";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "screen_playlist_items_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "screen_ads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "screen_playlist_items_special_id_fkey";
+            columns: ["special_id"];
+            isOneToOne: false;
+            referencedRelation: "menu_specials";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       led_wall_scenes: {
         Row: {
           id: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media";
+          kind: "obs" | "media" | "trivia";
           obs_scene_name: string | null;
           media_kind: "image" | "video" | "week_events" | null;
           storage_path: string | null;
@@ -352,7 +503,7 @@ export type Database = {
           id?: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media";
+          kind: "obs" | "media" | "trivia";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -362,7 +513,7 @@ export type Database = {
         };
         Update: {
           title?: string;
-          kind?: "obs" | "media";
+          kind?: "obs" | "media" | "trivia";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -575,6 +726,19 @@ export type Database = {
         };
         Relationships: [];
       };
+      screen_active_playlist_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          public_url: string;
+          media_kind: "image" | "video" | "week_events";
+          duration_seconds: number | null;
+          transition: "cut" | "fade" | "slide";
+          sort_order: number;
+        };
+        Relationships: [];
+      };
       led_wall_active_media: {
         Row: {
           venue_id: string;
@@ -641,7 +805,7 @@ export type Database = {
       screen_wall_mode: "auto" | "manual";
       screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
-      led_wall_scene_kind: "obs" | "media";
+      led_wall_scene_kind: "obs" | "media" | "trivia";
     };
     CompositeTypes: {
       [_ in never]: never;
