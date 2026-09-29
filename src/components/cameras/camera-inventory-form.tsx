@@ -150,9 +150,11 @@ export function CameraInventoryForm({
               <Button
                 type="button"
                 size="sm"
-                variant="ghost"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
                 disabled={pending}
                 onClick={() => {
+                  if (!window.confirm(`Delete “${item.title}”?`)) return;
                   startTransition(async () => {
                     const result = await deleteCameraInventoryAction({ id: item.id });
                     if (!result.ok) toast.error(result.message);
@@ -163,7 +165,7 @@ export function CameraInventoryForm({
                   });
                 }}
               >
-                Remove
+                Delete
               </Button>
             </li>
           ))}

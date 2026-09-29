@@ -15,13 +15,22 @@ function namesMatch(a, b) {
 /**
  * Build local cameras from staff inventory + live NDI discovery + optional sims.
  */
-export function buildLocalCameras({ inventory, discoveredNdi = [], includeBuiltinSims }) {
+export function buildLocalCameras({
+  inventory,
+  discoveredNdi = [],
+  hiddenSourceKeys = [],
+  includeBuiltinSims,
+}) {
   const cameras = [];
   const byKey = new Map();
   const discovered = Array.isArray(discoveredNdi) ? discoveredNdi : [];
+  const hidden = new Set(
+    (Array.isArray(hiddenSourceKeys) ? hiddenSourceKeys : []).map((key) => String(key || "").toLowerCase()),
+  );
 
   for (const item of inventory || []) {
     if (!item?.sourceKey || item.enabled === false) continue;
+    if (hidden.has(String(item.sourceKey).toLowerCase())) continue;
     const protocol = item.protocol || "unknown";
     const isSim = protocol === "simulated";
     const isProgram = Boolean(item.isProgramOutput);
@@ -98,11 +107,12 @@ export function buildLocalCameras({ inventory, discoveredNdi = [], includeBuilti
 
   // Auto-surface discovered NDI sources that are not already in inventory.
   for (const src of discovered) {
+    const sourceKey = src.sourceKey || sourceKeyForNdiName(src.name);
+    if (hidden.has(String(sourceKey).toLowerCase())) continue;
     const already = [...byKey.values()].some(
       (cam) => namesMatch(cam.connectionTarget, src.name) || namesMatch(cam.title, src.name),
     );
     if (already) continue;
-    const sourceKey = src.sourceKey || sourceKeyForNdiName(src.name);
     if (byKey.has(sourceKey)) continue;
     const camera = {
       sourceKey,
@@ -141,6 +151,7 @@ export function buildLocalCameras({ inventory, discoveredNdi = [], includeBuilti
 
   if (includeBuiltinSims && !cameras.some((c) => c.isSimulated)) {
     for (const sim of listSimulatedCameras()) {
+      if (hidden.has(String(sim.sourceKey).toLowerCase())) continue;
       if (byKey.has(sim.sourceKey)) continue;
       cameras.push({
         ...sim,

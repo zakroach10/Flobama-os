@@ -6,7 +6,12 @@
  * discovery does not imply every NDI source supports PTZ.
  */
 
-export { discoverNdiSources, captureNdiPreviewPng, ndiRuntimeStatus } from "./ndi.mjs";
+export {
+  discoverNdiSources,
+  captureNdiPreviewPng,
+  ndiRuntimeStatus,
+  probeLocalNetworkPermission,
+} from "./ndi.mjs";
 
 export function createAdapter(camera) {
   if (camera.protocol === "simulated" || camera.isSimulated) {

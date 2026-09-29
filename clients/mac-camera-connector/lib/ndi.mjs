@@ -3,11 +3,14 @@
  * Installed on the venue Mac at first launch; gracefully degrades when unavailable.
  */
 
+import dgram from "node:dgram";
+
 let grandiModule = null;
 let grandiLoadError = null;
 let finder = null;
 let lastDiscoverAt = 0;
 let cachedSources = [];
+let localNetworkProbed = false;
 
 async function loadGrandi() {
   if (grandiModule) return grandiModule;
@@ -20,6 +23,44 @@ async function loadGrandi() {
     grandiLoadError = error instanceof Error ? error.message : String(error);
     return null;
   }
+}
+
+/**
+ * Trigger macOS Local Network TCC for the process that is actually running Node
+ * (usually Terminal when launched from the .dmg). Harmless if permission already granted.
+ */
+export async function probeLocalNetworkPermission() {
+  if (localNetworkProbed) return { ok: true, note: "Local Network already probed." };
+  localNetworkProbed = true;
+  return await new Promise((resolve) => {
+    const socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
+    const done = (note) => {
+      try {
+        socket.close();
+      } catch {
+        /* ignore */
+      }
+      resolve({ ok: true, note });
+    };
+    socket.on("error", () => done("Local Network probe finished (with socket error)."));
+    try {
+      socket.bind(0, () => {
+        try {
+          socket.setBroadcast(true);
+          // NDI discovery uses LAN multicast/broadcast; this nudge surfaces the TCC prompt.
+          const payload = Buffer.from("FloBama-Mac-Camera-local-network-probe");
+          socket.send(payload, 0, payload.length, 5353, "224.0.0.251", () => {
+            done("Local Network probe sent. Allow Terminal (and Node) under System Settings → Privacy → Local Network.");
+          });
+        } catch {
+          done("Local Network probe bound.");
+        }
+      });
+    } catch {
+      done("Local Network probe skipped.");
+    }
+    setTimeout(() => done("Local Network probe timed out."), 1500);
+  });
 }
 
 export function ndiRuntimeStatus() {
@@ -44,11 +85,13 @@ export function sourceKeyForNdiName(name) {
 }
 
 /** Discover local/LAN NDI sources. Cached briefly to avoid hammering mDNS. */
-export async function discoverNdiSources({ force = false, waitMs = 1500 } = {}) {
+export async function discoverNdiSources({ force = false, waitMs = 2500 } = {}) {
   const now = Date.now();
   if (!force && cachedSources.length && now - lastDiscoverAt < 5_000) {
     return { ok: true, sources: cachedSources, note: "Cached NDI discovery." };
   }
+
+  await probeLocalNetworkPermission();
 
   const grandi = await loadGrandi();
   if (!grandi?.find) {
@@ -65,17 +108,17 @@ export async function discoverNdiSources({ force = false, waitMs = 1500 } = {}) 
     if (!finder) {
       finder = await grandi.find({ showLocalSources: true });
     }
-    const deadline = Date.now() + waitMs;
-    while (Date.now() < deadline) {
+    // grandi.find().wait is async — must await or sources() stays empty.
+    if (typeof finder.wait === "function") {
       try {
-        finder.wait?.(250);
+        await finder.wait(waitMs);
       } catch {
-        /* older bindings */
+        await new Promise((r) => setTimeout(r, waitMs));
       }
-      await new Promise((r) => setTimeout(r, 200));
-      const list = typeof finder.sources === "function" ? finder.sources() : [];
-      if (Array.isArray(list) && list.length > 0) break;
+    } else {
+      await new Promise((r) => setTimeout(r, waitMs));
     }
+
     const list = typeof finder.sources === "function" ? finder.sources() : [];
     cachedSources = (Array.isArray(list) ? list : [])
       .map((item) => {
@@ -95,7 +138,7 @@ export async function discoverNdiSources({ force = false, waitMs = 1500 } = {}) 
       sources: cachedSources,
       note: cachedSources.length
         ? `Found ${cachedSources.length} NDI source(s).`
-        : "NDI finder running — no sources visible yet (check LAN/Local Network permission).",
+        : "NDI finder running — no sources yet. Allow Local Network for Terminal (System Settings → Privacy & Security → Local Network), keep cameras/Ecamm on the same LAN, then restart the connector.",
     };
   } catch (error) {
     return {

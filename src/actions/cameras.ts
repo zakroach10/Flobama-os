@@ -24,7 +24,7 @@ import {
   CAMERA_PAIRING_TTL_MS,
   CAMERA_PREVIEW_TTL_MS,
 } from "@/lib/cameras/types";
-import { CAMERA_CONNECTOR_SQL, CAMERA_INVENTORY_SQL } from "@/lib/constants";
+import { CAMERA_CONNECTOR_SQL, CAMERA_DELETE_SQL, CAMERA_INVENTORY_SQL } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -33,6 +33,7 @@ import {
   cameraInventoryUpsertSchema,
   cameraLeaseSchema,
   cameraPreviewStartSchema,
+  cameraSourceDeleteSchema,
   revokeCameraDeviceSchema,
 } from "@/lib/validation/schemas";
 import type { Json } from "@/lib/database.types";
@@ -56,10 +57,39 @@ function cameraSqlMessage(message: string) {
   if (/camera_inventory/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
     return `Apply ${CAMERA_INVENTORY_SQL} in the Supabase SQL editor, then try again.`;
   }
+  if (/camera_hidden_sources|permission denied.*camera_sources/i.test(message)) {
+    return `Apply ${CAMERA_DELETE_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (isMissingCameraRelation(message)) {
     return `Apply ${CAMERA_CONNECTOR_SQL} in the Supabase SQL editor, then try again.`;
   }
   return message;
+}
+
+async function hideCameraSourceKey(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+  venueId: string,
+  userId: string,
+  sourceKey: string,
+) {
+  const { error } = await supabase.from("camera_hidden_sources").upsert(
+    {
+      venue_id: venueId,
+      source_key: sourceKey,
+      hidden_by: userId,
+      hidden_at: new Date().toISOString(),
+    },
+    { onConflict: "venue_id,source_key" },
+  );
+  return error;
+}
+
+async function unhideCameraSourceKey(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+  venueId: string,
+  sourceKey: string,
+) {
+  await supabase.from("camera_hidden_sources").delete().eq("venue_id", venueId).eq("source_key", sourceKey);
 }
 
 async function staffGate(mode: "view" | "operate" | "configure") {
@@ -460,6 +490,9 @@ export async function upsertCameraInventoryAction(input: unknown): Promise<Camer
     inventoryId = data.id;
   }
 
+  // Re-adding a camera clears any prior dismiss/hide so the Mac can report it again.
+  await unhideCameraSourceKey(gate.supabase, gate.context.venue.id, fields.source_key);
+
   // Seed / update operational source row so it appears immediately in the UI.
   const { data: device } = await gate.supabase
     .from("camera_connector_devices")
@@ -557,6 +590,16 @@ export async function deleteCameraInventoryAction(input: unknown): Promise<Camer
   if (findError) return { ok: false, message: cameraSqlMessage(findError.message) };
   if (!item) return { ok: false, message: "Camera not found." };
 
+  const hideError = await hideCameraSourceKey(
+    gate.supabase,
+    gate.context.venue.id,
+    gate.context.userId,
+    item.source_key,
+  );
+  if (hideError && !/does not exist|schema cache|could not find/i.test(hideError.message)) {
+    return { ok: false, message: cameraSqlMessage(hideError.message) };
+  }
+
   const { error } = await gate.supabase
     .from("camera_inventory")
     .delete()
@@ -564,15 +607,69 @@ export async function deleteCameraInventoryAction(input: unknown): Promise<Camer
     .eq("venue_id", gate.context.venue.id);
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
 
-  await gate.supabase
+  const { error: sourceError } = await gate.supabase
     .from("camera_sources")
     .delete()
     .eq("venue_id", gate.context.venue.id)
     .eq("source_key", item.source_key);
+  if (sourceError) return { ok: false, message: cameraSqlMessage(sourceError.message) };
 
   await writeAudit(gate.context.venue.id, gate.context.userId, "camera_inventory_deleted", {
     sourceKey: item.source_key,
   });
   revalidateCameras();
   return { ok: true, message: `${item.title} removed.` };
+}
+
+export async function deleteCameraSourceAction(input: unknown): Promise<CameraActionResult> {
+  const gate = await staffGate("operate");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = cameraSourceDeleteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const { data: source, error: findError } = await gate.supabase
+    .from("camera_sources")
+    .select("id, source_key, title, inventory_id")
+    .eq("id", parsed.data.cameraId)
+    .eq("venue_id", gate.context.venue.id)
+    .maybeSingle();
+  if (findError) return { ok: false, message: cameraSqlMessage(findError.message) };
+  if (!source) return { ok: false, message: "Camera not found." };
+
+  const hideError = await hideCameraSourceKey(
+    gate.supabase,
+    gate.context.venue.id,
+    gate.context.userId,
+    source.source_key,
+  );
+  if (hideError && !/does not exist|schema cache|could not find/i.test(hideError.message)) {
+    return { ok: false, message: cameraSqlMessage(hideError.message) };
+  }
+
+  if (source.inventory_id) {
+    await gate.supabase
+      .from("camera_inventory")
+      .delete()
+      .eq("id", source.inventory_id)
+      .eq("venue_id", gate.context.venue.id);
+  } else {
+    await gate.supabase
+      .from("camera_inventory")
+      .delete()
+      .eq("venue_id", gate.context.venue.id)
+      .eq("source_key", source.source_key);
+  }
+
+  const { error: sourceError } = await gate.supabase
+    .from("camera_sources")
+    .delete()
+    .eq("id", source.id)
+    .eq("venue_id", gate.context.venue.id);
+  if (sourceError) return { ok: false, message: cameraSqlMessage(sourceError.message) };
+
+  await writeAudit(gate.context.venue.id, gate.context.userId, "camera_source_deleted", {
+    sourceKey: source.source_key,
+  });
+  revalidateCameras();
+  return { ok: true, message: `${source.title} deleted.` };
 }

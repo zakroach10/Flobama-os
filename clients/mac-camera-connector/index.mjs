@@ -5,12 +5,18 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { applySimCommand } from "./lib/sim-cameras.mjs";
 import { buildLocalCameras } from "./lib/inventory.mjs";
-import { createAdapter, discoverNdiSources, captureNdiPreviewPng, ndiRuntimeStatus } from "./lib/adapters.mjs";
+import {
+  createAdapter,
+  discoverNdiSources,
+  captureNdiPreviewPng,
+  ndiRuntimeStatus,
+  probeLocalNetworkPermission,
+} from "./lib/adapters.mjs";
 import { createMoveWatchdog } from "./lib/watchdog.mjs";
 import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));
@@ -104,12 +110,17 @@ async function doctor(config, log) {
   await log(`Remote control: ${config.remoteControlEnabled ? "enabled" : "DISABLED locally"}`);
   await log(`Builtin sims when inventory empty of sims: ${config.useSimulatedCameras ? "ON" : "off"}`);
   await log(`Menu bar: ${config.menubarEnabled ? "enabled" : "disabled"}`);
+  const probe = await probeLocalNetworkPermission();
+  await log(`Local Network: ${probe.note}`);
   const runtime = ndiRuntimeStatus();
   await log(`NDI runtime: ${runtime.note}`);
-  const ndi = await discoverNdiSources({ force: true, waitMs: 2500 });
+  const ndi = await discoverNdiSources({ force: true, waitMs: 3000 });
   await log(`NDI discovery: ${ndi.note}`);
   for (const source of ndi.sources.slice(0, 20)) {
     await log(`  · ${source.name}${source.urlAddress ? ` (${source.urlAddress})` : ""}`);
+  }
+  if (!ndi.sources.length) {
+    await log("Tip: System Settings → Privacy & Security → Local Network → enable Terminal, then re-run --doctor.");
   }
 }
 
@@ -205,10 +216,19 @@ async function run() {
 
   let inventory = [];
   let discoveredNdi = [];
+  let hiddenSourceKeys = [];
   let ndiNote = "NDI discovery starting…";
-  let cameras = buildLocalCameras({ inventory, discoveredNdi, includeBuiltinSims: config.useSimulatedCameras });
+  let cameras = buildLocalCameras({
+    inventory,
+    discoveredNdi,
+    hiddenSourceKeys,
+    includeBuiltinSims: config.useSimulatedCameras,
+  });
   let byKey = new Map(cameras.map((camera) => [camera.sourceKey, camera]));
   let controlledKeys = [];
+
+  const probe = await probeLocalNetworkPermission();
+  await log(probe.note);
 
   if (config.menubarEnabled) {
     await publishStatus(config, cameras, controlledKeys, false, ndiNote);
@@ -266,6 +286,7 @@ async function run() {
       cameras = buildLocalCameras({
         inventory,
         discoveredNdi,
+        hiddenSourceKeys,
         includeBuiltinSims: config.useSimulatedCameras && inventory.length === 0,
       });
       const prev = byKey;
@@ -308,9 +329,11 @@ async function run() {
       const desired = await response.json();
       inventory = desired.inventory ?? [];
       controlledKeys = desired.controlledSourceKeys ?? [];
+      hiddenSourceKeys = desired.hiddenSourceKeys ?? [];
       cameras = buildLocalCameras({
         inventory,
         discoveredNdi,
+        hiddenSourceKeys,
         includeBuiltinSims: config.useSimulatedCameras && inventory.length === 0,
       });
       // Preserve motion state across rebuilds for matching keys.

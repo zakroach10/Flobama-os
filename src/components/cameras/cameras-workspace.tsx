@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   createCameraPairingCodeAction,
+  deleteCameraSourceAction,
   endCameraPreviewAction,
   issueCameraCommandAction,
   releaseCameraLeaseAction,
@@ -144,7 +145,9 @@ export function CamerasWorkspace({
             ) : null}
             <p className="text-xs text-muted-foreground">
               On the Mac, look for <span className="font-medium">Cam ●</span> in the top menu bar while the
-              connector is running.
+              connector is running. NDI discovery needs{" "}
+              <span className="font-medium">Local Network</span> enabled for Terminal (System Settings →
+              Privacy &amp; Security → Local Network).
             </p>
           </div>
           <Badge
@@ -233,7 +236,13 @@ export function CamerasWorkspace({
                 const lease = leaseByCamera.get(camera.id);
                 const controllable = camera.supportsPtz && !camera.isProgramOutput;
                 return (
-                  <li key={camera.id}>
+                  <li
+                    key={camera.id}
+                    className={cn(
+                      "rounded-lg border",
+                      resolvedSelectedId === camera.id ? "border-primary bg-primary/5" : "",
+                    )}
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -241,8 +250,8 @@ export function CamerasWorkspace({
                         if (canOperate) void startPreview(camera.id);
                       }}
                       className={cn(
-                        "w-full rounded-lg border px-3 py-3 text-left transition-colors",
-                        resolvedSelectedId === camera.id ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                        "w-full px-3 py-3 text-left transition-colors",
+                        resolvedSelectedId !== camera.id && "hover:bg-muted/50",
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -284,6 +293,35 @@ export function CamerasWorkspace({
                         <p className="mt-2 text-xs text-destructive">{camera.lastError}</p>
                       ) : null}
                     </button>
+                    {canOperate ? (
+                      <div className="border-t px-3 py-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-destructive hover:text-destructive"
+                          disabled={pending}
+                          onClick={() => {
+                            if (!window.confirm(`Delete “${camera.title}”?`)) return;
+                            startTransition(async () => {
+                              if (previewSessionId && resolvedSelectedId === camera.id) {
+                                await endCameraPreviewAction({ sessionId: previewSessionId });
+                                setPreviewSessionId(null);
+                              }
+                              const result = await deleteCameraSourceAction({ cameraId: camera.id });
+                              if (!result.ok) toast.error(result.message);
+                              else {
+                                toast.success(result.message);
+                                if (resolvedSelectedId === camera.id) setSelectedId(null);
+                                router.refresh();
+                              }
+                            });
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
@@ -323,13 +361,41 @@ export function CamerasWorkspace({
                         ? "Hold the pad to move. The preview label must match this camera name."
                         : "Preview-only source (no PTZ)."}
                 </p>
-                {canOperate ? (
-                  <Button type="button" variant="outline" onClick={() => void startPreview(selected.id)}>
-                    Refresh preview
-                  </Button>
-                ) : (
-                  <p className="text-sm text-muted-foreground">View-only role</p>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {canOperate ? (
+                    <Button type="button" variant="outline" onClick={() => void startPreview(selected.id)}>
+                      Refresh preview
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">View-only role</p>
+                  )}
+                  {canOperate ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      disabled={pending}
+                      onClick={() => {
+                        if (!window.confirm(`Delete “${selected.title}”?`)) return;
+                        startTransition(async () => {
+                          if (previewSessionId) {
+                            await endCameraPreviewAction({ sessionId: previewSessionId });
+                            setPreviewSessionId(null);
+                          }
+                          const result = await deleteCameraSourceAction({ cameraId: selected.id });
+                          if (!result.ok) toast.error(result.message);
+                          else {
+                            toast.success(result.message);
+                            setSelectedId(null);
+                            router.refresh();
+                          }
+                        });
+                      }}
+                    >
+                      Delete camera
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="relative aspect-video overflow-hidden rounded-lg bg-black">

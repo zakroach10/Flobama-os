@@ -74,6 +74,15 @@ export async function POST(request: Request) {
     normalizeReportedCamera(cam as ConnectorReportedCamera, index),
   );
 
+  const hiddenQuery = await admin
+    .from("camera_hidden_sources")
+    .select("source_key")
+    .eq("venue_id", device.venue_id);
+  // Older DBs without the delete/hidden migration simply skip hide filtering.
+  const hiddenKeys = new Set(
+    hiddenQuery.error ? [] : (hiddenQuery.data ?? []).map((row) => row.source_key),
+  );
+
   const { data: existing } = await admin
     .from("camera_sources")
     .select("id, source_key")
@@ -84,6 +93,7 @@ export async function POST(request: Request) {
 
   for (const cam of reported) {
     if (!cam.source_key) continue;
+    if (hiddenKeys.has(cam.source_key)) continue;
     seenKeys.add(cam.source_key);
     const existingId = existingByKey.get(cam.source_key);
     const patch = {
@@ -284,6 +294,7 @@ export async function POST(request: Request) {
       sortOrder: item.sort_order,
     })),
     controlledSourceKeys: controlledKeys,
+    hiddenSourceKeys: [...hiddenKeys],
     commands: deliverable.map((command) => ({
       ...command,
       sourceKey: keyById.get(command.cameraId) ?? null,

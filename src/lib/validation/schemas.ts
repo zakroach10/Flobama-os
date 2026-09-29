@@ -439,6 +439,10 @@ export const cameraInventoryDeleteSchema = z.object({
   id: z.string().uuid(),
 });
 
+export const cameraSourceDeleteSchema = z.object({
+  cameraId: z.string().uuid(),
+});
+
 export const cameraConnectorSyncSchema = z.object({
   hostname: z.string().trim().max(200).nullable().optional(),
   connectorVersion: z.string().trim().max(40).nullable().optional(),

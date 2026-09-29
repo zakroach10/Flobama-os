@@ -9,9 +9,9 @@
   <key>CFBundleIdentifier</key>
   <string>com.flobama.mac-camera</string>
   <key>CFBundleVersion</key>
-  <string>1.2.0</string>
+  <string>1.3.0</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.0</string>
+  <string>1.3.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
@@ -21,6 +21,12 @@
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>FloBama Mac Camera discovers venue cameras on the local network for remote preview and PTZ.</string>
+  <string>FloBama Mac Camera discovers NDI cameras on your local network for remote preview and PTZ in FloBama OS.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_ndi._tcp</string>
+    <string>_ndivideo._tcp</string>
+    <string>_ndi._udp</string>
+  </array>
 </dict>
 </plist>

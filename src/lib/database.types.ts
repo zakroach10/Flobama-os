@@ -1198,6 +1198,25 @@ export type Database = {
         };
         Relationships: [];
       };
+      camera_hidden_sources: {
+        Row: {
+          venue_id: string;
+          source_key: string;
+          hidden_at: string;
+          hidden_by: string | null;
+        };
+        Insert: {
+          venue_id: string;
+          source_key: string;
+          hidden_at?: string;
+          hidden_by?: string | null;
+        };
+        Update: {
+          hidden_at?: string;
+          hidden_by?: string | null;
+        };
+        Relationships: [];
+      };
       camera_audit_log: {
         Row: {
           id: string;

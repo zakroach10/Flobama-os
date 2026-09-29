@@ -14,7 +14,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Mac Camera 1.2.0"
+echo "FloBama Mac Camera 1.3.0"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
@@ -63,6 +63,31 @@ end run
 APPLESCRIPT
 }
 
+echo ""
+echo "NDI discovery needs Local Network permission for Terminal (this window)."
+echo "If macOS shows a Local Network prompt, click Allow."
+echo "Otherwise open: System Settings → Privacy & Security → Local Network → enable Terminal."
+echo ""
+# Best-effort open Local Network privacy pane (macOS Ventura / Sonoma / Sequoia).
+open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork" 2>/dev/null \
+  || open "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork" 2>/dev/null \
+  || true
+# Nudge TCC for this Terminal/node process before the connector starts.
+"$NODE_HOME/bin/node" -e '
+  const dgram = require("dgram");
+  const s = dgram.createSocket({ type: "udp4", reuseAddr: true });
+  s.on("error", () => process.exit(0));
+  s.bind(0, () => {
+    try { s.setBroadcast(true); } catch {}
+    const buf = Buffer.from("FloBama-Mac-Camera-local-network-probe");
+    s.send(buf, 0, buf.length, 5353, "224.0.0.251", () => {
+      try { s.close(); } catch {}
+      process.exit(0);
+    });
+  });
+  setTimeout(() => process.exit(0), 1200);
+' || true
+
 if [[ ! -f "$CONFIG" ]]; then
   api="$(ask "FloBama OS address" "https://flobama-os.vercel.app")" || exit 1
   code=""
@@ -98,5 +123,6 @@ fi
 echo "FloBama Mac Camera is running. Leave this window open during shows."
 echo "To re-pair, double-click Reset settings on the disk image, then open this app again."
 echo "To disable remote PTZ locally, edit mac-camera.config.json and set remoteControlEnabled to false."
+echo "If NDI cameras do not appear: enable Local Network for Terminal, then restart this app."
 cd "$APP_ROOT"
 exec "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG"

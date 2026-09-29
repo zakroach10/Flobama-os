@@ -44,3 +44,4 @@ clients/led-obs/led-obs.config.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+tmp/
