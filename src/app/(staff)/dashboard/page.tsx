@@ -3,9 +3,13 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadDashboard } from "@/lib/queries/dashboard";
 import { artistNames } from "@/lib/queries/events";
+import { getLedWallAgentStatus, getLedWallRuntime, listLedWallScenes } from "@/lib/queries/led-wall";
 import { formatVenueDateTime, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permissions";
+import { LED_WALL_SQL } from "@/lib/constants";
+import { describeAgentLink, ledSceneKindLabel } from "@/lib/screens/led-wall";
 import { Button } from "@/components/ui/button";
+import { LedWallControl } from "@/components/dashboard/led-wall-control";
 import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +25,25 @@ export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
 
-  const { data, error } = await loadDashboard(supabase, context.venue.id, context.venue.timezone);
+  const [{ data, error }, scenesRes, runtimeRes, agentRes] = await Promise.all([
+    loadDashboard(supabase, context.venue.id, context.venue.timezone),
+    listLedWallScenes(supabase, context.venue.id),
+    getLedWallRuntime(supabase, context.venue.id),
+    getLedWallAgentStatus(supabase, context.venue.id),
+  ]);
+  const ledMissing = scenesRes.missingTable || runtimeRes.missingTable || agentRes.missingTable;
+  const ledError = scenesRes.error || runtimeRes.error || agentRes.error;
+  const ledScenes = scenesRes.scenes
+    .filter((scene) => scene.enabled)
+    .map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      detail: ledSceneKindLabel({
+        kind: scene.kind,
+        mediaKind: scene.media_kind,
+        obsSceneName: scene.obs_scene_name,
+      }),
+    }));
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -41,6 +63,26 @@ export default async function DashboardPage() {
           ) : null}
         </div>
       </header>
+
+      {ledMissing ? (
+        <ErrorState
+          title="LED wall is not set up"
+          description={
+            canConfigureLedWall(context.role)
+              ? `Apply ${LED_WALL_SQL} in the Supabase SQL editor, then reload the dashboard.`
+              : "An admin still needs to finish the LED wall setup."
+          }
+        />
+      ) : ledError ? (
+        <ErrorState title="Could not load the LED wall" description={ledError} />
+      ) : (
+        <LedWallControl
+          scenes={ledScenes}
+          activeSceneId={runtimeRes.runtime?.active_scene_id ?? null}
+          status={describeAgentLink(agentRes.agent)}
+          setupHref="/screens"
+        />
+      )}
 
       {error || !data ? (
         <ErrorState title="Dashboard query failed" description={error ?? "Unknown error"} />

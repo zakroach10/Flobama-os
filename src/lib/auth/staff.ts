@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { StaffRole } from "@/lib/constants";
 import type { Database } from "@/lib/database.types";
+import { isMissingMenusColumn, resolveMenus, type StaffMenuId } from "@/lib/auth/menus";
 
 export type VenueRecord = Database["public"]["Tables"]["venues"]["Row"];
 export type ProfileRecord = Database["public"]["Tables"]["profiles"]["Row"];
@@ -16,6 +17,7 @@ export type StaffContext =
       userId: string;
       email: string | undefined;
       role: StaffRole;
+      menus: StaffMenuId[];
       venue: VenueRecord;
       profile: ProfileRecord | null;
     };
@@ -47,11 +49,23 @@ export async function getStaffContext(): Promise<StaffContext> {
     return { status: "error", message: userError.message };
   }
 
-  const { data: memberships, error: membershipError } = await supabase
+  const fullMembership = await supabase
     .from("venue_memberships")
-    .select("role, venue_id, venues(*)")
+    .select("role, venue_id, menus, venues(*)")
     .eq("user_id", user.id)
     .limit(1);
+
+  let memberships = fullMembership.data;
+  let membershipError = fullMembership.error;
+  if (membershipError && isMissingMenusColumn(membershipError.message)) {
+    const basicMembership = await supabase
+      .from("venue_memberships")
+      .select("role, venue_id, venues(*)")
+      .eq("user_id", user.id)
+      .limit(1);
+    membershipError = basicMembership.error;
+    memberships = basicMembership.data?.map((row) => ({ ...row, menus: null })) ?? null;
+  }
 
   if (membershipError) {
     return { status: "error", message: membershipError.message };
@@ -76,6 +90,7 @@ export async function getStaffContext(): Promise<StaffContext> {
     userId: user.id,
     email: user.email,
     role: membership.role,
+    menus: resolveMenus(membership.menus, membership.role),
     venue: venueRow,
     profile: profile ?? null,
   };

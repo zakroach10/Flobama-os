@@ -2,39 +2,12 @@ import { liveWeekDays, paginateWeekDays, weekFlyerFileName, type WeekSlideDay } 
 
 export const WEEK_SOCIAL_FORMATS = [
   {
-    id: "ig-square",
-    label: "Instagram square",
-    hint: "Feed post · 1080×1080",
-    width: 1080,
-    height: 1080,
-    layout: "stack",
-    maxEvents: 6,
-  },
-  {
     id: "ig-portrait",
-    label: "Instagram portrait",
+    label: "Instagram Portrait",
     hint: "Feed 4:5 · 1080×1350",
     width: 1080,
     height: 1350,
     layout: "stack",
-    maxEvents: 8,
-  },
-  {
-    id: "story",
-    label: "Story and Reels",
-    hint: "Instagram, TikTok, Shorts · 1080×1920",
-    width: 1080,
-    height: 1920,
-    layout: "stack",
-    maxEvents: 8,
-  },
-  {
-    id: "landscape",
-    label: "Landscape",
-    hint: "Facebook, X, YouTube · 1920×1080",
-    width: 1920,
-    height: 1080,
-    layout: "split",
     maxEvents: 8,
   },
 ] as const;
@@ -42,7 +15,7 @@ export const WEEK_SOCIAL_FORMATS = [
 export type WeekSocialFormat = (typeof WEEK_SOCIAL_FORMATS)[number];
 export type WeekSocialFormatId = WeekSocialFormat["id"];
 
-export const DEFAULT_WEEK_SOCIAL_FORMAT: WeekSocialFormatId = "ig-square";
+export const DEFAULT_WEEK_SOCIAL_FORMAT: WeekSocialFormatId = "ig-portrait";
 
 export function isWeekSocialFormatId(value: string | null | undefined): value is WeekSocialFormatId {
   return WEEK_SOCIAL_FORMATS.some((format) => format.id === value);

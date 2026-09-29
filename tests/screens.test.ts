@@ -295,31 +295,28 @@ describe("this week slide", () => {
     expect(weekFlyerFileName(payload.rangeLabel)).toBe("Flobama-this-week-Sep-6-12-2026");
   });
 
-  it("exports this week at Instagram, story, and landscape sizes", () => {
-    expect(WEEK_SOCIAL_FORMATS.map((format) => [format.id, format.width, format.height])).toEqual([
-      ["ig-square", 1080, 1080],
-      ["ig-portrait", 1080, 1350],
-      ["story", 1080, 1920],
-      ["landscape", 1920, 1080],
+  it("exports this week as Instagram Portrait", () => {
+    expect(WEEK_SOCIAL_FORMATS.map((format) => [format.id, format.label, format.width, format.height])).toEqual([
+      ["ig-portrait", "Instagram Portrait", 1080, 1350],
     ]);
-    expect(isWeekSocialFormatId("story")).toBe(true);
-    expect(isWeekSocialFormatId("billboard")).toBe(false);
-    expect(weekSocialFormat("nope").id).toBe("ig-square");
-    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-square")).toBe(
-      "Flobama-this-week-Sep-6-12-2026-ig-square.png",
+    expect(isWeekSocialFormatId("ig-portrait")).toBe(true);
+    expect(isWeekSocialFormatId("ig-square")).toBe(false);
+    expect(isWeekSocialFormatId("story")).toBe(false);
+    expect(isWeekSocialFormatId("landscape")).toBe(false);
+    expect(weekSocialFormat("nope").id).toBe("ig-portrait");
+    expect(weekSocialFormat("ig-square").id).toBe("ig-portrait");
+    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-portrait")).toBe(
+      "Flobama-this-week-Sep-6-12-2026-ig-portrait.png",
     );
-    expect(socialGraphicFileName("Sep 6–12, 2026", "story", 2, 3)).toBe(
-      "Flobama-this-week-Sep-6-12-2026-story-p2.png",
+    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-portrait", 2, 3)).toBe(
+      "Flobama-this-week-Sep-6-12-2026-ig-portrait-p2.png",
     );
-    expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-square"))).toHaveLength(1);
-    expect(weekSocialExportPath({ formatId: "ig-square", demo: true })).toBe(
-      "/api/public/v1/screens/week/social?size=ig-square&demo=1",
+    expect(weekSocialPages(DEMO_WEEK_SLIDE.days, weekSocialFormat("ig-portrait"))).toHaveLength(1);
+    expect(weekSocialExportPath({ formatId: "ig-portrait", demo: true })).toBe(
+      "/api/public/v1/screens/week/social?size=ig-portrait&demo=1",
     );
-    expect(weekSocialExportPath({ formatId: "story", page: 2 })).toBe(
-      "/api/public/v1/screens/week/social?size=story&page=2",
-    );
-    expect(weekSocialStudioPath({ formatId: "landscape", demo: true })).toBe(
-      "/print/week/social?size=landscape&demo=1",
+    expect(weekSocialStudioPath({ formatId: "ig-portrait", demo: true })).toBe(
+      "/print/week/social?size=ig-portrait&demo=1",
     );
   });
 

@@ -8,6 +8,7 @@ import {
   SCREEN_WALL_MODES,
   STAFF_ROLES,
 } from "@/lib/constants";
+import { STAFF_MENU_IDS } from "@/lib/auth/menus";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
 
 const optionalText = (max: number) =>
@@ -123,6 +124,7 @@ export const createStaffSchema = z.object({
   displayName: z.string().trim().min(1, "Display name is required.").max(120),
   role: z.enum(STAFF_ROLES),
   password: z.string().min(8, "Use at least 8 characters."),
+  menus: z.array(z.enum(STAFF_MENU_IDS)).max(STAFF_MENU_IDS.length),
 });
 
 export type CreateStaffValues = z.output<typeof createStaffSchema>;
@@ -130,6 +132,7 @@ export type CreateStaffValues = z.output<typeof createStaffSchema>;
 export const updateStaffRoleSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum(STAFF_ROLES),
+  menus: z.array(z.enum(STAFF_MENU_IDS)).max(STAFF_MENU_IDS.length),
 });
 
 export const removeStaffSchema = z.object({

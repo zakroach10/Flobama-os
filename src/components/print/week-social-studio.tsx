@@ -3,7 +3,6 @@ import { ScaledPreview } from "@/components/print/scaled-preview";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import {
   socialGraphicFileName,
-  WEEK_SOCIAL_FORMATS,
   weekSocialComposePath,
   weekSocialExportPath,
   weekSocialFormat,
@@ -40,10 +39,10 @@ export function WeekSocialStudio({
     <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:py-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · {format.label}</h1>
           <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
-            Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG or post
-            it through GoHighLevel Social Planner. Busy weeks split across pages so the type stays readable.
+            Instagram Portrait, 1080×1350. Download a PNG or post it through GoHighLevel Social Planner. Busy weeks
+            split across pages so the type stays readable.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -84,24 +83,6 @@ export function WeekSocialStudio({
             </>
           ) : null}
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-        {WEEK_SOCIAL_FORMATS.map((item) => (
-          <a
-            key={item.id}
-            href={weekSocialStudioPath({ formatId: item.id, demo })}
-            className={cn(
-              "min-h-10 rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors sm:min-h-11 sm:px-3 sm:py-2",
-              item.id === format.id
-                ? "border-[#d36b4a] bg-[#1b1612] text-[#f4ebe3]"
-                : "border-[#ccc] bg-white text-[#111] hover:border-[#d36b4a]",
-            )}
-          >
-            <span className="block font-medium">{item.label}</span>
-            <span className={item.id === format.id ? "text-[#c9b8aa]" : "text-[#666]"}>{item.hint}</span>
-          </a>
-        ))}
       </div>
 
       <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-2 sm:p-3">
