@@ -13,6 +13,8 @@ import {
 } from "@/lib/constants";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { isMissingScreenTakeoverRelation, takeoverEndsAt, takeoverMinutesLabel } from "@/lib/screens/takeover";
+import { ensureActivePlaylistId } from "@/lib/screens/playlist-helpers";
+import { isMissingScreenPlaylistRelation } from "@/lib/screens/playlists";
 import {
   createScreenAdRecordSchema,
   reorderScreenAdsSchema,
@@ -85,11 +87,39 @@ export async function createScreenAdRecordAction(input: unknown): Promise<Screen
       enabled: parsed.data.enabled,
     });
     if (error) return { ok: false, message: error.message };
+
+    if (parsed.data.enabled) {
+      const playlistId =
+        parsed.data.playlistId ??
+        (await ensureActivePlaylistId(gate.supabase, gate.context.venue.id)).id;
+      if (playlistId) {
+        const { count } = await gate.supabase
+          .from("screen_playlist_items")
+          .select("id", { count: "exact", head: true })
+          .eq("playlist_id", playlistId)
+          .eq("venue_id", gate.context.venue.id)
+          .is("archived_at", null);
+        const { error: itemError } = await gate.supabase.from("screen_playlist_items").insert({
+          playlist_id: playlistId,
+          venue_id: gate.context.venue.id,
+          source_kind: "media",
+          media_id: parsed.data.id,
+          duration_seconds: parsed.data.durationSeconds,
+          transition: parsed.data.transition,
+          sort_order: count ?? 0,
+          enabled: true,
+        });
+        if (itemError && !isMissingScreenPlaylistRelation(itemError.message)) {
+          return { ok: false, message: itemError.message };
+        }
+      }
+    }
+
     revalidateScreens();
     return {
       ok: true,
       id: parsed.data.id,
-      message: parsed.data.enabled ? "Ad added to the vertical rotation." : "Override graphic saved.",
+      message: parsed.data.enabled ? "Ad added to the playlist rotation." : "Override graphic saved.",
     };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Could not save the ad." };

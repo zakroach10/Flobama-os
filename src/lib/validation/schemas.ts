@@ -3,6 +3,7 @@ import {
   EVENT_STATUSES,
   EVENT_TYPES,
   EVENT_VISIBILITIES,
+  MENU_SPECIAL_CATEGORIES,
   SCREEN_TAKEOVER_MAX_MINUTES,
   SCREEN_TRANSITIONS,
   SCREEN_WALL_MODES,
@@ -193,10 +194,103 @@ export const createScreenAdRecordSchema = z.object({
   storagePath: z.string().trim().min(1).max(500),
   publicUrl: z.string().trim().min(8).max(800),
   sortOrder: z.number().int().min(0),
+  playlistId: z.string().uuid().nullable().optional(),
 });
 
 export const reorderScreenAdsSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
+});
+
+export const createScreenPlaylistSchema = z.object({
+  name: z.string().trim().min(1, "Playlist name is required.").max(120),
+  activate: z.boolean().default(false),
+});
+
+export const renameScreenPlaylistSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1, "Playlist name is required.").max(120),
+});
+
+export const activateScreenPlaylistSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export const reorderPlaylistItemsSchema = z.object({
+  playlistId: z.string().uuid(),
+  ids: z.array(z.string().uuid()).min(1),
+});
+
+export const updatePlaylistItemSchema = z.object({
+  id: z.string().uuid(),
+  durationSeconds: z.number().int().min(1).max(600).nullable(),
+  transition: z.enum(SCREEN_TRANSITIONS),
+  enabled: z.boolean(),
+});
+
+export const addPlaylistMediaItemSchema = z.object({
+  playlistId: z.string().uuid(),
+  mediaId: z.string().uuid(),
+});
+
+export const addPlaylistSpecialItemSchema = z.object({
+  playlistId: z.string().uuid(),
+  specialId: z.string().uuid(),
+});
+
+export const addPlaylistWeekEventsSchema = z.object({
+  playlistId: z.string().uuid(),
+});
+
+export const createMenuSpecialRecordSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  subtitle: z
+    .string()
+    .trim()
+    .max(240)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  category: z.enum(MENU_SPECIAL_CATEGORIES),
+  priceLabel: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  mediaKind: z.enum(["image", "video"]),
+  storagePath: z.string().trim().min(1).max(500),
+  publicUrl: z.string().trim().min(8).max(800),
+  durationSeconds: z.number().int().min(1).max(600),
+  startsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  enabled: z.boolean().default(true),
+  addToPlaylistId: z.string().uuid().nullable().optional(),
+});
+
+export const updateMenuSpecialSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  subtitle: z
+    .string()
+    .trim()
+    .max(240)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  category: z.enum(MENU_SPECIAL_CATEGORIES),
+  priceLabel: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => (value ? value : null)),
+  durationSeconds: z.number().int().min(1).max(600),
+  startsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  enabled: z.boolean(),
 });
 
 export const createLedObsSceneSchema = z.object({
