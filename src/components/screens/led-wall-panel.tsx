@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -19,7 +19,7 @@ import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
 import { agentStatusCopy, ledMediaKindForFile } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
-import { screenAdSizeLimitLabel } from "@/lib/screens/upload";
+import { formatByteSize, formatUploadProgress, screenAdSizeLimitLabel } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
 export function LedWallPanel({
@@ -252,6 +252,11 @@ function AdminLedWall({
   const [file, setFile] = useState<File | null>(null);
   const [adRoll, setAdRoll] = useState(false);
   const [fileKey, setFileKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [uploadFailed, setUploadFailed] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [browserScene, setBrowserScene] = useState(mediaObsSceneName);
   const [token, setToken] = useState<string | null>(null);
   const reported = agent.obsScenes;
@@ -329,22 +334,37 @@ function AdminLedWall({
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!file) {
-              toast.error("Choose an MP4 or PNG.");
+            if (!file || uploading) {
+              if (!file) toast.error("Choose an MP4 or PNG.");
               return;
             }
-            startTransition(async () => {
-              const result = await uploadLedMediaFromBrowser({
-                file,
-                venueId,
-                title: mediaTitle,
-                supabaseEnv,
-                rollsUntilShowtime: adRoll,
-              });
+            setUploading(true);
+            setUploadFailed(false);
+            setUploadPercent(0);
+            setUploadStatus("Starting upload…");
+            void uploadLedMediaFromBrowser({
+              file,
+              venueId,
+              title: mediaTitle,
+              supabaseEnv,
+              rollsUntilShowtime: adRoll,
+              onStatus: setUploadStatus,
+              onProgress: (loaded, total) => {
+                const progress = formatUploadProgress(loaded, total);
+                setUploadPercent(progress.percent);
+                setUploadStatus(progress.label);
+              },
+            }).then((result) => {
+              setUploading(false);
               if (!result.ok) {
+                setUploadFailed(true);
+                setUploadStatus(result.message);
                 toast.error(result.message);
                 return;
               }
+              setUploadFailed(false);
+              setUploadPercent(100);
+              setUploadStatus("Upload complete.");
               toast.success(result.message);
               setMediaTitle("");
               setFile(null);
@@ -356,32 +376,67 @@ function AdminLedWall({
         >
           <div className="space-y-2">
             <Label htmlFor="led-media-title">Title</Label>
-            <Input id="led-media-title" value={mediaTitle} onChange={(event) => setMediaTitle(event.target.value)} />
+            <Input id="led-media-title" value={mediaTitle} onChange={(event) => setMediaTitle(event.target.value)} disabled={uploading} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="led-media-file">MP4 or PNG</Label>
             <input
+              ref={fileInputRef}
               key={fileKey}
               id="led-media-file"
               type="file"
               accept="video/mp4,image/png,.mp4,.png"
-              className="block w-full text-sm"
+              className="sr-only"
               onChange={(event) => {
                 const next = event.target.files?.[0] ?? null;
                 setFile(next);
+                setUploadStatus(null);
+                setUploadPercent(null);
+                setUploadFailed(false);
                 if (!next || ledMediaKindForFile(next) !== "video") setAdRoll(false);
               }}
             />
-            <p className="text-xs text-muted-foreground">{screenAdSizeLimitLabel()} max.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                {file ? "Change file" : "Choose file"}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                {file ? `${file.name} · ${formatByteSize(file.size)}` : `No file selected. ${screenAdSizeLimitLabel()} max.`}
+              </p>
+            </div>
           </div>
           {file && ledMediaKindForFile(file) === "video" ? (
             <label className="flex items-start gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" className="mt-1" checked={adRoll} onChange={(event) => setAdRoll(event.target.checked)} />
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={adRoll}
+                disabled={uploading}
+                onChange={(event) => setAdRoll(event.target.checked)}
+              />
               <span>Ad roll. Loop this video until the next artist’s showtime, then cut to that artist’s configuration.</span>
             </label>
           ) : null}
-          <Button type="submit" disabled={pending}>
-            {pending ? "Uploading…" : "Upload scene"}
+          {uploadStatus ? (
+            <div className="space-y-2 sm:col-span-2" aria-live="polite">
+              {uploadPercent !== null ? (
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={uploadPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Upload progress"
+                >
+                  <div className="h-full bg-primary" style={{ width: `${uploadPercent}%` }} />
+                </div>
+              ) : null}
+              <p className={uploadFailed ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{uploadStatus}</p>
+              {uploading ? <p className="text-xs text-muted-foreground">Keep this tab open. Large videos upload in chunks.</p> : null}
+            </div>
+          ) : null}
+          <Button type="submit" disabled={uploading || !file}>
+            {uploading ? "Uploading…" : "Upload file"}
           </Button>
         </form>
       </section>

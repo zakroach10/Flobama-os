@@ -10,6 +10,22 @@ export function screenAdTooLargeMessage() {
   return `File must be ${screenAdSizeLimitLabel()} or smaller.`;
 }
 
+export function formatByteSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${Math.round(bytes)} B`;
+}
+
+export function formatUploadProgress(loaded: number, total: number) {
+  const percent = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+  return {
+    percent,
+    label: `Uploading ${percent}% (${formatByteSize(loaded)} of ${formatByteSize(total)})`,
+  };
+}
+
 export function mediaKindForFile(file: { type: string; name: string }): "image" | "video" | null {
   if (file.type.startsWith("video/")) return "video";
   if (file.type.startsWith("image/")) return "image";

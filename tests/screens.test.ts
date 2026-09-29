@@ -41,7 +41,7 @@ import {
   socialPosterRows,
 } from "@/lib/screens/social-poster";
 import { liveFromNowPayload, resolveWallScene, shouldUseBandScene } from "@/lib/screens/wall";
-import { mediaKindForFile, MAX_SCREEN_AD_BYTES, screenAdTooLargeMessage } from "@/lib/screens/upload";
+import { mediaKindForFile, MAX_SCREEN_AD_BYTES, formatUploadProgress, screenAdTooLargeMessage } from "@/lib/screens/upload";
 import { screenAdMetaSchema, startScreenTakeoverSchema } from "@/lib/validation/schemas";
 
 const sample: StaffScreenAd[] = [
@@ -202,6 +202,10 @@ describe("vertical playlist", () => {
     expect(mediaKindForFile({ type: "application/pdf", name: "menu.pdf" })).toBeNull();
     expect(MAX_SCREEN_AD_BYTES).toBe(2 * 1024 * 1024 * 1024);
     expect(screenAdTooLargeMessage()).toBe("File must be 2 GB or smaller.");
+    expect(formatUploadProgress(200 * 1024 * 1024, 400 * 1024 * 1024)).toEqual({
+      percent: 50,
+      label: "Uploading 50% (200.0 MB of 400.0 MB)",
+    });
   });
 
   it("requires a hold time for the week slide", () => {
