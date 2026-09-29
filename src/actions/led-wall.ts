@@ -45,6 +45,7 @@ async function staffGate(configure: boolean) {
 }
 
 function revalidateLedWall() {
+  revalidatePath("/dashboard");
   revalidatePath("/screens");
   revalidatePath("/display/led");
   revalidatePath("/api/public/v1/screens/led");

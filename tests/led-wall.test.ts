@@ -7,6 +7,7 @@ import {
   isAgentStale,
   ledAgentTokensMatch,
   ledMediaKindForFile,
+  ledSceneKindLabel,
   resolveDesiredObsScene,
   toPublicLedMedia,
 } from "@/lib/screens/led-wall";
@@ -129,6 +130,15 @@ describe("LED wall booth status", () => {
         now,
       }),
     ).toBe("Booth client has not checked in yet.");
+  });
+});
+
+describe("LED wall dashboard labels", () => {
+  it("names an OBS scene, a video, and an image", () => {
+    expect(ledSceneKindLabel({ kind: "obs", mediaKind: null, obsSceneName: "Band" })).toBe("OBS · Band");
+    expect(ledSceneKindLabel({ kind: "obs", mediaKind: null, obsSceneName: "  " })).toBe("OBS scene");
+    expect(ledSceneKindLabel({ kind: "media", mediaKind: "video", obsSceneName: null })).toBe("Video");
+    expect(ledSceneKindLabel({ kind: "media", mediaKind: "image", obsSceneName: null })).toBe("Image");
   });
 });
 
