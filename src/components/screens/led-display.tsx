@@ -9,14 +9,17 @@ import { TriviaWall } from "@/components/screens/trivia-wall";
 export function LedDisplay({
   initial,
   initialTrivia = null,
+  lockTriviaDemo = false,
 }: {
   initial: PublicLedMedia | null;
   initialTrivia?: TriviaWallState | null;
+  lockTriviaDemo?: boolean;
 }) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
   const [trivia, setTrivia] = useState<TriviaWallState | null>(initialTrivia);
 
   useEffect(() => {
+    if (lockTriviaDemo) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -41,9 +44,9 @@ export function LedDisplay({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [lockTriviaDemo]);
 
-  if (trivia) return <TriviaWall initial={trivia} />;
+  if (trivia) return <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />;
 
   if (!media) return <div className="h-full w-full bg-black" />;
 

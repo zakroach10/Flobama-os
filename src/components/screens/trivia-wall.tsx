@@ -12,12 +12,22 @@ function remainingLabel(phaseEndsAt: string | null, serverNow: string) {
   return `${remaining}s`;
 }
 
-export function TriviaWall({ initial }: { initial: TriviaWallState | null }) {
+export function TriviaWall({
+  initial,
+  lockDemo = false,
+}: {
+  initial: TriviaWallState | null;
+  lockDemo?: boolean;
+}) {
   const [wall, setWall] = useState<TriviaWallState | null>(initial);
   const [qr, setQr] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    if (lockDemo) {
+      const clock = window.setInterval(() => setTick((value) => value + 1), 250);
+      return () => window.clearInterval(clock);
+    }
     let cancelled = false;
     async function refresh() {
       try {
@@ -35,7 +45,7 @@ export function TriviaWall({ initial }: { initial: TriviaWallState | null }) {
       window.clearInterval(timer);
       window.clearInterval(clock);
     };
-  }, []);
+  }, [lockDemo]);
 
   const joinUrl = useMemo(() => {
     if (!wall) return null;
