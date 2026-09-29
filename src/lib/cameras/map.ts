@@ -1,6 +1,13 @@
 import type { Json } from "@/lib/database.types";
-import type { CameraCapabilities, CameraProtocol, ConnectorReportedCamera, StaffCameraSource } from "@/lib/cameras/types";
-import { CAMERA_PROTOCOLS } from "@/lib/cameras/types";
+import type {
+  CameraCapabilities,
+  CameraLinkStatus,
+  CameraProtocol,
+  ConnectorReportedCamera,
+  StaffCameraInventoryItem,
+  StaffCameraSource,
+} from "@/lib/cameras/types";
+import { CAMERA_LINK_STATUSES, CAMERA_PROTOCOLS } from "@/lib/cameras/types";
 
 const DEFAULT_SPEEDS = [1, 2, 4, 8, 12, 16];
 
@@ -24,13 +31,23 @@ function asProtocol(value: string | null | undefined): CameraProtocol {
   return "unknown";
 }
 
-function parseCapabilities(value: Json | null | undefined, row: {
-  supports_ptz: boolean;
-  supports_zoom: boolean;
-  supports_presets: boolean;
-  supports_preset_save: boolean;
-  supports_focus: boolean;
-}): CameraCapabilities {
+function asLinkStatus(value: string | null | undefined): CameraLinkStatus {
+  if (value && (CAMERA_LINK_STATUSES as readonly string[]).includes(value)) {
+    return value as CameraLinkStatus;
+  }
+  return "unknown";
+}
+
+function parseCapabilities(
+  value: Json | null | undefined,
+  row: {
+    supports_ptz: boolean;
+    supports_zoom: boolean;
+    supports_presets: boolean;
+    supports_preset_save: boolean;
+    supports_focus: boolean;
+  },
+): CameraCapabilities {
   const raw = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   const speeds = Array.isArray(raw.speeds)
     ? raw.speeds.filter((n): n is number => typeof n === "number" && Number.isFinite(n)).map((n) => Math.round(n))
@@ -76,6 +93,10 @@ export type CameraSourceRow = {
   supports_focus: boolean;
   online: boolean;
   last_error: string | null;
+  connection_target?: string | null;
+  connection_port?: number | null;
+  link_status?: string | null;
+  inventory_id?: string | null;
   capabilities: Json;
 };
 
@@ -95,7 +116,47 @@ export function toStaffCameraSource(row: CameraSourceRow): StaffCameraSource {
     supportsFocus: capabilities.focus,
     online: row.online,
     lastError: row.last_error,
+    connectionTarget: row.connection_target ?? null,
+    connectionPort: row.connection_port ?? null,
+    linkStatus: asLinkStatus(row.link_status),
+    inventoryId: row.inventory_id ?? null,
     capabilities,
+  };
+}
+
+export function toStaffInventoryItem(row: {
+  id: string;
+  source_key: string;
+  title: string;
+  protocol: string;
+  connection_target: string | null;
+  connection_port: number | null;
+  is_program_output: boolean;
+  supports_ptz: boolean;
+  supports_zoom: boolean;
+  supports_presets: boolean;
+  supports_preset_save: boolean;
+  supports_focus: boolean;
+  enabled: boolean;
+  notes: string | null;
+  sort_order: number;
+}): StaffCameraInventoryItem {
+  return {
+    id: row.id,
+    sourceKey: row.source_key,
+    title: row.title,
+    protocol: asProtocol(row.protocol),
+    connectionTarget: row.connection_target,
+    connectionPort: row.connection_port,
+    isProgramOutput: row.is_program_output,
+    supportsPtz: row.supports_ptz,
+    supportsZoom: row.supports_zoom,
+    supportsPresets: row.supports_presets,
+    supportsPresetSave: row.supports_preset_save,
+    supportsFocus: row.supports_focus,
+    enabled: row.enabled,
+    notes: row.notes,
+    sortOrder: row.sort_order,
   };
 }
 
@@ -112,6 +173,7 @@ export function normalizeReportedCamera(input: ConnectorReportedCamera, index: n
   });
   const protocol = asProtocol(input.protocol);
   const isProgramOutput = Boolean(input.isProgramOutput);
+  const linkStatus = asLinkStatus(input.linkStatus);
   return {
     source_key: input.sourceKey.trim().slice(0, 200),
     title: input.title.trim().slice(0, 160),
@@ -125,7 +187,32 @@ export function normalizeReportedCamera(input: ConnectorReportedCamera, index: n
     supports_focus: isProgramOutput ? false : caps.focus,
     online: input.online !== false,
     last_error: input.lastError?.trim().slice(0, 500) || null,
+    connection_target: input.connectionTarget?.trim().slice(0, 200) || null,
+    connection_port: typeof input.connectionPort === "number" ? input.connectionPort : null,
+    link_status: linkStatus,
+    inventory_id: input.inventoryId ?? null,
     sort_order: typeof input.sortOrder === "number" ? input.sortOrder : index,
     capabilities: caps as unknown as Json,
   };
+}
+
+export function linkStatusLabel(status: CameraLinkStatus) {
+  switch (status) {
+    case "simulated":
+      return "Simulated preview";
+    case "ndi_live":
+      return "NDI live";
+    case "ndi_pending":
+      return "NDI configured · waiting for Mac/NDI runtime";
+    case "visca_live":
+      return "VISCA live";
+    case "visca_pending":
+      return "VISCA configured · waiting for Mac";
+    case "offline":
+      return "Offline";
+    case "error":
+      return "Error";
+    default:
+      return "Unknown";
+  }
 }

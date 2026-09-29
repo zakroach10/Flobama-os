@@ -28,18 +28,28 @@ export async function POST(request: Request) {
   const now = new Date();
   const seenAt = now.toISOString();
 
+  const devicePatch: {
+    last_seen_at: string;
+    remote_control_enabled: boolean;
+    hostname: string | null;
+    connector_version: string | null;
+    status_detail?: string | null;
+  } = {
+    last_seen_at: seenAt,
+    remote_control_enabled: parsed.data.remoteControlEnabled,
+    hostname: parsed.data.hostname?.trim() || device.hostname,
+    connector_version: parsed.data.connectorVersion?.trim() || device.connector_version,
+  };
+  if (parsed.data.statusDetail !== undefined) {
+    devicePatch.status_detail = parsed.data.statusDetail;
+  }
+
   const { error: deviceError } = await admin
     .from("camera_connector_devices")
-    .update({
-      last_seen_at: seenAt,
-      remote_control_enabled: parsed.data.remoteControlEnabled,
-      hostname: parsed.data.hostname?.trim() || device.hostname,
-      connector_version: parsed.data.connectorVersion?.trim() || device.connector_version,
-    })
+    .update(devicePatch)
     .eq("id", device.id);
   if (deviceError) return NextResponse.json({ error: "Could not update device status." }, { status: 500 });
 
-  // Apply command results from Mac (never replay expired pending later).
   for (const result of parsed.data.commandResults ?? []) {
     const patch: {
       status: "accepted" | "rejected" | "expired" | "completed";
@@ -60,14 +70,14 @@ export async function POST(request: Request) {
       .eq("status", "pending");
   }
 
-  // Upsert reported cameras; mark missing keys offline.
   const reported = parsed.data.cameras.map((cam, index) =>
     normalizeReportedCamera(cam as ConnectorReportedCamera, index),
   );
+
   const { data: existing } = await admin
     .from("camera_sources")
     .select("id, source_key")
-    .eq("device_id", device.id);
+    .eq("venue_id", device.venue_id);
 
   const existingByKey = new Map((existing ?? []).map((row) => [row.source_key, row.id]));
   const seenKeys = new Set<string>();
@@ -76,44 +86,96 @@ export async function POST(request: Request) {
     if (!cam.source_key) continue;
     seenKeys.add(cam.source_key);
     const existingId = existingByKey.get(cam.source_key);
+    const patch = {
+      device_id: device.id,
+      title: cam.title,
+      protocol: cam.protocol,
+      is_simulated: cam.is_simulated,
+      is_program_output: cam.is_program_output,
+      supports_ptz: cam.supports_ptz,
+      supports_zoom: cam.supports_zoom,
+      supports_presets: cam.supports_presets,
+      supports_preset_save: cam.supports_preset_save,
+      supports_focus: cam.supports_focus,
+      online: cam.online,
+      last_error: cam.last_error,
+      connection_target: cam.connection_target,
+      connection_port: cam.connection_port,
+      link_status: cam.link_status,
+      inventory_id: cam.inventory_id,
+      sort_order: cam.sort_order,
+      capabilities: cam.capabilities,
+    };
     if (existingId) {
-      await admin
-        .from("camera_sources")
-        .update({
-          title: cam.title,
-          protocol: cam.protocol,
-          is_simulated: cam.is_simulated,
-          is_program_output: cam.is_program_output,
-          supports_ptz: cam.supports_ptz,
-          supports_zoom: cam.supports_zoom,
-          supports_presets: cam.supports_presets,
-          supports_preset_save: cam.supports_preset_save,
-          supports_focus: cam.supports_focus,
-          online: cam.online,
-          last_error: cam.last_error,
-          sort_order: cam.sort_order,
-          capabilities: cam.capabilities,
-        })
-        .eq("id", existingId);
+      await admin.from("camera_sources").update(patch).eq("id", existingId);
     } else {
       await admin.from("camera_sources").insert({
         venue_id: device.venue_id,
-        device_id: device.id,
-        ...cam,
+        source_key: cam.source_key,
+        ...patch,
       });
     }
   }
 
-  for (const row of existing ?? []) {
-    if (!seenKeys.has(row.source_key)) {
+  // Inventory-driven desired cameras for the Mac.
+  const { data: inventory } = await admin
+    .from("camera_inventory")
+    .select(
+      "id, source_key, title, protocol, connection_target, connection_port, is_program_output, supports_ptz, supports_zoom, supports_presets, supports_preset_save, supports_focus, enabled, sort_order",
+    )
+    .eq("venue_id", device.venue_id)
+    .eq("enabled", true)
+    .order("sort_order", { ascending: true });
+
+  const { data: pending } = await admin
+    .from("camera_commands")
+    .select("id, kind, payload, camera_id, expires_at, status")
+    .eq("device_id", device.id)
+    .eq("status", "pending")
+    .order("issued_at", { ascending: true })
+    .limit(40);
+
+  const deliverable: Array<{
+    id: string;
+    cameraId: string;
+    kind: string;
+    payload: Json;
+    expiresAt: string;
+  }> = [];
+
+  for (const command of pending ?? []) {
+    if (isCommandExpired(command.expires_at, now)) {
       await admin
-        .from("camera_sources")
-        .update({ online: false, last_error: "Source no longer reported by Mac connector." })
-        .eq("id", row.id);
+        .from("camera_commands")
+        .update({
+          status: "expired",
+          completed_at: seenAt,
+          reject_reason: "Command TTL expired before delivery.",
+        })
+        .eq("id", command.id);
+      continue;
     }
+    if (!parsed.data.remoteControlEnabled && command.kind !== "ptz_stop") {
+      await admin
+        .from("camera_commands")
+        .update({
+          status: "rejected",
+          completed_at: seenAt,
+          reject_reason: "Remote control disabled on Mac.",
+        })
+        .eq("id", command.id);
+      continue;
+    }
+    deliverable.push({
+      id: command.id,
+      cameraId: command.camera_id,
+      kind: command.kind,
+      payload: command.payload,
+      expiresAt: command.expires_at,
+    });
   }
 
-  // Preview snapshot / WebRTC answer updates.
+  // Preview updates
   for (const update of parsed.data.previewUpdates ?? []) {
     const { data: session } = await admin
       .from("camera_preview_sessions")
@@ -157,7 +219,6 @@ export async function POST(request: Request) {
           patch.snapshot_path = path;
           patch.snapshot_updated_at = seenAt;
           patch.status = update.status ?? "active";
-          // Opaque media route — not a public storage URL.
           patch.snapshot_url = `/api/media/v1/cameras/preview/${session.id}`;
         }
       }
@@ -166,51 +227,6 @@ export async function POST(request: Request) {
     if (Object.keys(patch).length > 0) {
       await admin.from("camera_preview_sessions").update(patch).eq("id", session.id);
     }
-  }
-
-  // Expire stale pending commands (do not hand them to the Mac).
-  const { data: pending } = await admin
-    .from("camera_commands")
-    .select("id, kind, payload, camera_id, expires_at, status")
-    .eq("device_id", device.id)
-    .eq("status", "pending")
-    .order("issued_at", { ascending: true })
-    .limit(40);
-
-  const deliverable: Array<{
-    id: string;
-    cameraId: string;
-    kind: string;
-    payload: Json;
-    expiresAt: string;
-  }> = [];
-
-  for (const command of pending ?? []) {
-    if (isCommandExpired(command.expires_at, now)) {
-      await admin
-        .from("camera_commands")
-        .update({ status: "expired", completed_at: seenAt, reject_reason: "Command TTL expired before delivery." })
-        .eq("id", command.id);
-      continue;
-    }
-    if (!parsed.data.remoteControlEnabled && command.kind !== "ptz_stop") {
-      await admin
-        .from("camera_commands")
-        .update({
-          status: "rejected",
-          completed_at: seenAt,
-          reject_reason: "Remote control disabled on Mac.",
-        })
-        .eq("id", command.id);
-      continue;
-    }
-    deliverable.push({
-      id: command.id,
-      cameraId: command.camera_id,
-      kind: command.kind,
-      payload: command.payload,
-      expiresAt: command.expires_at,
-    });
   }
 
   const { data: previewSessions } = await admin
@@ -222,16 +238,43 @@ export async function POST(request: Request) {
     .order("created_at", { ascending: true })
     .limit(8);
 
-  // Map camera ids to source keys for the Mac.
   const { data: sources } = await admin
     .from("camera_sources")
     .select("id, source_key")
-    .eq("device_id", device.id);
+    .eq("venue_id", device.venue_id);
   const keyById = new Map((sources ?? []).map((row) => [row.id, row.source_key]));
+
+  // Active control lease titles for menubar context.
+  const { data: leases } = await admin
+    .from("camera_control_leases")
+    .select("camera_id, expires_at")
+    .eq("venue_id", device.venue_id)
+    .gt("expires_at", seenAt);
+
+  const controlledKeys = (leases ?? [])
+    .map((lease) => keyById.get(lease.camera_id))
+    .filter((key): key is string => Boolean(key));
 
   return NextResponse.json({
     serverTime: seenAt,
     remoteControlEnabled: parsed.data.remoteControlEnabled,
+    inventory: (inventory ?? []).map((item) => ({
+      id: item.id,
+      sourceKey: item.source_key,
+      title: item.title,
+      protocol: item.protocol,
+      connectionTarget: item.connection_target,
+      connectionPort: item.connection_port,
+      isProgramOutput: item.is_program_output,
+      supportsPtz: item.supports_ptz,
+      supportsZoom: item.supports_zoom,
+      supportsPresets: item.supports_presets,
+      supportsPresetSave: item.supports_preset_save,
+      supportsFocus: item.supports_focus,
+      enabled: item.enabled,
+      sortOrder: item.sort_order,
+    })),
+    controlledSourceKeys: controlledKeys,
     commands: deliverable.map((command) => ({
       ...command,
       sourceKey: keyById.get(command.cameraId) ?? null,

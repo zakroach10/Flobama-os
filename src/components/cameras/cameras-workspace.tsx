@@ -15,15 +15,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { CameraLeaseRow } from "@/lib/queries/cameras";
-import type { StaffCameraDevice, StaffCameraSource } from "@/lib/cameras/types";
+import type { StaffCameraDevice, StaffCameraInventoryItem, StaffCameraSource } from "@/lib/cameras/types";
 import { describeCameraConnectorLink, formatCameraHeartbeat } from "@/lib/cameras/status";
+import { linkStatusLabel } from "@/lib/cameras/map";
 import { CameraPtzPad } from "@/components/cameras/camera-ptz-pad";
+import { CameraInventoryForm } from "@/components/cameras/camera-inventory-form";
 import { MacCameraDownload } from "@/components/cameras/mac-camera-download";
 import { cn } from "@/lib/utils";
 
 export function CamerasWorkspace({
   devices,
   cameras,
+  inventory,
   leases,
   currentUserId,
   canOperate,
@@ -32,6 +35,7 @@ export function CamerasWorkspace({
 }: {
   devices: StaffCameraDevice[];
   cameras: StaffCameraSource[];
+  inventory: StaffCameraInventoryItem[];
   leases: CameraLeaseRow[];
   currentUserId: string;
   canOperate: boolean;
@@ -128,6 +132,13 @@ export function CamerasWorkspace({
                 : "No Mac paired yet."}
             </p>
             <p className="text-sm text-muted-foreground">{formatCameraHeartbeat(activeDevice?.lastSeenAt ?? null)}</p>
+            {activeDevice?.statusDetail ? (
+              <p className="text-sm text-muted-foreground">Mac status: {activeDevice.statusDetail}</p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              On the Mac, look for <span className="font-medium">Cam ●</span> in the top menu bar while the
+              connector is running.
+            </p>
           </div>
           <Badge
             variant={link.tone === "ok" ? "default" : "secondary"}
@@ -198,6 +209,8 @@ export function CamerasWorkspace({
         ) : null}
       </section>
 
+      <CameraInventoryForm inventory={inventory} canEdit={canOperate} />
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
         <section className="rounded-xl border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">Available cameras</h2>
@@ -229,14 +242,18 @@ export function CamerasWorkspace({
                         <div>
                           <p className="font-medium">{camera.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {camera.isSimulated ? "Simulated · " : ""}
-                            {camera.isProgramOutput ? "Program output · preview only" : camera.protocol}
+                            {linkStatusLabel(camera.linkStatus)}
+                            {camera.connectionTarget ? ` · ${camera.connectionTarget}` : ""}
                           </p>
                         </div>
                         <span
                           className={cn(
                             "mt-1 size-2 shrink-0 rounded-full",
-                            camera.online ? "bg-emerald-500" : "bg-muted-foreground/40",
+                            camera.online
+                              ? "bg-emerald-500"
+                              : camera.linkStatus.includes("pending")
+                                ? "bg-amber-500"
+                                : "bg-muted-foreground/40",
                           )}
                           aria-hidden
                         />
@@ -247,6 +264,7 @@ export function CamerasWorkspace({
                         ) : (
                           <Badge variant="outline">Preview only</Badge>
                         )}
+                        {camera.isSimulated ? <Badge variant="outline">Simulated</Badge> : null}
                         {camera.supportsZoom ? <Badge variant="secondary">Zoom</Badge> : null}
                         {camera.supportsPresets ? <Badge variant="secondary">Presets</Badge> : null}
                         {lease ? (
@@ -271,17 +289,33 @@ export function CamerasWorkspace({
             <p className="text-sm text-muted-foreground">Select a camera to preview and control.</p>
           ) : (
             <>
+              <div
+                className={cn(
+                  "rounded-lg border px-4 py-3",
+                  iHoldLease ? "border-orange-600/50 bg-orange-500/10" : "bg-muted/30",
+                )}
+              >
+                <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+                  {iHoldLease ? "You are controlling" : "Selected camera"}
+                </p>
+                <p className="text-xl font-semibold tracking-tight">{selected.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {linkStatusLabel(selected.linkStatus)}
+                  {selected.connectionTarget ? ` · target “${selected.connectionTarget}”` : ""}
+                </p>
+                {selected.lastError ? <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">{selected.lastError}</p> : null}
+              </div>
+
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">{selected.title}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selected.isProgramOutput
-                      ? "Ecamm/program feed — framing reference only; PTZ is disabled."
+                <p className="text-sm text-muted-foreground">
+                  {selected.isProgramOutput
+                    ? "Ecamm/program feed — framing reference only; PTZ is disabled."
+                    : selected.linkStatus === "ndi_pending" || selected.linkStatus === "visca_pending"
+                      ? "Configured, but not live on the Mac yet. Preview shows identity + status until NDI/VISCA is linked."
                       : selected.supportsPtz
-                        ? "Controllable camera"
-                        : "Preview-only source (no PTZ reported)"}
-                  </p>
-                </div>
+                        ? "Hold the pad to move. The preview label must match this camera name."
+                        : "Preview-only source (no PTZ)."}
+                </p>
                 {canOperate ? (
                   <Button type="button" variant="outline" onClick={() => void startPreview(selected.id)}>
                     Refresh preview
@@ -319,7 +353,12 @@ export function CamerasWorkspace({
                   supportsZoom={selected.supportsZoom}
                   supportsFocus={selected.supportsFocus}
                   supportsPresetSave={selected.supportsPresetSave}
-                  disabled={!link.online || !activeDevice?.remoteControlEnabled}
+                  disabled={
+                    !link.online ||
+                    !activeDevice?.remoteControlEnabled ||
+                    selected.linkStatus === "ndi_pending" ||
+                    selected.linkStatus === "visca_pending"
+                  }
                   onSpeedChange={setSpeed}
                   onCommand={async (kind, payload) => {
                     const result = await issueCameraCommandAction({
@@ -340,9 +379,11 @@ export function CamerasWorkspace({
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                   {selected.isProgramOutput
                     ? "Program output cannot be controlled remotely."
-                    : selected.supportsPtz
-                      ? "Connect the Mac connector to enable PTZ."
-                      : "This source does not advertise PTZ. Hardware adapters will activate once the camera model and protocol are confirmed."}
+                    : selected.linkStatus === "ndi_pending"
+                      ? "NDI camera is configured but not live yet. Confirm the NDI source name and Mac NDI runtime; live control stays disabled until the link is verified."
+                      : selected.supportsPtz
+                        ? "Connect the Mac connector to enable PTZ."
+                        : "This source does not advertise PTZ."}
                 </div>
               )}
             </>

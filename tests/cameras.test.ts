@@ -18,7 +18,8 @@ import {
   hashCameraSecret,
   normalizePairingCode,
 } from "@/lib/cameras/crypto";
-import { normalizeReportedCamera, toStaffCameraSource } from "@/lib/cameras/map";
+import { linkStatusLabel, normalizeReportedCamera, toStaffCameraSource } from "@/lib/cameras/map";
+import { cameraInventoryUpsertSchema } from "@/lib/validation/schemas";
 import { describeCameraConnectorLink, isCameraConnectorStale } from "@/lib/cameras/status";
 import { CAMERA_COMMAND_TTL_MS } from "@/lib/cameras/types";
 import { cameraConnectorSyncSchema, cameraControlCommandSchema } from "@/lib/validation/schemas";
@@ -131,6 +132,8 @@ describe("camera mapping and status", () => {
       supports_focus: false,
       online: true,
       last_error: null,
+      link_status: "simulated",
+      connection_target: null,
       capabilities: {
         ptz: true,
         zoom: true,
@@ -139,7 +142,27 @@ describe("camera mapping and status", () => {
       },
     });
     expect(source.isSimulated).toBe(true);
+    expect(source.linkStatus).toBe("simulated");
     expect(source.capabilities.presetsList[0]?.label).toBe("Wide");
+    expect(linkStatusLabel("ndi_pending")).toMatch(/NDI configured/i);
+  });
+
+  it("validates camera inventory create payloads", () => {
+    expect(
+      cameraInventoryUpsertSchema.safeParse({
+        title: "Stage left",
+        sourceKey: "stage-left",
+        protocol: "ndi_ptz",
+        connectionTarget: "CAM 1",
+      }).success,
+    ).toBe(true);
+    expect(
+      cameraInventoryUpsertSchema.safeParse({
+        title: "Bad",
+        sourceKey: "has spaces",
+        protocol: "ndi_ptz",
+      }).success,
+    ).toBe(false);
   });
 
   it("describes offline and disabled remote control", () => {

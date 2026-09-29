@@ -884,6 +884,64 @@ export type Database = {
         ];
       };
 
+
+      camera_inventory: {
+        Row: {
+          id: string;
+          venue_id: string;
+          source_key: string;
+          title: string;
+          protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          connection_target: string | null;
+          connection_port: number | null;
+          is_program_output: boolean;
+          supports_ptz: boolean;
+          supports_zoom: boolean;
+          supports_presets: boolean;
+          supports_preset_save: boolean;
+          supports_focus: boolean;
+          enabled: boolean;
+          notes: string | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          source_key: string;
+          title: string;
+          protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          connection_target?: string | null;
+          connection_port?: number | null;
+          is_program_output?: boolean;
+          supports_ptz?: boolean;
+          supports_zoom?: boolean;
+          supports_presets?: boolean;
+          supports_preset_save?: boolean;
+          supports_focus?: boolean;
+          enabled?: boolean;
+          notes?: string | null;
+          sort_order?: number;
+        };
+        Update: {
+          source_key?: string;
+          title?: string;
+          protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          connection_target?: string | null;
+          connection_port?: number | null;
+          is_program_output?: boolean;
+          supports_ptz?: boolean;
+          supports_zoom?: boolean;
+          supports_presets?: boolean;
+          supports_preset_save?: boolean;
+          supports_focus?: boolean;
+          enabled?: boolean;
+          notes?: string | null;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
       camera_connector_pairing_codes: {
         Row: {
           id: string;
@@ -917,6 +975,8 @@ export type Database = {
           token_hash: string;
           revoked_at: string | null;
           remote_control_enabled: boolean;
+          menubar_enabled: boolean;
+          status_detail: string | null;
           last_seen_at: string | null;
           connector_version: string | null;
           hostname: string | null;
@@ -930,6 +990,8 @@ export type Database = {
           token_hash: string;
           revoked_at?: string | null;
           remote_control_enabled?: boolean;
+          menubar_enabled?: boolean;
+          status_detail?: string | null;
           last_seen_at?: string | null;
           connector_version?: string | null;
           hostname?: string | null;
@@ -941,6 +1003,8 @@ export type Database = {
           token_hash?: string;
           revoked_at?: string | null;
           remote_control_enabled?: boolean;
+          menubar_enabled?: boolean;
+          status_detail?: string | null;
           last_seen_at?: string | null;
           connector_version?: string | null;
           hostname?: string | null;
@@ -951,7 +1015,8 @@ export type Database = {
         Row: {
           id: string;
           venue_id: string;
-          device_id: string;
+          device_id: string | null;
+          inventory_id: string | null;
           source_key: string;
           title: string;
           protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
@@ -964,6 +1029,9 @@ export type Database = {
           supports_focus: boolean;
           online: boolean;
           last_error: string | null;
+          connection_target: string | null;
+          connection_port: number | null;
+          link_status: string;
           sort_order: number;
           capabilities: Json;
           updated_at: string;
@@ -972,7 +1040,8 @@ export type Database = {
         Insert: {
           id?: string;
           venue_id: string;
-          device_id: string;
+          device_id?: string | null;
+          inventory_id?: string | null;
           source_key: string;
           title: string;
           protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
@@ -985,12 +1054,17 @@ export type Database = {
           supports_focus?: boolean;
           online?: boolean;
           last_error?: string | null;
+          connection_target?: string | null;
+          connection_port?: number | null;
+          link_status?: string;
           sort_order?: number;
           capabilities?: Json;
           updated_at?: string;
           created_at?: string;
         };
         Update: {
+          device_id?: string | null;
+          inventory_id?: string | null;
           title?: string;
           protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
           is_simulated?: boolean;
@@ -1002,6 +1076,9 @@ export type Database = {
           supports_focus?: boolean;
           online?: boolean;
           last_error?: string | null;
+          connection_target?: string | null;
+          connection_port?: number | null;
+          link_status?: string;
           sort_order?: number;
           capabilities?: Json;
         };

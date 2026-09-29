@@ -14,7 +14,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Mac Camera 1.0.0"
+echo "FloBama Mac Camera 1.1.0"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
@@ -71,6 +71,7 @@ if [[ ! -f "$CONFIG" ]]; then
       label,
       remoteControlEnabled: true,
       useSimulatedCameras: true,
+      menubarEnabled: true,
       pollMs: 750,
       moveWatchdogMs: 1200,
       logDir: "~/Library/Logs/FloBamaMacConnector"
