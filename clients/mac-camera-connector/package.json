@@ -1,6 +1,6 @@
 {
   "name": "flobama-mac-camera-connector",
-  "version": "1.4.2",
+  "version": "1.4.3";
   "private": true,
   "type": "module",
   "description": "FloBama Mac Connector — outbound camera discovery, preview, and PTZ control agent",

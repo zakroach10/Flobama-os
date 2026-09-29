@@ -54,6 +54,15 @@ export async function POST(request: Request) {
 
   const token = createCameraDeviceToken();
   const label = parsed.data.label?.trim() || "FloBama Mac";
+
+  // One live Mac credential per venue — revoke older tokens so the Cameras UI
+  // does not keep watching a zombie device that will never heartbeat again.
+  await admin
+    .from("camera_connector_devices")
+    .update({ revoked_at: now.toISOString() })
+    .eq("venue_id", pairing.venue_id)
+    .is("revoked_at", null);
+
   const { data: device, error: deviceError } = await admin
     .from("camera_connector_devices")
     .insert({

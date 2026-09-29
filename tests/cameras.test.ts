@@ -213,6 +213,24 @@ describe("camera sync schema", () => {
   });
 });
 
+describe("camera active device selection", () => {
+  it("prefers the most recently seen non-revoked device", async () => {
+    const { describeCameraConnectorLink } = await import("@/lib/cameras/status");
+    const newer = describeCameraConnectorLink({
+      lastSeenAt: new Date().toISOString(),
+      remoteControlEnabled: true,
+      revokedAt: null,
+    });
+    const older = describeCameraConnectorLink({
+      lastSeenAt: new Date(Date.now() - 60_000).toISOString(),
+      remoteControlEnabled: true,
+      revokedAt: null,
+    });
+    expect(newer.online).toBe(true);
+    expect(older.online).toBe(false);
+  });
+});
+
 describe("camera discovered NDI sync", () => {
   it("accepts discovered NDI source reports", () => {
     const parsed = cameraConnectorSyncSchema.safeParse({

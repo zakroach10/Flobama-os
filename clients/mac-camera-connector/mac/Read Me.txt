@@ -1,18 +1,17 @@
-FloBama Mac Camera 1.4.2
+FloBama Mac Camera 1.4.3
 
 IMPORTANT — replace any older install
-1. Quit any old FloBama Mac Camera / Terminal windows and Cam ● menu item
+1. Quit Cam ● / any old FloBama Mac Camera process
 2. Eject every disk named FloBama Mac Camera
 3. Delete /Applications/FloBama Mac Camera.app
-4. Download Mac Camera 1.4.2 from FloBama OS → Cameras
-5. Open THIS disk (title must say FloBama Mac Camera 1.4.2)
+4. Download Mac Camera 1.4.3 from FloBama OS → Cameras
+5. Open THIS disk (title must say FloBama Mac Camera 1.4.3)
 6. Drag into Applications, then open it
 
-This version runs as the FloBama Mac Camera app (not Terminal).
-When macOS asks for Local Network, click Allow for “FloBama Mac Camera”.
-You cannot manually add apps to that privacy list — opening this app creates the entry.
+Cam ● only says Connected after FloBama OS accepts a heartbeat.
+If Cameras says “no heartbeat”, the Mac menu bar should also show offline.
 
-Look for Cam ● in the menu bar. Click it to see discovered NDI source names.
-The same list appears in FloBama OS → Cameras under “NDI sources on Mac”.
+Local Network: allow “FloBama Mac Camera” when prompted.
+You cannot manually add apps to that privacy list — open this app once so it appears.
 
 Logs: ~/Library/Logs/FloBamaMacConnector/connector.log
