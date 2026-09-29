@@ -853,6 +853,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      screen_display_signals: {
+        Row: {
+          venue_id: string;
+          reload_nonce: number;
+          reload_requested_at: string;
+          reload_requested_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          reload_nonce?: number;
+          reload_requested_at?: string;
+          reload_requested_by?: string | null;
+        };
+        Update: {
+          reload_nonce?: number;
+          reload_requested_at?: string;
+          reload_requested_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_display_signals_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: true;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_display_signal_listings: {
+        Row: {
+          venue_id: string;
+          reload_nonce: number;
+          reload_requested_at: string;
+        };
+        Relationships: [];
+      };
       screen_takeover_listings: {
         Row: {
           venue_id: string;

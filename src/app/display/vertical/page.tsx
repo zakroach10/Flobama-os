@@ -1,5 +1,6 @@
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import { getPublicAppUrl } from "@/lib/env";
+import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
 import { listPublicWeekEvents } from "@/lib/public/queries";
 import { joinPublicUrl } from "@/lib/public/urls";
@@ -32,10 +33,11 @@ export default async function VerticalDisplayPage({
   }
   const client = createAnonSupabaseClient();
   if (!client) return <VerticalPlayer initialAds={[]} />;
-  const [{ ads }, { events }, { takeover }] = await Promise.all([
+  const [{ ads }, { events }, { takeover }, signalRes] = await Promise.all([
     listPublicVerticalAds(client, FLO_BAMA_VENUE_ID),
     listPublicWeekEvents(client, FLO_BAMA_VENUE_ID),
     getPublicTakeover(client, FLO_BAMA_VENUE_ID),
+    getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID),
   ]);
 
   let trivia = null;
@@ -62,6 +64,7 @@ export default async function VerticalDisplayPage({
       initialWeek={buildWeekSlidePayload(events)}
       initialTakeover={takeover}
       initialTrivia={trivia}
+      initialReloadNonce={signalRes.signal.reloadNonce}
     />
   );
 }

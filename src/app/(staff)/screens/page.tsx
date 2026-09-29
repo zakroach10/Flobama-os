@@ -6,6 +6,7 @@ import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
+import { getStaffDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { listStaffLedPlaylistItems, listStaffLedPlaylists } from "@/lib/queries/led-playlists";
 import { listStaffMenuSpecials, listStaffPlaylistItems, listStaffPlaylists } from "@/lib/queries/playlists";
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
@@ -13,6 +14,7 @@ import { getStaffTriviaSession, listTriviaPacks } from "@/lib/queries/trivia";
 import { LedPlaylistsPanel } from "@/components/screens/led-playlists-panel";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { PlaylistsPanel } from "@/components/screens/playlists-panel";
+import { RefreshWallButton } from "@/components/screens/refresh-wall-button";
 import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
 import { SpecialsPanel } from "@/components/screens/specials-panel";
 import { TakeoverPanel } from "@/components/screens/takeover-panel";
@@ -55,6 +57,7 @@ export default async function ScreensPage({
     playlistsRes,
     specialsRes,
     ledPlaylistsRes,
+    displaySignalRes,
   ] = await Promise.all([
     listLedWallScenes(supabase, context.venue.id),
     getLedWallRuntime(supabase, context.venue.id),
@@ -71,6 +74,7 @@ export default async function ScreensPage({
       ? listStaffMenuSpecials(supabase, context.venue.id)
       : Promise.resolve({ specials: [], missingTable: false, error: null }),
     listStaffLedPlaylists(supabase, context.venue.id),
+    getStaffDisplayReloadSignal(supabase, context.venue.id),
   ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
@@ -90,6 +94,9 @@ export default async function ScreensPage({
   if (specialsRes.error) return <ErrorState title="Could not load specials" description={specialsRes.error} />;
   if (ledPlaylistsRes.error) {
     return <ErrorState title="Could not load LED playlists" description={ledPlaylistsRes.error} />;
+  }
+  if (displaySignalRes.error) {
+    return <ErrorState title="Could not load wall refresh status" description={displaySignalRes.error} />;
   }
   if (packsRes.error) {
     return <ErrorState title="Could not load trivia packs" description={packsRes.error} />;
@@ -129,11 +136,19 @@ export default async function ScreensPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
-        <p className="text-muted-foreground">
-          Choose a scene for the LED wall, build vertical playlists, or run automated trivia.
-        </p>
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
+            <p className="text-muted-foreground">
+              Choose a scene for the LED wall, build vertical playlists, or run automated trivia.
+            </p>
+          </div>
+          <RefreshWallButton
+            missingTable={displaySignalRes.missingTable}
+            lastRequestedAt={displaySignalRes.signal?.reloadRequestedAt ?? null}
+          />
+        </div>
       </header>
       <ScreensWorkspace
         defaultTab={tab}

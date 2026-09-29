@@ -2,6 +2,7 @@ import { LedDisplay } from "@/components/screens/led-display";
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import { getPublicAppUrl } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
+import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -38,6 +39,9 @@ export default async function LedDisplayPage({
         startedAt: null,
         revision: "idle",
       };
+  const reloadNonce = client
+    ? (await getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID)).signal.reloadNonce
+    : 1;
 
   let trivia = null;
   const admin = createServiceRoleClient();
@@ -55,6 +59,7 @@ export default async function LedDisplayPage({
       initialPlaylist={playback.playlist}
       initialMode={playback.mode}
       initialRevision={playback.revision}
+      initialReloadNonce={reloadNonce}
       initialTrivia={trivia}
     />
   );

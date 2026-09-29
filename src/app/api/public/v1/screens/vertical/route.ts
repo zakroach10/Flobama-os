@@ -3,6 +3,7 @@ import { getPublicAppUrl } from "@/lib/env";
 import { PUBLIC_NO_STORE, publicJson, publicOptions } from "@/lib/public/http";
 import { listPublicWeekEvents } from "@/lib/public/queries";
 import { joinPublicUrl } from "@/lib/public/urls";
+import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
 import { normalizePublicPlaylist } from "@/lib/screens/playlist";
 import { displayRevision, normalizePublicTakeover } from "@/lib/screens/takeover";
@@ -21,10 +22,11 @@ export function OPTIONS() {
 export async function GET() {
   const client = createAnonSupabaseClient();
   if (!client) return publicJson({ error: "Public listings are not configured." }, 503);
-  const [{ ads, error }, weekRes, takeoverRes] = await Promise.all([
+  const [{ ads, error }, weekRes, takeoverRes, signalRes] = await Promise.all([
     listPublicVerticalAds(client, FLO_BAMA_VENUE_ID),
     listPublicWeekEvents(client, FLO_BAMA_VENUE_ID),
     getPublicTakeover(client, FLO_BAMA_VENUE_ID),
+    getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID),
   ]);
   if (error) return publicJson({ error }, 500);
   const playlist = normalizePublicPlaylist(ads);
@@ -66,6 +68,7 @@ export async function GET() {
       ads: playlist,
       count: playlist.length,
       revision: displayRevision(playlist, takeover, triviaKey),
+      reloadNonce: signalRes.signal.reloadNonce,
       week: weekRes.error ? null : buildWeekSlidePayload(weekRes.events),
       takeover,
       trivia,

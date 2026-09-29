@@ -22,6 +22,7 @@ export function VerticalPlayer({
   initialWeek = null,
   initialTakeover = null,
   initialTrivia = null,
+  initialReloadNonce = 1,
   lockPlaylist = false,
   initialIndex = 0,
 }: {
@@ -29,6 +30,7 @@ export function VerticalPlayer({
   initialWeek?: WeekSlidePayload | null;
   initialTakeover?: PublicTakeover | null;
   initialTrivia?: TriviaKioskPromo | null;
+  initialReloadNonce?: number;
   lockPlaylist?: boolean;
   initialIndex?: number;
 }) {
@@ -46,6 +48,7 @@ export function VerticalPlayer({
       initialTrivia ? `${initialTrivia.joinCode}:${initialTrivia.status}:${initialTrivia.playerCount}` : null,
     ),
   );
+  const reloadNonceRef = useRef(initialReloadNonce);
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -74,11 +77,17 @@ export function VerticalPlayer({
         const playlist = (await response.json()) as {
           ads?: PublicScreenAd[];
           revision?: string;
+          reloadNonce?: number;
           week?: WeekSlidePayload | null;
           takeover?: PublicTakeover | null;
           trivia?: TriviaKioskPromo | null;
         };
         if (cancelled || !Array.isArray(playlist.ads)) return;
+        if (typeof playlist.reloadNonce === "number" && playlist.reloadNonce !== reloadNonceRef.current) {
+          reloadNonceRef.current = playlist.reloadNonce;
+          window.location.reload();
+          return;
+        }
         const next = normalizePublicPlaylist(playlist.ads);
         const nextTakeover = normalizePublicTakeover(playlist.takeover);
         const nextTrivia = playlist.trivia ?? null;
