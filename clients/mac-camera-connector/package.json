@@ -1,0 +1,12 @@
+{
+  "name": "flobama-mac-camera-connector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "FloBama Mac Connector — outbound camera discovery, preview, and PTZ control agent",
+  "scripts": {
+    "start": "node index.mjs",
+    "pair": "node index.mjs --pair",
+    "doctor": "node index.mjs --doctor"
+  }
+}

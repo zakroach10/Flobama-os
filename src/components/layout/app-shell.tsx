@@ -14,6 +14,7 @@ import {
   TicketIcon,
   UsersIcon,
   UtensilsCrossedIcon,
+  VideoIcon,
 } from "lucide-react";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
@@ -39,12 +40,14 @@ function NavLinks({
   onNavigate,
   className,
   showScreens,
+  showCameras,
   showBooking,
   showSocial,
 }: {
   onNavigate?: () => void;
   className?: string;
   showScreens?: boolean;
+  showCameras?: boolean;
   showBooking?: boolean;
   showSocial?: boolean;
 }) {
@@ -61,6 +64,10 @@ function NavLinks({
   }
   if (showScreens) {
     items.splice(insertAt, 0, { href: "/screens", label: "Screens", icon: MonitorPlayIcon });
+    insertAt += 1;
+  }
+  if (showCameras) {
+    items.splice(insertAt, 0, { href: "/cameras", label: "Cameras", icon: VideoIcon });
   }
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="Staff">
@@ -120,6 +127,7 @@ function mobileSection(pathname: string) {
   if (pathname.startsWith("/artists")) return "Artists";
   if (pathname.startsWith("/settings")) return "Settings";
   if (pathname.startsWith("/screens")) return "Screens";
+  if (pathname.startsWith("/cameras")) return "Cameras";
   if (pathname.startsWith("/dashboard")) return "Dashboard";
   return "Staff OS";
 }
@@ -130,6 +138,7 @@ export function AppShell({
   roleLabel,
   userLabel,
   showScreens = false,
+  showCameras = false,
   showBooking = false,
   showSocial = false,
 }: {
@@ -138,6 +147,7 @@ export function AppShell({
   roleLabel: string;
   userLabel: string;
   showScreens?: boolean;
+  showCameras?: boolean;
   showBooking?: boolean;
   showSocial?: boolean;
 }) {
@@ -149,7 +159,12 @@ export function AppShell({
       <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <Brand />
         <div className="flex-1 px-2">
-          <NavLinks showScreens={showScreens} showBooking={showBooking} showSocial={showSocial} />
+          <NavLinks
+            showScreens={showScreens}
+            showCameras={showCameras}
+            showBooking={showBooking}
+            showSocial={showSocial}
+          />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
           <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
@@ -176,6 +191,7 @@ export function AppShell({
               <div className="flex-1 overflow-y-auto px-2 pb-6">
                 <NavLinks
                   showScreens={showScreens}
+                  showCameras={showCameras}
                   showBooking={showBooking}
                   showSocial={showSocial}
                   onNavigate={() => setOpen(false)}

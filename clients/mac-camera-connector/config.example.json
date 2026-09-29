@@ -1,0 +1,11 @@
+{
+  "apiBase": "https://your-flobama-os-host.example",
+  "token": "",
+  "deviceId": "",
+  "label": "FloBama Mac",
+  "remoteControlEnabled": true,
+  "useSimulatedCameras": true,
+  "pollMs": 750,
+  "moveWatchdogMs": 1200,
+  "logDir": "~/Library/Logs/FloBamaMacConnector"
+}
