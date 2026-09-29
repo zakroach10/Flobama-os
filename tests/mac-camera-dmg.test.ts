@@ -33,7 +33,8 @@ describe("Mac Camera disk image", () => {
     expect(script).toContain("--pair");
     expect(script).toContain("Pairing code from FloBama OS");
     expect(client).toContain("/api/agent/v1/cameras/sync");
-    expect(client).not.toContain("child_process");
+    expect(client).toContain("startMenubarHelper");
+    expect(client).toContain("buildLocalCameras");
     expect(client).not.toContain("execSync");
 
     const file = path.join(process.cwd(), "public", CAMERA_CONNECTOR_DMG_HREF);
@@ -43,7 +44,8 @@ describe("Mac Camera disk image", () => {
     const text = diskImageText(bytes);
     expect(text).toContain(`FloBama Mac Camera ${CAMERA_CONNECTOR_VERSION}`);
     expect(text).toContain("--pair");
-    expect(text).toContain("listSimulatedCameras");
+    expect(text).toContain("startMenubarHelper");
+    expect(text).toContain("CONTROLLING");
     expect(text).toContain("moveWatchdogMs");
   });
 });

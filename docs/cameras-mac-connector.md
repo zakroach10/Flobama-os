@@ -40,7 +40,7 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, age
 4. Admin creates a pairing code; enter FloBama OS address + code in the first-run prompts.
 5. Leave Terminal open; open **Cameras** as admin/manager; select a simulated camera; preview + PTZ.
 
-Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.0.0.dmg`
+Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.1.0.dmg`
 
 ### CLI / launch agent
 
@@ -71,12 +71,16 @@ See `clients/mac-camera-connector/README.md` for Node CLI install, `--pair`, lau
 
 - Pairing + revocable device credential
 - Heartbeat / online status in Cameras UI
+- Staff camera inventory (create NDI / VISCA / simulated / program-output cameras)
+- Clear “you are controlling” banner + burned-in preview labels
+- Mac menu-bar status (`Cam ●` / offline / controlling)
 - Simulated PTZ cameras + simulated program-output (preview only)
 - Snapshot preview via private storage + media route
 - Hold-to-move PTZ pad, zoom, speed, presets (when advertised), Stop
 - Leases, watchdog, expired-command rejection
 - Staff permission gates
 - Mac launch agent scripts and diagnostics
+- Downloadable `.dmg` (`npm run build:dmg:cameras`)
 
 ### Not hardware-verified (blocked on venue details)
 

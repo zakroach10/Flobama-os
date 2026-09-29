@@ -13,7 +13,7 @@ func main() {
 		os.Exit(2)
 	}
 	image := &dmg.DMG{
-		VolumeName: "FloBama Mac Camera 1.0.0",
+		VolumeName: "FloBama Mac Camera 1.1.0",
 		OwnerID:    dmg.OwnerIDUnset,
 		GroupID:    dmg.OwnerIDUnset,
 	}

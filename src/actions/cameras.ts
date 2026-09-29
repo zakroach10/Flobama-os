@@ -24,11 +24,13 @@ import {
   CAMERA_PAIRING_TTL_MS,
   CAMERA_PREVIEW_TTL_MS,
 } from "@/lib/cameras/types";
-import { CAMERA_CONNECTOR_SQL } from "@/lib/constants";
+import { CAMERA_CONNECTOR_SQL, CAMERA_INVENTORY_SQL } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   cameraControlCommandSchema,
+  cameraInventoryDeleteSchema,
+  cameraInventoryUpsertSchema,
   cameraLeaseSchema,
   cameraPreviewStartSchema,
   revokeCameraDeviceSchema,
@@ -51,6 +53,9 @@ function fieldMessage(error: z.ZodError) {
 }
 
 function cameraSqlMessage(message: string) {
+  if (/camera_inventory/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
+    return `Apply ${CAMERA_INVENTORY_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (isMissingCameraRelation(message)) {
     return `Apply ${CAMERA_CONNECTOR_SQL} in the Supabase SQL editor, then try again.`;
   }
@@ -240,7 +245,7 @@ export async function releaseCameraLeaseAction(input: unknown): Promise<CameraAc
     .eq("id", parsed.data.cameraId)
     .eq("venue_id", gate.context.venue.id)
     .maybeSingle();
-  if (camera) {
+  if (camera?.device_id) {
     await gate.supabase.from("camera_commands").insert({
       venue_id: gate.context.venue.id,
       camera_id: camera.id,
@@ -272,6 +277,9 @@ export async function issueCameraCommandAction(input: unknown): Promise<CameraAc
     .maybeSingle();
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
   if (!camera) return { ok: false, message: "Camera not found." };
+  if (!camera.device_id) {
+    return { ok: false, message: "Mac connector has not linked this camera yet." };
+  }
 
   const support = commandSupportedByCamera(parsed.data.kind, {
     ptz: camera.supports_ptz,
@@ -347,6 +355,9 @@ export async function startCameraPreviewAction(input: unknown): Promise<CameraAc
     .maybeSingle();
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
   if (!camera) return { ok: false, message: "Camera not found." };
+  if (!camera.device_id) {
+    return { ok: false, message: "Mac connector has not linked this camera yet. Pair/start the Mac app first." };
+  }
 
   // End prior sessions for this user/camera.
   await gate.supabase
@@ -403,4 +414,165 @@ export async function endCameraPreviewAction(input: unknown): Promise<CameraActi
     .eq("requester_user_id", gate.context.userId);
 
   return { ok: true, message: "Preview ended." };
+}
+
+export async function upsertCameraInventoryAction(input: unknown): Promise<CameraActionResult> {
+  const gate = await staffGate("operate");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = cameraInventoryUpsertSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const fields = {
+    source_key: parsed.data.sourceKey.toLowerCase(),
+    title: parsed.data.title,
+    protocol: parsed.data.protocol,
+    connection_target: parsed.data.connectionTarget?.trim() || null,
+    connection_port: parsed.data.connectionPort ?? null,
+    is_program_output: parsed.data.isProgramOutput,
+    supports_ptz: parsed.data.isProgramOutput ? false : parsed.data.supportsPtz,
+    supports_zoom: parsed.data.isProgramOutput ? false : parsed.data.supportsZoom,
+    supports_presets: parsed.data.isProgramOutput ? false : parsed.data.supportsPresets,
+    supports_preset_save: parsed.data.isProgramOutput ? false : parsed.data.supportsPresetSave,
+    supports_focus: parsed.data.isProgramOutput ? false : parsed.data.supportsFocus,
+    enabled: parsed.data.enabled,
+    notes: parsed.data.notes?.trim() || null,
+  };
+
+  let inventoryId = parsed.data.id ?? null;
+  if (inventoryId) {
+    const { error } = await gate.supabase
+      .from("camera_inventory")
+      .update(fields)
+      .eq("id", inventoryId)
+      .eq("venue_id", gate.context.venue.id);
+    if (error) return { ok: false, message: cameraSqlMessage(error.message) };
+  } else {
+    const { count } = await gate.supabase
+      .from("camera_inventory")
+      .select("id", { count: "exact", head: true })
+      .eq("venue_id", gate.context.venue.id);
+    const { data, error } = await gate.supabase
+      .from("camera_inventory")
+      .insert({ ...fields, venue_id: gate.context.venue.id, sort_order: count ?? 0 })
+      .select("id")
+      .single();
+    if (error) return { ok: false, message: cameraSqlMessage(error.message) };
+    inventoryId = data.id;
+  }
+
+  // Seed / update operational source row so it appears immediately in the UI.
+  const { data: device } = await gate.supabase
+    .from("camera_connector_devices")
+    .select("id")
+    .eq("venue_id", gate.context.venue.id)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const linkStatus =
+    fields.protocol === "simulated"
+      ? "simulated"
+      : fields.protocol.startsWith("visca")
+        ? "visca_pending"
+        : fields.protocol === "ndi_ptz"
+          ? "ndi_pending"
+          : "unknown";
+
+  const sourceFields = {
+    device_id: device?.id ?? null,
+    inventory_id: inventoryId,
+    title: fields.title,
+    protocol: fields.protocol,
+    is_simulated: fields.protocol === "simulated",
+    is_program_output: fields.is_program_output,
+    supports_ptz: fields.supports_ptz,
+    supports_zoom: fields.supports_zoom,
+    supports_presets: fields.supports_presets,
+    supports_preset_save: fields.supports_preset_save,
+    supports_focus: fields.supports_focus,
+    online: false,
+    last_error:
+      fields.protocol === "simulated"
+        ? null
+        : "Configured in FloBama OS. Waiting for Mac connector / NDI runtime to link this source.",
+    connection_target: fields.connection_target,
+    connection_port: fields.connection_port,
+    link_status: linkStatus,
+    capabilities: {
+      ptz: fields.supports_ptz,
+      zoom: fields.supports_zoom,
+      presets: fields.supports_presets,
+      presetSave: fields.supports_preset_save,
+      focus: fields.supports_focus,
+      preview: true,
+      speeds: [1, 2, 4, 8, 12, 16],
+      presetsList: fields.supports_presets
+        ? [
+            { id: "1", label: "Wide" },
+            { id: "2", label: "Stage left" },
+            { id: "3", label: "Stage right" },
+          ]
+        : [],
+    } as unknown as Json,
+  };
+
+  const { data: existingSource } = await gate.supabase
+    .from("camera_sources")
+    .select("id")
+    .eq("venue_id", gate.context.venue.id)
+    .eq("source_key", fields.source_key)
+    .maybeSingle();
+
+  if (existingSource) {
+    await gate.supabase.from("camera_sources").update(sourceFields).eq("id", existingSource.id);
+  } else {
+    await gate.supabase.from("camera_sources").insert({
+      ...sourceFields,
+      venue_id: gate.context.venue.id,
+      source_key: fields.source_key,
+    });
+  }
+
+  await writeAudit(gate.context.venue.id, gate.context.userId, "camera_inventory_upsert", {
+    sourceKey: fields.source_key,
+    protocol: fields.protocol,
+  });
+  revalidateCameras();
+  return { ok: true, message: `${fields.title} saved. The Mac will pick it up on the next sync.` };
+}
+
+export async function deleteCameraInventoryAction(input: unknown): Promise<CameraActionResult> {
+  const gate = await staffGate("operate");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = cameraInventoryDeleteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const { data: item, error: findError } = await gate.supabase
+    .from("camera_inventory")
+    .select("id, source_key, title")
+    .eq("id", parsed.data.id)
+    .eq("venue_id", gate.context.venue.id)
+    .maybeSingle();
+  if (findError) return { ok: false, message: cameraSqlMessage(findError.message) };
+  if (!item) return { ok: false, message: "Camera not found." };
+
+  const { error } = await gate.supabase
+    .from("camera_inventory")
+    .delete()
+    .eq("id", item.id)
+    .eq("venue_id", gate.context.venue.id);
+  if (error) return { ok: false, message: cameraSqlMessage(error.message) };
+
+  await gate.supabase
+    .from("camera_sources")
+    .delete()
+    .eq("venue_id", gate.context.venue.id)
+    .eq("source_key", item.source_key);
+
+  await writeAudit(gate.context.venue.id, gate.context.userId, "camera_inventory_deleted", {
+    sourceKey: item.source_key,
+  });
+  revalidateCameras();
+  return { ok: true, message: `${item.title} removed.` };
 }

@@ -413,10 +413,37 @@ export const cameraConnectorPairSchema = z.object({
   connectorVersion: z.string().trim().min(1).max(40).optional(),
 });
 
+export const cameraInventoryUpsertSchema = z.object({
+  id: z.string().uuid().optional(),
+  sourceKey: z
+    .string()
+    .trim()
+    .min(1, "Source key is required.")
+    .max(200)
+    .regex(/^[a-z0-9][a-z0-9._-]*$/i, "Use letters, numbers, dots, dashes, or underscores."),
+  title: z.string().trim().min(1, "Title is required.").max(160),
+  protocol: z.enum(["simulated", "ndi_ptz", "visca_udp", "visca_tcp", "unknown"]),
+  connectionTarget: z.string().trim().max(200).optional().nullable(),
+  connectionPort: z.number().int().min(1).max(65535).optional().nullable(),
+  isProgramOutput: z.boolean().default(false),
+  supportsPtz: z.boolean().default(true),
+  supportsZoom: z.boolean().default(true),
+  supportsPresets: z.boolean().default(true),
+  supportsPresetSave: z.boolean().default(false),
+  supportsFocus: z.boolean().default(false),
+  enabled: z.boolean().default(true),
+  notes: z.string().trim().max(500).optional().nullable(),
+});
+
+export const cameraInventoryDeleteSchema = z.object({
+  id: z.string().uuid(),
+});
+
 export const cameraConnectorSyncSchema = z.object({
   hostname: z.string().trim().max(200).nullable().optional(),
   connectorVersion: z.string().trim().max(40).nullable().optional(),
   remoteControlEnabled: z.boolean(),
+  statusDetail: z.string().trim().max(300).nullable().optional(),
   cameras: z
     .array(
       z.object({
@@ -432,6 +459,21 @@ export const cameraConnectorSyncSchema = z.object({
         supportsFocus: z.boolean().optional(),
         online: z.boolean().optional(),
         lastError: z.string().trim().max(500).nullable().optional(),
+        connectionTarget: z.string().trim().max(200).nullable().optional(),
+        connectionPort: z.number().int().min(1).max(65535).nullable().optional(),
+        linkStatus: z
+          .enum([
+            "unknown",
+            "simulated",
+            "ndi_pending",
+            "ndi_live",
+            "visca_pending",
+            "visca_live",
+            "offline",
+            "error",
+          ])
+          .optional(),
+        inventoryId: z.string().uuid().nullable().optional(),
         capabilities: cameraCapabilitySchema.optional(),
         sortOrder: z.number().int().min(0).max(10_000).optional(),
       }),

@@ -28,6 +28,18 @@ export type CameraCapabilities = {
   presetsList: Array<{ id: string; label: string }>;
 };
 
+export const CAMERA_LINK_STATUSES = [
+  "unknown",
+  "simulated",
+  "ndi_pending",
+  "ndi_live",
+  "visca_pending",
+  "visca_live",
+  "offline",
+  "error",
+] as const;
+export type CameraLinkStatus = (typeof CAMERA_LINK_STATUSES)[number];
+
 export type StaffCameraSource = {
   id: string;
   sourceKey: string;
@@ -42,7 +54,29 @@ export type StaffCameraSource = {
   supportsFocus: boolean;
   online: boolean;
   lastError: string | null;
+  connectionTarget: string | null;
+  connectionPort: number | null;
+  linkStatus: CameraLinkStatus;
+  inventoryId: string | null;
   capabilities: CameraCapabilities;
+};
+
+export type StaffCameraInventoryItem = {
+  id: string;
+  sourceKey: string;
+  title: string;
+  protocol: CameraProtocol;
+  connectionTarget: string | null;
+  connectionPort: number | null;
+  isProgramOutput: boolean;
+  supportsPtz: boolean;
+  supportsZoom: boolean;
+  supportsPresets: boolean;
+  supportsPresetSave: boolean;
+  supportsFocus: boolean;
+  enabled: boolean;
+  notes: string | null;
+  sortOrder: number;
 };
 
 export type StaffCameraDevice = {
@@ -54,6 +88,7 @@ export type StaffCameraDevice = {
   remoteControlEnabled: boolean;
   revokedAt: string | null;
   online: boolean;
+  statusDetail?: string | null;
 };
 
 export type ConnectorReportedCamera = {
@@ -69,8 +104,29 @@ export type ConnectorReportedCamera = {
   supportsFocus?: boolean;
   online?: boolean;
   lastError?: string | null;
+  connectionTarget?: string | null;
+  connectionPort?: number | null;
+  linkStatus?: CameraLinkStatus;
+  inventoryId?: string | null;
   capabilities?: Partial<CameraCapabilities>;
   sortOrder?: number;
+};
+
+export type DesiredCameraInventory = {
+  id: string;
+  sourceKey: string;
+  title: string;
+  protocol: CameraProtocol;
+  connectionTarget: string | null;
+  connectionPort: number | null;
+  isProgramOutput: boolean;
+  supportsPtz: boolean;
+  supportsZoom: boolean;
+  supportsPresets: boolean;
+  supportsPresetSave: boolean;
+  supportsFocus: boolean;
+  enabled: boolean;
+  sortOrder: number;
 };
 
 export const CAMERA_CONNECTOR_SQL = "supabase/migrations/20260929000018_camera_connector.sql";

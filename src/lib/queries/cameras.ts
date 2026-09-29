@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { toStaffCameraSource, type CameraSourceRow } from "@/lib/cameras/map";
+import { toStaffCameraSource, toStaffInventoryItem, type CameraSourceRow } from "@/lib/cameras/map";
 import { describeCameraConnectorLink, isMissingCameraRelation } from "@/lib/cameras/status";
-import type { StaffCameraDevice, StaffCameraSource } from "@/lib/cameras/types";
+import type { StaffCameraDevice, StaffCameraInventoryItem, StaffCameraSource } from "@/lib/cameras/types";
 
 type Client = SupabaseClient<Database>;
 
@@ -16,7 +16,7 @@ export async function listCameraDevices(supabase: Client, venueId: string) {
   const { data, error } = await supabase
     .from("camera_connector_devices")
     .select(
-      "id, label, last_seen_at, connector_version, hostname, remote_control_enabled, revoked_at",
+      "id, label, last_seen_at, connector_version, hostname, remote_control_enabled, revoked_at, status_detail",
     )
     .eq("venue_id", venueId)
     .order("created_at", { ascending: true });
@@ -44,6 +44,7 @@ export async function listCameraDevices(supabase: Client, venueId: string) {
       remoteControlEnabled: row.remote_control_enabled,
       revokedAt: row.revoked_at,
       online: link.online,
+      statusDetail: (row as { status_detail?: string | null }).status_detail ?? null,
     };
   });
 
@@ -54,12 +55,39 @@ export async function listCameraSources(supabase: Client, venueId: string) {
   const { data, error } = await supabase
     .from("camera_sources")
     .select(
-      "id, source_key, title, protocol, is_simulated, is_program_output, supports_ptz, supports_zoom, supports_presets, supports_preset_save, supports_focus, online, last_error, capabilities",
+      "id, source_key, title, protocol, is_simulated, is_program_output, supports_ptz, supports_zoom, supports_presets, supports_preset_save, supports_focus, online, last_error, capabilities, connection_target, connection_port, link_status, inventory_id",
     )
     .eq("venue_id", venueId)
     .order("sort_order", { ascending: true });
 
   if (error) {
+    // Older schema without inventory columns.
+    if (/connection_target|link_status|inventory_id/i.test(error.message)) {
+      const fallback = await supabase
+        .from("camera_sources")
+        .select(
+          "id, source_key, title, protocol, is_simulated, is_program_output, supports_ptz, supports_zoom, supports_presets, supports_preset_save, supports_focus, online, last_error, capabilities",
+        )
+        .eq("venue_id", venueId)
+        .order("sort_order", { ascending: true });
+      if (fallback.error) {
+        return {
+          cameras: [] as StaffCameraSource[],
+          missingTable: isMissingCameraRelation(fallback.error.message),
+          error: fallback.error.message,
+        };
+      }
+      const cameras = (fallback.data ?? []).map((row) =>
+        toStaffCameraSource({
+          ...(row as CameraSourceRow),
+          connection_target: null,
+          connection_port: null,
+          link_status: row.is_simulated ? "simulated" : "unknown",
+          inventory_id: null,
+        }),
+      );
+      return { cameras, missingTable: false, error: null };
+    }
     return {
       cameras: [] as StaffCameraSource[],
       missingTable: isMissingCameraRelation(error.message),
@@ -69,6 +97,30 @@ export async function listCameraSources(supabase: Client, venueId: string) {
 
   const cameras = (data ?? []).map((row) => toStaffCameraSource(row as CameraSourceRow));
   return { cameras, missingTable: false, error: null };
+}
+
+export async function listCameraInventory(supabase: Client, venueId: string) {
+  const { data, error } = await supabase
+    .from("camera_inventory")
+    .select(
+      "id, source_key, title, protocol, connection_target, connection_port, is_program_output, supports_ptz, supports_zoom, supports_presets, supports_preset_save, supports_focus, enabled, notes, sort_order",
+    )
+    .eq("venue_id", venueId)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    return {
+      inventory: [] as StaffCameraInventoryItem[],
+      missingTable: isMissingCameraRelation(error.message) || /camera_inventory/i.test(error.message),
+      error: error.message,
+    };
+  }
+
+  return {
+    inventory: (data ?? []).map((row) => toStaffInventoryItem(row)),
+    missingTable: false,
+    error: null,
+  };
 }
 
 export async function listActiveCameraLeases(supabase: Client, venueId: string) {

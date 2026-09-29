@@ -1,8 +1,8 @@
-FloBama Mac Camera 1.0.0
+FloBama Mac Camera 1.1.0
 
 Eject any older disk named FloBama Mac Camera before opening this one.
 Drag FloBama Mac Camera into Applications, then open it.
-Terminal must start with: FloBama Mac Camera 1.0.0
+Terminal must start with: FloBama Mac Camera 1.1.0
 
 The first launch downloads Node.js and asks for:
   1) your FloBama OS address
