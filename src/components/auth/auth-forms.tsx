@@ -10,7 +10,7 @@ import Link from "next/link";
 
 const initial: AuthActionResult | null = null;
 
-export function LoginForm({ nextPath }: { nextPath: string }) {
+export function LoginForm({ nextPath, compact = false }: { nextPath: string; compact?: boolean }) {
   const [pending, setPending] = useState(false);
   const [state, action] = useActionState(async (_prev: AuthActionResult | null, formData: FormData) => {
     setPending(true);
@@ -43,12 +43,15 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
           </Link>
         </p>
       </form>
-      <div className="mt-4 space-y-2 border-t pt-4">
-        <p className="text-sm text-muted-foreground">
-          Download OBS client 1.0.2 for the booth Mac. Eject any older FloBama LED OBS disk first. Terminal must start with FloBama LED OBS 1.0.2.
-        </p>
-        <ObsClientDownload className="w-full" />
-      </div>
+      {compact ? null : (
+        <div className="mt-4 space-y-2 border-t pt-4">
+          <p className="text-sm text-muted-foreground">
+            Download OBS client 1.0.2 for the booth Mac. Eject any older FloBama LED OBS disk first. Terminal must start
+            with FloBama LED OBS 1.0.2.
+          </p>
+          <ObsClientDownload className="w-full" />
+        </div>
+      )}
     </>
   );
 }

@@ -1,0 +1,86 @@
+.flobama-site {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.95 0.01 85);
+  --card: oklch(0.2 0 0);
+  --card-foreground: oklch(0.95 0.01 85);
+  --popover: oklch(0.2 0 0);
+  --popover-foreground: oklch(0.95 0.01 85);
+  --primary: oklch(0.55 0.18 45);
+  --primary-foreground: oklch(0.95 0.01 85);
+  --secondary: oklch(0.7 0.14 80);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.25 0 0);
+  --accent-foreground: oklch(0.95 0.01 85);
+  --destructive: oklch(0.6 0.15 20);
+  --destructive-foreground: oklch(0.95 0.01 85);
+  --border: oklch(0.25 0 0);
+  --input: oklch(0.25 0 0);
+  --ring: oklch(0.55 0.18 45);
+  --radius: 0.25rem;
+  --font-sans: var(--font-site-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-site-heading), ui-sans-serif, system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+}
+
+.flobama-site .font-heading,
+.flobama-site h1,
+.flobama-site h2,
+.flobama-site h3,
+.flobama-site h4,
+.flobama-site h5,
+.flobama-site h6 {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.flobama-site .flobama-hero {
+  position: relative;
+  min-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  background: #080808;
+}
+
+.flobama-site .flobama-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.flobama-site .flobama-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.25) 0%,
+    rgba(0, 0, 0, 0.45) 45%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+}
+
+.flobama-site .flobama-hero-content {
+  position: relative;
+  z-index: 2;
+  width: min(1200px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 140px 0 80px;
+}
+
+.flobama-site .flobama-events-section {
+  padding: 6rem 1rem;
+  background: oklch(0.145 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flobama-site .flobama-hero-video {
+    display: none;
+  }
+}

@@ -1,6 +1,6 @@
 # FloBama OS
 
-Internal operations platform for FloBama Music Hall. This repository is the staff application for events, artists, and venue settings. It does not modify the public FloBama website, Pick'em, or other production systems.
+Public FloBama Music Hall site plus the staff operations platform. `/` serves the GHL AI Studio redesign (events, menu, catering, and more) with **staff login at the bottom of the home page**. Staff tools remain under `/dashboard` and other authenticated routes. It does not modify flobamadowntown.com, Pick'em, or other production systems.
 
 ## Stack
 
