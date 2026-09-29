@@ -84,6 +84,8 @@ export const TRIVIA_DEFAULT_QUESTION_SECONDS = 20;
 export const TRIVIA_DEFAULT_QUESTION_COUNT = 10;
 
 export const SCREEN_PLAYLISTS_SQL = "supabase/migrations/20260929000014_screen_playlists.sql";
+export const LED_WALL_PLAYLISTS_SQL = "supabase/migrations/20260929000016_led_wall_playlists.sql";
+export const LED_PLAYLIST_DEFAULT_SECONDS = 15;
 export const MENU_SPECIAL_CATEGORIES = ["food", "drink"] as const;
 export type MenuSpecialCategory = (typeof MENU_SPECIAL_CATEGORIES)[number];
 export const MENU_SPECIAL_CATEGORY_LABELS: Record<MenuSpecialCategory, string> = {

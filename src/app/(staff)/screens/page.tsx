@@ -6,9 +6,11 @@ import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
+import { listStaffLedPlaylistItems, listStaffLedPlaylists } from "@/lib/queries/led-playlists";
 import { listStaffMenuSpecials, listStaffPlaylistItems, listStaffPlaylists } from "@/lib/queries/playlists";
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
 import { getStaffTriviaSession, listTriviaPacks } from "@/lib/queries/trivia";
+import { LedPlaylistsPanel } from "@/components/screens/led-playlists-panel";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { PlaylistsPanel } from "@/components/screens/playlists-panel";
 import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
@@ -23,7 +25,7 @@ export const dynamic = "force-dynamic";
 export default async function ScreensPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; playlist?: string }>;
+  searchParams: Promise<{ tab?: string; playlist?: string; ledPlaylist?: string }>;
 }) {
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
@@ -52,6 +54,7 @@ export default async function ScreensPage({
     triviaSessionRes,
     playlistsRes,
     specialsRes,
+    ledPlaylistsRes,
   ] = await Promise.all([
     listLedWallScenes(supabase, context.venue.id),
     getLedWallRuntime(supabase, context.venue.id),
@@ -67,6 +70,7 @@ export default async function ScreensPage({
     canProgram
       ? listStaffMenuSpecials(supabase, context.venue.id)
       : Promise.resolve({ specials: [], missingTable: false, error: null }),
+    listStaffLedPlaylists(supabase, context.venue.id),
   ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
@@ -84,6 +88,9 @@ export default async function ScreensPage({
   if (adsRes?.error) return <ErrorState title="Could not load ads" description={adsRes.error} />;
   if (playlistsRes.error) return <ErrorState title="Could not load playlists" description={playlistsRes.error} />;
   if (specialsRes.error) return <ErrorState title="Could not load specials" description={specialsRes.error} />;
+  if (ledPlaylistsRes.error) {
+    return <ErrorState title="Could not load LED playlists" description={ledPlaylistsRes.error} />;
+  }
   if (packsRes.error) {
     return <ErrorState title="Could not load trivia packs" description={packsRes.error} />;
   }
@@ -100,6 +107,20 @@ export default async function ScreensPage({
       ? await listStaffPlaylistItems(supabase, context.venue.id, selectedPlaylist.id)
       : { items: [], missingTable: playlistsRes.missingTable, error: null as string | null };
   if (itemsRes.error) return <ErrorState title="Could not load playlist items" description={itemsRes.error} />;
+
+  const activeLedPlaylistId = runtimeRes.runtime?.active_playlist_id ?? null;
+  const selectedLedPlaylist =
+    ledPlaylistsRes.playlists.find((playlist) => playlist.id === params.ledPlaylist) ??
+    ledPlaylistsRes.playlists.find((playlist) => playlist.id === activeLedPlaylistId) ??
+    ledPlaylistsRes.playlists[0] ??
+    null;
+  const ledItemsRes =
+    selectedLedPlaylist && !ledPlaylistsRes.missingTable
+      ? await listStaffLedPlaylistItems(supabase, context.venue.id, selectedLedPlaylist.id)
+      : { items: [], missingTable: ledPlaylistsRes.missingTable, error: null as string | null };
+  if (ledItemsRes.error) {
+    return <ErrorState title="Could not load LED playlist items" description={ledItemsRes.error} />;
+  }
 
   const supabaseEnv = getPublicSupabaseEnv();
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
@@ -118,18 +139,29 @@ export default async function ScreensPage({
         defaultTab={tab}
         showVertical={canProgram}
         led={
-          <LedWallPanel
-            scenes={scenes}
-            activeSceneId={runtimeRes.runtime?.active_scene_id ?? null}
-            agent={agentRes.agent}
-            canConfigure={canConfigure}
-            mediaObsSceneName={settingsRes?.settings?.media_obs_scene_name ?? ""}
-            tokenIssuedAt={settingsRes?.settings?.agent_token_issued_at ?? null}
-            venueId={context.venue.id}
-            displayUrl={displayUrl}
-            supabaseEnv={supabaseEnv}
-            hasTriviaScene={scenes.some((scene) => scene.kind === "trivia")}
-          />
+          <>
+            <LedWallPanel
+              scenes={scenes}
+              activeSceneId={activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null)}
+              agent={agentRes.agent}
+              canConfigure={canConfigure}
+              mediaObsSceneName={settingsRes?.settings?.media_obs_scene_name ?? ""}
+              tokenIssuedAt={settingsRes?.settings?.agent_token_issued_at ?? null}
+              venueId={context.venue.id}
+              displayUrl={displayUrl}
+              supabaseEnv={supabaseEnv}
+              hasTriviaScene={scenes.some((scene) => scene.kind === "trivia")}
+            />
+            <LedPlaylistsPanel
+              playlists={ledPlaylistsRes.playlists}
+              items={ledItemsRes.items}
+              scenes={scenes}
+              selectedPlaylistId={selectedLedPlaylist?.id ?? null}
+              activePlaylistId={activeLedPlaylistId}
+              missingTable={ledPlaylistsRes.missingTable}
+              canConfigure={canConfigure}
+            />
+          </>
         }
         vertical={
           canProgram && adsRes && takeoverRes ? (
