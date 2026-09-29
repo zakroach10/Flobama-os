@@ -7,6 +7,7 @@ import {
   activateLedWallSceneAction,
   createLedObsSceneAction,
   deleteLedWallSceneAction,
+  ensureLedTriviaSceneAction,
   issueLedWallAgentTokenAction,
   reorderLedWallScenesAction,
   saveLedWallMediaSceneAction,
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
-import { agentStatusCopy } from "@/lib/screens/led-wall";
+import { agentStatusCopy, ledSceneDetail } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
@@ -32,6 +33,7 @@ export function LedWallPanel({
   venueId,
   displayUrl,
   supabaseEnv,
+  hasTriviaScene = false,
 }: {
   scenes: LedWallSceneRow[];
   activeSceneId: string | null;
@@ -42,9 +44,12 @@ export function LedWallPanel({
   venueId: string;
   displayUrl: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  hasTriviaScene?: boolean;
 }) {
   const visible = canConfigure ? scenes : scenes.filter((scene) => scene.enabled);
   const [setupOpen, setSetupOpen] = useState(false);
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
   return (
     <div className="space-y-8">
@@ -52,13 +57,36 @@ export function LedWallPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">LED wall</h2>
-            <p className="text-sm text-muted-foreground">Activate a scene to put it on the wall.</p>
+            <p className="text-sm text-muted-foreground">
+              Activate a scene to put it on the wall. Trivia shows QR join, the question timer, and live scores.
+            </p>
           </div>
-          {canConfigure ? (
-            <Button type="button" variant="outline" onClick={() => setSetupOpen((open) => !open)}>
-              {setupOpen ? "Hide OBS setup" : "OBS Setup"}
-            </Button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {canConfigure && !hasTriviaScene ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await ensureLedTriviaSceneAction();
+                    if (!result.ok) toast.error(result.message);
+                    else {
+                      toast.success(result.message);
+                      router.refresh();
+                    }
+                  });
+                }}
+              >
+                {pending ? "Adding…" : "Add Shoals Trivia"}
+              </Button>
+            ) : null}
+            {canConfigure ? (
+              <Button type="button" variant="outline" onClick={() => setSetupOpen((open) => !open)}>
+                {setupOpen ? "Hide OBS setup" : "OBS Setup"}
+              </Button>
+            ) : null}
+          </div>
         </div>
         {visible.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -107,12 +135,8 @@ function SceneRow({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(scene.title);
-  const detail =
-    scene.kind === "obs"
-      ? `OBS scene: ${scene.obs_scene_name}`
-      : scene.media_kind === "video"
-        ? "MP4 loop on the FloBama display page"
-        : "PNG on the FloBama display page";
+  const detail = ledSceneDetail(scene);
+  const isTrivia = scene.kind === "trivia";
 
   function run(action: () => Promise<{ ok: boolean; message: string }>) {
     startTransition(async () => {
@@ -126,11 +150,12 @@ function SceneRow({
   }
 
   return (
-    <li className="space-y-3 rounded-lg border p-4">
+    <li className={`space-y-3 rounded-lg border p-4 ${isTrivia ? "border-[#d36b4a]/40 bg-[#d36b4a]/5" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="font-medium">
             {scene.title}
+            {isTrivia ? <span className="ml-2 text-xs font-semibold text-[#d36b4a]">Trivia</span> : null}
             {!scene.enabled ? <span className="ml-2 text-xs text-muted-foreground">Disabled</span> : null}
             {active ? <span className="ml-2 text-xs text-muted-foreground">Active</span> : null}
           </p>
@@ -141,7 +166,7 @@ function SceneRow({
           disabled={pending || !scene.enabled || active}
           onClick={() => run(() => activateLedWallSceneAction({ sceneId: scene.id }))}
         >
-          {active ? "Active" : pending ? "Activating…" : "Activate"}
+          {active ? "Active" : pending ? "Starting…" : isTrivia ? "Start trivia" : "Activate"}
         </Button>
       </div>
       {canConfigure ? (
@@ -289,8 +314,8 @@ function AdminLedWall({
         <div>
           <h2 className="text-lg font-semibold">Upload a loop or still</h2>
           <p className="text-sm text-muted-foreground">
-            MP4 files loop and PNG files stay on screen. Activating the upload cuts OBS to the media browser scene,
-            which loads {displayUrl}.
+            MP4 files loop and PNG files stay on screen. Activating an upload or Shoals Trivia cuts OBS to the media
+            browser scene, which loads {displayUrl}.
           </p>
         </div>
         <form
@@ -391,8 +416,8 @@ function AdminLedWall({
                 />
               )}
               <p className="text-sm text-muted-foreground">
-                In that OBS scene, add a Browser Source pointed at {displayUrl}. Every uploaded scene uses this one OBS
-                scene. The page swaps the file.
+                In that OBS scene, add a Browser Source pointed at {displayUrl}. Uploaded media and Shoals Trivia both
+                use this browser source — the page swaps between loops and the live trivia UI.
               </p>
             </div>
             <Button type="submit" variant="outline" disabled={pending}>

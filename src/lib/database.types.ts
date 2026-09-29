@@ -338,7 +338,7 @@ export type Database = {
           id: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media";
+          kind: "obs" | "media" | "trivia";
           obs_scene_name: string | null;
           media_kind: "image" | "video" | "week_events" | null;
           storage_path: string | null;
@@ -352,7 +352,7 @@ export type Database = {
           id?: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media";
+          kind: "obs" | "media" | "trivia";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -362,7 +362,7 @@ export type Database = {
         };
         Update: {
           title?: string;
-          kind?: "obs" | "media";
+          kind?: "obs" | "media" | "trivia";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -641,7 +641,7 @@ export type Database = {
       screen_wall_mode: "auto" | "manual";
       screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
-      led_wall_scene_kind: "obs" | "media";
+      led_wall_scene_kind: "obs" | "media" | "trivia";
     };
     CompositeTypes: {
       [_ in never]: never;

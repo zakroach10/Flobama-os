@@ -10,7 +10,6 @@ import { parseTriviaCsv } from "@/lib/trivia/csv";
 import { isMissingTriviaRelation, normalizeDisplayName } from "@/lib/trivia/engine";
 import { endTriviaSession, startTriviaSession } from "@/lib/trivia/runtime";
 import { importTriviaCsvSchema, startTriviaSchema } from "@/lib/validation/schemas";
-import { activateLedWallSceneAction } from "@/actions/led-wall";
 import { listLedWallScenes } from "@/lib/queries/led-wall";
 
 export type TriviaActionResult = { ok: boolean; message: string; joinCode?: string; sessionId?: string };
@@ -65,9 +64,15 @@ export async function startTriviaAction(input: unknown): Promise<TriviaActionRes
   }
 
   const scenes = await listLedWallScenes(gate.supabase, gate.context.venue.id);
-  const mediaScene = scenes.scenes.find((scene) => scene.enabled && scene.kind === "media");
-  if (mediaScene) {
-    await activateLedWallSceneAction({ sceneId: mediaScene.id });
+  const triviaScene = scenes.scenes.find((scene) => scene.enabled && scene.kind === "trivia");
+  if (triviaScene) {
+    await gate.supabase.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.context.venue.id,
+        active_scene_id: triviaScene.id,
+      },
+      { onConflict: "venue_id" },
+    );
   }
 
   revalidateTrivia();

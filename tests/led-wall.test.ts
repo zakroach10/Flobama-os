@@ -41,6 +41,15 @@ describe("LED wall scene resolution", () => {
     ).toBe("FloBama Media");
   });
 
+  it("cuts trivia to the same browser-source scene as media", () => {
+    expect(
+      resolveDesiredObsScene({
+        activeScene: { id: "3", kind: "trivia", enabled: true, obsSceneName: null },
+        mediaObsSceneName: "FloBama Media",
+      }),
+    ).toBe("FloBama Media");
+  });
+
   it("does not invent a scene when media has no browser source", () => {
     expect(
       resolveDesiredObsScene({

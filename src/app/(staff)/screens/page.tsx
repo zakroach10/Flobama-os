@@ -101,6 +101,7 @@ export default async function ScreensPage({
             venueId={context.venue.id}
             displayUrl={displayUrl}
             supabaseEnv={supabaseEnv}
+            hasTriviaScene={scenes.some((scene) => scene.kind === "trivia")}
           />
         }
         vertical={
