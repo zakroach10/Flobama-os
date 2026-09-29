@@ -10,7 +10,10 @@ let grandiLoadError = null;
 let finder = null;
 let lastDiscoverAt = 0;
 let cachedSources = [];
+let cachedNote = "NDI discovery starting…";
+let cachedOk = false;
 let localNetworkProbed = false;
+let discoverInFlight = null;
 
 async function loadGrandi() {
   if (grandiModule) return grandiModule;
@@ -47,10 +50,11 @@ export async function probeLocalNetworkPermission() {
       socket.bind(0, () => {
         try {
           socket.setBroadcast(true);
-          // NDI discovery uses LAN multicast/broadcast; this nudge surfaces the TCC prompt.
           const payload = Buffer.from("FloBama-Mac-Camera-local-network-probe");
           socket.send(payload, 0, payload.length, 5353, "224.0.0.251", () => {
-            done("Local Network probe sent. Allow Terminal (and Node) under System Settings → Privacy → Local Network.");
+            done(
+              "Local Network probe sent. Allow Terminal under System Settings → Privacy & Security → Local Network.",
+            );
           });
         } catch {
           done("Local Network probe bound.");
@@ -84,31 +88,32 @@ export function sourceKeyForNdiName(name) {
   return slug ? `ndi-${slug}` : `ndi-${Date.now()}`;
 }
 
-/** Discover local/LAN NDI sources. Cached briefly to avoid hammering mDNS. */
-export async function discoverNdiSources({ force = false, waitMs = 2500 } = {}) {
-  const now = Date.now();
-  if (!force && cachedSources.length && now - lastDiscoverAt < 5_000) {
-    return { ok: true, sources: cachedSources, note: "Cached NDI discovery." };
-  }
+function snapshotDiscovery() {
+  return {
+    ok: cachedOk,
+    sources: cachedSources,
+    note: cachedNote,
+  };
+}
 
+async function runDiscovery({ waitMs }) {
   await probeLocalNetworkPermission();
 
   const grandi = await loadGrandi();
   if (!grandi?.find) {
-    return {
-      ok: false,
-      sources: [],
-      note:
-        grandiLoadError ||
-        "Install NDI bindings on the Mac (npm install in the app Resources/app). Requires NDI runtime/network access.",
-    };
+    cachedOk = false;
+    cachedSources = [];
+    cachedNote =
+      grandiLoadError ||
+      "Install NDI bindings on the Mac (npm install in the app Resources/app). Requires NDI runtime/network access.";
+    lastDiscoverAt = Date.now();
+    return snapshotDiscovery();
   }
 
   try {
     if (!finder) {
       finder = await grandi.find({ showLocalSources: true });
     }
-    // grandi.find().wait is async — must await or sources() stays empty.
     if (typeof finder.wait === "function") {
       try {
         await finder.wait(waitMs);
@@ -132,21 +137,42 @@ export async function discoverNdiSources({ force = false, waitMs = 2500 } = {}) 
         };
       })
       .filter(Boolean);
+    cachedOk = true;
+    cachedNote = cachedSources.length
+      ? `Found ${cachedSources.length} NDI source(s) on this Mac.`
+      : "NDI finder running — no sources yet. Allow Local Network for Terminal, keep cameras/Ecamm on the same LAN, then wait a few seconds.";
     lastDiscoverAt = Date.now();
-    return {
-      ok: true,
-      sources: cachedSources,
-      note: cachedSources.length
-        ? `Found ${cachedSources.length} NDI source(s).`
-        : "NDI finder running — no sources yet. Allow Local Network for Terminal (System Settings → Privacy & Security → Local Network), keep cameras/Ecamm on the same LAN, then restart the connector.",
-    };
+    return snapshotDiscovery();
   } catch (error) {
-    return {
-      ok: false,
-      sources: [],
-      note: error instanceof Error ? error.message : "NDI discovery failed.",
-    };
+    cachedOk = false;
+    cachedNote = error instanceof Error ? error.message : "NDI discovery failed.";
+    lastDiscoverAt = Date.now();
+    return snapshotDiscovery();
   }
+}
+
+/**
+ * Discover local/LAN NDI sources.
+ * Caches empty and non-empty results so the connector heartbeat stays fast.
+ */
+export async function discoverNdiSources({ force = false, waitMs = 1200, maxAgeMs = 4_000 } = {}) {
+  const now = Date.now();
+  if (!force && lastDiscoverAt && now - lastDiscoverAt < maxAgeMs) {
+    return snapshotDiscovery();
+  }
+  if (discoverInFlight) return discoverInFlight;
+
+  discoverInFlight = runDiscovery({ waitMs })
+    .catch((error) => {
+      cachedOk = false;
+      cachedNote = error instanceof Error ? error.message : "NDI discovery failed.";
+      lastDiscoverAt = Date.now();
+      return snapshotDiscovery();
+    })
+    .finally(() => {
+      discoverInFlight = null;
+    });
+  return discoverInFlight;
 }
 
 /**
@@ -176,7 +202,6 @@ export async function captureNdiPreviewPng(source, { encodeRgbaPng }) {
     const frame = await receiver.video(2500);
     if (!frame?.data || !frame.xres || !frame.yres) return null;
 
-    // Prefer RGBX/RGBA packed buffers. If stride suggests UYVY (2 bytes/px), skip.
     const stride = Number(frame.lineStrideBytes || frame.xres * 4);
     if (stride < frame.xres * 3) return null;
 

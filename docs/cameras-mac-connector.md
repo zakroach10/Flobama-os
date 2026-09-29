@@ -19,6 +19,7 @@ Run in the Supabase SQL editor (or CLI):
 - `supabase/migrations/20260929000019_camera_inventory.sql` (if not already applied)
 - `supabase/migrations/20260929000020_camera_preview_base64.sql` (inline preview frames)
 - `supabase/migrations/20260929000021_camera_delete_hidden.sql` (delete cameras + keep them dismissed)
+- `supabase/migrations/20260929000022_camera_discovered_ndi.sql` (NDI source list on Mac status)
 
 Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, agent sync, and private snapshot storage.
 
@@ -43,7 +44,7 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, age
 4. Admin creates a pairing code; enter FloBama OS address + code in the first-run prompts.
 5. Leave Terminal open; open **Cameras** as admin/manager; select a simulated camera; preview + PTZ.
 
-Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.3.0.dmg`
+Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.4.0.dmg`
 
 Allow **Local Network for Terminal** when macOS prompts (or System Settings → Privacy & Security → Local Network). Required for NDI discovery because the .dmg launches Node inside Terminal. First launch runs `npm install` for the `grandi` NDI bindings.
 
@@ -88,7 +89,8 @@ See `clients/mac-camera-connector/README.md` for Node CLI install, `--pair`, lau
 - Staff permission gates
 - Mac launch agent scripts and diagnostics
 - Delete cameras from Available list / setup (dismissed so Mac won’t re-add until recreated)
-- Downloadable `.dmg` (`npm run build:dmg:cameras`) — reinstall **1.3.0** for Local Network prompts + discovery fix
+- Live “NDI sources on Mac” list in Cameras + menu-bar source names
+- Downloadable `.dmg` (`npm run build:dmg:cameras`) — reinstall **1.4.0** for status visibility + stable heartbeat
 
 ### Not hardware-verified (blocked on venue details)
 

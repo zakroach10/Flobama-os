@@ -443,11 +443,19 @@ export const cameraSourceDeleteSchema = z.object({
   cameraId: z.string().uuid(),
 });
 
+export const discoveredNdiSourceSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  urlAddress: z.string().trim().max(300).nullable().optional(),
+  sourceKey: z.string().trim().min(1).max(200),
+});
+
 export const cameraConnectorSyncSchema = z.object({
   hostname: z.string().trim().max(200).nullable().optional(),
   connectorVersion: z.string().trim().max(40).nullable().optional(),
   remoteControlEnabled: z.boolean(),
-  statusDetail: z.string().trim().max(300).nullable().optional(),
+  statusDetail: z.string().trim().max(500).nullable().optional(),
+  discoveredNdi: z.array(discoveredNdiSourceSchema).max(64).optional(),
+  ndiNote: z.string().trim().max(400).nullable().optional(),
   cameras: z
     .array(
       z.object({

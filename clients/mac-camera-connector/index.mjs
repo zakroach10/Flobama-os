@@ -16,7 +16,7 @@ import { createMoveWatchdog } from "./lib/watchdog.mjs";
 import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));
@@ -129,10 +129,11 @@ function toReport(camera) {
   return rest;
 }
 
-async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote) {
+async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote, discoveredNdi = []) {
   const onlineCount = cameras.filter((c) => c.online).length;
   const pendingNdi = cameras.filter((c) => c.linkStatus === "ndi_pending").length;
   const liveNdi = cameras.filter((c) => c.linkStatus === "ndi_live").length;
+  const ndiCount = discoveredNdi.length;
   const controlling = controlledKeys?.[0] ? cameras.find((c) => c.sourceKey === controlledKeys[0]) : null;
   let title = "Cam ○";
   let detail = "Mac connector offline from FloBama OS";
@@ -147,10 +148,12 @@ async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote) {
       title = "Cam ●";
       detail =
         `Connected · ${onlineCount} live / ${cameras.length} cameras` +
-        (liveNdi ? ` · ${liveNdi} NDI` : "") +
-        (pendingNdi ? ` · ${pendingNdi} NDI pending` : "");
-      if (ndiNote && !liveNdi && pendingNdi) detail += ` · ${ndiNote}`;
+        (ndiCount ? ` · ${ndiCount} NDI on LAN` : " · 0 NDI on LAN") +
+        (pendingNdi ? ` · ${pendingNdi} pending` : "");
     }
+  }
+  if (ndiNote) {
+    detail = `${detail} · ${ndiNote}`.slice(0, 480);
   }
   await writeMenubarStatus({
     title,
@@ -160,6 +163,12 @@ async function publishStatus(config, cameras, controlledKeys, syncOk, ndiNote) {
     onlineCount,
     pendingNdi,
     liveNdi,
+    ndiNote: ndiNote || null,
+    ndiSources: discoveredNdi.map((source) => ({
+      name: source.name,
+      urlAddress: source.urlAddress || null,
+      sourceKey: source.sourceKey,
+    })),
     controlling: controlling?.title || null,
     updatedAt: new Date().toISOString(),
   });
@@ -231,7 +240,7 @@ async function run() {
   await log(probe.note);
 
   if (config.menubarEnabled) {
-    await publishStatus(config, cameras, controlledKeys, false, ndiNote);
+    await publishStatus(config, cameras, controlledKeys, false, ndiNote, discoveredNdi);
     startMenubarHelper(log);
   }
 
@@ -269,17 +278,26 @@ async function run() {
   await log("Discovering NDI sources on this Mac and merging with Cameras inventory.");
 
   let lastNdiLog = "";
+  let syncFailStreak = 0;
+  let firstDiscover = true;
   while (true) {
     try {
       await reloadRemoteFlag();
       const commandResults = [];
       const previewUpdates = [];
 
-      const discovery = await discoverNdiSources();
+      const discovery = await discoverNdiSources({
+        waitMs: firstDiscover ? 2500 : 800,
+        maxAgeMs: firstDiscover ? 0 : 4_000,
+      });
+      firstDiscover = false;
       discoveredNdi = discovery.sources;
       ndiNote = discovery.note;
       if (discovery.note !== lastNdiLog) {
         await log(`NDI: ${discovery.note}`);
+        for (const source of discoveredNdi.slice(0, 20)) {
+          await log(`  · ${source.name}${source.urlAddress ? ` (${source.urlAddress})` : ""}`);
+        }
         lastNdiLog = discovery.note;
       }
 
@@ -297,6 +315,18 @@ async function run() {
         byKey.set(camera.sourceKey, camera);
       }
 
+      const syncPayloadBase = {
+        hostname: hostname(),
+        connectorVersion: VERSION,
+        remoteControlEnabled: config.remoteControlEnabled,
+        discoveredNdi: discoveredNdi.map((source) => ({
+          name: source.name,
+          urlAddress: source.urlAddress || null,
+          sourceKey: source.sourceKey,
+        })),
+        ndiNote,
+      };
+
       const response = await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
         method: "POST",
         headers: {
@@ -304,10 +334,8 @@ async function run() {
           authorization: `Bearer ${config.token}`,
         },
         body: JSON.stringify({
-          hostname: hostname(),
-          connectorVersion: VERSION,
-          remoteControlEnabled: config.remoteControlEnabled,
-          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote),
+          ...syncPayloadBase,
+          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi),
           cameras: cameras.map(toReport),
           commandResults: [],
           previewUpdates: [],
@@ -316,15 +344,25 @@ async function run() {
 
       if (!response.ok) {
         const text = await response.text();
+        syncFailStreak += 1;
         await log(`Sync failed (${response.status}): ${text}`);
         for (const camera of cameras) {
           applySimCommand(camera, "ptz_stop", {});
           watchdog.clear(camera.sourceKey);
         }
-        await publishStatus(config, cameras, [], false, ndiNote);
+        // Keep menu bar "connected" through a brief blip so the icon does not flash.
+        await publishStatus(
+          config,
+          cameras,
+          controlledKeys,
+          syncFailStreak < 3,
+          ndiNote,
+          discoveredNdi,
+        );
         await delay(config.pollMs);
         continue;
       }
+      syncFailStreak = 0;
 
       const desired = await response.json();
       inventory = desired.inventory ?? [];
@@ -441,22 +479,21 @@ async function run() {
           authorization: `Bearer ${config.token}`,
         },
         body: JSON.stringify({
-          hostname: hostname(),
-          connectorVersion: VERSION,
-          remoteControlEnabled: config.remoteControlEnabled,
-          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote),
+          ...syncPayloadBase,
+          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi),
           cameras: cameras.map(toReport),
           commandResults,
           previewUpdates,
         }),
       });
     } catch (error) {
+      syncFailStreak += 1;
       await log(error instanceof Error ? error.message : "Connector tick failed.");
       for (const camera of cameras) {
         applySimCommand(camera, "ptz_stop", {});
       }
       watchdog.clearAll();
-      await publishStatus(config, cameras, [], false, ndiNote);
+      await publishStatus(config, cameras, [], syncFailStreak < 3, ndiNote, discoveredNdi);
     }
     await delay(config.pollMs);
   }

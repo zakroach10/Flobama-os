@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "mac-camera-connector");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "mac-camera-dmg");
-const version = "1.3.0";
+const version = "1.4.0";
 const output = path.join(root, "public", "downloads", `FloBama-Mac-Camera-${version}.dmg`);
 
 await rm(staging, { recursive: true, force: true });
@@ -44,4 +44,5 @@ if (writer.status !== 0) process.exit(writer.status ?? 1);
 await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.0.0.dmg"), { force: true });
 await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.1.0.dmg"), { force: true });
 await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.2.0.dmg"), { force: true });
+await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.3.0.dmg"), { force: true });
 console.log(output);

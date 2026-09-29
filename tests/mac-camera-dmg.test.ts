@@ -59,5 +59,7 @@ describe("Mac Camera disk image", () => {
     expect(text).toContain("grandi");
     expect(text).toContain("Local Network");
     expect(text).toContain("hiddenSourceKeys");
+    expect(text).toContain("discoveredNdi");
+    expect(text).toContain("ndiSources");
   });
 });
