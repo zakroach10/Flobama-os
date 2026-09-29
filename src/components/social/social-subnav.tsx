@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
+  { href: "/dashboard", label: "FloBama OS", exact: true },
   { href: "/social", label: "Overview", exact: true },
   { href: "/social/compose", label: "Compose week graphic" },
 ];

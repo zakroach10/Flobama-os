@@ -14,11 +14,7 @@ import {
   defaultSelectedAccountIds,
   type SocialAccount,
 } from "@/lib/ghl/social";
-import {
-  WEEK_SOCIAL_FORMATS,
-  weekSocialExportPath,
-  type WeekSocialFormatId,
-} from "@/lib/screens/social";
+import { weekSocialExportPath, weekSocialFormat, type WeekSocialFormatId } from "@/lib/screens/social";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +34,8 @@ export function SocialComposeForm({
   const defaults = useMemo(() => defaultSelectedAccountIds(accounts), [accounts]);
   const [selected, setSelected] = useState<string[]>(defaults);
   const [summary, setSummary] = useState(DEFAULT_WEEK_SOCIAL_CAPTION);
-  const [formatId, setFormatId] = useState<WeekSocialFormatId>(initialFormatId);
+  const format = weekSocialFormat(initialFormatId);
+  const formatId = format.id;
   const [status, setStatus] = useState<"draft" | "scheduled" | "published">("published");
   const [scheduleLocal, setScheduleLocal] = useState("");
   const pageCount = Math.max(1, pageCountByFormat[formatId] ?? 1);
@@ -93,24 +90,11 @@ export function SocialComposeForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Graphic size</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {WEEK_SOCIAL_FORMATS.map((format) => (
-              <button
-                key={format.id}
-                type="button"
-                onClick={() => setFormatId(format.id)}
-                className={
-                  format.id === formatId
-                    ? "rounded-lg border border-primary bg-primary/5 px-3 py-2 text-left text-sm"
-                    : "rounded-lg border px-3 py-2 text-left text-sm hover:border-primary/50"
-                }
-              >
-                <span className="block font-medium">{format.label}</span>
-                <span className="text-muted-foreground">{format.hint}</span>
-              </button>
-            ))}
-          </div>
+          <Label>Graphic</Label>
+          <p className="text-sm">
+            <span className="font-medium">{format.label}</span>
+            <span className="text-muted-foreground"> · {format.hint}</span>
+          </p>
           {pageCount > 1 ? (
             <p className="text-xs text-muted-foreground">
               Busy week: all {pageCount} graphic pages will attach as media.

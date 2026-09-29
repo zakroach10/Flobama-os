@@ -12,7 +12,7 @@ export function ExportWeekSocialButton({
       className="w-full sm:w-auto"
       render={<Link href="/print/week/social" target="_blank" rel="noreferrer" />}
     >
-      Social sizes
+      Instagram Portrait
     </Button>
   );
 }
