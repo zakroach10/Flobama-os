@@ -299,9 +299,8 @@ export function weekSocialMediaItems(options: {
   }));
 }
 
-export function weekSocialPageCount(days: WeekSlideDay[], formatId?: WeekSocialFormatId | string | null) {
-  const id = isWeekSocialFormatId(formatId) ? formatId : DEFAULT_WEEK_SOCIAL_FORMAT;
-  return Math.max(1, weekSocialPages(days, weekSocialFormat(id)).length);
+export function weekSocialPageCount(days: WeekSlideDay[], _formatId?: WeekSocialFormatId | string | null) {
+  return Math.max(1, weekSocialPages(days).length);
 }
 
 export function defaultSelectedAccountIds(accounts: SocialAccount[]): string[] {

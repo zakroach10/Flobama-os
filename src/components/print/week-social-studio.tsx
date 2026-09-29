@@ -28,7 +28,7 @@ export function WeekSocialStudio({
   demo?: boolean;
 }) {
   const format = weekSocialFormat(formatId);
-  const pages = weekSocialPages(days, format);
+  const pages = weekSocialPages(days);
   const currentPage = Math.min(Math.max(page, 1), Math.max(pages.length, 1));
   const current = pages[currentPage - 1] ?? [];
   const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
@@ -43,7 +43,7 @@ export function WeekSocialStudio({
           <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · social sizes</h1>
           <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
             Same orange torn-paper look as FloBama’s Live Music This Week posts. Pick a size, then download a PNG or post
-            it through GoHighLevel Social Planner. Busy weeks split across pages so the type stays readable.
+            it through GoHighLevel Social Planner. Square, 4:5, and story stay one column; only landscape uses two.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
