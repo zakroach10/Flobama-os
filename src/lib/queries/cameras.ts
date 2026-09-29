@@ -66,25 +66,34 @@ export async function listCameraDevices(supabase: Client, venueId: string) {
     };
   }
 
-  const devices: StaffCameraDevice[] = (data ?? []).map((row) => {
-    const link = describeCameraConnectorLink({
-      lastSeenAt: row.last_seen_at,
-      remoteControlEnabled: row.remote_control_enabled,
-      revokedAt: row.revoked_at,
+  const devices: StaffCameraDevice[] = (data ?? [])
+    .map((row) => {
+      const link = describeCameraConnectorLink({
+        lastSeenAt: row.last_seen_at,
+        remoteControlEnabled: row.remote_control_enabled,
+        revokedAt: row.revoked_at,
+      });
+      return {
+        id: row.id,
+        label: row.label,
+        lastSeenAt: row.last_seen_at,
+        connectorVersion: row.connector_version,
+        hostname: row.hostname,
+        remoteControlEnabled: row.remote_control_enabled,
+        revokedAt: row.revoked_at,
+        online: link.online,
+        statusDetail: (row as { status_detail?: string | null }).status_detail ?? null,
+        discoveredNdi: parseDiscoveredNdi((row as { discovered_ndi?: unknown }).discovered_ndi),
+      };
+    })
+    // Prefer the Mac that checked in most recently so re-pairs don't leave the UI
+    // stuck on an older non-revoked zombie credential.
+    .sort((a, b) => {
+      const aRev = a.revokedAt ? 1 : 0;
+      const bRev = b.revokedAt ? 1 : 0;
+      if (aRev !== bRev) return aRev - bRev;
+      return Date.parse(b.lastSeenAt ?? "") - Date.parse(a.lastSeenAt ?? "");
     });
-    return {
-      id: row.id,
-      label: row.label,
-      lastSeenAt: row.last_seen_at,
-      connectorVersion: row.connector_version,
-      hostname: row.hostname,
-      remoteControlEnabled: row.remote_control_enabled,
-      revokedAt: row.revoked_at,
-      online: link.online,
-      statusDetail: (row as { status_detail?: string | null }).status_detail ?? null,
-      discoveredNdi: parseDiscoveredNdi((row as { discovered_ndi?: unknown }).discovered_ndi),
-    };
-  });
 
   return { devices, missingTable: false, error: null };
 }

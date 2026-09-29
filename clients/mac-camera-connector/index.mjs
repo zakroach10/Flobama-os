@@ -16,7 +16,7 @@ import { createMoveWatchdog } from "./lib/watchdog.mjs";
 import { encodeRgbaPng, renderCameraPreviewPng } from "./lib/preview-render.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 
-const VERSION = "1.4.2";
+const VERSION = "1.4.3";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || join(__dirname, "mac-camera.config.json"));
@@ -327,6 +327,16 @@ async function run() {
         ndiNote,
       };
 
+      // Status detail for the server; menu bar Connected only after a 2xx response.
+      const statusDetailForServer = [
+        `Mac ${VERSION}`,
+        ndiNote,
+        discoveredNdi.length ? `${discoveredNdi.length} NDI on LAN` : "0 NDI on LAN",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+        .slice(0, 500);
+
       const response = await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
         method: "POST",
         headers: {
@@ -335,7 +345,7 @@ async function run() {
         },
         body: JSON.stringify({
           ...syncPayloadBase,
-          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi),
+          statusDetail: statusDetailForServer,
           cameras: cameras.map(toReport),
           commandResults: [],
           previewUpdates: [],
@@ -350,19 +360,19 @@ async function run() {
           applySimCommand(camera, "ptz_stop", {});
           watchdog.clear(camera.sourceKey);
         }
-        // Keep menu bar "connected" through a brief blip so the icon does not flash.
         await publishStatus(
           config,
           cameras,
           controlledKeys,
-          syncFailStreak < 3,
-          ndiNote,
+          false,
+          `Not reaching FloBama OS (${response.status})`,
           discoveredNdi,
         );
         await delay(config.pollMs);
         continue;
       }
       syncFailStreak = 0;
+      await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi);
 
       const desired = await response.json();
       inventory = desired.inventory ?? [];
@@ -471,8 +481,8 @@ async function run() {
         }
       }
 
-      // Always push camera/discovery state + any command/preview results.
-      await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
+      // Push command/preview results; heartbeat already confirmed above.
+      const followUp = await fetch(`${config.apiBase}/api/agent/v1/cameras/sync`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -480,12 +490,17 @@ async function run() {
         },
         body: JSON.stringify({
           ...syncPayloadBase,
-          statusDetail: await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi),
+          statusDetail: statusDetailForServer,
           cameras: cameras.map(toReport),
           commandResults,
           previewUpdates,
         }),
       });
+      if (!followUp.ok) {
+        await log(`Follow-up sync failed (${followUp.status}): ${await followUp.text()}`);
+      } else {
+        await publishStatus(config, cameras, controlledKeys, true, ndiNote, discoveredNdi);
+      }
     } catch (error) {
       syncFailStreak += 1;
       await log(error instanceof Error ? error.message : "Connector tick failed.");
@@ -493,7 +508,7 @@ async function run() {
         applySimCommand(camera, "ptz_stop", {});
       }
       watchdog.clearAll();
-      await publishStatus(config, cameras, [], syncFailStreak < 3, ndiNote, discoveredNdi);
+      await publishStatus(config, cameras, [], false, "Connector tick failed", discoveredNdi);
     }
     await delay(config.pollMs);
   }

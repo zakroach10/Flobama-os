@@ -55,7 +55,13 @@ export function CamerasWorkspace({
   const resolvedSelectedId =
     selectedId && cameras.some((camera) => camera.id === selectedId) ? selectedId : (cameras[0]?.id ?? null);
   const selected = cameras.find((camera) => camera.id === resolvedSelectedId) ?? null;
-  const activeDevice = devices.find((device) => !device.revokedAt) ?? devices[0] ?? null;
+  const activeDevice = useMemo(() => {
+    const live = devices.filter((device) => !device.revokedAt);
+    if (live.length === 0) return devices[0] ?? null;
+    return [...live].sort(
+      (a, b) => Date.parse(b.lastSeenAt ?? "") - Date.parse(a.lastSeenAt ?? ""),
+    )[0];
+  }, [devices]);
   const leaseByCamera = useMemo(() => new Map(leases.map((lease) => [lease.cameraId, lease])), [leases]);
   const myLease = selected ? leaseByCamera.get(selected.id) : undefined;
   const iHoldLease = Boolean(myLease && myLease.holderUserId === currentUserId);
@@ -141,6 +147,13 @@ export function CamerasWorkspace({
                 : "No Mac paired yet."}
             </p>
             <p className="text-sm text-muted-foreground">{formatCameraHeartbeat(activeDevice?.lastSeenAt ?? null)}</p>
+            {!link.online && activeDevice && !activeDevice.revokedAt ? (
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                No recent heartbeat from this Mac credential. If the menu bar says Connected, reinstall Mac
+                Camera {CAMERA_CONNECTOR_VERSION} (or create a new pairing code — older zombie credentials are
+                ignored in favor of the newest heartbeat).
+              </p>
+            ) : null}
             {activeDevice?.statusDetail ? (
               <p className="text-sm text-muted-foreground">Mac status: {activeDevice.statusDetail}</p>
             ) : null}

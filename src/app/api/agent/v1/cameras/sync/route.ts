@@ -22,7 +22,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Send a JSON body." }, { status: 400 });
   }
   const parsed = cameraConnectorSyncSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Check the sync payload." }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Check the sync payload.",
+        details: parsed.error.issues.slice(0, 5).map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+      { status: 400 },
+    );
+  }
 
   const { admin, device } = auth;
   const now = new Date();
