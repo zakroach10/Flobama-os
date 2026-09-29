@@ -15,7 +15,9 @@ The Mac initiates all connections. Cameras stay on the venue LAN. Preview bytes 
 
 Run in the Supabase SQL editor (or CLI):
 
-`supabase/migrations/20260929000018_camera_connector.sql`
+- `supabase/migrations/20260929000018_camera_connector.sql`
+- `supabase/migrations/20260929000019_camera_inventory.sql` (if not already applied)
+- `supabase/migrations/20260929000020_camera_preview_base64.sql` (inline preview frames)
 
 Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, agent sync, and private snapshot storage.
 
@@ -40,7 +42,9 @@ Requires `SUPABASE_SERVICE_ROLE_KEY` on the web app for pairing consumption, age
 4. Admin creates a pairing code; enter FloBama OS address + code in the first-run prompts.
 5. Leave Terminal open; open **Cameras** as admin/manager; select a simulated camera; preview + PTZ.
 
-Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.1.0.dmg`
+Rebuild: `npm run build:dmg:cameras` → `public/downloads/FloBama-Mac-Camera-1.2.0.dmg`
+
+Allow **Local Network** when macOS prompts — required for NDI discovery. First launch runs `npm install` for the `grandi` NDI bindings.
 
 ### CLI / launch agent
 
@@ -75,18 +79,20 @@ See `clients/mac-camera-connector/README.md` for Node CLI install, `--pair`, lau
 - Clear “you are controlling” banner + burned-in preview labels
 - Mac menu-bar status (`Cam ●` / offline / controlling)
 - Simulated PTZ cameras + simulated program-output (preview only)
-- Snapshot preview via private storage + media route
+- Snapshot preview via private storage + inline base64 fallback + media route
+- Mac-side NDI source discovery (`grandi`) merged with staff inventory
+- Auto-surface discovered NDI sources not yet in inventory (preview-first)
 - Hold-to-move PTZ pad, zoom, speed, presets (when advertised), Stop
 - Leases, watchdog, expired-command rejection
 - Staff permission gates
 - Mac launch agent scripts and diagnostics
-- Downloadable `.dmg` (`npm run build:dmg:cameras`)
+- Downloadable `.dmg` (`npm run build:dmg:cameras`) — reinstall **1.2.0** for discovery
 
 ### Not hardware-verified (blocked on venue details)
 
-- Official NDI SDK discovery and NDI PTZ capability detection
+- NDI PTZ capability detection / move commands on real NDI cameras
 - VISCA/IP or manufacturer API adapters for specific camera models
-- Live Ecamm program NDI/HDMI capture as a real preview source
+- Live Ecamm program NDI receive quality under show load
 - WebRTC preview with TURN for remote WANs
 - Preset save on real hardware
 - Focus control on real hardware

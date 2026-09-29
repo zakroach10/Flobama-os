@@ -1,17 +1,12 @@
 /**
  * Camera protocol adapters.
  *
- * Hardware-specific NDI PTZ / VISCA implementations are intentionally stubbed until
- * the venue confirms camera model, macOS version, and which protocol each unit exposes.
- * Do not invent manufacturer APIs or assume every NDI source supports PTZ.
+ * NDI discovery/preview uses optional `grandi` bindings (installed on the Mac).
+ * NDI PTZ / VISCA hardware move commands stay stubbed until camera models are confirmed —
+ * discovery does not imply every NDI source supports PTZ.
  */
 
-export function discoverNdiSources() {
-  return {
-    sources: [],
-    note: "NDI discovery requires the official NDI SDK runtime on macOS. Not enabled until hardware is confirmed.",
-  };
-}
+export { discoverNdiSources, captureNdiPreviewPng, ndiRuntimeStatus } from "./ndi.mjs";
 
 export function createAdapter(camera) {
   if (camera.protocol === "simulated" || camera.isSimulated) {

@@ -14,7 +14,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Mac Camera 1.1.0"
+echo "FloBama Mac Camera 1.2.0"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
@@ -39,6 +39,15 @@ if [[ ! -x "$NODE_HOME/bin/node" ]]; then
   rm -rf "$NODE_HOME"
   mv "$tmp/node-${NODE_VERSION}-${plat}" "$NODE_HOME"
   rm -rf "$tmp"
+fi
+
+export PATH="$NODE_HOME/bin:$PATH"
+if [[ -f "$APP_ROOT/package.json" ]]; then
+  echo "Installing/updating NDI bindings (grandi)…"
+  (
+    cd "$APP_ROOT"
+    npm install --omit=dev --no-fund --no-audit
+  ) || echo "Warning: npm install failed. NDI discovery may be unavailable until dependencies install."
 fi
 
 ask() {

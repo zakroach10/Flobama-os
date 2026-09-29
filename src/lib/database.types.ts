@@ -1160,6 +1160,7 @@ export type Database = {
           ice_trickle: Json;
           snapshot_path: string | null;
           snapshot_url: string | null;
+          snapshot_base64: string | null;
           snapshot_updated_at: string | null;
           expires_at: string;
           created_at: string;
@@ -1178,6 +1179,7 @@ export type Database = {
           ice_trickle?: Json;
           snapshot_path?: string | null;
           snapshot_url?: string | null;
+          snapshot_base64?: string | null;
           snapshot_updated_at?: string | null;
           expires_at: string;
           created_at?: string;
@@ -1190,6 +1192,7 @@ export type Database = {
           ice_trickle?: Json;
           snapshot_path?: string | null;
           snapshot_url?: string | null;
+          snapshot_base64?: string | null;
           snapshot_updated_at?: string | null;
           expires_at?: string;
         };

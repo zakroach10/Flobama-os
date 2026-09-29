@@ -9,7 +9,8 @@ Outbound agent that runs on the venue Mac (same LAN as cameras / Ecamm Live). It
 - macOS with Node.js 20+ (LTS)
 - FloBama OS deployed with migration `supabase/migrations/20260929000018_camera_connector.sql` applied
 - Staff admin account to create a pairing code under **Cameras**
-- For real cameras later: official NDI runtime (if using NDI), camera model/protocol details, and Local Network permission for the Node binary
+- For NDI discovery/preview: Local Network permission for the app/Node binary; first launch installs `grandi` NDI bindings via `npm install`
+- For real PTZ later: camera model/protocol details (NDI PTZ capability bit and/or VISCA)
 
 ## Install (recommended: .dmg)
 
@@ -24,7 +25,7 @@ Rebuild the disk image from this repo with:
 npm run build:dmg:cameras
 ```
 
-Output: `public/downloads/FloBama-Mac-Camera-1.1.0.dmg`
+Output: `public/downloads/FloBama-Mac-Camera-1.2.0.dmg`
 
 ## Install (developer / CLI)
 
@@ -88,13 +89,15 @@ tail -f ~/Library/Logs/FloBamaMacConnector/connector.log
 
 ## Real NDI / VISCA cameras
 
-Adapters are stubbed until you provide:
+**NDI discovery + preview (1.2.0+):** the connector finds LAN NDI sources, matches them to inventory by NDI name, auto-lists unmatched sources, and grabs low-bandwidth preview frames when receive works. Run `node index.mjs --doctor` to list what the Mac can see.
+
+**NDI / VISCA PTZ move commands** stay stubbed until you confirm:
 
 - Camera make/model and whether NDI PTZ, VISCA/IP, or a vendor API is available
 - macOS version on the venue Mac
 - Whether Ecamm already consumes those NDI sources (program output must stay separate)
 
-Do not set `useSimulatedCameras: false` in production until a hardware adapter is implemented and verified.
+You can keep `useSimulatedCameras: true` alongside live NDI discovery; builtin sims only appear when inventory is empty.
 
 ## Sleep / network
 

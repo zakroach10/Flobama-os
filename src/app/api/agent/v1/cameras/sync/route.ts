@@ -196,6 +196,7 @@ export async function POST(request: Request) {
       snapshot_path?: string | null;
       snapshot_url?: string | null;
       snapshot_updated_at?: string | null;
+      snapshot_base64?: string | null;
     } = {};
     if (update.status) patch.status = update.status;
     if (update.error) {
@@ -211,21 +212,29 @@ export async function POST(request: Request) {
       const path = `${device.venue_id}/${session.id}.${ext}`;
       const bytes = Buffer.from(update.snapshotBase64, "base64");
       if (bytes.length > 0 && bytes.length <= 2_000_000) {
+        // Always keep an inline copy so the browser preview works even if storage is misconfigured.
+        patch.snapshot_base64 = update.snapshotBase64.slice(0, 2_500_000);
+        patch.snapshot_updated_at = seenAt;
+        patch.status = update.status ?? "active";
+        patch.snapshot_url = `/api/media/v1/cameras/preview/${session.id}`;
         const { error: uploadError } = await admin.storage.from("camera-previews").upload(path, bytes, {
           contentType,
           upsert: true,
         });
-        if (!uploadError) {
-          patch.snapshot_path = path;
-          patch.snapshot_updated_at = seenAt;
-          patch.status = update.status ?? "active";
-          patch.snapshot_url = `/api/media/v1/cameras/preview/${session.id}`;
-        }
+        if (!uploadError) patch.snapshot_path = path;
       }
     }
 
     if (Object.keys(patch).length > 0) {
-      await admin.from("camera_preview_sessions").update(patch).eq("id", session.id);
+      const { error: previewError } = await admin
+        .from("camera_preview_sessions")
+        .update(patch)
+        .eq("id", session.id);
+      // Older DBs without snapshot_base64: retry without that column.
+      if (previewError && /snapshot_base64/i.test(previewError.message)) {
+        const { snapshot_base64: _drop, ...withoutInline } = patch;
+        await admin.from("camera_preview_sessions").update(withoutInline).eq("id", session.id);
+      }
     }
   }
 

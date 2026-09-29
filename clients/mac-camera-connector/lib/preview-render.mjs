@@ -160,7 +160,11 @@ export function renderCameraPreviewPng(camera, options = {}) {
     drawText(pixels, w, h, `TARGET ${camera.connectionTarget}`, 12, 70, 2, [200, 210, 120]);
   }
 
-  // Pack PNG
+  return encodeRgbPng(w, h, pixels);
+}
+
+/** Encode packed RGB24 pixels (length w*h*3) as PNG. */
+export function encodeRgbPng(w, h, pixels) {
   const rows = [];
   for (let y = 0; y < h; y += 1) {
     const row = Buffer.alloc(1 + w * 3);
@@ -181,4 +185,19 @@ export function renderCameraPreviewPng(camera, options = {}) {
     pngChunk("IDAT", compressed),
     pngChunk("IEND", Buffer.alloc(0)),
   ]);
+}
+
+/** Encode RGBA buffer as PNG with optional burned-in labels for NDI previews. */
+export function encodeRgbaPng(w, h, rgba, labels = {}) {
+  const pixels = Buffer.alloc(w * h * 3);
+  for (let i = 0, p = 0; i < w * h; i += 1, p += 3) {
+    const ri = i * 4;
+    pixels[p] = rgba[ri] ?? 0;
+    pixels[p + 1] = rgba[ri + 1] ?? 0;
+    pixels[p + 2] = rgba[ri + 2] ?? 0;
+  }
+  fillRect(pixels, w, h, 0, 0, w, 48, labels.controlling ? [140, 40, 30] : [12, 12, 16]);
+  drawText(pixels, w, h, labels.controlling ? "CONTROLLING" : "NDI LIVE", 12, 8, 2, [255, 220, 180]);
+  drawText(pixels, w, h, labels.title || "NDI", 12, 28, 2, [255, 255, 255]);
+  return encodeRgbPng(w, h, pixels);
 }

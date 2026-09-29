@@ -195,4 +195,20 @@ describe("camera sync schema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts snapshot preview updates with base64 frames", () => {
+    const parsed = cameraConnectorSyncSchema.safeParse({
+      remoteControlEnabled: true,
+      cameras: [],
+      previewUpdates: [
+        {
+          sessionId: "11111111-1111-4111-8111-111111111111",
+          status: "active",
+          snapshotBase64: Buffer.from("fake-png").toString("base64"),
+          snapshotContentType: "image/png",
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+  });
 });
