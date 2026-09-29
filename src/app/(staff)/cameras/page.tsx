@@ -17,10 +17,10 @@ export const dynamic = "force-dynamic";
 
 export default async function CamerasPage() {
   const context = await getStaffContext();
-  if (context.status !== "ok") redirect("/login");
+  if (context.status !== "ok") redirect("/login?next=/cameras");
 
   const supabase = await createServerSupabaseClient();
-  if (!supabase) redirect("/login");
+  if (!supabase) redirect("/login?next=/cameras");
 
   const [devicesRes, camerasRes, inventoryRes, leasesRes] = await Promise.all([
     listCameraDevices(supabase, context.venue.id),

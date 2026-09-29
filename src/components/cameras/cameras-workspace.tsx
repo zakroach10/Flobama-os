@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -20,6 +20,7 @@ import type { StaffCameraDevice, StaffCameraInventoryItem, StaffCameraSource } f
 import { describeCameraConnectorLink, formatCameraHeartbeat } from "@/lib/cameras/status";
 import { linkStatusLabel } from "@/lib/cameras/map";
 import { CameraPtzPad } from "@/components/cameras/camera-ptz-pad";
+import { CameraPreviewFrame } from "@/components/cameras/camera-preview-frame";
 import { CameraInventoryForm } from "@/components/cameras/camera-inventory-form";
 import { MacCameraDownload } from "@/components/cameras/mac-camera-download";
 import { CAMERA_CONNECTOR_VERSION } from "@/lib/constants";
@@ -50,9 +51,6 @@ export function CamerasWorkspace({
   const [speed, setSpeed] = useState(8);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [previewSessionId, setPreviewSessionId] = useState<string | null>(null);
-  const [previewTick, setPreviewTick] = useState(0);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewMisses, setPreviewMisses] = useState(0);
   const resolvedSelectedId =
     selectedId && cameras.some((camera) => camera.id === selectedId) ? selectedId : (cameras[0]?.id ?? null);
   const selected = cameras.find((camera) => camera.id === resolvedSelectedId) ?? null;
@@ -66,22 +64,64 @@ export function CamerasWorkspace({
   const leaseByCamera = useMemo(() => new Map(leases.map((lease) => [lease.cameraId, lease])), [leases]);
   const myLease = selected ? leaseByCamera.get(selected.id) : undefined;
   const iHoldLease = Boolean(myLease && myLease.holderUserId === currentUserId);
+  const link = activeDevice
+    ? describeCameraConnectorLink({
+        lastSeenAt: activeDevice.lastSeenAt,
+        remoteControlEnabled: activeDevice.remoteControlEnabled,
+        revokedAt: activeDevice.revokedAt,
+      })
+    : { online: false, label: "Not paired", tone: "muted" as const };
+  const autoPreviewKey = useRef<string | null>(null);
+
+  const startPreview = useCallback(
+    async (cameraId: string) => {
+      if (!canOperate) return;
+      setPreviewSessionId((previous) => {
+        if (previous) {
+          void endCameraPreviewAction({ sessionId: previous }).catch(() => {});
+        }
+        return null;
+      });
+      const result = await startCameraPreviewAction({ cameraId, mode: "snapshot" });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setPreviewSessionId(result.previewSessionId ?? null);
+      toast.success("Preview requested — waiting for Mac frames…");
+      if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+        window.requestAnimationFrame(() => {
+          document.getElementById("camera-live")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    },
+    [canOperate],
+  );
 
   useEffect(() => {
-    const id = window.setInterval(() => router.refresh(), 2500);
+    // iPhone: refresh less often while a preview is open so Safari isn't fighting
+    // the frame poll / server actions every couple seconds.
+    const ms = previewSessionId ? 5_000 : 3_000;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      router.refresh();
+    }, ms);
     return () => window.clearInterval(id);
-  }, [router]);
+  }, [router, previewSessionId]);
 
+  // Auto-start preview for the selected camera once the Mac is online (phones often
+  // land on the page without realizing they need an extra tap).
   useEffect(() => {
-    if (!previewSessionId) return;
-    const id = window.setInterval(() => setPreviewTick((n) => n + 1), 900);
-    return () => window.clearInterval(id);
-  }, [previewSessionId]);
-
-  useEffect(() => {
-    setPreviewError(null);
-    setPreviewMisses(0);
-  }, [previewSessionId, resolvedSelectedId]);
+    if (!canOperate || !resolvedSelectedId || !link.online) return;
+    const key = `${resolvedSelectedId}:${link.online}`;
+    if (autoPreviewKey.current === key) return;
+    if (previewSessionId) {
+      autoPreviewKey.current = key;
+      return;
+    }
+    autoPreviewKey.current = key;
+    void startPreview(resolvedSelectedId);
+  }, [canOperate, resolvedSelectedId, link.online, previewSessionId, startPreview]);
 
   useEffect(() => {
     if (!canOperate || !selected || !iHoldLease) return;
@@ -98,38 +138,21 @@ export function CamerasWorkspace({
   }, [selected, canOperate]);
 
   useEffect(() => {
-    const onBlur = () => {
-      void stopAll();
+    // Do NOT use window.blur — iOS Safari fires it while interacting with the page
+    // (and when the chrome shows), which was killing PTZ mid-hold.
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") void stopAll();
     };
-    window.addEventListener("blur", onBlur);
-    return () => window.removeEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", onHidden);
+    };
   }, [stopAll]);
 
-  const link = activeDevice
-    ? describeCameraConnectorLink({
-        lastSeenAt: activeDevice.lastSeenAt,
-        remoteControlEnabled: activeDevice.remoteControlEnabled,
-        revokedAt: activeDevice.revokedAt,
-      })
-    : { online: false, label: "Not paired", tone: "muted" as const };
-
-  async function startPreview(cameraId: string) {
-    if (!canOperate) return;
-    if (previewSessionId) {
-      await endCameraPreviewAction({ sessionId: previewSessionId });
-    }
-    const result = await startCameraPreviewAction({ cameraId, mode: "snapshot" });
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    setPreviewError(null);
-    setPreviewSessionId(result.previewSessionId ?? null);
-    toast.success("Preview requested — waiting for Mac frames…");
-  }
-
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Cameras</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
@@ -137,9 +160,25 @@ export function CamerasWorkspace({
           sources on that Mac and merges them with cameras you create here. Ecamm program output stays
           separate from controllable camera sources.
         </p>
+        <div className="flex flex-wrap items-center gap-2 lg:hidden">
+          <Badge
+            variant={link.tone === "ok" ? "default" : "secondary"}
+            className={cn(
+              link.tone === "error" && "bg-destructive text-destructive-foreground",
+              link.tone === "warn" && "bg-amber-600 text-white",
+            )}
+          >
+            {link.label}
+          </Badge>
+          <p className="text-xs text-muted-foreground">
+            {activeDevice?.connectorVersion
+              ? `Mac Camera ${activeDevice.connectorVersion}`
+              : "Mac not reporting yet"}
+          </p>
+        </div>
       </header>
 
-      <section className="rounded-xl border bg-card p-5">
+      <section className="order-2 rounded-xl border bg-card p-5 lg:order-1">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">Mac connector</h2>
@@ -286,9 +325,7 @@ export function CamerasWorkspace({
         ) : null}
       </section>
 
-      <CameraInventoryForm inventory={inventory} canEdit={canOperate} />
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+      <div className="order-1 grid gap-6 lg:order-2 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
         <section className="rounded-xl border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">Available cameras</h2>
           {cameras.length === 0 ? (
@@ -396,7 +433,7 @@ export function CamerasWorkspace({
           )}
         </section>
 
-        <section className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+        <section id="camera-live" className="order-2 space-y-4 rounded-xl border bg-card p-4 sm:p-5 scroll-mt-16">
           {!selected ? (
             <p className="text-sm text-muted-foreground">Select a camera to preview and control.</p>
           ) : (
@@ -474,37 +511,13 @@ export function CamerasWorkspace({
 
               <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
                 {previewSessionId && canOperate ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/media/v1/cameras/preview/${previewSessionId}?t=${previewTick}`}
-                      alt={`Preview of ${selected.title}`}
-                      className="h-full w-full object-contain"
-                      onLoad={() => {
-                        setPreviewError(null);
-                        setPreviewMisses(0);
-                      }}
-                      onError={() => {
-                        setPreviewMisses((n) => {
-                          const next = n + 1;
-                          // Avoid flashing the overlay on every poll miss while the Mac catches up.
-                          if (next >= 3) {
-                            setPreviewError(
-                              link.online
-                                ? "Waiting for a frame from the Mac connector…"
-                                : "Mac Camera app is not heartbeating. Open FloBama Mac Camera on the venue Mac (look for Cam ●), then tap Refresh preview.",
-                            );
-                          }
-                          return next;
-                        });
-                      }}
-                    />
-                    {previewError && previewMisses >= 3 ? (
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center text-sm text-white/80">
-                        {previewError}
-                      </div>
-                    ) : null}
-                  </>
+                  <CameraPreviewFrame
+                    key={previewSessionId}
+                    sessionId={previewSessionId}
+                    alt={`Preview of ${selected.title}`}
+                    online={link.online}
+                    pollMs={1200}
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/70">
                     {!link.online
@@ -560,6 +573,10 @@ export function CamerasWorkspace({
             </>
           )}
         </section>
+      </div>
+
+      <div className="order-3 lg:order-3">
+        <CameraInventoryForm inventory={inventory} canEdit={canOperate} />
       </div>
     </div>
   );

@@ -67,9 +67,12 @@ export async function GET(_request: Request, { params }: Params) {
       status: 200,
       headers: {
         "content-type": contentType,
-        "cache-control": "no-store, max-age=0",
+        "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+        pragma: "no-cache",
         "x-preview-mode": row.mode,
         "x-preview-source": "inline",
+        // Help Safari treat this as a displayable image, not a download.
+        "content-disposition": "inline",
       },
     });
   }
@@ -94,7 +97,9 @@ export async function GET(_request: Request, { params }: Params) {
     status: 200,
     headers: {
       "content-type": contentType,
-      "cache-control": "no-store, max-age=0",
+      "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+      pragma: "no-cache",
+      "content-disposition": "inline",
       "x-preview-mode": row.mode,
       "x-preview-source": "storage",
     },

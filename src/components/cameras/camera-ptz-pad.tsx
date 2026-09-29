@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type PointerEventHandler } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { CameraCommandKind, PtzDirection, ZoomDirection } from "@/lib/cameras/types";
@@ -54,6 +54,7 @@ export function CameraPtzPad({
   onRelease: () => void | Promise<void>;
 }) {
   const holding = useRef(false);
+  const activePointer = useRef<number | null>(null);
 
   function beginMove(direction: PtzDirection) {
     if (disabled) return;
@@ -62,11 +63,9 @@ export function CameraPtzPad({
   }
 
   function endMove() {
-    if (!holding.current) {
-      void onCommand("ptz_stop", {});
-      return;
-    }
+    if (!holding.current) return;
     holding.current = false;
+    activePointer.current = null;
     onStop();
   }
 
@@ -76,6 +75,45 @@ export function CameraPtzPad({
     void onCommand("ptz_zoom", { direction, speed });
   }
 
+  function bindHold(
+    begin: () => void,
+  ): {
+    onPointerDown: PointerEventHandler<HTMLButtonElement>;
+    onPointerUp: PointerEventHandler<HTMLButtonElement>;
+    onPointerCancel: PointerEventHandler<HTMLButtonElement>;
+    onPointerLeave: PointerEventHandler<HTMLButtonElement>;
+  } {
+    return {
+      onPointerDown: (event) => {
+        if (disabled) return;
+        // iOS Safari: prevent synthetic mouse events + scrolling while holding.
+        event.preventDefault();
+        activePointer.current = event.pointerId;
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          /* some WebKits throw if capture is unsupported mid-gesture */
+        }
+        begin();
+      },
+      onPointerUp: (event) => {
+        if (activePointer.current != null && event.pointerId !== activePointer.current) return;
+        endMove();
+      },
+      onPointerCancel: (event) => {
+        if (activePointer.current != null && event.pointerId !== activePointer.current) return;
+        endMove();
+      },
+      // Do NOT use onLostPointerCapture — iOS fires it immediately after
+      // setPointerCapture and would stop the move before it starts.
+      onPointerLeave: (event) => {
+        // Only end if we never captured (desktop mouse leave without capture).
+        if (activePointer.current == null) endMove();
+        else if (event.pointerType === "mouse" && !event.buttons) endMove();
+      },
+    };
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -83,7 +121,7 @@ export function CameraPtzPad({
           <Label htmlFor="ptz-speed">Movement speed</Label>
           <select
             id="ptz-speed"
-            className="flex h-10 min-w-[7rem] rounded-md border bg-background px-3 text-sm"
+            className="flex h-11 min-w-[7rem] rounded-md border bg-background px-3 text-base sm:h-10 sm:text-sm"
             value={speed}
             disabled={disabled}
             onChange={(event) => onSpeedChange(Number(event.target.value))}
@@ -102,6 +140,7 @@ export function CameraPtzPad({
           disabled={disabled}
           onClick={() => {
             holding.current = false;
+            activePointer.current = null;
             onStop();
           }}
         >
@@ -109,14 +148,18 @@ export function CameraPtzPad({
         </Button>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
-        <div className="grid grid-cols-3 gap-2" onContextMenu={(event) => event.preventDefault()}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 sm:gap-4">
+        <div
+          className="grid grid-cols-3 gap-2 select-none"
+          onContextMenu={(event) => event.preventDefault()}
+          style={{ touchAction: "none" }}
+        >
           {DIRS.map((dir) => {
             if (dir.key === "center") {
               return (
                 <div
                   key={dir.key}
-                  className="flex min-h-14 items-center justify-center rounded-md border border-dashed text-muted-foreground"
+                  className="flex min-h-14 items-center justify-center rounded-md border border-dashed text-muted-foreground sm:min-h-14"
                 >
                   PTZ
                 </div>
@@ -129,14 +172,9 @@ export function CameraPtzPad({
                 type="button"
                 aria-label={dir.aria}
                 disabled={disabled}
-                className="min-h-14 touch-none rounded-md border bg-muted/40 text-xl font-semibold disabled:opacity-40"
-                onPointerDown={(event) => {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  beginMove(direction);
-                }}
-                onPointerUp={endMove}
-                onPointerCancel={endMove}
-                onLostPointerCapture={endMove}
+                className="min-h-14 touch-none rounded-md border bg-muted/40 text-xl font-semibold disabled:opacity-40 active:bg-muted"
+                style={{ touchAction: "none", WebkitUserSelect: "none" }}
+                {...bindHold(() => beginMove(direction))}
               >
                 {dir.label}
               </button>
@@ -145,19 +183,14 @@ export function CameraPtzPad({
         </div>
 
         {supportsZoom ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2" style={{ touchAction: "none" }}>
             <button
               type="button"
               aria-label="Zoom in"
               disabled={disabled}
-              className="min-h-14 min-w-16 touch-none rounded-md border bg-muted/40 text-lg font-semibold disabled:opacity-40"
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                beginZoom("in");
-              }}
-              onPointerUp={endMove}
-              onPointerCancel={endMove}
-              onLostPointerCapture={endMove}
+              className="min-h-14 min-w-16 touch-none rounded-md border bg-muted/40 text-lg font-semibold disabled:opacity-40 active:bg-muted"
+              style={{ touchAction: "none", WebkitUserSelect: "none" }}
+              {...bindHold(() => beginZoom("in"))}
             >
               +
             </button>
@@ -165,14 +198,9 @@ export function CameraPtzPad({
               type="button"
               aria-label="Zoom out"
               disabled={disabled}
-              className="min-h-14 min-w-16 touch-none rounded-md border bg-muted/40 text-lg font-semibold disabled:opacity-40"
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                beginZoom("out");
-              }}
-              onPointerUp={endMove}
-              onPointerCancel={endMove}
-              onLostPointerCapture={endMove}
+              className="min-h-14 min-w-16 touch-none rounded-md border bg-muted/40 text-lg font-semibold disabled:opacity-40 active:bg-muted"
+              style={{ touchAction: "none", WebkitUserSelect: "none" }}
+              {...bindHold(() => beginZoom("out"))}
             >
               −
             </button>
@@ -190,6 +218,7 @@ export function CameraPtzPad({
                 type="button"
                 size="sm"
                 variant="outline"
+                className="min-h-11"
                 disabled={disabled}
                 onClick={() => void onCommand("ptz_preset_recall", { presetId: preset.id })}
               >
@@ -201,6 +230,7 @@ export function CameraPtzPad({
                 type="button"
                 size="sm"
                 variant="ghost"
+                className="min-h-11"
                 disabled={disabled}
                 onClick={() =>
                   void onCommand("ptz_preset_save", {
@@ -218,19 +248,40 @@ export function CameraPtzPad({
 
       {supportsFocus ? (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => void onCommand("ptz_focus", { direction: "near" })}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-11"
+            disabled={disabled}
+            onClick={() => void onCommand("ptz_focus", { direction: "near" })}
+          >
             Focus near
           </Button>
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => void onCommand("ptz_focus", { direction: "far" })}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-11"
+            disabled={disabled}
+            onClick={() => void onCommand("ptz_focus", { direction: "far" })}
+          >
             Focus far
           </Button>
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => void onCommand("ptz_focus", { direction: "auto" })}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-11"
+            disabled={disabled}
+            onClick={() => void onCommand("ptz_focus", { direction: "auto" })}
+          >
             Auto focus
           </Button>
         </div>
       ) : null}
 
-      <Button type="button" variant="ghost" size="sm" onClick={() => void onRelease()}>
+      <Button type="button" variant="ghost" size="sm" className="min-h-11" onClick={() => void onRelease()}>
         Release control
       </Button>
     </div>

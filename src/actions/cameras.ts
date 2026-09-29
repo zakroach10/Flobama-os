@@ -198,6 +198,27 @@ export async function revokeCameraDeviceAction(input: unknown): Promise<CameraAc
   return { ok: true, message: "Mac connector credential revoked." };
 }
 
+/** Prefer the Mac that is actually heartbeating after re-pair (zombie device_id safe). */
+async function resolveLiveCameraDeviceId(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+  venueId: string,
+  linkedDeviceId: string | null,
+): Promise<string | null> {
+  const { data: devices } = await supabase
+    .from("camera_connector_devices")
+    .select("id, revoked_at, last_seen_at")
+    .eq("venue_id", venueId)
+    .is("revoked_at", null)
+    .order("last_seen_at", { ascending: false })
+    .limit(8);
+
+  const live = devices ?? [];
+  if (linkedDeviceId && live.some((row) => row.id === linkedDeviceId)) {
+    return linkedDeviceId;
+  }
+  return live[0]?.id ?? null;
+}
+
 async function ensureControlLease(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   input: { venueId: string; cameraId: string; userId: string },
@@ -275,16 +296,23 @@ export async function releaseCameraLeaseAction(input: unknown): Promise<CameraAc
     .eq("id", parsed.data.cameraId)
     .eq("venue_id", gate.context.venue.id)
     .maybeSingle();
-  if (camera?.device_id) {
-    await gate.supabase.from("camera_commands").insert({
-      venue_id: gate.context.venue.id,
-      camera_id: camera.id,
-      device_id: camera.device_id,
-      kind: "ptz_stop",
-      payload: {},
-      issued_by: gate.context.userId,
-      expires_at: cameraCommandExpiresAt(),
-    });
+  if (camera) {
+    const deviceId = await resolveLiveCameraDeviceId(
+      gate.supabase,
+      gate.context.venue.id,
+      camera.device_id,
+    );
+    if (deviceId) {
+      await gate.supabase.from("camera_commands").insert({
+        venue_id: gate.context.venue.id,
+        camera_id: camera.id,
+        device_id: deviceId,
+        kind: "ptz_stop",
+        payload: {},
+        issued_by: gate.context.userId,
+        expires_at: cameraCommandExpiresAt(),
+      });
+    }
   }
 
   revalidateCameras();
@@ -307,8 +335,21 @@ export async function issueCameraCommandAction(input: unknown): Promise<CameraAc
     .maybeSingle();
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
   if (!camera) return { ok: false, message: "Camera not found." };
-  if (!camera.device_id) {
+
+  const deviceId = await resolveLiveCameraDeviceId(
+    gate.supabase,
+    gate.context.venue.id,
+    camera.device_id,
+  );
+  if (!deviceId) {
     return { ok: false, message: "Mac connector has not linked this camera yet." };
+  }
+  if (camera.device_id !== deviceId) {
+    await gate.supabase
+      .from("camera_sources")
+      .update({ device_id: deviceId })
+      .eq("id", camera.id)
+      .eq("venue_id", gate.context.venue.id);
   }
 
   const support = commandSupportedByCamera(parsed.data.kind, {
@@ -324,7 +365,7 @@ export async function issueCameraCommandAction(input: unknown): Promise<CameraAc
   const { data: device } = await gate.supabase
     .from("camera_connector_devices")
     .select("id, remote_control_enabled, revoked_at, last_seen_at")
-    .eq("id", camera.device_id)
+    .eq("id", deviceId)
     .maybeSingle();
   if (!device || device.revoked_at) return { ok: false, message: "Mac connector is not paired." };
   if (!device.remote_control_enabled) {
@@ -345,7 +386,7 @@ export async function issueCameraCommandAction(input: unknown): Promise<CameraAc
     .insert({
       venue_id: gate.context.venue.id,
       camera_id: camera.id,
-      device_id: camera.device_id,
+      device_id: deviceId,
       kind: parsed.data.kind,
       payload: payload as Json,
       issued_by: gate.context.userId,
@@ -360,7 +401,7 @@ export async function issueCameraCommandAction(input: unknown): Promise<CameraAc
     gate.context.userId,
     "command_issued",
     { kind: parsed.data.kind, expiresAt, ttlMs: CAMERA_COMMAND_TTL_MS },
-    { deviceId: camera.device_id, cameraId: camera.id },
+    { deviceId, cameraId: camera.id },
   );
 
   return {
@@ -386,19 +427,11 @@ export async function startCameraPreviewAction(input: unknown): Promise<CameraAc
   if (error) return { ok: false, message: cameraSqlMessage(error.message) };
   if (!camera) return { ok: false, message: "Camera not found." };
 
-  // Prefer the Mac that is actually heartbeating. Camera rows can still point at a
-  // revoked/zombie device_id after re-pair, which left previews waiting forever.
-  const { data: devices } = await gate.supabase
-    .from("camera_connector_devices")
-    .select("id, revoked_at, last_seen_at")
-    .eq("venue_id", gate.context.venue.id)
-    .is("revoked_at", null)
-    .order("last_seen_at", { ascending: false })
-    .limit(8);
-
-  const linkedStillLive = (devices ?? []).some((row) => row.id === camera.device_id);
-  const freshest = (devices ?? [])[0]?.id ?? null;
-  const deviceId = linkedStillLive ? camera.device_id : freshest;
+  const deviceId = await resolveLiveCameraDeviceId(
+    gate.supabase,
+    gate.context.venue.id,
+    camera.device_id,
+  );
   if (!deviceId) {
     return { ok: false, message: "Mac connector has not linked this camera yet. Pair/start the Mac app first." };
   }
