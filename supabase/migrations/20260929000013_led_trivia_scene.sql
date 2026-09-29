@@ -1,4 +1,7 @@
--- Add trivia as an activatable LED wall scene kind (QR join, questions, timer).
+-- Add trivia enum value only.
+-- PostgreSQL requires this value to be committed before it can be used in
+-- constraints or inserts (see 20260929000015_led_trivia_scene_seed.sql).
+-- In the Supabase SQL editor: run THIS file alone first, then run 00015.
 
 do $$
 begin
@@ -13,48 +16,3 @@ begin
   end if;
 end
 $$;
-
-alter table public.led_wall_scenes drop constraint if exists led_wall_scenes_shape;
-
-alter table public.led_wall_scenes
-  add constraint led_wall_scenes_shape check (
-    (
-      kind = 'obs'
-      and obs_scene_name is not null
-      and media_kind is null
-      and storage_path is null
-      and public_url is null
-    )
-    or (
-      kind = 'media'
-      and obs_scene_name is null
-      and media_kind in ('image', 'video')
-      and storage_path is not null
-      and public_url is not null
-    )
-    or (
-      kind = 'trivia'
-      and obs_scene_name is null
-      and media_kind is null
-      and storage_path is null
-      and public_url is null
-    )
-  );
-
-insert into public.led_wall_scenes (
-  id,
-  venue_id,
-  title,
-  kind,
-  sort_order,
-  enabled
-)
-values (
-  '33333333-3333-4333-8333-333333333333',
-  '11111111-1111-4111-8111-111111111111',
-  'Shoals Trivia',
-  'trivia',
-  0,
-  true
-)
-on conflict (id) do nothing;

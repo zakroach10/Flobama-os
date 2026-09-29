@@ -67,6 +67,7 @@ export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
 export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
 export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
 export const LED_TRIVIA_SCENE_SQL = "supabase/migrations/20260929000013_led_trivia_scene.sql";
+export const LED_TRIVIA_SCENE_SEED_SQL = "supabase/migrations/20260929000015_led_trivia_scene_seed.sql";
 export const LED_TRIVIA_SCENE_ID = "33333333-3333-4333-8333-333333333333";
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
