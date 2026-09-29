@@ -1,24 +1,21 @@
-FloBama Mac Camera 1.4.0
+FloBama Mac Camera 1.4.1
 
-Eject any older disk named FloBama Mac Camera before opening this one.
-Drag FloBama Mac Camera into Applications, then open it.
-Terminal must start with: FloBama Mac Camera 1.4.0
+IMPORTANT — replace any older install
+1. Quit Terminal windows from older FloBama Mac Camera runs
+2. Eject every disk named FloBama Mac Camera (including 1.0.0 / 1.1.0)
+3. Delete /Applications/FloBama Mac Camera.app (move to Trash)
+4. Download Mac Camera 1.4.1 from FloBama OS → Cameras (do not reopen an old .dmg in Downloads)
+5. Open THIS disk (title must say FloBama Mac Camera 1.4.1)
+6. Drag FloBama Mac Camera into Applications, then open it
+7. Terminal must start with: FloBama Mac Camera 1.4.1
 
-The first launch downloads Node.js, installs NDI bindings, and asks for:
-  1) your FloBama OS address
-  2) a one-time pairing code from FloBama OS → Cameras (admin)
-  3) an optional Mac label
+If Terminal still says 1.0.0, you are launching the old app in Applications — delete it and drag again from this 1.4.1 disk.
 
 NDI discovery requires Local Network permission for Terminal.
 When prompted, click Allow. Or open:
   System Settings → Privacy & Security → Local Network → enable Terminal
 
-Click the Cam ● menu-bar item to see NDI source names discovered on this Mac.
+Click the Cam ● menu-bar item to see NDI source names.
 The same list appears in FloBama OS → Cameras under “NDI sources on Mac”.
 
 Leave the Terminal window open while staff use remote cameras.
-This app does not replace Ecamm Live; it only connects the venue Mac to FloBama OS.
-
-If macOS says the app cannot be opened, right-click FloBama Mac Camera and choose Open.
-
-Reset settings on this disk image clears the saved device credential so you can pair again.

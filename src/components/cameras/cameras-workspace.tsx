@@ -22,6 +22,7 @@ import { linkStatusLabel } from "@/lib/cameras/map";
 import { CameraPtzPad } from "@/components/cameras/camera-ptz-pad";
 import { CameraInventoryForm } from "@/components/cameras/camera-inventory-form";
 import { MacCameraDownload } from "@/components/cameras/mac-camera-download";
+import { CAMERA_CONNECTOR_VERSION } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export function CamerasWorkspace({
@@ -143,9 +144,14 @@ export function CamerasWorkspace({
             {activeDevice?.statusDetail ? (
               <p className="text-sm text-muted-foreground">Mac status: {activeDevice.statusDetail}</p>
             ) : null}
-            {activeDevice?.connectorVersion ? (
-              <p className="text-xs text-muted-foreground">Connector {activeDevice.connectorVersion}</p>
-            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Connector on Mac:{" "}
+              <span className="font-mono">{activeDevice?.connectorVersion || "not reported yet"}</span>
+              {activeDevice?.connectorVersion &&
+              activeDevice.connectorVersion !== CAMERA_CONNECTOR_VERSION ? (
+                <span className="text-amber-700 dark:text-amber-400"> · outdated — reinstall below</span>
+              ) : null}
+            </p>
             <p className="text-xs text-muted-foreground">
               On the Mac, look for <span className="font-medium">Cam ●</span> in the top menu bar while the
               connector is running. Click it to see NDI source names. NDI discovery needs{" "}
@@ -197,14 +203,17 @@ export function CamerasWorkspace({
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
               {link.online
-                ? "The Mac has not listed any NDI broadcasts yet. Confirm Local Network for Terminal, that cameras/Ecamm are publishing NDI, and that connector 1.4.0+ is running."
-                : "Pair and start Mac Camera 1.4.0+ to see LAN NDI source names here."}
+                ? activeDevice?.connectorVersion &&
+                  activeDevice.connectorVersion !== CAMERA_CONNECTOR_VERSION
+                  ? `Mac is on connector ${activeDevice.connectorVersion}, which cannot report NDI correctly. Reinstall Mac Camera ${CAMERA_CONNECTOR_VERSION} (delete the old app in Applications first).`
+                  : "The Mac has not listed any NDI broadcasts yet. Confirm Local Network for Terminal and that cameras/Ecamm are publishing NDI on the same LAN."
+                : `Pair and start Mac Camera ${CAMERA_CONNECTOR_VERSION} to see LAN NDI source names here.`}
             </p>
           )}
         </div>
 
         <div className="mt-4">
-          <MacCameraDownload />
+          <MacCameraDownload connectorVersion={activeDevice?.connectorVersion} />
         </div>
 
         {canConfigure ? (

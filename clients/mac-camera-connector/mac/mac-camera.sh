@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+EXPECTED_VERSION="1.4.1"
+
 if [[ "${FLOBAMA_MAC_CAMERA_TERMINAL:-}" != "1" ]]; then
   osascript - "$0" <<'APPLESCRIPT'
 on run argv
@@ -14,8 +16,6 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Mac Camera 1.4.0"
-
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Mac Camera"
 NODE_HOME="$SUPPORT/node"
@@ -23,6 +23,30 @@ CONFIG="$SUPPORT/mac-camera.config.json"
 NODE_VERSION="v22.22.2"
 mkdir -p "$SUPPORT"
 mkdir -p "$HOME/Library/Logs/FloBamaMacConnector"
+
+BUNDLE_VERSION="$EXPECTED_VERSION"
+if [[ -f "$APP_ROOT/VERSION" ]]; then
+  BUNDLE_VERSION="$(tr -d '[:space:]' < "$APP_ROOT/VERSION")"
+fi
+
+echo "=========================================="
+echo " FloBama Mac Camera ${BUNDLE_VERSION}"
+echo "=========================================="
+if [[ "$BUNDLE_VERSION" != "$EXPECTED_VERSION" ]]; then
+  echo "WARNING: launcher expects ${EXPECTED_VERSION} but app bundle reports ${BUNDLE_VERSION}."
+  echo "Delete /Applications/FloBama Mac Camera.app and reinstall from Cameras → Download."
+fi
+if [[ "$BUNDLE_VERSION" != "1.4.1" && "$BUNDLE_VERSION" != "1.4.0" ]]; then
+  echo ""
+  echo "This looks like an OLD install (not 1.4.x)."
+  echo "NDI discovery will not work until you replace the app:"
+  echo "  1) Quit this Terminal window"
+  echo "  2) Eject any old FloBama Mac Camera disks"
+  echo "  3) Delete /Applications/FloBama Mac Camera.app"
+  echo "  4) Download Mac Camera 1.4.1 from FloBama OS → Cameras"
+  echo "  5) Drag the NEW app into Applications, then open it"
+  echo ""
+fi
 
 if [[ ! -x "$NODE_HOME/bin/node" ]]; then
   echo "Downloading Node.js ${NODE_VERSION}…"
@@ -68,11 +92,9 @@ echo "NDI discovery needs Local Network permission for Terminal (this window)."
 echo "If macOS shows a Local Network prompt, click Allow."
 echo "Otherwise open: System Settings → Privacy & Security → Local Network → enable Terminal."
 echo ""
-# Best-effort open Local Network privacy pane (macOS Ventura / Sonoma / Sequoia).
 open "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork" 2>/dev/null \
   || open "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork" 2>/dev/null \
   || true
-# Nudge TCC for this Terminal/node process before the connector starts.
 "$NODE_HOME/bin/node" -e '
   const dgram = require("dgram");
   const s = dgram.createSocket({ type: "udp4", reuseAddr: true });
@@ -120,9 +142,9 @@ if [[ ! -f "$CONFIG" ]]; then
   fi
 fi
 
-echo "FloBama Mac Camera is running. Leave this window open during shows."
+echo "FloBama Mac Camera ${BUNDLE_VERSION} is running. Leave this window open during shows."
+echo "In FloBama OS → Cameras, Mac connector should show Connector ${BUNDLE_VERSION}."
 echo "To re-pair, double-click Reset settings on the disk image, then open this app again."
-echo "To disable remote PTZ locally, edit mac-camera.config.json and set remoteControlEnabled to false."
 echo "If NDI cameras do not appear: enable Local Network for Terminal, then restart this app."
 cd "$APP_ROOT"
 exec "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG"

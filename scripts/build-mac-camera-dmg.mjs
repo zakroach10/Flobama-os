@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, chmod, rm, symlink } from "node:fs/promises";
+import { cp, mkdir, chmod, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "mac-camera-connector");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "mac-camera-dmg");
-const version = "1.4.0";
+const version = "1.4.1";
 const output = path.join(root, "public", "downloads", `FloBama-Mac-Camera-${version}.dmg`);
 
 await rm(staging, { recursive: true, force: true });
@@ -21,6 +21,7 @@ await cp(path.join(macDir, "mac-camera.sh"), path.join(app, "MacOS", "mac-camera
 await chmod(path.join(app, "MacOS", "mac-camera"), 0o755);
 await cp(path.join(clientDir, "index.mjs"), path.join(resourcesApp, "index.mjs"));
 await cp(path.join(clientDir, "package.json"), path.join(resourcesApp, "package.json"));
+await writeFile(path.join(resourcesApp, "VERSION"), `${version}\n`, "utf8");
 await cp(path.join(clientDir, "lib", "adapters.mjs"), path.join(resourcesApp, "lib", "adapters.mjs"));
 await cp(path.join(clientDir, "lib", "ndi.mjs"), path.join(resourcesApp, "lib", "ndi.mjs"));
 await cp(path.join(clientDir, "lib", "sim-cameras.mjs"), path.join(resourcesApp, "lib", "sim-cameras.mjs"));
@@ -38,11 +39,14 @@ await mkdir(path.dirname(output), { recursive: true });
 const writer = spawnSync("go", ["run", ".", staging, output], {
   cwd: path.join(root, "scripts", "mac-camera-dmg"),
   stdio: "inherit",
-  env: { ...process.env, GOTOOLCHAIN: "auto" },
+  env: {
+    ...process.env,
+    GOTOOLCHAIN: "auto",
+    FLOBAMA_MAC_CAMERA_VOLUME: `FloBama Mac Camera ${version}`,
+  },
 });
 if (writer.status !== 0) process.exit(writer.status ?? 1);
-await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.0.0.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.1.0.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.2.0.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Mac-Camera-1.3.0.dmg"), { force: true });
+for (const old of ["1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0"]) {
+  await rm(path.join(root, "public", "downloads", `FloBama-Mac-Camera-${old}.dmg`), { force: true });
+}
 console.log(output);
