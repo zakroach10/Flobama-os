@@ -5,7 +5,7 @@ import { SetupRequired } from "@/components/states";
 import { ErrorState } from "@/components/states";
 import { AppShell } from "@/components/layout/app-shell";
 import { STAFF_ROLE_LABELS } from "@/lib/constants";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import { firstMenuHref } from "@/lib/auth/menus";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +37,8 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       venueName={context.venue.name}
       roleLabel={STAFF_ROLE_LABELS[context.role]}
       userLabel={context.profile?.display_name || context.email || "Staff"}
-      showScreens
-      showBooking={canManageProgramming(context.role)}
-      showSocial={canManageProgramming(context.role)}
+      menus={context.menus}
+      homeHref={firstMenuHref(context.menus) ?? "/no-menus"}
     >
       {children}
     </AppShell>
