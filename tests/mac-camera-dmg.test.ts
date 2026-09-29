@@ -29,10 +29,12 @@ describe("Mac Camera disk image", () => {
     expect(CAMERA_CONNECTOR_DMG_HREF).toBe(`/downloads/FloBama-Mac-Camera-${CAMERA_CONNECTOR_VERSION}.dmg`);
     const script = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/mac/mac-camera.sh"), "utf8");
     const client = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/index.mjs"), "utf8");
-    expect(script).toContain(`echo "FloBama Mac Camera ${CAMERA_CONNECTOR_VERSION}"`);
+    expect(script).toContain(`EXPECTED_VERSION="${CAMERA_CONNECTOR_VERSION}"`);
+    expect(script).toContain('echo " FloBama Mac Camera ${BUNDLE_VERSION}"');
     expect(script).toContain("--pair");
     expect(script).toContain("Pairing code from FloBama OS");
     expect(client).toContain("/api/agent/v1/cameras/sync");
+    expect(client).toContain(`const VERSION = "${CAMERA_CONNECTOR_VERSION}"`);
     expect(client).toContain("startMenubarHelper");
     expect(client).toContain("buildLocalCameras");
     expect(client).toContain("discoverNdiSources");
@@ -40,6 +42,7 @@ describe("Mac Camera disk image", () => {
     expect(client).not.toContain("execSync");
     expect(script).toContain("npm install");
     expect(script).toContain("grandi");
+    expect(script).toContain("Delete /Applications/FloBama Mac Camera.app");
 
     const ndi = readFileSync(path.join(process.cwd(), "clients/mac-camera-connector/lib/ndi.mjs"), "utf8");
     expect(ndi).toContain("grandi");
@@ -61,5 +64,8 @@ describe("Mac Camera disk image", () => {
     expect(text).toContain("hiddenSourceKeys");
     expect(text).toContain("discoveredNdi");
     expect(text).toContain("ndiSources");
+    expect(text).toContain("VERSION");
+    expect(text).not.toContain("FloBama Mac Camera 1.0.0");
+    expect(text).not.toContain("FloBama Mac Camera 1.1.0");
   });
 });

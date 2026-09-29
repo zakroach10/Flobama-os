@@ -12,8 +12,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: mac-camera-dmg <source-dir> <output.dmg>")
 		os.Exit(2)
 	}
+	volumeName := os.Getenv("FLOBAMA_MAC_CAMERA_VOLUME")
+	if volumeName == "" {
+		volumeName = "FloBama Mac Camera"
+	}
 	image := &dmg.DMG{
-		VolumeName: "FloBama Mac Camera 1.1.0",
+		VolumeName: volumeName,
 		OwnerID:    dmg.OwnerIDUnset,
 		GroupID:    dmg.OwnerIDUnset,
 	}

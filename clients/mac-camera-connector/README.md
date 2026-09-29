@@ -25,7 +25,7 @@ Rebuild the disk image from this repo with:
 npm run build:dmg:cameras
 ```
 
-Output: `public/downloads/FloBama-Mac-Camera-1.4.0.dmg`
+Output: `public/downloads/FloBama-Mac-Camera-1.4.1.dmg`
 
 ## Install (developer / CLI)
 
