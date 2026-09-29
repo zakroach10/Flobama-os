@@ -883,6 +883,268 @@ export type Database = {
           },
         ];
       };
+
+      camera_connector_pairing_codes: {
+        Row: {
+          id: string;
+          venue_id: string;
+          code_hash: string;
+          expires_at: string;
+          consumed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          code_hash: string;
+          expires_at: string;
+          consumed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          consumed_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      camera_connector_devices: {
+        Row: {
+          id: string;
+          venue_id: string;
+          label: string;
+          token_hash: string;
+          revoked_at: string | null;
+          remote_control_enabled: boolean;
+          last_seen_at: string | null;
+          connector_version: string | null;
+          hostname: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          label?: string;
+          token_hash: string;
+          revoked_at?: string | null;
+          remote_control_enabled?: boolean;
+          last_seen_at?: string | null;
+          connector_version?: string | null;
+          hostname?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          label?: string;
+          token_hash?: string;
+          revoked_at?: string | null;
+          remote_control_enabled?: boolean;
+          last_seen_at?: string | null;
+          connector_version?: string | null;
+          hostname?: string | null;
+        };
+        Relationships: [];
+      };
+      camera_sources: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string;
+          source_key: string;
+          title: string;
+          protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          is_simulated: boolean;
+          is_program_output: boolean;
+          supports_ptz: boolean;
+          supports_zoom: boolean;
+          supports_presets: boolean;
+          supports_preset_save: boolean;
+          supports_focus: boolean;
+          online: boolean;
+          last_error: string | null;
+          sort_order: number;
+          capabilities: Json;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id: string;
+          source_key: string;
+          title: string;
+          protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          is_simulated?: boolean;
+          is_program_output?: boolean;
+          supports_ptz?: boolean;
+          supports_zoom?: boolean;
+          supports_presets?: boolean;
+          supports_preset_save?: boolean;
+          supports_focus?: boolean;
+          online?: boolean;
+          last_error?: string | null;
+          sort_order?: number;
+          capabilities?: Json;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          title?: string;
+          protocol?: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+          is_simulated?: boolean;
+          is_program_output?: boolean;
+          supports_ptz?: boolean;
+          supports_zoom?: boolean;
+          supports_presets?: boolean;
+          supports_preset_save?: boolean;
+          supports_focus?: boolean;
+          online?: boolean;
+          last_error?: string | null;
+          sort_order?: number;
+          capabilities?: Json;
+        };
+        Relationships: [];
+      };
+      camera_control_leases: {
+        Row: {
+          camera_id: string;
+          venue_id: string;
+          holder_user_id: string;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          camera_id: string;
+          venue_id: string;
+          holder_user_id: string;
+          expires_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          holder_user_id?: string;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      camera_commands: {
+        Row: {
+          id: string;
+          venue_id: string;
+          camera_id: string;
+          device_id: string;
+          kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
+          payload: Json;
+          status: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          issued_by: string | null;
+          issued_at: string;
+          expires_at: string;
+          accepted_at: string | null;
+          completed_at: string | null;
+          reject_reason: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          camera_id: string;
+          device_id: string;
+          kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
+          payload?: Json;
+          status?: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          issued_by?: string | null;
+          issued_at?: string;
+          expires_at: string;
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reject_reason?: string | null;
+        };
+        Update: {
+          status?: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reject_reason?: string | null;
+        };
+        Relationships: [];
+      };
+      camera_preview_sessions: {
+        Row: {
+          id: string;
+          venue_id: string;
+          camera_id: string;
+          device_id: string;
+          requester_user_id: string;
+          mode: "snapshot" | "webrtc";
+          status: string;
+          offer_sdp: string | null;
+          answer_sdp: string | null;
+          ice_trickle: Json;
+          snapshot_path: string | null;
+          snapshot_url: string | null;
+          snapshot_updated_at: string | null;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          camera_id: string;
+          device_id: string;
+          requester_user_id: string;
+          mode?: "snapshot" | "webrtc";
+          status?: string;
+          offer_sdp?: string | null;
+          answer_sdp?: string | null;
+          ice_trickle?: Json;
+          snapshot_path?: string | null;
+          snapshot_url?: string | null;
+          snapshot_updated_at?: string | null;
+          expires_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: string;
+          offer_sdp?: string | null;
+          answer_sdp?: string | null;
+          ice_trickle?: Json;
+          snapshot_path?: string | null;
+          snapshot_url?: string | null;
+          snapshot_updated_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      camera_audit_log: {
+        Row: {
+          id: string;
+          venue_id: string;
+          actor_user_id: string | null;
+          device_id: string | null;
+          camera_id: string | null;
+          action: string;
+          detail: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          actor_user_id?: string | null;
+          device_id?: string | null;
+          camera_id?: string | null;
+          action: string;
+          detail?: Json;
+          created_at?: string;
+        };
+        Update: {
+          action?: string;
+          detail?: Json;
+        };
+        Relationships: [];
+      };
       screen_display_signal_listings: {
         Row: {
           venue_id: string;
@@ -947,6 +1209,10 @@ export type Database = {
       screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
       led_wall_scene_kind: "obs" | "media" | "trivia";
+      camera_protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
+      camera_command_kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
+      camera_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";
+      camera_preview_mode: "snapshot" | "webrtc";
     };
     CompositeTypes: {
       [_ in never]: never;

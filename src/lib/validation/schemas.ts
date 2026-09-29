@@ -386,3 +386,139 @@ export const triviaJoinSchema = z.object({
 export const triviaAnswerSchema = z.object({
   choiceIndex: z.number().int().min(0).max(3),
 });
+
+const cameraCapabilitySchema = z.object({
+  ptz: z.boolean().optional(),
+  zoom: z.boolean().optional(),
+  presets: z.boolean().optional(),
+  presetSave: z.boolean().optional(),
+  focus: z.boolean().optional(),
+  preview: z.boolean().optional(),
+  speeds: z.array(z.number().int().min(1).max(24)).max(12).optional(),
+  presetsList: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        label: z.string().trim().min(1).max(80),
+      }),
+    )
+    .max(64)
+    .optional(),
+});
+
+export const cameraConnectorPairSchema = z.object({
+  code: z.string().trim().min(6).max(32),
+  label: z.string().trim().min(1).max(120).optional(),
+  hostname: z.string().trim().min(1).max(200).optional(),
+  connectorVersion: z.string().trim().min(1).max(40).optional(),
+});
+
+export const cameraConnectorSyncSchema = z.object({
+  hostname: z.string().trim().max(200).nullable().optional(),
+  connectorVersion: z.string().trim().max(40).nullable().optional(),
+  remoteControlEnabled: z.boolean(),
+  cameras: z
+    .array(
+      z.object({
+        sourceKey: z.string().trim().min(1).max(200),
+        title: z.string().trim().min(1).max(160),
+        protocol: z.enum(["simulated", "ndi_ptz", "visca_udp", "visca_tcp", "unknown"]),
+        isSimulated: z.boolean().optional(),
+        isProgramOutput: z.boolean().optional(),
+        supportsPtz: z.boolean().optional(),
+        supportsZoom: z.boolean().optional(),
+        supportsPresets: z.boolean().optional(),
+        supportsPresetSave: z.boolean().optional(),
+        supportsFocus: z.boolean().optional(),
+        online: z.boolean().optional(),
+        lastError: z.string().trim().max(500).nullable().optional(),
+        capabilities: cameraCapabilitySchema.optional(),
+        sortOrder: z.number().int().min(0).max(10_000).optional(),
+      }),
+    )
+    .max(64),
+  commandResults: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        status: z.enum(["accepted", "rejected", "expired", "completed"]),
+        rejectReason: z.string().trim().max(300).nullable().optional(),
+      }),
+    )
+    .max(100)
+    .optional(),
+  previewUpdates: z
+    .array(
+      z.object({
+        sessionId: z.string().uuid(),
+        status: z.enum(["active", "ended", "failed"]).optional(),
+        snapshotBase64: z.string().max(2_800_000).optional(),
+        snapshotContentType: z.enum(["image/jpeg", "image/png"]).optional(),
+        answerSdp: z.string().max(200_000).nullable().optional(),
+        iceTrickle: z.array(z.unknown()).max(50).optional(),
+        error: z.string().trim().max(500).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
+});
+
+export const cameraControlCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_move"),
+    payload: z.object({
+      direction: z.enum(["up", "down", "left", "right", "up_left", "up_right", "down_left", "down_right"]),
+      speed: z.number().int().min(1).max(24),
+    }),
+  }),
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_stop"),
+    payload: z.object({}).optional(),
+  }),
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_zoom"),
+    payload: z.object({
+      direction: z.enum(["in", "out"]),
+      speed: z.number().int().min(1).max(24),
+    }),
+  }),
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_preset_recall"),
+    payload: z.object({
+      presetId: z.string().trim().min(1).max(64),
+    }),
+  }),
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_preset_save"),
+    payload: z.object({
+      presetId: z.string().trim().min(1).max(64),
+      label: z.string().trim().min(1).max(80).optional(),
+    }),
+  }),
+  z.object({
+    cameraId: z.string().uuid(),
+    kind: z.literal("ptz_focus"),
+    payload: z.object({
+      direction: z.enum(["near", "far", "auto"]),
+    }),
+  }),
+]);
+
+export const cameraLeaseSchema = z.object({
+  cameraId: z.string().uuid(),
+});
+
+export const cameraPreviewStartSchema = z.object({
+  cameraId: z.string().uuid(),
+  mode: z.enum(["snapshot", "webrtc"]).default("snapshot"),
+  offerSdp: z.string().max(200_000).optional(),
+});
+
+export const revokeCameraDeviceSchema = z.object({
+  deviceId: z.string().uuid(),
+});

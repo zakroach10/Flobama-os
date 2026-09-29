@@ -11,6 +11,8 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Update events from the master sheet",
     "Manage Booking from GoHighLevel custom objects",
     "Configure LED wall scenes and the booth client",
+    "Pair and revoke the FloBama Mac camera connector",
+    "Operate remote cameras and live previews",
     "Manage vertical ads",
     "Start and end Shoals trivia; upload question spreadsheets",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
@@ -21,6 +23,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Update events from the master sheet",
     "Manage Booking from GoHighLevel custom objects",
     "Activate LED wall scenes",
+    "Operate remote cameras and live previews",
     "Manage vertical ads",
     "Start and end Shoals trivia; upload question spreadsheets",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
@@ -30,6 +33,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   viewer: [
     "View the calendar, artists, and staff directory",
     "View and activate LED wall scenes",
+    "View camera connection status (no PTZ control)",
     "View and run Shoals trivia",
     "View ticketing sales, orders, and check-in status without selling or refunding",
     "View settings (read-only)",
@@ -45,6 +49,14 @@ export function canManageProgramming(role: StaffRole): boolean {
 }
 
 export function canConfigureLedWall(role: StaffRole): boolean {
+  return role === "admin";
+}
+
+export function canOperateCameras(role: StaffRole): boolean {
+  return role === "admin" || role === "manager";
+}
+
+export function canConfigureCameraConnector(role: StaffRole): boolean {
   return role === "admin";
 }
 
@@ -86,6 +98,28 @@ export function authorizeLedWallConfigure(role: StaffRole | null): AuthzDecision
   if (!access.allowed) return access;
   if (!canConfigureLedWall(role!)) {
     return { allowed: false, reason: "Only admins can configure LED wall scenes." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeCameraView(role: StaffRole | null): AuthzDecision {
+  return requireRole(role);
+}
+
+export function authorizeCameraOperate(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canOperateCameras(role!)) {
+    return { allowed: false, reason: "Your role can view cameras but cannot operate them." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeCameraConfigure(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canConfigureCameraConnector(role!)) {
+    return { allowed: false, reason: "Only admins can pair or revoke the Mac connector." };
   }
   return { allowed: true };
 }
