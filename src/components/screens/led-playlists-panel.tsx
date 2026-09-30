@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LED_PLAYLIST_DEFAULT_SECONDS, LED_WALL_PLAYLISTS_SQL } from "@/lib/constants";
 import type { LedWallSceneRow } from "@/lib/queries/led-wall";
+import { houseLedScenes } from "@/lib/screens/artist-led";
 import { ledSceneDetail } from "@/lib/screens/led-wall";
 import type { StaffLedPlaylist, StaffLedPlaylistItem } from "@/lib/screens/led-playlists";
 
@@ -44,7 +45,7 @@ export function LedPlaylistsPanel({
   const [sceneId, setSceneId] = useState("");
   const [duration, setDuration] = useState(String(LED_PLAYLIST_DEFAULT_SECONDS));
   const selected = playlists.find((playlist) => playlist.id === selectedPlaylistId) ?? null;
-  const addableScenes = scenes.filter(
+  const addableScenes = houseLedScenes(scenes).filter(
     (scene) => scene.enabled && scene.kind !== "trivia" && scene.kind !== "audience",
   );
 

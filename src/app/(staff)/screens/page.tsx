@@ -5,6 +5,7 @@ import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permission
 import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
+import { listArtistLedConfigs, listTodayLedListings } from "@/lib/queries/artist-led";
 import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
 import { getStaffDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { listStaffLedPlaylistItems, listStaffLedPlaylists } from "@/lib/queries/led-playlists";
@@ -12,6 +13,7 @@ import { listStaffMenuSpecials, listStaffPlaylistItems, listStaffPlaylists } fro
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
 import { getStaffTriviaSession, listTriviaPacks } from "@/lib/queries/trivia";
 import { LedPlaylistsPanel } from "@/components/screens/led-playlists-panel";
+import { LedSchedulePanel } from "@/components/screens/led-schedule-panel";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { PlaylistsPanel } from "@/components/screens/playlists-panel";
 import { RefreshWallButton } from "@/components/screens/refresh-wall-button";
@@ -58,11 +60,13 @@ export default async function ScreensPage({
     specialsRes,
     ledPlaylistsRes,
     displaySignalRes,
+    todayLedRes,
+    artistLedRes,
   ] = await Promise.all([
     listLedWallScenes(supabase, context.venue.id),
     getLedWallRuntime(supabase, context.venue.id),
     getLedWallAgentStatus(supabase, context.venue.id),
-    canConfigure ? getLedWallSettings(supabase, context.venue.id) : Promise.resolve(null),
+    getLedWallSettings(supabase, context.venue.id),
     canProgram ? listStaffScreenAds(supabase, context.venue.id) : Promise.resolve(null),
     canProgram ? getStaffTakeover(supabase, context.venue.id) : Promise.resolve(null),
     listTriviaPacks(supabase, context.venue.id),
@@ -75,9 +79,11 @@ export default async function ScreensPage({
       : Promise.resolve({ specials: [], missingTable: false, error: null }),
     listStaffLedPlaylists(supabase, context.venue.id),
     getStaffDisplayReloadSignal(supabase, context.venue.id),
+    listTodayLedListings(supabase, context.venue.id, context.venue.timezone),
+    listArtistLedConfigs(supabase, context.venue.id),
   ]);
 
-  if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes?.missingTable) {
+  if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes.missingTable) {
     return (
       <ErrorState
         title="Could not load LED wall scenes"
@@ -88,7 +94,16 @@ export default async function ScreensPage({
   if (scenesError) return <ErrorState title="Could not load LED wall scenes" description={scenesError} />;
   if (runtimeRes.error) return <ErrorState title="Could not load the active scene" description={runtimeRes.error} />;
   if (agentRes.error) return <ErrorState title="Could not load booth client status" description={agentRes.error} />;
-  if (settingsRes?.error) return <ErrorState title="Could not load LED wall settings" description={settingsRes.error} />;
+  if (settingsRes.error && canConfigure) {
+    return <ErrorState title="Could not load LED wall settings" description={settingsRes.error} />;
+  }
+  if (todayLedRes.error && !todayLedRes.missingColumn) {
+    return <ErrorState title="Could not load today’s LED schedule" description={todayLedRes.error} />;
+  }
+  if (artistLedRes.error && !artistLedRes.missingColumn) {
+    return <ErrorState title="Could not load artist LED configs" description={artistLedRes.error} />;
+  }
+  const ledSettings = settingsRes.error ? null : settingsRes.settings;
   if (adsRes?.error) return <ErrorState title="Could not load ads" description={adsRes.error} />;
   if (playlistsRes.error) return <ErrorState title="Could not load playlists" description={playlistsRes.error} />;
   if (specialsRes.error) return <ErrorState title="Could not load specials" description={specialsRes.error} />;
@@ -141,7 +156,7 @@ export default async function ScreensPage({
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
             <p className="text-muted-foreground">
-              Choose a scene for the LED wall, build vertical playlists, or run automated trivia.
+              Run today’s artist schedule and ad roll on the LED wall, or switch to vertical playlists and trivia.
             </p>
           </div>
           <RefreshWallButton
@@ -155,13 +170,24 @@ export default async function ScreensPage({
         showVertical={canProgram}
         led={
           <>
+            <LedSchedulePanel
+              listings={todayLedRes.listings}
+              artistConfigs={artistLedRes.configs}
+              playlists={ledPlaylistsRes.playlists}
+              defaultPlaylistId={ledSettings?.default_playlist_id ?? null}
+              activeSceneId={activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null)}
+              activePlaylistId={activeLedPlaylistId}
+              missingColumn={todayLedRes.missingColumn || artistLedRes.missingColumn}
+              canConfigure={canConfigure}
+              timeZone={context.venue.timezone}
+            />
             <LedWallPanel
               scenes={scenes}
               activeSceneId={activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null)}
               agent={agentRes.agent}
               canConfigure={canConfigure}
-              mediaObsSceneName={settingsRes?.settings?.media_obs_scene_name ?? ""}
-              tokenIssuedAt={settingsRes?.settings?.agent_token_issued_at ?? null}
+              mediaObsSceneName={ledSettings?.media_obs_scene_name ?? ""}
+              tokenIssuedAt={ledSettings?.agent_token_issued_at ?? null}
               venueId={context.venue.id}
               displayUrl={displayUrl}
               supabaseEnv={supabaseEnv}

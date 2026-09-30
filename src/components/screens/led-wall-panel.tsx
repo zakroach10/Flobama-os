@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
+import { houseLedScenes } from "@/lib/screens/artist-led";
 import { agentStatusCopy, ledSceneDetail } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
@@ -46,7 +47,9 @@ export function LedWallPanel({
   supabaseEnv: PublicSupabaseEnv | null;
   hasTriviaScene?: boolean;
 }) {
-  const visible = canConfigure ? scenes : scenes.filter((scene) => scene.enabled);
+  // Artist logos/loops live on artist profiles — keep this list to house scenes only.
+  const houseScenes = houseLedScenes(scenes);
+  const visible = canConfigure ? houseScenes : houseScenes.filter((scene) => scene.enabled);
   const [setupOpen, setSetupOpen] = useState(false);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,9 +59,10 @@ export function LedWallPanel({
       <section className="space-y-4 rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">LED wall</h2>
+            <h2 className="text-lg font-semibold">House scenes</h2>
             <p className="text-sm text-muted-foreground">
-              Activate a scene to put it on the wall. Trivia shows QR join, the question timer, and live scores.
+              OBS cuts, uploaded house loops, Trivia, and Audience. Artist logos are managed on each artist
+              profile and appear in Today’s schedule above.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -100,7 +104,7 @@ export function LedWallPanel({
                 scene={scene}
                 active={scene.id === activeSceneId}
                 canConfigure={canConfigure}
-                scenes={scenes}
+                scenes={houseScenes}
               />
             ))}
           </ul>

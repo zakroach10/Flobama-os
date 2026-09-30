@@ -84,14 +84,27 @@ async function activateAudienceScene(
     scenes.scenes.find((scene) => scene.enabled && scene.kind === "audience") ??
     scenes.scenes.find((scene) => scene.id === LED_AUDIENCE_SCENE_ID);
   if (!audienceScene) return;
-  await supabase.from("led_wall_runtime").upsert(
+  const { error } = await supabase.from("led_wall_runtime").upsert(
     {
       venue_id: venueId,
       active_scene_id: audienceScene.id,
       active_playlist_id: null,
+      activation_source: "manual",
+      auto_event_id: null,
+      auto_artist_id: null,
     },
     { onConflict: "venue_id" },
   );
+  if (error && /activation_source|auto_event_id|auto_artist_id/i.test(error.message)) {
+    await supabase.from("led_wall_runtime").upsert(
+      {
+        venue_id: venueId,
+        active_scene_id: audienceScene.id,
+        active_playlist_id: null,
+      },
+      { onConflict: "venue_id" },
+    );
+  }
 }
 
 export async function startAudienceSessionAction(input: unknown): Promise<AudienceActionResult> {

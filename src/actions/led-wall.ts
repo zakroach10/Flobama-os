@@ -106,9 +106,22 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
       venue_id: gate.context.venue.id,
       active_scene_id: scene.id,
       active_playlist_id: null,
+      activation_source: "manual",
+      auto_event_id: null,
+      auto_artist_id: null,
     },
     { onConflict: "venue_id" },
   );
+  if (error && /activation_source|auto_event_id|auto_artist_id/i.test(error.message)) {
+    ({ error } = await gate.supabase.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.context.venue.id,
+        active_scene_id: scene.id,
+        active_playlist_id: null,
+      },
+      { onConflict: "venue_id" },
+    ));
+  }
   if (error && /active_playlist_id/i.test(error.message)) {
     ({ error } = await gate.supabase.from("led_wall_runtime").upsert(
       {

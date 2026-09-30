@@ -66,13 +66,27 @@ export async function startTriviaAction(input: unknown): Promise<TriviaActionRes
   const scenes = await listLedWallScenes(gate.supabase, gate.context.venue.id);
   const triviaScene = scenes.scenes.find((scene) => scene.enabled && scene.kind === "trivia");
   if (triviaScene) {
-    await gate.supabase.from("led_wall_runtime").upsert(
+    const { error } = await gate.supabase.from("led_wall_runtime").upsert(
       {
         venue_id: gate.context.venue.id,
         active_scene_id: triviaScene.id,
+        active_playlist_id: null,
+        activation_source: "manual",
+        auto_event_id: null,
+        auto_artist_id: null,
       },
       { onConflict: "venue_id" },
     );
+    if (error && /activation_source|auto_event_id|auto_artist_id/i.test(error.message)) {
+      await gate.supabase.from("led_wall_runtime").upsert(
+        {
+          venue_id: gate.context.venue.id,
+          active_scene_id: triviaScene.id,
+          active_playlist_id: null,
+        },
+        { onConflict: "venue_id" },
+      );
+    }
   }
 
   revalidateTrivia();
