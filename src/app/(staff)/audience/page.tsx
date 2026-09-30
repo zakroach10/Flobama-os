@@ -2,8 +2,14 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { AUDIENCE_SQL_ROLE, AUDIENCE_SQL_TABLES } from "@/lib/constants";
-import { getPublicAppUrl } from "@/lib/env";
+import {
+  AUDIENCE_SETTINGS_SQL,
+  AUDIENCE_SQL_ROLE,
+  AUDIENCE_SQL_TABLES,
+  LED_AUDIENCE_SCENE_SEED_SQL,
+  LED_AUDIENCE_SCENE_SQL,
+} from "@/lib/constants";
+import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { loadAudienceWorkspace } from "@/lib/queries/audience";
 import { AudienceWorkspace } from "@/components/audience/audience-workspace";
 import { ErrorState } from "@/components/states";
@@ -24,7 +30,7 @@ export default async function AudiencePage() {
     return (
       <ErrorState
         title="Audience Interactor needs a database update"
-        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then the LED audience scene SQL files in the Supabase SQL editor.`}
+        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then ${AUDIENCE_SETTINGS_SQL}, then ${LED_AUDIENCE_SCENE_SQL} and ${LED_AUDIENCE_SCENE_SEED_SQL} in the Supabase SQL editor.`}
       />
     );
   }
@@ -37,7 +43,10 @@ export default async function AudiencePage() {
       session={data.session}
       tools={data.tools}
       questions={data.questions}
+      settings={data.settings}
       apiBase={getPublicAppUrl() ?? ""}
+      venueId={context.venue.id}
+      supabaseEnv={getPublicSupabaseEnv()}
     />
   );
 }

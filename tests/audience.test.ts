@@ -60,6 +60,13 @@ describe("audience engine", () => {
     }
   });
 
+  it("does not expose pickem or leaderboard tools", () => {
+    expect(AUDIENCE_TOOL_KINDS).not.toContain("pickem_promo");
+    expect(AUDIENCE_TOOL_KINDS).not.toContain("leaderboard");
+    expect(isAudienceToolKind("pickem_promo")).toBe(false);
+    expect(isAudienceToolKind("leaderboard")).toBe(false);
+  });
+
   it("normalizes names and join codes", () => {
     expect(normalizeAudienceDisplayName("  Zak  ")).toBe("Zak");
     expect(createAudienceJoinCode()).toHaveLength(6);

@@ -5,11 +5,16 @@ import { z } from "zod";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import {
+  AUDIENCE_SETTINGS_SQL,
   AUDIENCE_SQL_ROLE,
   AUDIENCE_SQL_TABLES,
   LED_AUDIENCE_SCENE_ID,
 } from "@/lib/constants";
-import { defaultPayloadForKind, isMissingAudienceRelation } from "@/lib/audience/engine";
+import {
+  defaultPayloadForKind,
+  isMissingAudienceRelation,
+  titleForAudienceTool,
+} from "@/lib/audience/engine";
 import { AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 import {
   clearWallTool,
@@ -39,6 +44,9 @@ function fieldMessage(error: z.ZodError) {
 }
 
 function sqlHint(message: string) {
+  if (/audience_venue_settings/i.test(message)) {
+    return `Apply ${AUDIENCE_SETTINGS_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (isMissingAudienceRelation(message) || /interactor|staff_role/i.test(message)) {
     return `Apply ${AUDIENCE_SQL_ROLE} then ${AUDIENCE_SQL_TABLES} in the Supabase SQL editor, then try again.`;
   }
@@ -137,7 +145,7 @@ export async function createAudienceToolAction(input: unknown): Promise<Audience
     ...defaultPayloadForKind(parsed.data.kind),
     ...(parsed.data.payload ?? {}),
   };
-  const title = parsed.data.title ?? AUDIENCE_TOOL_KINDS_TITLE(parsed.data.kind);
+  const title = parsed.data.title ?? titleForAudienceTool(parsed.data.kind);
   const result = await createAudienceTool(gate.supabase, {
     venueId: gate.context.venue.id,
     sessionId: parsed.data.sessionId,
@@ -151,20 +159,72 @@ export async function createAudienceToolAction(input: unknown): Promise<Audience
   return { ok: true, message: "Tool created.", toolId: result.toolId };
 }
 
-function AUDIENCE_TOOL_KINDS_TITLE(kind: (typeof AUDIENCE_TOOL_KINDS)[number]) {
-  const labels: Record<(typeof AUDIENCE_TOOL_KINDS)[number], string> = {
-    poll: "Audience poll",
-    host_picks: "Austin vs Hunter",
-    questions: "Audience questions",
-    hot_take: "Hot Take Meter",
-    message: "Custom message",
-    matchup: "Matchup card",
-    pickem_promo: "Pick’em promo",
-    leaderboard: "Leaderboard spotlight",
-    sponsor: "Sponsor card",
-    countdown: "Countdown",
-  };
-  return labels[kind];
+export async function saveAudienceBrandLogoAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      storagePath: z.string().trim().min(3).max(400),
+      publicUrl: z.string().url().max(800),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const venueId = gate.context.venue.id;
+  if (!parsed.data.storagePath.startsWith(`${venueId}/audience/`)) {
+    return { ok: false, message: "Logo path is not valid for this venue." };
+  }
+
+  const { data: existing } = await gate.supabase
+    .from("audience_venue_settings" as never)
+    .select("brand_logo_path")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  const previousPath = (existing as { brand_logo_path?: string | null } | null)?.brand_logo_path;
+
+  const { error } = await gate.supabase.from("audience_venue_settings" as never).upsert(
+    {
+      venue_id: venueId,
+      brand_logo_path: parsed.data.storagePath,
+      brand_logo_url: parsed.data.publicUrl,
+    } as never,
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlHint(error.message) };
+
+  if (previousPath && previousPath !== parsed.data.storagePath) {
+    await gate.supabase.storage.from("screen-ads").remove([previousPath]);
+  }
+
+  revalidateAudience();
+  return { ok: true, message: "Podcaster logo saved. It will show on the wall." };
+}
+
+export async function clearAudienceBrandLogoAction(): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const venueId = gate.context.venue.id;
+  const { data: existing } = await gate.supabase
+    .from("audience_venue_settings" as never)
+    .select("brand_logo_path")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  const previousPath = (existing as { brand_logo_path?: string | null } | null)?.brand_logo_path;
+
+  const { error } = await gate.supabase.from("audience_venue_settings" as never).upsert(
+    {
+      venue_id: venueId,
+      brand_logo_path: null,
+      brand_logo_url: null,
+    } as never,
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlHint(error.message) };
+  if (previousPath) {
+    await gate.supabase.storage.from("screen-ads").remove([previousPath]);
+  }
+  revalidateAudience();
+  return { ok: true, message: "Podcaster logo removed." };
 }
 
 export async function putAudienceToolOnWallAction(input: unknown): Promise<AudienceActionResult> {
