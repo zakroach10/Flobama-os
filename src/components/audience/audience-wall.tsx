@@ -69,32 +69,33 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
     <div className="relative flex h-full w-full flex-col bg-[#07090d] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
 
-      {wall.brandLogoUrl ? (
-        <div className="absolute top-6 right-6 z-20 flex size-[7.5rem] items-center justify-center overflow-visible rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={wall.brandLogoUrl}
-            alt=""
-            className="max-h-[6.5rem] max-w-[6.5rem] object-contain"
-          />
-        </div>
-      ) : null}
-
-      <header className="relative z-10 flex items-start justify-between gap-6 px-10 pt-8">
-        <div className={wall.brandLogoUrl ? "pr-36" : undefined}>
+      <header className="relative z-10 flex items-start justify-between gap-8 px-10 pt-8">
+        <div>
           <p className="text-sm font-semibold tracking-[0.28em] text-white/55 uppercase">FloBama Live</p>
           <h1 className="mt-2 text-5xl font-black tracking-tight">{wall.title}</h1>
           <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
         </div>
-        <div className={`rounded-2xl bg-white p-3 text-center text-black ${wall.brandLogoUrl ? "mt-28" : ""}`}>
-          {qr ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qr} alt="" className="size-40" />
-          ) : (
-            <div className="size-40 bg-neutral-200" />
-          )}
-          <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
-          <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
+        <div className="flex shrink-0 flex-col items-end gap-4">
+          {wall.brandLogoUrl ? (
+            <div className="flex size-[7.5rem] items-center justify-center rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={wall.brandLogoUrl}
+                alt=""
+                className="max-h-[6.5rem] max-w-[6.5rem] object-contain"
+              />
+            </div>
+          ) : null}
+          <div className="rounded-2xl bg-white p-3 text-center text-black">
+            {qr ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qr} alt="" className="size-40" />
+            ) : (
+              <div className="size-40 bg-neutral-200" />
+            )}
+            <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
+            <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
+          </div>
         </div>
       </header>
 
