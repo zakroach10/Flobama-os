@@ -1,14 +1,10 @@
-import { redirect } from "next/navigation";
-import { getStaffContext } from "@/lib/auth/staff";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import { requireStaffMenu } from "@/lib/auth/require-menu";
 import { BookingSubnav } from "@/components/booking/booking-subnav";
 
 export const dynamic = "force-dynamic";
 
 export default async function BookingLayout({ children }: { children: React.ReactNode }) {
-  const context = await getStaffContext();
-  if (context.status !== "ok") redirect("/login");
-  if (!canManageProgramming(context.role)) redirect("/dashboard");
+  await requireStaffMenu("booking");
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

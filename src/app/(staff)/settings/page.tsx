@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
 
-  const { members, error } = await listVenueStaff(supabase, context.venue.id);
+  const { members, error, menusReady } = await listVenueStaff(supabase, context.venue.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
@@ -46,6 +46,7 @@ export default async function SettingsPage() {
           currentUserId={context.userId}
           canManage={canManageStaff(context.role)}
           serviceRoleConfigured={isServiceRoleConfigured()}
+          menusReady={menusReady}
         />
       )}
       <WebsiteEmbedCard siteUrl={getPublicAppUrl()} />

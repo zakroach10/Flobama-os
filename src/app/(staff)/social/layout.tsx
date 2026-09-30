@@ -1,14 +1,10 @@
-import { redirect } from "next/navigation";
-import { getStaffContext } from "@/lib/auth/staff";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import { requireStaffMenu } from "@/lib/auth/require-menu";
 import { SocialSubnav } from "@/components/social/social-subnav";
 
 export const dynamic = "force-dynamic";
 
 export default async function SocialLayout({ children }: { children: React.ReactNode }) {
-  const context = await getStaffContext();
-  if (context.status !== "ok") redirect("/login");
-  if (!canManageProgramming(context.role)) redirect("/dashboard");
+  await requireStaffMenu("social");
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

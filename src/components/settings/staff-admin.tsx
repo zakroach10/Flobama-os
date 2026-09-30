@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ROLE_PERMISSIONS, isMasterAdminEmail } from "@/lib/auth/permissions";
+import {
+  STAFF_MENUS,
+  STAFF_MENU_IDS,
+  defaultMenusForRole,
+  sameMenus,
+  type StaffMenuId,
+} from "@/lib/auth/menus";
 import { STAFF_ROLE_LABELS, STAFF_ROLES, type StaffRole } from "@/lib/constants";
 import type { StaffMember } from "@/lib/queries/staff";
 
@@ -47,11 +54,13 @@ export function StaffDirectory({
   currentUserId,
   canManage,
   serviceRoleConfigured,
+  menusReady = true,
 }: {
   members: StaffMember[];
   currentUserId: string;
   canManage: boolean;
   serviceRoleConfigured: boolean;
+  menusReady?: boolean;
 }) {
   return (
     <section className="space-y-4">
@@ -59,10 +68,16 @@ export function StaffDirectory({
         <h2 className="text-lg font-semibold">Staff</h2>
         <p className="text-sm text-muted-foreground">
           {canManage
-            ? "Create logins here. The master admin cannot be removed or demoted by anyone else."
-            : "Only admins can add people or change roles."}
+            ? "Create a login, then turn menus on or off for that person. The role still controls what they can change."
+            : "Only admins can add people or change roles and menus."}
         </p>
       </div>
+      {canManage && !menusReady ? (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Apply <code>supabase/migrations/20260930000029_staff_menus.sql</code> before menu choices can be saved. Until
+          then, each person keeps the menus for their role.
+        </p>
+      ) : null}
       {canManage ? <CreateStaffForm serviceRoleConfigured={serviceRoleConfigured} /> : null}
       {members.length === 0 ? (
         <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">No staff records yet.</p>
@@ -84,6 +99,8 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<StaffRole>("viewer");
   const [password, setPassword] = useState("");
+  const [menus, setMenus] = useState<StaffMenuId[]>(defaultMenusForRole("viewer"));
+  const [menusTouched, setMenusTouched] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   if (!serviceRoleConfigured) {
@@ -102,7 +119,7 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
         event.preventDefault();
         setFieldErrors({});
         startTransition(async () => {
-          const result = await createStaffAction({ email, displayName, role, password });
+          const result = await createStaffAction({ email, displayName, role, password, menus });
           if (!result.ok) {
             setFieldErrors(result.fieldErrors ?? {});
             toast.error(result.message);
@@ -113,6 +130,8 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
           setDisplayName("");
           setPassword("");
           setRole("viewer");
+          setMenus(defaultMenusForRole("viewer"));
+          setMenusTouched(false);
           router.refresh();
         });
       }}
@@ -131,7 +150,11 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
           id="staff-role"
           className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
           value={role}
-          onChange={(e) => setRole(e.target.value as StaffRole)}
+          onChange={(e) => {
+            const next = e.target.value as StaffRole;
+            setRole(next);
+            if (!menusTouched) setMenus(defaultMenusForRole(next));
+          }}
         >
           {STAFF_ROLES.map((value) => (
             <option key={value} value={value}>
@@ -157,6 +180,20 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
         </div>
       </Field>
       <div className="sm:col-span-2">
+        <MenuToggles
+          idPrefix="new-staff"
+          menus={menus}
+          onChange={(next) => {
+            setMenusTouched(true);
+            setMenus(next);
+          }}
+        />
+        {fieldErrors.menus?.[0] ? <p className="mt-2 text-sm text-destructive">{fieldErrors.menus[0]}</p> : null}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Checked menus show in the sidebar. Changing the role fills the usual menus until you edit a checkbox.
+        </p>
+      </div>
+      <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create staff login"}
         </Button>
@@ -177,14 +214,15 @@ function StaffRow({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [role, setRole] = useState<StaffRole>(member.role);
+  const [menus, setMenus] = useState<StaffMenuId[]>(member.menus);
   const isSelf = member.userId === currentUserId;
   const isMaster = isMasterAdminEmail(member.email);
   const locked = isSelf || isMaster;
-  const dirty = role !== member.role;
+  const dirty = role !== member.role || !sameMenus(menus, member.menus);
   const roleOptions = useMemo(() => STAFF_ROLES, []);
 
   return (
-    <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 px-4 py-4">
       <div>
         <p className="font-medium">
           {member.displayName}
@@ -192,6 +230,20 @@ function StaffRow({
           {isMaster ? <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Master admin</span> : null}
         </p>
         <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
+        {canManage ? (
+          <div className="mt-3">
+            <MenuToggles
+              idPrefix={member.userId}
+              menus={locked ? member.menus : menus}
+              disabled={locked || pending}
+              onChange={locked ? undefined : setMenus}
+            />
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {member.menus.map((id) => STAFF_MENUS.find((item) => item.id === id)?.label ?? id).join(", ")}
+          </p>
+        )}
       </div>
       {canManage ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -214,10 +266,11 @@ function StaffRow({
             disabled={locked || pending || !dirty}
             onClick={() => {
               startTransition(async () => {
-                const result = await updateStaffRoleAction({ userId: member.userId, role });
+                const result = await updateStaffRoleAction({ userId: member.userId, role, menus });
                 if (!result.ok) {
                   toast.error(result.message);
                   setRole(member.role);
+                  setMenus(member.menus);
                   return;
                 }
                 toast.success(result.message);
@@ -225,7 +278,7 @@ function StaffRow({
               });
             }}
           >
-            Save
+            Save access
           </Button>
           {isMaster ? (
             <p className="text-xs text-muted-foreground">This login cannot be removed or demoted.</p>
@@ -253,6 +306,53 @@ function StaffRow({
         <p className="text-sm text-muted-foreground">{STAFF_ROLE_LABELS[member.role]}</p>
       )}
     </li>
+  );
+}
+
+function MenuToggles({
+  menus,
+  onChange,
+  disabled,
+  idPrefix,
+}: {
+  menus: StaffMenuId[];
+  onChange?: (menus: StaffMenuId[]) => void;
+  disabled?: boolean;
+  idPrefix: string;
+}) {
+  const selected = new Set(menus);
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">Menus</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {STAFF_MENUS.map((item) => {
+          const checked = selected.has(item.id);
+          return (
+            <label
+              key={item.id}
+              htmlFor={`${idPrefix}-${item.id}`}
+              className="flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm"
+            >
+              <input
+                id={`${idPrefix}-${item.id}`}
+                type="checkbox"
+                className="size-4"
+                checked={checked}
+                disabled={disabled || !onChange}
+                onChange={(event) => {
+                  if (!onChange) return;
+                  const next = event.target.checked
+                    ? STAFF_MENU_IDS.filter((id) => selected.has(id) || id === item.id)
+                    : STAFF_MENU_IDS.filter((id) => selected.has(id) && id !== item.id);
+                  onChange(next);
+                }}
+              />
+              {item.label}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 

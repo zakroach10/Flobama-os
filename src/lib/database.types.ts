@@ -45,6 +45,7 @@ export type Database = {
           venue_id: string;
           user_id: string;
           role: "admin" | "manager" | "interactor" | "viewer";
+          menus: string[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -52,9 +53,11 @@ export type Database = {
           venue_id: string;
           user_id: string;
           role: "admin" | "manager" | "interactor" | "viewer";
+          menus?: string[] | null;
         };
         Update: {
           role?: "admin" | "manager" | "interactor" | "viewer";
+          menus?: string[] | null;
         };
         Relationships: [
           {

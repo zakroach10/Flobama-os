@@ -6,6 +6,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Cannot be removed or demoted by other staff",
     "Create and remove staff",
     "Change staff roles",
+    "Choose which menus each person can open",
     "Rename the venue",
     "Create and edit events and artists",
     "Update events from the master sheet",
@@ -40,6 +41,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "View settings (read-only)",
   ],
   viewer: [
+    "View only the menus an admin turns on",
     "View the calendar, artists, and staff directory",
     "View and activate LED wall scenes",
     "View camera connection status (no PTZ control)",
