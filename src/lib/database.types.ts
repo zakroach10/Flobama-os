@@ -494,6 +494,7 @@ export type Database = {
           media_kind: "image" | "video" | "week_events" | null;
           storage_path: string | null;
           public_url: string | null;
+          artist_id: string | null;
           sort_order: number;
           enabled: boolean;
           created_at: string;
@@ -508,6 +509,7 @@ export type Database = {
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
           public_url?: string | null;
+          artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;
         };
@@ -518,6 +520,7 @@ export type Database = {
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
           public_url?: string | null;
+          artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;
         };
@@ -529,6 +532,13 @@ export type Database = {
             referencedRelation: "venues";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "led_wall_scenes_artist_id_fkey";
+            columns: ["artist_id"];
+            isOneToOne: true;
+            referencedRelation: "artists";
+            referencedColumns: ["id"];
+          },
         ];
       };
       led_wall_settings: {
@@ -536,6 +546,8 @@ export type Database = {
           venue_id: string;
           media_obs_scene_name: string | null;
           agent_token_issued_at: string | null;
+          default_playlist_id: string | null;
+          last_ad_roll_reset_on: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -543,10 +555,14 @@ export type Database = {
           venue_id: string;
           media_obs_scene_name?: string | null;
           agent_token_issued_at?: string | null;
+          default_playlist_id?: string | null;
+          last_ad_roll_reset_on?: string | null;
         };
         Update: {
           media_obs_scene_name?: string | null;
           agent_token_issued_at?: string | null;
+          default_playlist_id?: string | null;
+          last_ad_roll_reset_on?: string | null;
         };
         Relationships: [
           {
@@ -554,6 +570,13 @@ export type Database = {
             columns: ["venue_id"];
             isOneToOne: true;
             referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "led_wall_settings_default_playlist_id_fkey";
+            columns: ["default_playlist_id"];
+            isOneToOne: false;
+            referencedRelation: "led_wall_playlists";
             referencedColumns: ["id"];
           },
         ];
@@ -587,6 +610,9 @@ export type Database = {
           venue_id: string;
           active_scene_id: string | null;
           active_playlist_id: string | null;
+          activation_source: "manual" | "artist_auto" | "ad_roll";
+          auto_event_id: string | null;
+          auto_artist_id: string | null;
           activated_by: string | null;
           activated_at: string | null;
           created_at: string;
@@ -596,12 +622,18 @@ export type Database = {
           venue_id: string;
           active_scene_id?: string | null;
           active_playlist_id?: string | null;
+          activation_source?: "manual" | "artist_auto" | "ad_roll";
+          auto_event_id?: string | null;
+          auto_artist_id?: string | null;
           activated_by?: string | null;
           activated_at?: string | null;
         };
         Update: {
           active_scene_id?: string | null;
           active_playlist_id?: string | null;
+          activation_source?: "manual" | "artist_auto" | "ad_roll";
+          auto_event_id?: string | null;
+          auto_artist_id?: string | null;
           activated_by?: string | null;
           activated_at?: string | null;
         };

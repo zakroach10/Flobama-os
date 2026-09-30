@@ -43,6 +43,10 @@ export function getServiceRoleKey(): string | null {
   return readEnv("SUPABASE_SERVICE_ROLE_KEY") ?? null;
 }
 
+export function getCronSecret(): string | null {
+  return readEnv("CRON_SECRET") ?? null;
+}
+
 export function isServiceRoleConfigured(): boolean {
   return Boolean(getPublicSupabaseEnv() && getServiceRoleKey());
 }

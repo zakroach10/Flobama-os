@@ -144,14 +144,27 @@ export async function activateLedPlaylistAction(input: unknown): Promise<LedPlay
   const { endTriviaSession } = await import("@/lib/trivia/runtime");
   await endTriviaSession(g.supabase, g.context.venue.id);
 
-  const { error } = await g.supabase.from("led_wall_runtime").upsert(
+  let { error } = await g.supabase.from("led_wall_runtime").upsert(
     {
       venue_id: g.context.venue.id,
       active_scene_id: null,
       active_playlist_id: playlist.id,
+      activation_source: "manual",
+      auto_event_id: null,
+      auto_artist_id: null,
     },
     { onConflict: "venue_id" },
   );
+  if (error && /activation_source|auto_event_id|auto_artist_id/i.test(error.message)) {
+    ({ error } = await g.supabase.from("led_wall_runtime").upsert(
+      {
+        venue_id: g.context.venue.id,
+        active_scene_id: null,
+        active_playlist_id: playlist.id,
+      },
+      { onConflict: "venue_id" },
+    ));
+  }
   if (error) return { ok: false, message: sqlMessage(error.message) };
   revalidateLedPlaylists();
   return { ok: true, message: `${playlist.name} is rotating on the LED wall.` };

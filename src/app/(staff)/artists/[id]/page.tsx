@@ -3,8 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getArtistById, listArtistEvents } from "@/lib/queries/artists";
+import { getArtistLedScene } from "@/lib/queries/artist-led";
 import { ArtistForm } from "@/components/artists/artist-form";
+import { ArtistLedPanel } from "@/components/artists/artist-led-panel";
 import { canManageProgramming } from "@/lib/auth/permissions";
+import { getPublicSupabaseEnv } from "@/lib/env";
 import { ErrorState } from "@/components/states";
 import { formatVenueDateTime } from "@/lib/timezone";
 import { StatusBadge } from "@/components/status-badge";
@@ -21,12 +24,10 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
   if (error) return <ErrorState title="Could not load artist" description={error} />;
   if (!artist || artist.venue_id !== context.venue.id) notFound();
 
-  const { upcoming, past, error: eventError } = await listArtistEvents(
-    supabase,
-    context.venue.id,
-    artist.id,
-    new Date().toISOString(),
-  );
+  const [{ upcoming, past, error: eventError }, ledRes] = await Promise.all([
+    listArtistEvents(supabase, context.venue.id, artist.id, new Date().toISOString()),
+    getArtistLedScene(supabase, context.venue.id, artist.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -38,6 +39,15 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.name}</h1>
       {artist.archived_at ? <p className="text-sm text-muted-foreground">This artist is archived.</p> : null}
       <ArtistForm artist={artist} canEdit={canManageProgramming(context.role) && !artist.archived_at} />
+      <ArtistLedPanel
+        artistId={artist.id}
+        artistName={artist.name}
+        scene={ledRes.scene}
+        missingColumn={ledRes.missingColumn}
+        canEdit={canManageProgramming(context.role) && !artist.archived_at}
+        venueId={context.venue.id}
+        supabaseEnv={getPublicSupabaseEnv()}
+      />
 
       {eventError ? (
         <ErrorState title="Could not load linked events" description={eventError} />
