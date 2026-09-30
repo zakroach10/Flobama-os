@@ -137,6 +137,7 @@ function SceneRow({
   const [title, setTitle] = useState(scene.title);
   const detail = ledSceneDetail(scene);
   const isTrivia = scene.kind === "trivia";
+  const isAudience = scene.kind === "audience";
 
   function run(action: () => Promise<{ ok: boolean; message: string }>) {
     startTransition(async () => {
@@ -150,12 +151,21 @@ function SceneRow({
   }
 
   return (
-    <li className={`space-y-3 rounded-lg border p-4 ${isTrivia ? "border-[#d36b4a]/40 bg-[#d36b4a]/5" : ""}`}>
+    <li
+      className={`space-y-3 rounded-lg border p-4 ${
+        isTrivia
+          ? "border-[#d36b4a]/40 bg-[#d36b4a]/5"
+          : isAudience
+            ? "border-amber-500/40 bg-amber-500/5"
+            : ""
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <p className="font-medium">
             {scene.title}
             {isTrivia ? <span className="ml-2 text-xs font-semibold text-[#d36b4a]">Trivia</span> : null}
+            {isAudience ? <span className="ml-2 text-xs font-semibold text-amber-700">Audience</span> : null}
             {!scene.enabled ? <span className="ml-2 text-xs text-muted-foreground">Disabled</span> : null}
             {active ? <span className="ml-2 text-xs text-muted-foreground">Active</span> : null}
           </p>
@@ -166,7 +176,15 @@ function SceneRow({
           disabled={pending || !scene.enabled || active}
           onClick={() => run(() => activateLedWallSceneAction({ sceneId: scene.id }))}
         >
-          {active ? "Active" : pending ? "Starting…" : isTrivia ? "Start trivia" : "Activate"}
+          {active
+            ? "Active"
+            : pending
+              ? "Starting…"
+              : isTrivia
+                ? "Start trivia"
+                : isAudience
+                  ? "Start audience"
+                  : "Activate"}
         </Button>
       </div>
       {canConfigure ? (

@@ -126,6 +126,12 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
       message: `${scene.title} is live — QR join, questions, and the timer are on the LED wall.`,
     };
   }
+  if (scene.kind === "audience") {
+    return {
+      ok: true,
+      message: `${scene.title} is ready — open Audience Interactor to start a live session and put tools on the wall.`,
+    };
+  }
   return { ok: true, message: `${scene.title} is the active LED wall scene.` };
 }
 

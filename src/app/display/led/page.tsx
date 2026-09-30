@@ -8,6 +8,7 @@ import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
 import { buildPublicWallState } from "@/lib/trivia/runtime";
+import { getAudienceWallState } from "@/lib/audience/runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function LedDisplayPage({
     : 1;
 
   let trivia = null;
+  let audience = null;
   const admin = createServiceRoleClient();
   if (admin) {
     const origin = getPublicAppUrl();
@@ -51,6 +53,8 @@ export default async function LedDisplayPage({
       joinPublicUrl(origin, `/play/${code}`),
     );
     trivia = wall.wall;
+    const audienceWall = await getAudienceWallState(admin, FLO_BAMA_VENUE_ID);
+    audience = audienceWall.ok ? audienceWall.wall : null;
   }
 
   return (
@@ -61,6 +65,7 @@ export default async function LedDisplayPage({
       initialRevision={playback.revision}
       initialReloadNonce={reloadNonce}
       initialTrivia={trivia}
+      initialAudience={audience}
     />
   );
 }

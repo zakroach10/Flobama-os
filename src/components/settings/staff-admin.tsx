@@ -26,7 +26,7 @@ export function RolePermissionGuide() {
           Access is venue-scoped. Nobody can grant themselves a higher role. Viewers stay read-only.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {STAFF_ROLES.map((role) => (
           <div key={role} className="rounded-xl border bg-card p-4">
             <p className="font-semibold">{STAFF_ROLE_LABELS[role]}</p>

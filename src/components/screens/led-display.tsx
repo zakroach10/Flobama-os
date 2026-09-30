@@ -9,7 +9,9 @@ import {
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 import type { TriviaWallState } from "@/lib/trivia/types";
+import type { AudienceWallState } from "@/lib/audience/types";
 import { TriviaWall } from "@/components/screens/trivia-wall";
+import { AudienceWall } from "@/components/audience/audience-wall";
 
 type LedApiPayload = {
   active?: PublicLedMedia | null;
@@ -29,6 +31,7 @@ export function LedDisplay({
   initialRevision = initial?.id ?? "idle",
   initialReloadNonce = 1,
   initialTrivia = null,
+  initialAudience = null,
   lockTriviaDemo = false,
 }: {
   initial: PublicLedMedia | null;
@@ -37,6 +40,7 @@ export function LedDisplay({
   initialRevision?: string;
   initialReloadNonce?: number;
   initialTrivia?: TriviaWallState | null;
+  initialAudience?: AudienceWallState | null;
   lockTriviaDemo?: boolean;
 }) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
@@ -45,6 +49,7 @@ export function LedDisplay({
   const [revision, setRevision] = useState(initialRevision);
   const [index, setIndex] = useState(0);
   const [trivia, setTrivia] = useState<TriviaWallState | null>(initialTrivia);
+  const [audience, setAudience] = useState<AudienceWallState | null>(initialAudience);
   const reloadNonceRef = useRef(initialReloadNonce);
   const revisionRef = useRef(initialRevision);
   const modeRef = useRef(initialMode);
@@ -54,13 +59,15 @@ export function LedDisplay({
     let cancelled = false;
     async function refresh() {
       try {
-        const [ledRes, triviaRes] = await Promise.all([
+        const [ledRes, triviaRes, audienceRes] = await Promise.all([
           fetch("/api/public/v1/screens/led", { cache: "no-store" }),
           fetch("/api/public/v1/trivia/wall", { cache: "no-store" }),
+          fetch("/api/public/v1/audience/wall", { cache: "no-store" }),
         ]);
         if (!ledRes.ok) return;
         const ledJson = (await ledRes.json()) as LedApiPayload;
         const triviaJson = (await triviaRes.json()) as { trivia?: TriviaWallState | null };
+        const audienceJson = (await audienceRes.json()) as { wall?: AudienceWallState | null };
         if (cancelled || ledJson.error) return;
 
         if (typeof ledJson.reloadNonce === "number" && ledJson.reloadNonce !== reloadNonceRef.current) {
@@ -70,6 +77,7 @@ export function LedDisplay({
         }
 
         setTrivia(triviaJson.trivia ?? null);
+        setAudience(audienceJson.wall ?? null);
         const nextRevision = ledJson.revision ?? "idle";
         const nextMode = ledJson.mode ?? (ledJson.active ? "scene" : "idle");
         const nextPlaylist = ledJson.playlist ?? [];
@@ -103,7 +111,7 @@ export function LedDisplay({
   }, [lockTriviaDemo]);
 
   useEffect(() => {
-    if (mode !== "playlist" || playlist.length === 0 || trivia) return;
+    if (mode !== "playlist" || playlist.length === 0 || trivia || audience) return;
     const item = playlist[index];
     if (!item) return;
     const holdMs = holdMsForLedPlaylistItem(item);
@@ -112,9 +120,11 @@ export function LedDisplay({
       setIndex((current) => nextLedPlaylistIndex(current, playlist.length));
     }, holdMs);
     return () => window.clearTimeout(timer);
-  }, [mode, playlist, index, trivia]);
+  }, [mode, playlist, index, trivia, audience]);
 
+  // Trivia takes precedence if both somehow live; otherwise show audience wall.
   if (trivia) return <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />;
+  if (audience) return <AudienceWall initial={audience} />;
 
   if (mode === "playlist" && playlist.length > 0) {
     const item = playlist[index] ?? playlist[0];

@@ -5,7 +5,11 @@ import { SetupRequired } from "@/components/states";
 import { ErrorState } from "@/components/states";
 import { AppShell } from "@/components/layout/app-shell";
 import { STAFF_ROLE_LABELS } from "@/lib/constants";
-import { canManageProgramming } from "@/lib/auth/permissions";
+import {
+  canManageProgramming,
+  canRunAudienceInteractor,
+  isInteractorOnly,
+} from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +36,19 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     );
   }
 
+  const interactorNav = isInteractorOnly(context.role);
+
   return (
     <AppShell
       venueName={context.venue.name}
       roleLabel={STAFF_ROLE_LABELS[context.role]}
       userLabel={context.profile?.display_name || context.email || "Staff"}
       showScreens
-      showCameras
+      showCameras={!interactorNav}
       showBooking={canManageProgramming(context.role)}
       showSocial={canManageProgramming(context.role)}
+      showAudience={canRunAudienceInteractor(context.role)}
+      interactorNav={interactorNav}
     >
       {children}
     </AppShell>

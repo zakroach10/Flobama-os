@@ -170,8 +170,11 @@ export async function addLedPlaylistItemAction(input: unknown): Promise<LedPlayl
     .eq("venue_id", g.context.venue.id)
     .maybeSingle();
   if (!scene || !scene.enabled) return { ok: false, message: "That scene is not available." };
-  if (scene.kind === "trivia") {
-    return { ok: false, message: "Trivia stays a one-shot activation — it cannot join a playlist." };
+  if (scene.kind === "trivia" || scene.kind === "audience") {
+    return {
+      ok: false,
+      message: "Trivia and Audience Interactor are one-shot activations — they cannot join a playlist.",
+    };
   }
 
   const sortOrder = await nextItemSortOrder(g.supabase, parsed.data.playlistId, g.context.venue.id);

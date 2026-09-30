@@ -44,7 +44,9 @@ export function LedPlaylistsPanel({
   const [sceneId, setSceneId] = useState("");
   const [duration, setDuration] = useState(String(LED_PLAYLIST_DEFAULT_SECONDS));
   const selected = playlists.find((playlist) => playlist.id === selectedPlaylistId) ?? null;
-  const addableScenes = scenes.filter((scene) => scene.enabled && scene.kind !== "trivia");
+  const addableScenes = scenes.filter(
+    (scene) => scene.enabled && scene.kind !== "trivia" && scene.kind !== "audience",
+  );
 
   if (missingTable) {
     return (

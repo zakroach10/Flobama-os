@@ -44,17 +44,17 @@ export type Database = {
         Row: {
           venue_id: string;
           user_id: string;
-          role: "admin" | "manager" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer";
           created_at: string;
           updated_at: string;
         };
         Insert: {
           venue_id: string;
           user_id: string;
-          role: "admin" | "manager" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer";
         };
         Update: {
-          role?: "admin" | "manager" | "viewer";
+          role?: "admin" | "manager" | "interactor" | "viewer";
         };
         Relationships: [
           {
@@ -489,7 +489,7 @@ export type Database = {
           id: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media" | "trivia";
+          kind: "obs" | "media" | "trivia" | "audience";
           obs_scene_name: string | null;
           media_kind: "image" | "video" | "week_events" | null;
           storage_path: string | null;
@@ -503,7 +503,7 @@ export type Database = {
           id?: string;
           venue_id: string;
           title: string;
-          kind: "obs" | "media" | "trivia";
+          kind: "obs" | "media" | "trivia" | "audience";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -513,7 +513,7 @@ export type Database = {
         };
         Update: {
           title?: string;
-          kind?: "obs" | "media" | "trivia";
+          kind?: "obs" | "media" | "trivia" | "audience";
           obs_scene_name?: string | null;
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
@@ -845,7 +845,7 @@ export type Database = {
           duration_seconds: number;
           sort_order: number;
           title: string;
-          kind: "obs" | "media" | "trivia";
+          kind: "obs" | "media" | "trivia" | "audience";
           media_kind: "image" | "video" | "week_events" | null;
           public_url: string | null;
           obs_scene_name: string | null;
@@ -1281,21 +1281,21 @@ export type Database = {
       };
       current_membership_role: {
         Args: { p_venue_id: string };
-        Returns: "admin" | "manager" | "viewer";
+        Returns: "admin" | "manager" | "interactor" | "viewer";
       };
       is_venue_member: {
         Args: { p_venue_id: string };
         Returns: boolean;
       };
       has_venue_role: {
-        Args: { p_venue_id: string; p_roles: ("admin" | "manager" | "viewer")[] };
+        Args: { p_venue_id: string; p_roles: ("admin" | "manager" | "interactor" | "viewer")[] };
         Returns: boolean;
       };
       list_venue_staff: {
         Args: { p_venue_id: string };
         Returns: {
           user_id: string;
-          role: "admin" | "manager" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer";
           display_name: string;
           email: string | null;
           created_at: string;
@@ -1303,14 +1303,14 @@ export type Database = {
       };
     };
     Enums: {
-      staff_role: "admin" | "manager" | "viewer";
+      staff_role: "admin" | "manager" | "interactor" | "viewer";
       event_status: "draft" | "published" | "cancelled";
       event_visibility: "public" | "private";
       event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
       screen_wall_mode: "auto" | "manual";
       screen_media_kind: "image" | "video" | "week_events";
       screen_transition: "cut" | "fade" | "slide";
-      led_wall_scene_kind: "obs" | "media" | "trivia";
+      led_wall_scene_kind: "obs" | "media" | "trivia" | "audience";
       camera_protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";
       camera_command_kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
       camera_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";

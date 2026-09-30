@@ -4,7 +4,7 @@ export const MASTER_ADMIN_EMAIL = "zak@view360.marketing";
 export const EVENT_PAGE_SIZE = 20;
 export const ARTIST_PAGE_SIZE = 20;
 
-export const STAFF_ROLES = ["admin", "manager", "viewer"] as const;
+export const STAFF_ROLES = ["admin", "manager", "interactor", "viewer"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const EVENT_STATUSES = ["draft", "published", "cancelled"] as const;
@@ -69,6 +69,13 @@ export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
 export const LED_TRIVIA_SCENE_SQL = "supabase/migrations/20260929000013_led_trivia_scene.sql";
 export const LED_TRIVIA_SCENE_SEED_SQL = "supabase/migrations/20260929000015_led_trivia_scene_seed.sql";
 export const LED_TRIVIA_SCENE_ID = "33333333-3333-4333-8333-333333333333";
+export const LED_AUDIENCE_SCENE_ID = "44444444-4444-4444-8444-444444444444";
+export const LED_AUDIENCE_SCENE_SQL = "supabase/migrations/20260930000025_led_audience_scene.sql";
+export const LED_AUDIENCE_SCENE_SEED_SQL = "supabase/migrations/20260930000026_led_audience_scene_seed.sql";
+export const AUDIENCE_SQL_ROLE = "supabase/migrations/20260930000023_audience_interactor_role.sql";
+export const AUDIENCE_SQL_TABLES = "supabase/migrations/20260930000024_audience_interactor_tables.sql";
+export const AUDIENCE_GUEST_COOKIE = "flobama_audience_guest";
+export const AUDIENCE_POLL_MS = 1000;
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
 export const LED_OBS_DMG_HREF = `/downloads/${LED_OBS_DMG_FILENAME}`;
@@ -106,6 +113,7 @@ export const SPECIAL_DEFAULT_SECONDS = 12;
 export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",
   manager: "Manager",
+  interactor: "Audience Interactor",
   viewer: "Viewer",
 };
 

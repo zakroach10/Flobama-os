@@ -9,6 +9,7 @@ import {
   LayoutDashboardIcon,
   MenuIcon,
   MonitorPlayIcon,
+  RadioIcon,
   SettingsIcon,
   Share2Icon,
   TicketIcon,
@@ -43,6 +44,8 @@ function NavLinks({
   showCameras,
   showBooking,
   showSocial,
+  showAudience,
+  interactorNav,
 }: {
   onNavigate?: () => void;
   className?: string;
@@ -50,9 +53,19 @@ function NavLinks({
   showCameras?: boolean;
   showBooking?: boolean;
   showSocial?: boolean;
+  showAudience?: boolean;
+  interactorNav?: boolean;
 }) {
   const pathname = usePathname();
-  const items = [...NAV];
+  const items = interactorNav
+    ? [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
+        { href: "/audience", label: "Audience", icon: RadioIcon },
+        ...(showScreens ? [{ href: "/screens", label: "Screens", icon: MonitorPlayIcon }] : []),
+        { href: "/settings", label: "Settings", icon: SettingsIcon },
+      ]
+    : [...NAV];
+  if (!interactorNav) {
   let insertAt = 2;
   if (showBooking) {
     items.splice(insertAt, 0, { href: "/booking", label: "Booking", icon: ClipboardListIcon });
@@ -62,12 +75,17 @@ function NavLinks({
     items.splice(insertAt, 0, { href: "/social", label: "Social", icon: Share2Icon });
     insertAt += 1;
   }
+  if (showAudience) {
+    items.splice(insertAt, 0, { href: "/audience", label: "Audience", icon: RadioIcon });
+    insertAt += 1;
+  }
   if (showScreens) {
     items.splice(insertAt, 0, { href: "/screens", label: "Screens", icon: MonitorPlayIcon });
     insertAt += 1;
   }
   if (showCameras) {
     items.splice(insertAt, 0, { href: "/cameras", label: "Cameras", icon: VideoIcon });
+  }
   }
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="Staff">
@@ -128,6 +146,7 @@ function mobileSection(pathname: string) {
   if (pathname.startsWith("/settings")) return "Settings";
   if (pathname.startsWith("/screens")) return "Screens";
   if (pathname.startsWith("/cameras")) return "Cameras";
+  if (pathname.startsWith("/audience")) return "Audience";
   if (pathname.startsWith("/dashboard")) return "Dashboard";
   return "Staff OS";
 }
@@ -141,6 +160,8 @@ export function AppShell({
   showCameras = false,
   showBooking = false,
   showSocial = false,
+  showAudience = false,
+  interactorNav = false,
 }: {
   children: React.ReactNode;
   venueName: string;
@@ -150,6 +171,8 @@ export function AppShell({
   showCameras?: boolean;
   showBooking?: boolean;
   showSocial?: boolean;
+  showAudience?: boolean;
+  interactorNav?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -164,6 +187,8 @@ export function AppShell({
             showCameras={showCameras}
             showBooking={showBooking}
             showSocial={showSocial}
+            showAudience={showAudience}
+            interactorNav={interactorNav}
           />
         </div>
         <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
@@ -194,6 +219,8 @@ export function AppShell({
                   showCameras={showCameras}
                   showBooking={showBooking}
                   showSocial={showSocial}
+                  showAudience={showAudience}
+                  interactorNav={interactorNav}
                   onNavigate={() => setOpen(false)}
                 />
               </div>

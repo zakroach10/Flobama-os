@@ -15,6 +15,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Operate remote cameras and live previews",
     "Manage vertical ads",
     "Start and end Shoals trivia; upload question spreadsheets",
+    "Run Live Audience Interactor tools on the wall",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the calendar and settings",
   ],
@@ -26,9 +27,17 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Operate remote cameras and live previews",
     "Manage vertical ads",
     "Start and end Shoals trivia; upload question spreadsheets",
+    "Run Live Audience Interactor tools on the wall",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
     "View the staff directory",
     "View the calendar and settings",
+  ],
+  interactor: [
+    "Run Live Audience Interactor tools on the LED wall",
+    "Start audience sessions, polls, Q&A, hot takes, messages, and cards",
+    "Activate the Audience Interactor LED scene",
+    "View Screens and the dashboard",
+    "View settings (read-only)",
   ],
   viewer: [
     "View the calendar, artists, and staff directory",
@@ -68,6 +77,14 @@ export function canManageStaff(role: StaffRole): boolean {
   return role === "admin";
 }
 
+export function canRunAudienceInteractor(role: StaffRole): boolean {
+  return role === "admin" || role === "manager" || role === "interactor";
+}
+
+export function isInteractorOnly(role: StaffRole): boolean {
+  return role === "interactor";
+}
+
 export function isReadOnly(role: StaffRole): boolean {
   return role === "viewer";
 }
@@ -85,7 +102,19 @@ export function authorizeLedWallActivate(role: StaffRole | null): AuthzDecision 
   return requireRole(role);
 }
 
+export function authorizeAudienceRun(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canRunAudienceInteractor(role!)) {
+    return { allowed: false, reason: "Your role cannot run Audience Interactor tools." };
+  }
+  return { allowed: true };
+}
+
 export function authorizeTriviaRun(role: StaffRole | null): AuthzDecision {
+  if (role === "interactor") {
+    return { allowed: false, reason: "Audience Interactors run the Audience console, not Shoals trivia." };
+  }
   return requireRole(role);
 }
 
