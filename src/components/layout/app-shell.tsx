@@ -17,82 +17,46 @@ import {
   UtensilsCrossedIcon,
   VideoIcon,
 } from "lucide-react";
+import { signOutAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { STAFF_MENUS, type StaffMenuId } from "@/lib/auth/menus";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
-  { href: "/programming", label: "Programming", icon: CalendarDaysIcon },
-  { href: "/ticketing", label: "Ticketing", icon: TicketIcon },
-  {
-    href: "https://client.restaurantpos.spoton.com/b/",
-    label: "Spot on BOH",
-    icon: UtensilsCrossedIcon,
-    external: true,
-  },
-  { href: "/artists", label: "Artists", icon: UsersIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
-];
+const MENU_ICONS = {
+  dashboard: LayoutDashboardIcon,
+  programming: CalendarDaysIcon,
+  booking: ClipboardListIcon,
+  social: Share2Icon,
+  audience: RadioIcon,
+  screens: MonitorPlayIcon,
+  cameras: VideoIcon,
+  ticketing: TicketIcon,
+  spoton: UtensilsCrossedIcon,
+  artists: UsersIcon,
+  settings: SettingsIcon,
+} as const;
 
 function NavLinks({
   onNavigate,
   className,
-  showScreens,
-  showCameras,
-  showBooking,
-  showSocial,
-  showAudience,
-  interactorNav,
+  menus,
 }: {
   onNavigate?: () => void;
   className?: string;
-  showScreens?: boolean;
-  showCameras?: boolean;
-  showBooking?: boolean;
-  showSocial?: boolean;
-  showAudience?: boolean;
-  interactorNav?: boolean;
+  menus: readonly StaffMenuId[];
 }) {
   const pathname = usePathname();
-  const items = interactorNav
-    ? [
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
-        { href: "/audience", label: "Audience", icon: RadioIcon },
-        ...(showScreens ? [{ href: "/screens", label: "Screens", icon: MonitorPlayIcon }] : []),
-        { href: "/settings", label: "Settings", icon: SettingsIcon },
-      ]
-    : [...NAV];
-  if (!interactorNav) {
-  let insertAt = 2;
-  if (showBooking) {
-    items.splice(insertAt, 0, { href: "/booking", label: "Booking", icon: ClipboardListIcon });
-    insertAt += 1;
-  }
-  if (showSocial) {
-    items.splice(insertAt, 0, { href: "/social", label: "Social", icon: Share2Icon });
-    insertAt += 1;
-  }
-  if (showAudience) {
-    items.splice(insertAt, 0, { href: "/audience", label: "Audience", icon: RadioIcon });
-    insertAt += 1;
-  }
-  if (showScreens) {
-    items.splice(insertAt, 0, { href: "/screens", label: "Screens", icon: MonitorPlayIcon });
-    insertAt += 1;
-  }
-  if (showCameras) {
-    items.splice(insertAt, 0, { href: "/cameras", label: "Cameras", icon: VideoIcon });
-  }
-  }
+  const enabled = new Set(menus);
+  const items = STAFF_MENUS.filter((item) => enabled.has(item.id));
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="Staff">
       {items.map((item) => {
-        const external = "external" in item && item.external;
+        const external = Boolean(item.external);
         const active = !external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
-        const Icon = item.icon;
+        const Icon = MENU_ICONS[item.id];
         const className = cn(
           "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
           active
@@ -126,10 +90,10 @@ function NavLinks({
   );
 }
 
-function Brand() {
+function Brand({ homeHref }: { homeHref: string }) {
   return (
     <div className="px-3 py-4">
-      <Link href="/dashboard" className="block rounded-md focus-visible:outline-2">
+      <Link href={homeHref} className="block rounded-md focus-visible:outline-2">
         <FlobamaLogo className="w-[168px]" />
         <p className="mt-2 text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/70 uppercase">Staff OS</p>
       </Link>
@@ -138,17 +102,43 @@ function Brand() {
 }
 
 function mobileSection(pathname: string) {
-  if (pathname.startsWith("/programming")) return "Programming";
+  if (pathname.startsWith("/programming") || pathname.startsWith("/events")) return "Programming";
   if (pathname.startsWith("/booking")) return "Booking";
   if (pathname.startsWith("/social")) return "Social";
+  if (pathname.startsWith("/audience")) return "Audience";
   if (pathname.startsWith("/ticketing")) return "Ticketing";
   if (pathname.startsWith("/artists")) return "Artists";
   if (pathname.startsWith("/settings")) return "Settings";
   if (pathname.startsWith("/screens")) return "Screens";
   if (pathname.startsWith("/cameras")) return "Cameras";
-  if (pathname.startsWith("/audience")) return "Audience";
   if (pathname.startsWith("/dashboard")) return "Dashboard";
   return "Staff OS";
+}
+
+function AccountFooter({
+  venueName,
+  roleLabel,
+  userLabel,
+}: {
+  venueName: string;
+  roleLabel: string;
+  userLabel: string;
+}) {
+  return (
+    <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
+      <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
+      <p className="mt-1 truncate">{userLabel}</p>
+      <p className="truncate">{roleLabel}</p>
+      <form action={signOutAction} className="mt-3">
+        <button
+          type="submit"
+          className="flex min-h-11 w-full items-center justify-center rounded-lg border border-sidebar-border px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
+        >
+          Log out
+        </button>
+      </form>
+    </div>
+  );
 }
 
 export function AppShell({
@@ -156,23 +146,15 @@ export function AppShell({
   venueName,
   roleLabel,
   userLabel,
-  showScreens = false,
-  showCameras = false,
-  showBooking = false,
-  showSocial = false,
-  showAudience = false,
-  interactorNav = false,
+  menus,
+  homeHref,
 }: {
   children: React.ReactNode;
   venueName: string;
   roleLabel: string;
   userLabel: string;
-  showScreens?: boolean;
-  showCameras?: boolean;
-  showBooking?: boolean;
-  showSocial?: boolean;
-  showAudience?: boolean;
-  interactorNav?: boolean;
+  menus: readonly StaffMenuId[];
+  homeHref: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -180,22 +162,11 @@ export function AppShell({
   return (
     <div className="flex min-h-full bg-background">
       <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
-        <Brand />
+        <Brand homeHref={homeHref} />
         <div className="flex-1 px-2">
-          <NavLinks
-            showScreens={showScreens}
-            showCameras={showCameras}
-            showBooking={showBooking}
-            showSocial={showSocial}
-            showAudience={showAudience}
-            interactorNav={interactorNav}
-          />
+          <NavLinks menus={menus} />
         </div>
-        <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
-          <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
-          <p className="mt-1 truncate">{userLabel}</p>
-          <p className="truncate">{roleLabel}</p>
-        </div>
+        <AccountFooter venueName={venueName} roleLabel={roleLabel} userLabel={userLabel} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -214,21 +185,9 @@ export function AppShell({
                 <FlobamaLogo className="mx-auto w-[180px] max-w-[70%]" />
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-2 pb-6">
-                <NavLinks
-                  showScreens={showScreens}
-                  showCameras={showCameras}
-                  showBooking={showBooking}
-                  showSocial={showSocial}
-                  showAudience={showAudience}
-                  interactorNav={interactorNav}
-                  onNavigate={() => setOpen(false)}
-                />
+                <NavLinks menus={menus} onNavigate={() => setOpen(false)} />
               </div>
-              <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
-                <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
-                <p className="mt-1 truncate">{userLabel}</p>
-                <p className="truncate">{roleLabel}</p>
-              </div>
+              <AccountFooter venueName={venueName} roleLabel={roleLabel} userLabel={userLabel} />
             </SheetContent>
           </Sheet>
           <div className="min-w-0 flex-1">

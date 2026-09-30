@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   authorizeMembershipChange,
@@ -7,6 +8,16 @@ import {
   isMasterAdminEmail,
   ROLE_PERMISSIONS,
 } from "@/lib/auth/permissions";
+import {
+  STAFF_MENU_IDS,
+  STAFF_MENUS_SQL,
+  authorizeMenuSelection,
+  defaultMenusForRole,
+  firstMenuHref,
+  menuForPath,
+  resolveMenus,
+  sameMenus,
+} from "@/lib/auth/menus";
 import { createStaffSchema } from "@/lib/validation/schemas";
 
 describe("staff admin permissions", () => {
@@ -117,7 +128,47 @@ describe("create staff validation", () => {
       displayName: "Door lead",
       role: "manager",
       password: "correct-horse",
+      menus: ["dashboard", "programming"],
     });
     expect(good.success).toBe(true);
+  });
+});
+
+describe("staff menu access", () => {
+  it("starts viewers without booking/social/audience, interactors with the live tools set", () => {
+    expect(defaultMenusForRole("viewer")).not.toContain("booking");
+    expect(defaultMenusForRole("viewer")).not.toContain("social");
+    expect(defaultMenusForRole("viewer")).not.toContain("audience");
+    expect(defaultMenusForRole("viewer")).toContain("screens");
+    expect(defaultMenusForRole("interactor")).toEqual(["dashboard", "audience", "screens", "settings"]);
+    expect(defaultMenusForRole("admin")).toEqual([...STAFF_MENU_IDS]);
+    expect(defaultMenusForRole("manager")).toEqual([...STAFF_MENU_IDS]);
+  });
+
+  it("keeps a saved list, including an empty one, and falls back only when nothing is saved", () => {
+    expect(resolveMenus(null, "viewer")).toEqual(defaultMenusForRole("viewer"));
+    expect(resolveMenus(undefined, "admin")).toEqual(defaultMenusForRole("admin"));
+    expect(resolveMenus([], "admin")).toEqual([]);
+    expect(resolveMenus(["settings", "nope", "programming"], "viewer")).toEqual(["programming", "settings"]);
+  });
+
+  it("sends a disabled menu to the first menu that is still on", () => {
+    expect(menuForPath("/programming/123/tables")).toBe("programming");
+    expect(menuForPath("/admin/ticketing/check-in/1")).toBe("ticketing");
+    expect(menuForPath("/booth")).toBeNull();
+    expect(firstMenuHref(["spoton", "settings"])).toBe("/settings");
+    expect(firstMenuHref([])).toBeNull();
+    expect(sameMenus(["settings", "programming"], ["programming", "settings"])).toBe(true);
+  });
+
+  it("keeps every menu on for the master admin", () => {
+    expect(authorizeMenuSelection("zak@view360.marketing", ["dashboard"]).allowed).toBe(false);
+    expect(authorizeMenuSelection("zak@view360.marketing", defaultMenusForRole("admin")).allowed).toBe(true);
+    expect(authorizeMenuSelection("door@flobama.example", ["programming"]).allowed).toBe(true);
+  });
+
+  it("stores the same menu ids the database accepts", () => {
+    const sql = readFileSync(STAFF_MENUS_SQL, "utf8");
+    for (const id of STAFF_MENU_IDS) expect(sql).toContain(`'${id}'`);
   });
 });

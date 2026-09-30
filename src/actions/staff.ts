@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeMembershipChange, authorizeStaffAdmin } from "@/lib/auth/permissions";
+import { authorizeMenuSelection, normalizeMenuList, staffMenusSqlMessage } from "@/lib/auth/menus";
 import { createStaffSchema, removeStaffSchema, updateStaffRoleSchema } from "@/lib/validation/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, findAuthUserIdByEmail } from "@/lib/supabase/admin";
@@ -68,6 +69,10 @@ export async function createStaffAction(input: unknown): Promise<StaffActionResu
     return { ok: false, message: "That person already has access to this venue." };
   }
 
+  const menus = normalizeMenuList(parsed.data.menus);
+  const menuDecision = authorizeMenuSelection(email, menus);
+  if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
+
   let userId: string | null = null;
   let existingUser = false;
   const created = await admin.auth.admin.createUser({
@@ -103,8 +108,9 @@ export async function createStaffAction(input: unknown): Promise<StaffActionResu
     venue_id: gate.context.venue.id,
     user_id: userId,
     role: parsed.data.role,
+    menus,
   });
-  if (membershipError) return { ok: false, message: membershipError.message };
+  if (membershipError) return { ok: false, message: staffMenusSqlMessage(membershipError.message) };
 
   revalidateStaff();
   return {
@@ -141,15 +147,19 @@ export async function updateStaffRoleAction(input: unknown): Promise<StaffAction
   });
   if (!decision.allowed) return { ok: false, message: decision.reason };
 
+  const menus = normalizeMenuList(parsed.data.menus);
+  const menuDecision = authorizeMenuSelection(target.email, menus);
+  if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
+
   const { error: updateError } = await gate.supabase
     .from("venue_memberships")
-    .update({ role: parsed.data.role as StaffRole })
+    .update({ role: parsed.data.role as StaffRole, menus })
     .eq("venue_id", gate.context.venue.id)
     .eq("user_id", parsed.data.userId);
-  if (updateError) return { ok: false, message: updateError.message };
+  if (updateError) return { ok: false, message: staffMenusSqlMessage(updateError.message) };
 
   revalidateStaff();
-  return { ok: true, message: "Role updated." };
+  return { ok: true, message: "Access updated." };
 }
 
 export async function removeStaffAction(input: unknown): Promise<StaffActionResult> {
