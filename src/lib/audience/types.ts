@@ -5,8 +5,6 @@ export const AUDIENCE_TOOL_KINDS = [
   "hot_take",
   "message",
   "matchup",
-  "pickem_promo",
-  "leaderboard",
   "sponsor",
   "countdown",
 ] as const;
@@ -39,6 +37,7 @@ export type AudienceWallState = {
   joinCode: string;
   joinPath: string;
   guestCount: number;
+  brandLogoUrl: string | null;
   tool: AudienceWallTool | null;
   lobbyMessage: string;
 };
@@ -55,14 +54,23 @@ export type AudienceGuestState = {
 };
 
 export const AUDIENCE_TOOL_LABELS: Record<AudienceToolKind, string> = {
-  poll: "Live audience poll",
+  poll: "Audience poll",
   host_picks: "Austin vs Hunter picks",
   questions: "Audience questions",
   hot_take: "Hot Take Meter",
   message: "Custom message",
   matchup: "Matchup card",
-  pickem_promo: "Pick’em promotion",
-  leaderboard: "Leaderboard spotlight",
   sponsor: "Sponsor card",
   countdown: "Countdown / break",
+};
+
+export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
+  poll: "Ask a question. Guests vote. Hide results until you reveal them.",
+  host_picks: "Show each host’s pick, then the audience choice.",
+  questions: "Guests submit questions. You approve one onto the wall.",
+  hot_take: "Put a statement up and let the room vote Agree or Terrible Take.",
+  message: "Instant announcement on the wall.",
+  matchup: "Team names, kickoff, and a discussion prompt.",
+  sponsor: "Bring up a sponsor name and blurb.",
+  countdown: "Pre-show timer or “we’ll be right back” break.",
 };

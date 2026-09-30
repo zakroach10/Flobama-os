@@ -91,23 +91,6 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
         logoA: "",
         logoB: "",
       };
-    case "pickem_promo":
-      return {
-        title: "FloBama Pick’em",
-        qrUrl: "https://flobama.com",
-        deadline: "Lock Sunday 11:00 AM CT",
-        prize: "Winner takes the weekly prize",
-      };
-    case "leaderboard":
-      return {
-        title: "Pick’em leaders",
-        entries: [
-          { name: "Player 1", points: 12 },
-          { name: "Player 2", points: 10 },
-          { name: "Player 3", points: 9 },
-        ],
-        spotlightIndex: 0,
-      };
     case "sponsor":
       return {
         name: "Sponsor",
@@ -124,4 +107,18 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
     default:
       return {};
   }
+}
+
+export function titleForAudienceTool(kind: AudienceToolKind): string {
+  const labels: Record<AudienceToolKind, string> = {
+    poll: "Audience poll",
+    host_picks: "Austin vs Hunter",
+    questions: "Audience questions",
+    hot_take: "Hot Take Meter",
+    message: "Custom message",
+    matchup: "Matchup card",
+    sponsor: "Sponsor card",
+    countdown: "Countdown",
+  };
+  return labels[kind];
 }

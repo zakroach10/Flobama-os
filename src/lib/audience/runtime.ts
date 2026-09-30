@@ -103,6 +103,16 @@ async function guestCount(client: AnyClient, sessionId: string) {
   return count ?? 0;
 }
 
+export async function loadAudienceBrandLogo(client: AnyClient, venueId: string) {
+  const { data } = await client
+    .from("audience_venue_settings" as never)
+    .select("brand_logo_url")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  const url = (data as { brand_logo_url?: string | null } | null)?.brand_logo_url;
+  return url?.trim() || null;
+}
+
 function toWallTool(
   tool: ToolRow,
   votingOpen: boolean,
@@ -151,6 +161,7 @@ export async function getAudienceWallState(
       joinCode: session.join_code,
       joinPath: `/live/${session.join_code}`,
       guestCount: await guestCount(client, session.id),
+      brandLogoUrl: await loadAudienceBrandLogo(client, venueId),
       tool: wallTool,
       lobbyMessage: wallTool
         ? "Live on the wall — scan to join"

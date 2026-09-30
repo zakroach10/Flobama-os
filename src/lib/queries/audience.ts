@@ -33,21 +33,37 @@ export type StaffAudienceQuestion = {
   createdAt: string;
 };
 
+export type StaffAudienceSettings = {
+  brandLogoUrl: string | null;
+};
+
 export async function loadAudienceWorkspace(client: Client, venueId: string) {
-  const sessionRes = await client
-    .from("audience_sessions" as never)
-    .select("id, title, join_code, status, active_tool_id, voting_open, results_revealed, started_at")
-    .eq("venue_id", venueId)
-    .eq("status", "live")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [sessionRes, settingsRes] = await Promise.all([
+    client
+      .from("audience_sessions" as never)
+      .select("id, title, join_code, status, active_tool_id, voting_open, results_revealed, started_at")
+      .eq("venue_id", venueId)
+      .eq("status", "live")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    client
+      .from("audience_venue_settings" as never)
+      .select("brand_logo_url")
+      .eq("venue_id", venueId)
+      .maybeSingle(),
+  ]);
+
+  const settings: StaffAudienceSettings = {
+    brandLogoUrl: (settingsRes.data as { brand_logo_url?: string | null } | null)?.brand_logo_url?.trim() || null,
+  };
 
   if (sessionRes.error) {
     return {
       session: null as StaffAudienceSession | null,
       tools: [] as StaffAudienceTool[],
       questions: [] as StaffAudienceQuestion[],
+      settings,
       missingTable: isMissingAudienceRelation(sessionRes.error.message),
       error: sessionRes.error.message,
     };
@@ -65,7 +81,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
   } | null;
 
   if (!row) {
-    return { session: null, tools: [], questions: [], missingTable: false, error: null };
+    return { session: null, tools: [], questions: [], settings, missingTable: false, error: null };
   }
 
   const [toolsRes, questionsRes, guestsRes] = await Promise.all([
@@ -129,8 +145,13 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       guestCount: guestsRes.count ?? 0,
       startedAt: row.started_at,
     } satisfies StaffAudienceSession,
-    tools,
+    tools: tools.filter((tool) =>
+      ["poll", "host_picks", "questions", "hot_take", "message", "matchup", "sponsor", "countdown"].includes(
+        tool.kind,
+      ),
+    ),
     questions,
+    settings,
     missingTable: false,
     error: toolsRes.error?.message ?? questionsRes.error?.message ?? null,
   };

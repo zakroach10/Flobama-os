@@ -68,13 +68,25 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
   return (
     <div className="relative flex h-full w-full flex-col bg-[#07090d] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
+
+      {wall.brandLogoUrl ? (
+        <div className="absolute top-6 right-6 z-20 flex size-[7.5rem] items-center justify-center overflow-visible rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={wall.brandLogoUrl}
+            alt=""
+            className="max-h-[6.5rem] max-w-[6.5rem] object-contain"
+          />
+        </div>
+      ) : null}
+
       <header className="relative z-10 flex items-start justify-between gap-6 px-10 pt-8">
-        <div>
+        <div className={wall.brandLogoUrl ? "pr-36" : undefined}>
           <p className="text-sm font-semibold tracking-[0.28em] text-white/55 uppercase">FloBama Live</p>
           <h1 className="mt-2 text-5xl font-black tracking-tight">{wall.title}</h1>
           <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
         </div>
-        <div className="rounded-2xl bg-white p-3 text-center text-black">
+        <div className={`rounded-2xl bg-white p-3 text-center text-black ${wall.brandLogoUrl ? "mt-28" : ""}`}>
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qr} alt="" className="size-40" />
@@ -113,15 +125,6 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
             </div>
             <TeamSide name={String(tool.payload.teamB ?? "Team B")} logo={String(tool.payload.logoB ?? "")} />
           </div>
-        ) : tool.kind === "pickem_promo" ? (
-          <PromoCard
-            title={String(tool.payload.title ?? tool.title)}
-            deadline={String(tool.payload.deadline ?? "")}
-            prize={String(tool.payload.prize ?? "")}
-            qrUrl={String(tool.payload.qrUrl ?? "")}
-          />
-        ) : tool.kind === "leaderboard" ? (
-          <LeaderboardCard payload={tool.payload} title={tool.title} />
         ) : tool.kind === "sponsor" ? (
           <div className="max-w-4xl text-center">
             {tool.payload.imageUrl ? (
@@ -149,8 +152,10 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
           </div>
         ) : tool.kind === "host_picks" ? (
           <HostPicksWall tool={tool} />
-        ) : (
+        ) : tool.kind === "poll" || tool.kind === "hot_take" ? (
           <PollWall tool={tool} />
+        ) : (
+          <p className="text-4xl font-semibold text-white/80">Scan to join — stand by for the next interaction</p>
         )}
       </main>
     </div>
@@ -169,66 +174,6 @@ function TeamSide({ name, logo }: { name: string; logo: string }) {
         </div>
       )}
       <p className="text-4xl font-black">{name}</p>
-    </div>
-  );
-}
-
-function PromoCard({
-  title,
-  deadline,
-  prize,
-  qrUrl,
-}: {
-  title: string;
-  deadline: string;
-  prize: string;
-  qrUrl: string;
-}) {
-  const [qr, setQr] = useState<string | null>(null);
-  useEffect(() => {
-    if (!qrUrl) return;
-    void QRCode.toDataURL(qrUrl, { margin: 1, width: 260 }).then(setQr);
-  }, [qrUrl]);
-  return (
-    <div className="flex max-w-5xl items-center gap-12">
-      <div>
-        <p className="text-5xl font-black">{title}</p>
-        <p className="mt-4 text-2xl text-white/80">{deadline}</p>
-        <p className="mt-3 text-3xl font-semibold text-amber-300">{prize}</p>
-      </div>
-      {qr ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={qr} alt="" className="size-56 rounded-xl bg-white p-3" />
-      ) : null}
-    </div>
-  );
-}
-
-function LeaderboardCard({ payload, title }: { payload: Record<string, unknown>; title: string }) {
-  const entries = Array.isArray(payload.entries) ? payload.entries : [];
-  const spotlight = Number(payload.spotlightIndex ?? 0);
-  return (
-    <div className="w-full max-w-3xl">
-      <p className="text-center text-4xl font-black">{String(payload.title ?? title)}</p>
-      <ul className="mt-8 space-y-3">
-        {entries.slice(0, 8).map((entry, index) => {
-          const row = entry as { name?: string; points?: number };
-          const active = index === spotlight;
-          return (
-            <li
-              key={`${row.name}-${index}`}
-              className={`flex items-center justify-between rounded-xl px-6 py-4 text-2xl ${
-                active ? "bg-amber-400 text-black" : "bg-white/10"
-              }`}
-            >
-              <span className="font-semibold">
-                {index + 1}. {String(row.name ?? "Player")}
-              </span>
-              <span className="font-mono font-bold">{Number(row.points ?? 0)}</span>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }
