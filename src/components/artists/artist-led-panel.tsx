@@ -7,7 +7,10 @@ import {
   clearArtistLedMediaAction,
   setArtistLedEnabledAction,
 } from "@/actions/artist-led";
-import { uploadArtistLedMediaFromBrowser } from "@/lib/screens/artist-led-upload";
+import {
+  uploadArtistLedMediaFromBrowser,
+  type ArtistLedUploadPhase,
+} from "@/lib/screens/artist-led-upload";
 import { ARTIST_LED_WALL_SQL } from "@/lib/constants";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallSceneRow } from "@/lib/queries/led-wall";
@@ -15,6 +18,13 @@ import { ARTIST_LED_AUTO_ROLL_MINUTES } from "@/lib/screens/artist-led";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
 
 export function ArtistLedPanel({
   artistId,
@@ -37,6 +47,13 @@ export function ArtistLedPanel({
   const [pending, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<ArtistLedUploadPhase | null>(null);
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadLoaded, setUploadLoaded] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
+
+  const busy = pending || uploading;
 
   if (missingColumn) {
     return (
@@ -91,24 +108,68 @@ export function ArtistLedPanel({
                   id="artist-led-file"
                   type="file"
                   accept="image/png,image/jpeg,image/heic,image/heif,video/mp4,.png,.jpg,.jpeg,.heic,.heif,.mp4"
-                  disabled={pending}
+                  disabled={busy}
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
               </div>
+              {uploading ? (
+                <div className="space-y-1.5" aria-live="polite">
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>
+                      {uploadPhase === "saving"
+                        ? "Saving graphic…"
+                        : `Uploading… ${uploadPercent}%`}
+                    </span>
+                    {uploadPhase === "uploading" && uploadTotal > 0 ? (
+                      <span>
+                        {formatBytes(uploadLoaded)} / {formatBytes(uploadTotal)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadPhase === "saving" ? 100 : uploadPercent}
+                    aria-label="LED wall graphic upload progress"
+                  >
+                    <div
+                      className={`h-full rounded-full bg-primary transition-[width] duration-150 ease-out ${
+                        uploadPhase === "saving" ? "animate-pulse" : ""
+                      }`}
+                      style={{ width: `${uploadPhase === "saving" ? 100 : uploadPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  disabled={pending || !file}
+                  disabled={busy || !file}
                   onClick={() => {
                     if (!file) return;
-                    startTransition(async () => {
+                    setUploading(true);
+                    setUploadPhase("uploading");
+                    setUploadPercent(0);
+                    setUploadLoaded(0);
+                    setUploadTotal(file.size);
+                    void (async () => {
                       const result = await uploadArtistLedMediaFromBrowser({
                         file,
                         venueId,
                         artistId,
                         title: artistName,
                         supabaseEnv,
+                        onPhase: setUploadPhase,
+                        onProgress: (progress) => {
+                          setUploadPercent(progress.percent);
+                          setUploadLoaded(progress.loaded);
+                          setUploadTotal(progress.total);
+                        },
                       });
+                      setUploading(false);
+                      setUploadPhase(null);
                       if (!result.ok) toast.error(result.message);
                       else {
                         toast.success(result.message);
@@ -116,17 +177,23 @@ export function ArtistLedPanel({
                         setFileKey((value) => value + 1);
                         router.refresh();
                       }
-                    });
+                    })();
                   }}
                 >
-                  {pending ? "Saving…" : scene ? "Replace graphic" : "Save graphic"}
+                  {uploading
+                    ? uploadPhase === "saving"
+                      ? "Saving…"
+                      : `Uploading ${uploadPercent}%`
+                    : scene
+                      ? "Replace graphic"
+                      : "Save graphic"}
                 </Button>
                 {scene ? (
                   <>
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={pending}
+                      disabled={busy}
                       onClick={() => {
                         startTransition(async () => {
                           const result = await setArtistLedEnabledAction({
@@ -146,7 +213,7 @@ export function ArtistLedPanel({
                     <Button
                       type="button"
                       variant="ghost"
-                      disabled={pending}
+                      disabled={busy}
                       onClick={() => {
                         if (!window.confirm("Remove this artist’s LED graphic?")) return;
                         startTransition(async () => {

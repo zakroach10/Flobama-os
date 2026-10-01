@@ -5,7 +5,13 @@ import {
   artistLedMediaKindForFile,
   MAX_ARTIST_LED_BYTES,
 } from "@/lib/screens/artist-led";
+import {
+  uploadStorageObjectWithProgress,
+  type StorageUploadProgress,
+} from "@/lib/screens/storage-upload-progress";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
+
+export type ArtistLedUploadPhase = "uploading" | "saving";
 
 export async function uploadArtistLedMediaFromBrowser(input: {
   file: File;
@@ -13,6 +19,8 @@ export async function uploadArtistLedMediaFromBrowser(input: {
   artistId: string;
   title: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  onProgress?: (progress: StorageUploadProgress) => void;
+  onPhase?: (phase: ArtistLedUploadPhase) => void;
 }) {
   const mediaKind = artistLedMediaKindForFile(input.file);
   if (!mediaKind) {
@@ -25,6 +33,13 @@ export async function uploadArtistLedMediaFromBrowser(input: {
     return { ok: false as const, message: "File must be 2 GB or smaller." };
   }
 
+  if (!input.supabaseEnv) {
+    return {
+      ok: false as const,
+      message: "Supabase is not configured in this deployment.",
+    };
+  }
+
   const supabase = createBrowserSupabaseClient(input.supabaseEnv);
   if (!supabase) {
     return {
@@ -35,12 +50,21 @@ export async function uploadArtistLedMediaFromBrowser(input: {
 
   const { ext, contentType } = artistLedFileMeta(input.file, mediaKind);
   const storagePath = `${input.venueId}/led/artists/${input.artistId}-${Date.now()}.${ext}`;
-  const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
+
+  input.onPhase?.("uploading");
+  const uploadResult = await uploadStorageObjectWithProgress({
+    supabase,
+    supabaseEnv: input.supabaseEnv,
+    bucket: "screen-ads",
+    path: storagePath,
+    file: input.file,
     contentType,
     upsert: false,
+    onProgress: input.onProgress,
   });
-  if (uploadError) return { ok: false as const, message: uploadError.message };
+  if (!uploadResult.ok) return { ok: false as const, message: uploadResult.message };
 
+  input.onPhase?.("saving");
   const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
   const result = await saveArtistLedMediaAction({
     artistId: input.artistId,
