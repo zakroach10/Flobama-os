@@ -76,7 +76,8 @@ export function ArtistLedPanel({
         <div className="min-w-0 flex-1 space-y-2">
           {scene ? (
             <p className="text-sm">
-              {scene.enabled ? "Active configuration" : "Disabled"} · {scene.media_kind === "video" ? "MP4" : "PNG"}
+              {scene.enabled ? "Active configuration" : "Disabled"} ·{" "}
+              {scene.media_kind === "video" ? "Video" : "Image"}
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">No LED configuration yet.</p>
@@ -84,12 +85,12 @@ export function ArtistLedPanel({
           {canEdit ? (
             <>
               <div className="space-y-1">
-                <Label htmlFor="artist-led-file">PNG logo or MP4 loop</Label>
+                <Label htmlFor="artist-led-file">PNG, JPEG, or HEIC logo, or MP4 loop (2 GB max)</Label>
                 <Input
                   key={fileKey}
                   id="artist-led-file"
                   type="file"
-                  accept="image/png,video/mp4,.png,.mp4"
+                  accept="image/png,image/jpeg,image/heic,image/heif,video/mp4,.png,.jpg,.jpeg,.heic,.heif,.mp4"
                   disabled={pending}
                   onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
