@@ -2,15 +2,37 @@ import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 import {
   ARTIST_LED_AUTO_ROLL_MINUTES,
+  artistLedFileMeta,
+  artistLedMediaKindForFile,
   canAutoReplaceLedWall,
   houseLedScenes,
   isWithinArtistLedAutoWindow,
+  MAX_ARTIST_LED_BYTES,
   pickPrimaryArtistId,
   shouldRunAdRollReset,
   venueLocalDateString,
 } from "@/lib/screens/artist-led";
 
 describe("artist LED helpers", () => {
+  it("allows png, jpeg, heic logos and mp4 loops up to 2 GB", () => {
+    expect(MAX_ARTIST_LED_BYTES).toBe(2 * 1024 * 1024 * 1024);
+    expect(artistLedMediaKindForFile({ type: "video/mp4", name: "loop.mp4" })).toBe("video");
+    expect(artistLedMediaKindForFile({ type: "image/png", name: "logo.png" })).toBe("image");
+    expect(artistLedMediaKindForFile({ type: "image/jpeg", name: "logo.jpg" })).toBe("image");
+    expect(artistLedMediaKindForFile({ type: "image/heic", name: "logo.heic" })).toBe("image");
+    expect(artistLedMediaKindForFile({ type: "image/heif", name: "logo.heif" })).toBe("image");
+    expect(artistLedMediaKindForFile({ type: "image/webp", name: "logo.webp" })).toBeNull();
+    expect(artistLedMediaKindForFile({ type: "video/webm", name: "clip.webm" })).toBeNull();
+    expect(artistLedFileMeta({ type: "image/jpeg", name: "logo.jpeg" }, "image")).toEqual({
+      ext: "jpg",
+      contentType: "image/jpeg",
+    });
+    expect(artistLedFileMeta({ type: "image/heic", name: "logo.heic" }, "image")).toEqual({
+      ext: "heic",
+      contentType: "image/heic",
+    });
+  });
+
   it("hides artist-owned scenes from the house list", () => {
     const scenes = [
       { id: "1", artist_id: null, kind: "obs" },

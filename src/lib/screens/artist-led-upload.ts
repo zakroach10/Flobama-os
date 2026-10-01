@@ -1,7 +1,10 @@
 import { saveArtistLedMediaAction } from "@/actions/artist-led";
 import type { PublicSupabaseEnv } from "@/lib/env";
-import { ledMediaKindForFile } from "@/lib/screens/led-wall";
-import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import {
+  artistLedFileMeta,
+  artistLedMediaKindForFile,
+  MAX_ARTIST_LED_BYTES,
+} from "@/lib/screens/artist-led";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
 export async function uploadArtistLedMediaFromBrowser(input: {
@@ -11,11 +14,15 @@ export async function uploadArtistLedMediaFromBrowser(input: {
   title: string;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
-  const mediaKind = ledMediaKindForFile(input.file);
-  if (!mediaKind) return { ok: false as const, message: "Use an MP4 loop or a PNG logo." };
-  if (input.file.size === 0) return { ok: false as const, message: "Choose an MP4 or PNG file." };
-  if (input.file.size > MAX_SCREEN_AD_BYTES) {
-    return { ok: false as const, message: "File must be 50 MB or smaller." };
+  const mediaKind = artistLedMediaKindForFile(input.file);
+  if (!mediaKind) {
+    return { ok: false as const, message: "Use an MP4 loop or a PNG, JPEG, or HEIC logo." };
+  }
+  if (input.file.size === 0) {
+    return { ok: false as const, message: "Choose an MP4, PNG, JPEG, or HEIC file." };
+  }
+  if (input.file.size > MAX_ARTIST_LED_BYTES) {
+    return { ok: false as const, message: "File must be 2 GB or smaller." };
   }
 
   const supabase = createBrowserSupabaseClient(input.supabaseEnv);
@@ -26,10 +33,10 @@ export async function uploadArtistLedMediaFromBrowser(input: {
     };
   }
 
-  const ext = mediaKind === "video" ? "mp4" : "png";
+  const { ext, contentType } = artistLedFileMeta(input.file, mediaKind);
   const storagePath = `${input.venueId}/led/artists/${input.artistId}-${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
-    contentType: mediaKind === "video" ? "video/mp4" : "image/png",
+    contentType,
     upsert: false,
   });
   if (uploadError) return { ok: false as const, message: uploadError.message };
