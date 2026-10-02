@@ -179,6 +179,10 @@ describe("staff menu access", () => {
     expect(allowed?.[1]).toBeTruthy();
     expect(allowed?.[1]).not.toContain("'events'");
     for (const id of STAFF_MENU_IDS) expect(allowed?.[1]).toContain(`'${id}'`);
+    // Old check rejects programming; drop it before remapping events -> programming.
+    expect(sql.indexOf("drop constraint if exists venue_memberships_menus_known")).toBeLessThan(
+      sql.indexOf("events' then 'programming"),
+    );
   });
 
   it("points staff at the menus SQL when the known-menus check fails", () => {

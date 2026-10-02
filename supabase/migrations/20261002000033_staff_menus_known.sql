@@ -1,5 +1,8 @@
 /* Refresh venue_memberships_menus_known for current sidebar menu ids.
-   Remap legacy events -> programming before tightening the check. */
+   Drop the old check first — it still allows events and rejects programming. */
+
+alter table public.venue_memberships
+  drop constraint if exists venue_memberships_menus_known;
 
 update public.venue_memberships
 set menus = (
@@ -11,9 +14,6 @@ set menus = (
 )
 where menus is not null
   and 'events' = any (menus);
-
-alter table public.venue_memberships
-  drop constraint if exists venue_memberships_menus_known;
 
 alter table public.venue_memberships
   add constraint venue_memberships_menus_known
