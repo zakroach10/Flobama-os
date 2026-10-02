@@ -15,10 +15,12 @@ import {
   defaultMenusForRole,
   firstMenuHref,
   isAudienceOnlyShell,
+  isMenusKnownConstraintError,
   menuForPath,
   menusForRole,
   resolveMenus,
   sameMenus,
+  staffMenusSqlMessage,
 } from "@/lib/auth/menus";
 import { createStaffSchema } from "@/lib/validation/schemas";
 
@@ -173,6 +175,21 @@ describe("staff menu access", () => {
   it("stores the same menu ids the database accepts", () => {
     const sql = readFileSync(STAFF_MENUS_SQL, "utf8");
     for (const id of STAFF_MENU_IDS) expect(sql).toContain(`'${id}'`);
+    const allowed = sql.match(/menus <@ array\[([\s\S]*?)\]::text\[\]/);
+    expect(allowed?.[1]).toBeTruthy();
+    expect(allowed?.[1]).not.toContain("'events'");
+    for (const id of STAFF_MENU_IDS) expect(allowed?.[1]).toContain(`'${id}'`);
+    // Old check rejects programming; drop it before remapping events -> programming.
+    expect(sql.indexOf("drop constraint if exists venue_memberships_menus_known")).toBeLessThan(
+      sql.indexOf("events' then 'programming"),
+    );
+  });
+
+  it("points staff at the menus SQL when the known-menus check fails", () => {
+    const raw =
+      'new row for relation "venue_memberships" violates check constraint "venue_memberships_menus_known"';
+    expect(isMenusKnownConstraintError(raw)).toBe(true);
+    expect(staffMenusSqlMessage(raw)).toContain(STAFF_MENUS_SQL);
   });
 
   it("locks interactors to the audience console shell", () => {

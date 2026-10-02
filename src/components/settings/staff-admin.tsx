@@ -11,6 +11,7 @@ import { ROLE_PERMISSIONS, isMasterAdminEmail } from "@/lib/auth/permissions";
 import {
   STAFF_MENUS,
   STAFF_MENU_IDS,
+  STAFF_MENUS_SQL,
   defaultMenusForRole,
   sameMenus,
   type StaffMenuId,
@@ -74,8 +75,8 @@ export function StaffDirectory({
       </div>
       {canManage && !menusReady ? (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Apply <code>supabase/migrations/20260930000029_staff_menus.sql</code> before menu choices can be saved. Until
-          then, each person keeps the menus for their role.
+          Apply <code>{STAFF_MENUS_SQL}</code> before menu choices can be saved. Until then, each person keeps the
+          menus for their role.
         </p>
       ) : null}
       {canManage ? <CreateStaffForm serviceRoleConfigured={serviceRoleConfigured} /> : null}
