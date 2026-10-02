@@ -21,7 +21,7 @@ import { signOutAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { isAudienceOnlyShell, STAFF_MENUS, type StaffMenuId } from "@/lib/auth/menus";
+import { isAudienceOnlyShell, isWallOpsShell, STAFF_MENUS, type StaffMenuId } from "@/lib/auth/menus";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -141,16 +141,18 @@ function AccountFooter({
   );
 }
 
-function AudienceOnlyShell({
+function DedicatedConsoleShell({
   children,
   venueName,
   roleLabel,
   userLabel,
+  consoleLabel,
 }: {
   children: React.ReactNode;
   venueName: string;
   roleLabel: string;
   userLabel: string;
+  consoleLabel: string;
 }) {
   return (
     <div className="flex min-h-full flex-col bg-background">
@@ -159,7 +161,7 @@ function AudienceOnlyShell({
           <div className="min-w-0 flex-1">
             <FlobamaLogo className="h-7 w-auto max-w-[132px]" />
             <p className="truncate text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-              Audience console
+              {consoleLabel}
             </p>
           </div>
           <div className="hidden min-w-0 text-right text-xs text-muted-foreground sm:block">
@@ -202,9 +204,27 @@ export function AppShell({
 
   if (isAudienceOnlyShell(menus)) {
     return (
-      <AudienceOnlyShell venueName={venueName} roleLabel={roleLabel} userLabel={userLabel}>
+      <DedicatedConsoleShell
+        venueName={venueName}
+        roleLabel={roleLabel}
+        userLabel={userLabel}
+        consoleLabel="Audience console"
+      >
         {children}
-      </AudienceOnlyShell>
+      </DedicatedConsoleShell>
+    );
+  }
+
+  if (isWallOpsShell(menus)) {
+    return (
+      <DedicatedConsoleShell
+        venueName={venueName}
+        roleLabel={roleLabel}
+        userLabel={userLabel}
+        consoleLabel="Wall & Screens"
+      >
+        {children}
+      </DedicatedConsoleShell>
     );
   }
 

@@ -12,12 +12,14 @@ export function ScreensWorkspace({
   vertical,
   trivia,
   showVertical = true,
+  showTrivia = true,
 }: {
   defaultTab: ScreensTab;
   led: React.ReactNode;
   vertical: React.ReactNode;
   trivia: React.ReactNode;
   showVertical?: boolean;
+  showTrivia?: boolean;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<ScreensTab>(defaultTab);
@@ -32,6 +34,8 @@ export function ScreensWorkspace({
       value={tab}
       onValueChange={(value) => {
         if (value !== "led" && value !== "vertical" && value !== "trivia") return;
+        if (value === "vertical" && !showVertical) return;
+        if (value === "trivia" && !showTrivia) return;
         setTab(value);
         const path =
           value === "vertical" ? "/screens?tab=vertical" : value === "trivia" ? "/screens?tab=trivia" : "/screens";
@@ -48,9 +52,11 @@ export function ScreensWorkspace({
             Vertical screens
           </TabsTrigger>
         ) : null}
-        <TabsTrigger value="trivia" className="min-h-11 px-3">
-          Trivia
-        </TabsTrigger>
+        {showTrivia ? (
+          <TabsTrigger value="trivia" className="min-h-11 px-3">
+            Trivia
+          </TabsTrigger>
+        ) : null}
       </TabsList>
       <TabsContent value="led" className="space-y-8">
         {led}
@@ -60,9 +66,11 @@ export function ScreensWorkspace({
           {vertical}
         </TabsContent>
       ) : null}
-      <TabsContent value="trivia" className="space-y-8">
-        {trivia}
-      </TabsContent>
+      {showTrivia ? (
+        <TabsContent value="trivia" className="space-y-8">
+          {trivia}
+        </TabsContent>
+      ) : null}
     </Tabs>
   );
 }

@@ -1,0 +1,24 @@
+{
+  "name": "FloBama Wall & Screens",
+  "short_name": "FloBama Wall",
+  "description": "Venue LED wall and screen controls for FloBama Music Hall.",
+  "start_url": "/wall",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f3ea",
+  "theme_color": "#f7f3ea",
+  "icons": [
+    {
+      "src": "/flobama-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

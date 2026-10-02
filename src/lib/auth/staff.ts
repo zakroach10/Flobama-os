@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import type { StaffRole } from "@/lib/constants";
 import type { Database } from "@/lib/database.types";
 import { isMissingMenusColumn, resolveMenus, type StaffMenuId } from "@/lib/auth/menus";
+import { isWallOpsEmail, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
 export type VenueRecord = Database["public"]["Tables"]["venues"]["Row"];
 export type ProfileRecord = Database["public"]["Tables"]["profiles"]["Row"];
@@ -85,15 +86,16 @@ export async function getStaffContext(): Promise<StaffContext> {
     .eq("id", user.id)
     .maybeSingle();
 
+  const menus: StaffMenuId[] = isWallOpsEmail(user.email)
+    ? [...WALL_OPS_MENUS]
+    : resolveMenus((membership as { menus?: string[] | null }).menus ?? null, membership.role);
+
   return {
     status: "ok",
     userId: user.id,
     email: user.email,
     role: membership.role,
-    menus: resolveMenus(
-      (membership as { menus?: string[] | null }).menus ?? null,
-      membership.role,
-    ),
+    menus,
     venue: venueRow,
     profile: profile ?? null,
   };

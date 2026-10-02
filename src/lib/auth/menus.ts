@@ -1,5 +1,6 @@
 import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
+import { isWallOpsEmail, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
 export const STAFF_MENUS_SQL = "supabase/migrations/20261002000033_staff_menus_known.sql";
 
@@ -100,6 +101,8 @@ export function isAudienceOnlyShell(menus: readonly string[]) {
   return menus.length === 1 && menus[0] === "audience";
 }
 
+export { isWallOpsShell } from "@/lib/auth/wall-ops";
+
 export function sameMenus(left: readonly string[], right: readonly string[]) {
   const a = normalizeMenuList(left);
   const b = normalizeMenuList(right);
@@ -127,6 +130,9 @@ export function authorizeMenuSelection(
 ): { allowed: true } | { allowed: false; reason: string } {
   if (isMasterAdminEmail(email) && !sameMenus(menus, defaultMenusForRole("admin"))) {
     return { allowed: false, reason: "The master admin keeps every menu." };
+  }
+  if (isWallOpsEmail(email) && !sameMenus(menus, WALL_OPS_MENUS)) {
+    return { allowed: false, reason: "The Wall & Screens login keeps Screens only." };
   }
   return { allowed: true };
 }

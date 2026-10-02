@@ -9,6 +9,7 @@ import {
   menusForRole,
   staffMenusSqlMessage,
 } from "@/lib/auth/menus";
+import { isWallOpsEmail, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 import { createStaffSchema, removeStaffSchema, updateStaffRoleSchema } from "@/lib/validation/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, findAuthUserIdByEmail } from "@/lib/supabase/admin";
@@ -73,7 +74,9 @@ export async function createStaffAction(input: unknown): Promise<StaffActionResu
     return { ok: false, message: "That person already has access to this venue." };
   }
 
-  const menus = menusForRole(parsed.data.role, parsed.data.menus);
+  const menus = isWallOpsEmail(email)
+    ? ([...WALL_OPS_MENUS] as ReturnType<typeof menusForRole>)
+    : menusForRole(parsed.data.role, parsed.data.menus);
   const menuDecision = authorizeMenuSelection(email, menus);
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 
@@ -151,7 +154,9 @@ export async function updateStaffRoleAction(input: unknown): Promise<StaffAction
   });
   if (!decision.allowed) return { ok: false, message: decision.reason };
 
-  const menus = menusForRole(parsed.data.role as StaffRole, parsed.data.menus);
+  const menus = isWallOpsEmail(target.email)
+    ? ([...WALL_OPS_MENUS] as ReturnType<typeof menusForRole>)
+    : menusForRole(parsed.data.role as StaffRole, parsed.data.menus);
   const menuDecision = authorizeMenuSelection(target.email, menus);
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 

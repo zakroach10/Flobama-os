@@ -8,6 +8,7 @@ import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listVenueStaff } from "@/lib/queries/staff";
 import { canManageStaff } from "@/lib/auth/permissions";
+import { getWallOpsEmail, WALL_OPS_LOGIN_PATH } from "@/lib/auth/wall-ops";
 import { ErrorState } from "@/components/states";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
@@ -47,6 +48,8 @@ export default async function SettingsPage() {
           canManage={canManageStaff(context.role)}
           serviceRoleConfigured={isServiceRoleConfigured()}
           menusReady={menusReady}
+          wallOpsEmail={getWallOpsEmail()}
+          wallLoginPath={WALL_OPS_LOGIN_PATH}
         />
       )}
       <WebsiteEmbedCard siteUrl={getPublicAppUrl()} />

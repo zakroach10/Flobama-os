@@ -56,12 +56,16 @@ export function StaffDirectory({
   canManage,
   serviceRoleConfigured,
   menusReady = true,
+  wallOpsEmail = null,
+  wallLoginPath = "/wall",
 }: {
   members: StaffMember[];
   currentUserId: string;
   canManage: boolean;
   serviceRoleConfigured: boolean;
   menusReady?: boolean;
+  wallOpsEmail?: string | null;
+  wallLoginPath?: string;
 }) {
   return (
     <section className="space-y-4">
@@ -79,13 +83,33 @@ export function StaffDirectory({
           menus for their role.
         </p>
       ) : null}
+      {canManage ? (
+        <p className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          Venue wall computer: create a manager login, leave only Screens checked, set{" "}
+          <code className="text-foreground">WALL_OPS_EMAIL</code> to that address in Vercel, then open{" "}
+          <code className="text-foreground">{wallLoginPath}</code> on the local machine and install it from Chrome as an
+          app.
+          {wallOpsEmail ? (
+            <>
+              {" "}
+              Current Wall & Screens login: <span className="font-medium text-foreground">{wallOpsEmail}</span>.
+            </>
+          ) : null}
+        </p>
+      ) : null}
       {canManage ? <CreateStaffForm serviceRoleConfigured={serviceRoleConfigured} /> : null}
       {members.length === 0 ? (
         <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">No staff records yet.</p>
       ) : (
         <ul className="divide-y rounded-xl border bg-card">
           {members.map((member) => (
-            <StaffRow key={member.userId} member={member} currentUserId={currentUserId} canManage={canManage} />
+            <StaffRow
+              key={member.userId}
+              member={member}
+              currentUserId={currentUserId}
+              canManage={canManage}
+              wallOpsEmail={wallOpsEmail}
+            />
           ))}
         </ul>
       )}
@@ -215,10 +239,12 @@ function StaffRow({
   member,
   currentUserId,
   canManage,
+  wallOpsEmail,
 }: {
   member: StaffMember;
   currentUserId: string;
   canManage: boolean;
+  wallOpsEmail?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -226,8 +252,12 @@ function StaffRow({
   const [menus, setMenus] = useState<StaffMenuId[]>(member.menus);
   const isSelf = member.userId === currentUserId;
   const isMaster = isMasterAdminEmail(member.email);
+  const isWallOps = Boolean(
+    wallOpsEmail && member.email && member.email.trim().toLowerCase() === wallOpsEmail.trim().toLowerCase(),
+  );
   const locked = isSelf || isMaster;
-  const dirty = role !== member.role || !sameMenus(menus, member.menus);
+  const menusLocked = locked || isWallOps;
+  const dirty = role !== member.role || (!isWallOps && !sameMenus(menus, member.menus));
   const roleOptions = useMemo(() => STAFF_ROLES, []);
 
   return (
@@ -237,6 +267,11 @@ function StaffRow({
           {member.displayName}
           {isSelf ? <span className="ml-2 text-xs text-muted-foreground">You</span> : null}
           {isMaster ? <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Master admin</span> : null}
+          {isWallOps ? (
+            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Wall & Screens
+            </span>
+          ) : null}
         </p>
         <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
         {canManage ? (
@@ -245,12 +280,17 @@ function StaffRow({
               <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 Audience Interactors only see the Audience console (no sidebar or settings).
               </p>
+            ) : isWallOps ? (
+              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Wall & Screens login — LED wall and venue screens only (no sidebar). Sign in from /wall on the local
+                computer.
+              </p>
             ) : (
               <MenuToggles
                 idPrefix={member.userId}
-                menus={locked ? member.menus : menus}
-                disabled={locked || pending}
-                onChange={locked ? undefined : setMenus}
+                menus={menusLocked ? member.menus : menus}
+                disabled={menusLocked || pending}
+                onChange={menusLocked ? undefined : setMenus}
               />
             )}
           </div>
