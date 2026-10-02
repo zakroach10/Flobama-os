@@ -63,6 +63,7 @@ export default async function LedDisplayPage({
       initialPlaylist={playback.playlist}
       initialMode={playback.mode}
       initialRevision={playback.revision}
+      initialStartedAt={playback.startedAt}
       initialReloadNonce={reloadNonce}
       initialTrivia={trivia}
       initialAudience={audience}

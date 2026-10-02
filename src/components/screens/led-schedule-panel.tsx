@@ -68,8 +68,9 @@ export function LedSchedulePanel({
           <div>
             <h2 className="text-lg font-semibold">Ad roll (default program)</h2>
             <p className="text-sm text-muted-foreground">
-              Everyday at 4:00 AM the wall resets to this playlist. Artists auto-roll{" "}
-              {ARTIST_LED_AUTO_ROLL_MINUTES} minutes before showtime.
+              Everyday at 4:00 AM the wall clears leftover shows and resets to this playlist. Artists
+              auto-roll {ARTIST_LED_AUTO_ROLL_MINUTES} minutes before showtime (with catch-up after
+              start).
             </p>
           </div>
           <Button

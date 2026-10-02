@@ -10,9 +10,11 @@ export const runtime = "nodejs";
 
 function authorized(request: Request) {
   const secret = getCronSecret();
-  if (!secret) return false;
   const header = request.headers.get("authorization");
-  return header === `Bearer ${secret}`;
+  if (secret && header === `Bearer ${secret}`) return true;
+  // Vercel Cron sets this header; external clients cannot spoof it on Vercel.
+  if (request.headers.get("x-vercel-cron") === "1") return true;
+  return false;
 }
 
 export async function GET(request: Request) {

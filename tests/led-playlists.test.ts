@@ -3,7 +3,9 @@ import {
   holdMsForLedPlaylistItem,
   isMissingLedPlaylistRelation,
   ledPlaylistIndexAt,
+  ledPlaylistsEqual,
   nextLedPlaylistIndex,
+  type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 
 describe("LED wall playlists", () => {
@@ -31,5 +33,20 @@ describe("LED wall playlists", () => {
     expect(ledPlaylistIndexAt(items, startedAt, Date.parse("2026-09-29T16:00:15.000Z"))).toBe(1);
     expect(ledPlaylistIndexAt(items, startedAt, Date.parse("2026-09-29T16:00:35.000Z"))).toBe(2);
     expect(ledPlaylistIndexAt(items, startedAt, Date.parse("2026-09-29T16:00:45.000Z"))).toBe(0);
+  });
+
+  it("compares playlist payloads without rewriting identical polls", () => {
+    const item: PublicLedPlaylistItem = {
+      id: "1",
+      sceneId: "s1",
+      title: "Still",
+      kind: "media",
+      mediaKind: "image",
+      url: "https://cdn.example/a.png",
+      obsSceneName: null,
+      durationSeconds: 15,
+    };
+    expect(ledPlaylistsEqual([item], [{ ...item }])).toBe(true);
+    expect(ledPlaylistsEqual([item], [{ ...item, durationSeconds: 20 }])).toBe(false);
   });
 });

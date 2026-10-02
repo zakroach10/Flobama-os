@@ -58,6 +58,21 @@ export function nextLedPlaylistIndex(index: number, length: number) {
   return (index + 1) % length;
 }
 
+/** Avoid resetting hold timers when the poll returns the same playlist content. */
+export function ledPlaylistsEqual(left: PublicLedPlaylistItem[], right: PublicLedPlaylistItem[]) {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (item, index) =>
+      item.id === right[index]?.id &&
+      item.sceneId === right[index]?.sceneId &&
+      item.kind === right[index]?.kind &&
+      item.mediaKind === right[index]?.mediaKind &&
+      item.url === right[index]?.url &&
+      item.obsSceneName === right[index]?.obsSceneName &&
+      item.durationSeconds === right[index]?.durationSeconds,
+  );
+}
+
 /** Time-based cursor so display + OBS agent pick the same slot. */
 export function ledPlaylistIndexAt(items: Array<{ durationSeconds: number }>, startedAt: string | null, now = Date.now()) {
   if (items.length === 0) return 0;
