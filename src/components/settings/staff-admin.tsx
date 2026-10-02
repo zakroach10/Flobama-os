@@ -3,7 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createStaffAction, removeStaffAction, updateStaffRoleAction } from "@/actions/staff";
+import {
+  clearComputerControlUserAction,
+  createComputerControlUserAction,
+  createStaffAction,
+  removeStaffAction,
+  updateStaffRoleAction,
+} from "@/actions/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +22,7 @@ import {
   sameMenus,
   type StaffMenuId,
 } from "@/lib/auth/menus";
+import { WALL_OPS_LOGIN_PATH, WALL_OPS_SQL } from "@/lib/auth/wall-ops";
 import { STAFF_ROLE_LABELS, STAFF_ROLES, type StaffRole } from "@/lib/constants";
 import type { StaffMember } from "@/lib/queries/staff";
 
@@ -56,13 +63,19 @@ export function StaffDirectory({
   canManage,
   serviceRoleConfigured,
   menusReady = true,
+  wallOpsUserId = null,
+  wallOpsReady = true,
 }: {
   members: StaffMember[];
   currentUserId: string;
   canManage: boolean;
   serviceRoleConfigured: boolean;
   menusReady?: boolean;
+  wallOpsUserId?: string | null;
+  wallOpsReady?: boolean;
 }) {
+  const wallOpsMember = members.find((member) => member.userId === wallOpsUserId) ?? null;
+
   return (
     <section className="space-y-4">
       <div>
@@ -79,17 +92,180 @@ export function StaffDirectory({
           menus for their role.
         </p>
       ) : null}
+      {canManage ? (
+        <ComputerControlCard
+          member={wallOpsMember}
+          serviceRoleConfigured={serviceRoleConfigured}
+          wallOpsReady={wallOpsReady}
+        />
+      ) : null}
       {canManage ? <CreateStaffForm serviceRoleConfigured={serviceRoleConfigured} /> : null}
       {members.length === 0 ? (
         <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">No staff records yet.</p>
       ) : (
         <ul className="divide-y rounded-xl border bg-card">
           {members.map((member) => (
-            <StaffRow key={member.userId} member={member} currentUserId={currentUserId} canManage={canManage} />
+            <StaffRow
+              key={member.userId}
+              member={member}
+              currentUserId={currentUserId}
+              canManage={canManage}
+              wallOpsUserId={wallOpsUserId}
+            />
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function ComputerControlCard({
+  member,
+  serviceRoleConfigured,
+  wallOpsReady,
+}: {
+  member: StaffMember | null;
+  serviceRoleConfigured: boolean;
+  wallOpsReady: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("Venue computer");
+  const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  if (!wallOpsReady) {
+    return (
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        Apply <code>{WALL_OPS_SQL}</code> before you can save a computer control login from Settings.
+      </div>
+    );
+  }
+
+  if (!serviceRoleConfigured) {
+    return (
+      <div className="space-y-2 rounded-xl border bg-card p-4">
+        <h3 className="font-semibold">Computer control</h3>
+        <p className="text-sm text-muted-foreground">
+          Add <code>SUPABASE_SERVICE_ROLE_KEY</code> on the server to create the Wall & Screens login used on venue
+          computers.
+        </p>
+      </div>
+    );
+  }
+
+  if (member) {
+    return (
+      <div className="space-y-3 rounded-xl border bg-card p-4">
+        <div>
+          <h3 className="font-semibold">Computer control</h3>
+          <p className="text-sm text-muted-foreground">
+            This login only opens Wall & Screens. On the venue computer, open{" "}
+            <code className="text-foreground">{WALL_OPS_LOGIN_PATH}</code>, sign in, then install it from Chrome as an
+            app.
+          </p>
+        </div>
+        <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          <p className="font-medium">{member.displayName}</p>
+          <p className="text-muted-foreground">{member.email || "No email on file"}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" asChild>
+            <a href={WALL_OPS_LOGIN_PATH} target="_blank" rel="noreferrer">
+              Open /wall
+            </a>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => {
+              startTransition(async () => {
+                const result = await clearComputerControlUserAction();
+                if (!result.ok) toast.error(result.message);
+                else {
+                  toast.success(result.message);
+                  router.refresh();
+                }
+              });
+            }}
+          >
+            Clear designation
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setFieldErrors({});
+        startTransition(async () => {
+          const result = await createComputerControlUserAction({ email, displayName, password });
+          if (!result.ok) {
+            setFieldErrors(result.fieldErrors ?? {});
+            toast.error(result.message);
+            return;
+          }
+          toast.success(result.message);
+          setEmail("");
+          setPassword("");
+          setDisplayName("Venue computer");
+          router.refresh();
+        });
+      }}
+    >
+      <div className="sm:col-span-2 space-y-1">
+        <h3 className="font-semibold">Computer control</h3>
+        <p className="text-sm text-muted-foreground">
+          Add the login for the accessible venue computer. It only gets LED wall and screens controls — no sidebar.
+        </p>
+      </div>
+      <Field error={fieldErrors.displayName?.[0]}>
+        <Label htmlFor="wall-ops-name">Display name</Label>
+        <Input
+          id="wall-ops-name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          required
+        />
+      </Field>
+      <Field error={fieldErrors.email?.[0]}>
+        <Label htmlFor="wall-ops-email">Email</Label>
+        <Input
+          id="wall-ops-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </Field>
+      <Field error={fieldErrors.password?.[0]}>
+        <Label htmlFor="wall-ops-password">Password</Label>
+        <div className="flex gap-2">
+          <Input
+            id="wall-ops-password"
+            type="text"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Button type="button" variant="outline" onClick={() => setPassword(randomPassword())}>
+            Generate
+          </Button>
+        </div>
+      </Field>
+      <div className="flex items-end">
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+          {pending ? "Saving…" : "Add computer control user"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -215,10 +391,12 @@ function StaffRow({
   member,
   currentUserId,
   canManage,
+  wallOpsUserId,
 }: {
   member: StaffMember;
   currentUserId: string;
   canManage: boolean;
+  wallOpsUserId?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -226,8 +404,10 @@ function StaffRow({
   const [menus, setMenus] = useState<StaffMenuId[]>(member.menus);
   const isSelf = member.userId === currentUserId;
   const isMaster = isMasterAdminEmail(member.email);
+  const isWallOps = Boolean(wallOpsUserId && member.userId === wallOpsUserId);
   const locked = isSelf || isMaster;
-  const dirty = role !== member.role || !sameMenus(menus, member.menus);
+  const menusLocked = locked || isWallOps;
+  const dirty = role !== member.role || (!isWallOps && !sameMenus(menus, member.menus));
   const roleOptions = useMemo(() => STAFF_ROLES, []);
 
   return (
@@ -237,6 +417,11 @@ function StaffRow({
           {member.displayName}
           {isSelf ? <span className="ml-2 text-xs text-muted-foreground">You</span> : null}
           {isMaster ? <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Master admin</span> : null}
+          {isWallOps ? (
+            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Computer control
+            </span>
+          ) : null}
         </p>
         <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
         {canManage ? (
@@ -245,12 +430,17 @@ function StaffRow({
               <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 Audience Interactors only see the Audience console (no sidebar or settings).
               </p>
+            ) : isWallOps ? (
+              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Computer control login — LED wall and venue screens only (no sidebar). Sign in from{" "}
+                {WALL_OPS_LOGIN_PATH} on the local computer.
+              </p>
             ) : (
               <MenuToggles
                 idPrefix={member.userId}
-                menus={locked ? member.menus : menus}
-                disabled={locked || pending}
-                onChange={locked ? undefined : setMenus}
+                menus={menusLocked ? member.menus : menus}
+                disabled={menusLocked || pending}
+                onChange={menusLocked ? undefined : setMenus}
               />
             )}
           </div>

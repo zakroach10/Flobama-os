@@ -16,6 +16,7 @@ import {
   firstMenuHref,
   isAudienceOnlyShell,
   isMenusKnownConstraintError,
+  isWallOpsShell,
   menuForPath,
   menusForRole,
   resolveMenus,
@@ -198,5 +199,11 @@ describe("staff menu access", () => {
     expect(isAudienceOnlyShell(["audience"])).toBe(true);
     expect(isAudienceOnlyShell(["audience", "settings"])).toBe(false);
     expect(firstMenuHref(defaultMenusForRole("interactor"))).toBe("/audience");
+  });
+
+  it("treats screens-only menus as the Wall & Screens shell", () => {
+    expect(isWallOpsShell(["screens"])).toBe(true);
+    expect(isWallOpsShell(["screens", "dashboard"])).toBe(false);
+    expect(firstMenuHref(["screens"])).toBe("/screens");
   });
 });

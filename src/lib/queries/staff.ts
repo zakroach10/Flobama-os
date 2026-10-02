@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import type { StaffRole } from "@/lib/constants";
 import { isMissingMenusColumn, resolveMenus, type StaffMenuId } from "@/lib/auth/menus";
+import { isWallOpsAccount, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
 export type StaffMember = {
   userId: string;
@@ -39,4 +40,15 @@ export async function listVenueStaff(client: Client, venueId: string) {
     menus: resolveMenus(menusReady ? storedByUser.get(row.user_id) : null, row.role),
   }));
   return { members, error: null, menusReady };
+}
+
+export function withWallOpsMenus(
+  members: StaffMember[],
+  wallOpsUserId: string | null | undefined,
+): StaffMember[] {
+  return members.map((member) =>
+    isWallOpsAccount({ userId: member.userId, email: member.email, wallOpsUserId })
+      ? { ...member, menus: [...WALL_OPS_MENUS] }
+      : member,
+  );
 }

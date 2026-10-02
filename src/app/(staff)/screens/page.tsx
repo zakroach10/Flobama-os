@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { canConfigureLedWall, canManageProgramming } from "@/lib/auth/permissions";
+import { canConfigureLedWall, canManageScreensControls } from "@/lib/auth/permissions";
+import { isWallOpsShell } from "@/lib/auth/menus";
 import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
 import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
@@ -33,7 +34,11 @@ export default async function ScreensPage({
 }) {
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
-  const canProgram = canManageProgramming(context.role);
+  const wallOps = isWallOpsShell(context.menus);
+  const canProgram = canManageScreensControls(context.role, context.email, {
+    userId: context.userId,
+    wallOpsUserId: context.venue.wall_ops_user_id,
+  });
   const canConfigure = canConfigureLedWall(context.role);
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
@@ -41,7 +46,7 @@ export default async function ScreensPage({
   const params = await searchParams;
   const requested = params.tab;
   const tab: ScreensTab =
-    requested === "trivia"
+    !wallOps && requested === "trivia"
       ? "trivia"
       : canProgram && requested === "vertical"
         ? "vertical"
@@ -154,9 +159,13 @@ export default async function ScreensPage({
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {wallOps ? "Wall & Screens" : "Screens"}
+            </h1>
             <p className="text-muted-foreground">
-              Run today’s artist schedule and ad roll on the LED wall, or switch to vertical playlists and trivia.
+              {wallOps
+                ? "Switch the LED wall and run vertical screens from this computer. Keep this app open during the show."
+                : "Run today’s artist schedule and ad roll on the LED wall, or switch to vertical playlists and trivia."}
             </p>
           </div>
           <RefreshWallButton
@@ -168,6 +177,7 @@ export default async function ScreensPage({
       <ScreensWorkspace
         defaultTab={tab}
         showVertical={canProgram}
+        showTrivia={!wallOps}
         led={
           <>
             <LedSchedulePanel
