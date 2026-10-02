@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f7f3ea",
-  "theme_color": "#f7f3ea",
+  "background_color": "#1c1917",
+  "theme_color": "#1c1917",
   "icons": [
     {
       "src": "/flobama-logo.png",

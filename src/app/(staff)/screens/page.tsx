@@ -23,6 +23,7 @@ import { SpecialsPanel } from "@/components/screens/specials-panel";
 import { TakeoverPanel } from "@/components/screens/takeover-panel";
 import { TriviaPanel } from "@/components/screens/trivia-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
+import { WallOpsControlCenter } from "@/components/screens/wall-ops-control-center";
 import { ErrorState } from "@/components/states";
 
 export const dynamic = "force-dynamic";
@@ -153,19 +154,38 @@ export default async function ScreensPage({
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
   const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
+  const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
+
+  if (wallOps) {
+    return (
+      <WallOpsControlCenter
+        scenes={scenes}
+        activeSceneId={activeSceneId}
+        activePlaylistId={activeLedPlaylistId}
+        defaultPlaylistId={ledSettings?.default_playlist_id ?? null}
+        playlists={ledPlaylistsRes.playlists}
+        listings={todayLedRes.listings}
+        artistConfigs={artistLedRes.configs}
+        agent={agentRes.agent}
+        ads={adsRes?.ads ?? []}
+        takeover={takeoverRes?.takeover ?? null}
+        takeoverMissing={Boolean(takeoverRes?.missingTable)}
+        refreshMissing={displaySignalRes.missingTable}
+        lastRefreshAt={displaySignalRes.signal?.reloadRequestedAt ?? null}
+        timeZone={context.venue.timezone}
+        canControlVertical={canProgram}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {wallOps ? "Wall & Screens" : "Screens"}
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Screens</h1>
             <p className="text-muted-foreground">
-              {wallOps
-                ? "Switch the LED wall and run vertical screens from this computer. Keep this app open during the show."
-                : "Run today’s artist schedule and ad roll on the LED wall, or switch to vertical playlists and trivia."}
+              Run today’s artist schedule and ad roll on the LED wall, or switch to vertical playlists and trivia.
             </p>
           </div>
           <RefreshWallButton
@@ -177,7 +197,7 @@ export default async function ScreensPage({
       <ScreensWorkspace
         defaultTab={tab}
         showVertical={canProgram}
-        showTrivia={!wallOps}
+        showTrivia
         led={
           <>
             <LedSchedulePanel
@@ -185,7 +205,7 @@ export default async function ScreensPage({
               artistConfigs={artistLedRes.configs}
               playlists={ledPlaylistsRes.playlists}
               defaultPlaylistId={ledSettings?.default_playlist_id ?? null}
-              activeSceneId={activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null)}
+              activeSceneId={activeSceneId}
               activePlaylistId={activeLedPlaylistId}
               missingColumn={todayLedRes.missingColumn || artistLedRes.missingColumn}
               canConfigure={canConfigure}
@@ -193,7 +213,7 @@ export default async function ScreensPage({
             />
             <LedWallPanel
               scenes={scenes}
-              activeSceneId={activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null)}
+              activeSceneId={activeSceneId}
               agent={agentRes.agent}
               canConfigure={canConfigure}
               mediaObsSceneName={ledSettings?.media_obs_scene_name ?? ""}

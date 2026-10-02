@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "FloBama Wall",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -29,15 +29,17 @@ export default async function WallLoginPage() {
   }
 
   return (
-    <AuthFrame
-      title="Wall & Screens"
-      subtitle="Sign in on this computer to control the LED wall and venue screens. Install this page from Chrome as an app for one-tap access."
-      showBackToLogin={false}
-    >
-      <LoginForm nextPath={WALL_OPS_HOME_PATH} compact />
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        Chrome → Install page as app / Cast, save, and share → Install page as app
-      </p>
-    </AuthFrame>
+    <div className="dark min-h-full bg-background text-foreground">
+      <AuthFrame
+        title="Wall & Screens"
+        subtitle="Sign in on this computer to control the LED wall and venue screens. Install this page from Chrome as an app for one-tap access."
+        showBackToLogin={false}
+      >
+        <LoginForm nextPath={WALL_OPS_HOME_PATH} compact />
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Chrome → Install page as app / Cast, save, and share → Install page as app
+        </p>
+      </AuthFrame>
+    </div>
   );
 }
