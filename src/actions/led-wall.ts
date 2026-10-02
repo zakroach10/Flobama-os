@@ -53,6 +53,7 @@ async function staffGate(configure: boolean) {
 }
 
 function revalidateLedWall() {
+  revalidatePath("/dashboard");
   revalidatePath("/screens");
   revalidatePath("/display/led");
   revalidatePath("/display/vertical");

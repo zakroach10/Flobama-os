@@ -19,6 +19,20 @@ export type PublicLedMedia = {
   mediaKind: LedWallMediaKind;
 };
 
+export function ledSceneKindLabel(scene: {
+  kind: string;
+  mediaKind: string | null;
+  obsSceneName: string | null;
+}) {
+  if (scene.kind === "obs") {
+    const name = blankToNull(scene.obsSceneName);
+    return name ? `OBS · ${name}` : "OBS scene";
+  }
+  if (scene.mediaKind === "video") return "Video";
+  if (scene.mediaKind === "image") return "Image";
+  return "Scene";
+}
+
 export function blankToNull(value: string | null | undefined) {
   const trimmed = value?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
