@@ -69,7 +69,7 @@ export function AudienceWorkspace({
   const [addKind, setAddKind] = useState<AudienceToolKind>("poll");
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
   const [presetName, setPresetName] = useState("");
-  const [brandOpen, setBrandOpen] = useState(!settings.brandLogoUrl);
+  const [brandOpen, setBrandOpen] = useState(false);
   const selected = tools.find((tool) => tool.id === selectedToolId) ?? tools[0] ?? null;
   const joinUrl = session ? `${apiBase}/live/${session.joinCode}` : "";
   const onWall = selected?.status === "on_wall";
