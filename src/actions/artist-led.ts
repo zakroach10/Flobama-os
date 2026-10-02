@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authorizeLedWallActivate, authorizeProgramming } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import { ARTIST_LED_WALL_SQL, LED_WALL_SQL } from "@/lib/constants";
+import { venueLocalDateString } from "@/lib/screens/artist-led";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { endTriviaSession } from "@/lib/trivia/runtime";
 
@@ -275,6 +276,27 @@ export async function activateDefaultAdRollAction(): Promise<ArtistLedActionResu
     { onConflict: "venue_id" },
   );
   if (error) return { ok: false, message: sqlHint(error.message) };
+
+  const today = venueLocalDateString(new Date(), g.context.venue.timezone || undefined);
+  if (today) {
+    const { data: existingSettings } = await g.supabase
+      .from("led_wall_settings")
+      .select("venue_id")
+      .eq("venue_id", g.context.venue.id)
+      .maybeSingle();
+    if (existingSettings) {
+      await g.supabase
+        .from("led_wall_settings")
+        .update({ last_ad_roll_reset_on: today })
+        .eq("venue_id", g.context.venue.id);
+    } else {
+      await g.supabase.from("led_wall_settings").insert({
+        venue_id: g.context.venue.id,
+        last_ad_roll_reset_on: today,
+      });
+    }
+  }
+
   revalidateArtistLed();
   return { ok: true, message: `${playlist.name} (ad roll) is live on the LED wall.` };
 }

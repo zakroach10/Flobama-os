@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { getCronSecret } from "@/lib/env";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { runLedWallAutomation } from "@/lib/screens/led-wall-automation";
+import { isLedCronAuthorized } from "@/lib/screens/led-wall-cron";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function authorized(request: Request) {
-  const secret = getCronSecret();
-  if (!secret) return false;
-  const header = request.headers.get("authorization");
-  return header === `Bearer ${secret}`;
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!isLedCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
