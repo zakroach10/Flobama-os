@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { LED_DISPLAY_POLL_MS } from "@/lib/constants";
 import type { PublicLedMedia } from "@/lib/screens/led-wall";
 import {
-  holdMsForLedPlaylistItem,
-  nextLedPlaylistIndex,
+  ledPlaylistIndexAt,
+  ledPlaylistsEqual,
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 import type { TriviaWallState } from "@/lib/trivia/types";
@@ -30,6 +30,7 @@ export function LedDisplay({
   initialMode = initial ? "scene" : "idle",
   initialRevision = initial?.id ?? "idle",
   initialReloadNonce = 1,
+  initialStartedAt = null,
   initialTrivia = null,
   initialAudience = null,
   lockTriviaDemo = false,
@@ -39,6 +40,7 @@ export function LedDisplay({
   initialMode?: "idle" | "scene" | "playlist";
   initialRevision?: string;
   initialReloadNonce?: number;
+  initialStartedAt?: string | null;
   initialTrivia?: TriviaWallState | null;
   initialAudience?: AudienceWallState | null;
   lockTriviaDemo?: boolean;
@@ -46,8 +48,10 @@ export function LedDisplay({
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
   const [playlist, setPlaylist] = useState<PublicLedPlaylistItem[]>(initialPlaylist);
   const [mode, setMode] = useState<"idle" | "scene" | "playlist">(initialMode);
-  const [revision, setRevision] = useState(initialRevision);
-  const [index, setIndex] = useState(0);
+  const [startedAt, setStartedAt] = useState<string | null>(initialStartedAt);
+  const [index, setIndex] = useState(() =>
+    initialMode === "playlist" ? ledPlaylistIndexAt(initialPlaylist, initialStartedAt) : 0,
+  );
   const [trivia, setTrivia] = useState<TriviaWallState | null>(initialTrivia);
   const [audience, setAudience] = useState<AudienceWallState | null>(initialAudience);
   const reloadNonceRef = useRef(initialReloadNonce);
@@ -81,23 +85,26 @@ export function LedDisplay({
         const nextRevision = ledJson.revision ?? "idle";
         const nextMode = ledJson.mode ?? (ledJson.active ? "scene" : "idle");
         const nextPlaylist = ledJson.playlist ?? [];
+        const nextStartedAt = ledJson.startedAt ?? null;
 
         if (nextRevision !== revisionRef.current || nextMode !== modeRef.current) {
           revisionRef.current = nextRevision;
           modeRef.current = nextMode;
-          setRevision(nextRevision);
           setMode(nextMode);
           setPlaylist(nextPlaylist);
-          setIndex(0);
+          setStartedAt(nextStartedAt);
+          setIndex(nextMode === "playlist" ? ledPlaylistIndexAt(nextPlaylist, nextStartedAt) : 0);
           setMedia(ledJson.active ?? null);
           return;
         }
 
         if (nextMode === "playlist") {
-          setPlaylist(nextPlaylist);
+          setPlaylist((current) => (ledPlaylistsEqual(current, nextPlaylist) ? current : nextPlaylist));
+          setStartedAt(nextStartedAt);
         } else {
           setMedia(ledJson.active ?? null);
           setPlaylist([]);
+          setStartedAt(null);
         }
       } catch {
         /* keep current frame on network errors */
@@ -110,21 +117,18 @@ export function LedDisplay({
     };
   }, [lockTriviaDemo]);
 
+  // Keep display + OBS agent on the same time-based playlist slot (wraps / loops).
   useEffect(() => {
-    if (mode !== "playlist" || playlist.length === 0 || trivia || audience) return;
-    const item = playlist[index];
-    if (!item) return;
-    const holdMs = holdMsForLedPlaylistItem(item);
-    if (holdMs <= 0) return;
-    const timer = window.setTimeout(() => {
-      setIndex((current) => nextLedPlaylistIndex(current, playlist.length));
-    }, holdMs);
-    return () => window.clearTimeout(timer);
-  }, [mode, playlist, index, trivia, audience]);
+    if (mode !== "playlist" || playlist.length === 0 || trivia || audience?.tool) return;
+    const sync = () => setIndex(ledPlaylistIndexAt(playlist, startedAt));
+    sync();
+    const timer = window.setInterval(sync, 250);
+    return () => window.clearInterval(timer);
+  }, [mode, playlist, startedAt, trivia, audience?.tool]);
 
-  // Trivia takes precedence if both somehow live; otherwise show audience wall.
+  // Trivia takes precedence if both somehow live; otherwise show audience wall only when a tool is up.
   if (trivia) return <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />;
-  if (audience) return <AudienceWall initial={audience} />;
+  if (audience?.tool) return <AudienceWall initial={audience} />;
 
   if (mode === "playlist" && playlist.length > 0) {
     const item = playlist[index] ?? playlist[0];
@@ -134,24 +138,27 @@ export function LedDisplay({
     if (item.kind === "media" && item.url && item.mediaKind === "video") {
       return (
         <video
-          key={item.id}
+          key={`${item.id}-${index}`}
           src={item.url}
           className="h-full w-full bg-black object-contain"
           autoPlay
           muted
           playsInline
-          onEnded={() => setIndex((current) => nextLedPlaylistIndex(current, playlist.length))}
+          loop={playlist.length === 1}
         />
       );
     }
     if (item.kind === "media" && item.url) {
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img key={item.id} src={item.url} alt="" className="h-full w-full bg-black object-contain" />
+        <img key={`${item.id}-${index}`} src={item.url} alt="" className="h-full w-full bg-black object-contain" />
       );
     }
     return <div className="h-full w-full bg-black" />;
   }
+
+  // Audience lobby (session live, nothing on wall) only when LED is not running an ad-roll playlist.
+  if (audience) return <AudienceWall initial={audience} />;
 
   if (!media) return <div className="h-full w-full bg-black" />;
 

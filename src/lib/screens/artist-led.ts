@@ -5,6 +5,9 @@ import type { LedWallMediaKind } from "@/lib/screens/led-wall";
 /** Minutes before showtime when artist LED graphics auto-roll. */
 export const ARTIST_LED_AUTO_ROLL_MINUTES = 5;
 
+/** Minutes after showtime to keep trying auto-roll (catch-up if cron/manual wall blocked the pre-window). */
+export const ARTIST_LED_AUTO_ROLL_CATCHUP_MINUTES = 45;
+
 /** Artist profile LED logos/loops may be up to 2 GB. */
 export const MAX_ARTIST_LED_BYTES = 2 * 1024 * 1024 * 1024;
 
@@ -64,17 +67,22 @@ export function artistLedScenes<T extends { artist_id?: string | null; enabled: 
   return scenes.filter((scene) => isArtistOwnedLedScene(scene) && scene.enabled);
 }
 
-/** True when now is inside the auto-roll window: [startsAt - 5m, startsAt). */
+/**
+ * True when now is inside the auto-roll window:
+ * [startsAt - minutesBefore, startsAt + catchupMinutes).
+ */
 export function isWithinArtistLedAutoWindow(
   startsAtIso: string,
   now: Date = new Date(),
   minutesBefore = ARTIST_LED_AUTO_ROLL_MINUTES,
+  catchupMinutes = ARTIST_LED_AUTO_ROLL_CATCHUP_MINUTES,
 ) {
   const starts = DateTime.fromISO(startsAtIso, { zone: "utc" });
   if (!starts.isValid) return false;
   const nowUtc = DateTime.fromJSDate(now, { zone: "utc" });
   const windowOpen = starts.minus({ minutes: minutesBefore });
-  return nowUtc >= windowOpen && nowUtc < starts;
+  const windowClose = starts.plus({ minutes: catchupMinutes });
+  return nowUtc >= windowOpen && nowUtc < windowClose;
 }
 
 export function venueLocalDateString(now: Date = new Date(), timeZone = DEFAULT_VENUE_TIMEZONE) {

@@ -42,14 +42,16 @@ describe("artist LED helpers", () => {
     expect(houseLedScenes(scenes).map((scene) => scene.id)).toEqual(["1", "3"]);
   });
 
-  it("opens the auto-roll window five minutes before showtime", () => {
+  it("opens the auto-roll window before showtime and keeps catch-up after start", () => {
     const starts = DateTime.fromISO("2026-09-30T23:00:00.000Z", { zone: "utc" });
     const inWindow = starts.minus({ minutes: ARTIST_LED_AUTO_ROLL_MINUTES }).plus({ seconds: 30 }).toJSDate();
     const tooEarly = starts.minus({ minutes: ARTIST_LED_AUTO_ROLL_MINUTES + 1 }).toJSDate();
     const afterStart = starts.plus({ minutes: 1 }).toJSDate();
+    const afterCatchup = starts.plus({ minutes: 46 }).toJSDate();
     expect(isWithinArtistLedAutoWindow(starts.toISO()!, inWindow)).toBe(true);
     expect(isWithinArtistLedAutoWindow(starts.toISO()!, tooEarly)).toBe(false);
-    expect(isWithinArtistLedAutoWindow(starts.toISO()!, afterStart)).toBe(false);
+    expect(isWithinArtistLedAutoWindow(starts.toISO()!, afterStart)).toBe(true);
+    expect(isWithinArtistLedAutoWindow(starts.toISO()!, afterCatchup)).toBe(false);
   });
 
   it("picks the first billed artist with an LED config", () => {
