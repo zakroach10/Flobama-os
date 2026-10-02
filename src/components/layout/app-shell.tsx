@@ -147,19 +147,33 @@ function DedicatedConsoleShell({
   roleLabel,
   userLabel,
   consoleLabel,
+  dark = false,
+  dense = false,
 }: {
   children: React.ReactNode;
   venueName: string;
   roleLabel: string;
   userLabel: string;
   consoleLabel: string;
+  dark?: boolean;
+  dense?: boolean;
 }) {
   return (
-    <div className="flex min-h-full flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
-        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+    <div className={cn("flex min-h-full flex-col bg-background", dark && "dark")}>
+      <header
+        className={cn(
+          "sticky top-0 z-40 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm",
+          dark && "border-border/70 bg-card/90",
+        )}
+      >
+        <div
+          className={cn(
+            "mx-auto flex min-h-14 items-center gap-3 px-4 sm:px-6",
+            dense ? "max-w-[90rem] lg:px-5" : "max-w-6xl lg:px-8",
+          )}
+        >
           <div className="min-w-0 flex-1">
-            <FlobamaLogo className="h-7 w-auto max-w-[132px]" />
+            <FlobamaLogo className={cn("h-7 w-auto max-w-[132px]", dark && "brightness-110")} />
             <p className="truncate text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
               {consoleLabel}
             </p>
@@ -177,7 +191,14 @@ function DedicatedConsoleShell({
           </form>
         </div>
       </header>
-      <div className="mx-auto w-full max-w-6xl flex-1 overflow-x-hidden px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5 lg:px-8">
+      <div
+        className={cn(
+          "mx-auto w-full flex-1 overflow-x-hidden pb-[max(1rem,env(safe-area-inset-bottom))]",
+          dense
+            ? "max-w-[90rem] px-3 py-3 sm:px-4 sm:py-3 lg:px-5"
+            : "max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8",
+        )}
+      >
         {children}
       </div>
     </div>
@@ -222,6 +243,8 @@ export function AppShell({
         roleLabel={roleLabel}
         userLabel={userLabel}
         consoleLabel="Wall & Screens"
+        dark
+        dense
       >
         {children}
       </DedicatedConsoleShell>
