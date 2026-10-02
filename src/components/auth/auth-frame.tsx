@@ -22,7 +22,7 @@ export function AuthFrame({
         {children}
         {showBackToLogin ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            <Link href="/login" className="underline-offset-4 hover:underline">
+            <Link href="/" className="underline-offset-4 hover:underline">
               Back to sign in
             </Link>
           </p>

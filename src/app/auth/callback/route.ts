@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const next = safeInternalPath(url.searchParams.get("next"), "/dashboard");
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.redirect(new URL("/login", url.origin));
+    return NextResponse.redirect(new URL("/", url.origin));
   }
 
   if (code) {
