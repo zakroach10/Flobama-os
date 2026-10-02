@@ -8,6 +8,7 @@ export type Database = {
           id: string;
           name: string;
           timezone: string;
+          wall_ops_user_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -15,12 +16,14 @@ export type Database = {
           id?: string;
           name: string;
           timezone?: string;
+          wall_ops_user_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           name?: string;
           timezone?: string;
+          wall_ops_user_id?: string | null;
         };
         Relationships: [];
       };

@@ -6,9 +6,9 @@ import { GhlIntegrationsCard } from "@/components/settings/ghl-integrations-card
 import { RolePermissionGuide, StaffDirectory } from "@/components/settings/staff-admin";
 import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { listVenueStaff } from "@/lib/queries/staff";
+import { listVenueStaff, withWallOpsMenus } from "@/lib/queries/staff";
 import { canManageStaff } from "@/lib/auth/permissions";
-import { getWallOpsEmail, WALL_OPS_LOGIN_PATH } from "@/lib/auth/wall-ops";
+import { isMissingWallOpsColumn } from "@/lib/auth/wall-ops";
 import { ErrorState } from "@/components/states";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
@@ -21,6 +21,17 @@ export default async function SettingsPage() {
   if (!supabase) redirect("/login");
 
   const { members, error, menusReady } = await listVenueStaff(supabase, context.venue.id);
+
+  let wallOpsUserId = context.venue.wall_ops_user_id ?? null;
+  let wallOpsReady = true;
+  if (wallOpsUserId === null) {
+    const venueRes = await supabase.from("venues").select("wall_ops_user_id").eq("id", context.venue.id).maybeSingle();
+    if (venueRes.error && isMissingWallOpsColumn(venueRes.error.message)) {
+      wallOpsReady = false;
+    } else if (!venueRes.error) {
+      wallOpsUserId = venueRes.data?.wall_ops_user_id ?? null;
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
@@ -43,13 +54,13 @@ export default async function SettingsPage() {
         />
       ) : (
         <StaffDirectory
-          members={members}
+          members={withWallOpsMenus(members, wallOpsUserId)}
           currentUserId={context.userId}
           canManage={canManageStaff(context.role)}
           serviceRoleConfigured={isServiceRoleConfigured()}
           menusReady={menusReady}
-          wallOpsEmail={getWallOpsEmail()}
-          wallLoginPath={WALL_OPS_LOGIN_PATH}
+          wallOpsUserId={wallOpsUserId}
+          wallOpsReady={wallOpsReady}
         />
       )}
       <WebsiteEmbedCard siteUrl={getPublicAppUrl()} />

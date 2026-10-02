@@ -130,6 +130,12 @@ export const createStaffSchema = z.object({
 
 export type CreateStaffValues = z.output<typeof createStaffSchema>;
 
+export const createComputerControlSchema = z.object({
+  email: z.email("Enter a valid email."),
+  displayName: z.string().trim().min(1, "Display name is required.").max(120),
+  password: z.string().min(8, "Use at least 8 characters."),
+});
+
 export const updateStaffRoleSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum(STAFF_ROLES),

@@ -1,6 +1,6 @@
 import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
-import { isWallOpsEmail, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
+import { isWallOpsAccount, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
 export const STAFF_MENUS_SQL = "supabase/migrations/20261002000033_staff_menus_known.sql";
 
@@ -127,12 +127,16 @@ export function menuForPath(pathname: string): StaffMenuId | null {
 export function authorizeMenuSelection(
   email: string | null | undefined,
   menus: readonly string[],
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
 ): { allowed: true } | { allowed: false; reason: string } {
   if (isMasterAdminEmail(email) && !sameMenus(menus, defaultMenusForRole("admin"))) {
     return { allowed: false, reason: "The master admin keeps every menu." };
   }
-  if (isWallOpsEmail(email) && !sameMenus(menus, WALL_OPS_MENUS)) {
-    return { allowed: false, reason: "The Wall & Screens login keeps Screens only." };
+  if (
+    isWallOpsAccount({ email, userId: options?.userId, wallOpsUserId: options?.wallOpsUserId }) &&
+    !sameMenus(menus, WALL_OPS_MENUS)
+  ) {
+    return { allowed: false, reason: "The computer control login keeps Screens only." };
   }
   return { allowed: true };
 }

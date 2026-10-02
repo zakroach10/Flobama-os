@@ -1,6 +1,6 @@
 import type { StaffRole } from "@/lib/constants";
 import { MASTER_ADMIN_EMAIL, STAFF_ROLES } from "@/lib/constants";
-import { isWallOpsEmail } from "@/lib/auth/wall-ops";
+import { isWallOpsAccount } from "@/lib/auth/wall-ops";
 
 export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   admin: [
@@ -61,8 +61,15 @@ export function canManageProgramming(role: StaffRole): boolean {
 }
 
 /** Wall & Screens booth login can run LED + vertical screen controls without opening other menus. */
-export function canManageScreensControls(role: StaffRole, email?: string | null): boolean {
-  return canManageProgramming(role) || isWallOpsEmail(email);
+export function canManageScreensControls(
+  role: StaffRole,
+  email?: string | null,
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
+): boolean {
+  return (
+    canManageProgramming(role) ||
+    isWallOpsAccount({ email, userId: options?.userId, wallOpsUserId: options?.wallOpsUserId })
+  );
 }
 
 export function canConfigureLedWall(role: StaffRole): boolean {

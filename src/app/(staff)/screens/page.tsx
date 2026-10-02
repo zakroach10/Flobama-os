@@ -35,7 +35,10 @@ export default async function ScreensPage({
   const context = await getStaffContext();
   if (context.status !== "ok") redirect("/login");
   const wallOps = isWallOpsShell(context.menus);
-  const canProgram = canManageScreensControls(context.role, context.email);
+  const canProgram = canManageScreensControls(context.role, context.email, {
+    userId: context.userId,
+    wallOpsUserId: context.venue.wall_ops_user_id,
+  });
   const canConfigure = canConfigureLedWall(context.role);
   const supabase = await createServerSupabaseClient();
   if (!supabase) redirect("/login");
