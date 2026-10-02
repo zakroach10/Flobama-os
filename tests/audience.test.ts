@@ -73,6 +73,16 @@ describe("audience engine", () => {
     expect(isAudienceToolKind("leaderboard")).toBe(false);
   });
 
+  it("supports picture presets for the LED wall", () => {
+    expect(AUDIENCE_TOOL_KINDS).toContain("picture");
+    expect(isAudienceToolKind("picture")).toBe(true);
+    expect(defaultPayloadForKind("picture")).toEqual({
+      imageUrl: "",
+      storagePath: "",
+      caption: "",
+    });
+  });
+
   it("normalizes names and join codes", () => {
     expect(normalizeAudienceDisplayName("  Zak  ")).toBe("Zak");
     expect(createAudienceJoinCode()).toHaveLength(6);

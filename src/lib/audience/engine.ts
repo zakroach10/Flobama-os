@@ -104,6 +104,12 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
         endsAt: null,
         seconds: 120,
       };
+    case "picture":
+      return {
+        imageUrl: "",
+        storagePath: "",
+        caption: "",
+      };
     default:
       return {};
   }
@@ -119,6 +125,8 @@ export function titleForAudienceTool(kind: AudienceToolKind): string {
     matchup: "Matchup card",
     sponsor: "Sponsor card",
     countdown: "Countdown",
+    picture: "Picture",
   };
   return labels[kind];
 }
+

@@ -19,6 +19,7 @@ import {
   updateAudienceToolAction,
 } from "@/actions/audience";
 import { uploadAudienceBrandLogoFromBrowser } from "@/lib/audience/brand-upload";
+import { uploadAudiencePictureFromBrowser } from "@/lib/audience/picture-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -327,11 +328,21 @@ export function AudienceWorkspace({
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{tool.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {AUDIENCE_TOOL_LABELS[tool.kind as AudienceToolKind] ?? tool.kind}
-                            </p>
+                          <div className="flex min-w-0 items-start gap-2">
+                            {tool.kind === "picture" && typeof tool.payload.imageUrl === "string" && tool.payload.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={tool.payload.imageUrl}
+                                alt=""
+                                className="size-10 shrink-0 rounded-md object-cover ring-1 ring-black/10"
+                              />
+                            ) : null}
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{tool.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {AUDIENCE_TOOL_LABELS[tool.kind as AudienceToolKind] ?? tool.kind}
+                              </p>
+                            </div>
                           </div>
                           <Badge variant={tool.status === "on_wall" ? "default" : "secondary"}>
                             {tool.status === "on_wall" ? "Live" : "Ready"}
@@ -378,11 +389,21 @@ export function AudienceWorkspace({
                 {filteredPresets.map((preset) => (
                   <li key={preset.id} className="rounded-lg border px-3 py-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{preset.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {AUDIENCE_TOOL_LABELS[preset.kind]} · {preset.title}
-                        </p>
+                      <div className="flex min-w-0 items-start gap-2">
+                        {preset.kind === "picture" && typeof preset.payload.imageUrl === "string" && preset.payload.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={preset.payload.imageUrl}
+                            alt=""
+                            className="size-12 shrink-0 rounded-md object-cover ring-1 ring-black/10"
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{preset.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {AUDIENCE_TOOL_LABELS[preset.kind]} · {preset.title}
+                          </p>
+                        </div>
                       </div>
                       <Button
                         type="button"
@@ -437,7 +458,12 @@ export function AudienceWorkspace({
                   Pick a game mode, fill the fields, and save a named preset. During the show, add it to the
                   rundown in one tap.
                 </p>
-                <PresetBuilder pending={pending} onSaved={refresh} />
+                <PresetBuilder
+                  pending={pending}
+                  onSaved={refresh}
+                  venueId={venueId}
+                  supabaseEnv={supabaseEnv}
+                />
               </div>
             ) : !selected ? (
               <p className="text-sm text-muted-foreground">Select or add a tool to edit.</p>
@@ -509,6 +535,8 @@ export function AudienceWorkspace({
                     pending={pending}
                     presetName={presetName}
                     onPresetNameChange={setPresetName}
+                    venueId={venueId}
+                    supabaseEnv={supabaseEnv}
                     onSave={(payload, title) => {
                       run(async () =>
                         updateAudienceToolAction({
@@ -631,13 +659,17 @@ export function AudienceWorkspace({
 function PresetBuilder({
   pending,
   onSaved,
+  venueId,
+  supabaseEnv,
 }: {
   pending: boolean;
   onSaved: () => void;
+  venueId: string;
+  supabaseEnv: PublicSupabaseEnv | null;
 }) {
-  const [kind, setKind] = useState<AudienceToolKind>("poll");
+  const [kind, setKind] = useState<AudienceToolKind>("picture");
   const [name, setName] = useState("");
-  const [draft, setDraft] = useState(() => defaultPayloadForKind("poll"));
+  const [draft, setDraft] = useState(() => defaultPayloadForKind("picture"));
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -667,22 +699,34 @@ function PresetBuilder({
           <Input
             id="offline-name"
             value={name}
-            placeholder="e.g. Halftime hot take"
+            placeholder="e.g. Opening graphic"
             onChange={(event) => setName(event.target.value)}
           />
         </div>
       </div>
-      <OfflineFields kind={kind} draft={draft} setDraft={setDraft} />
+      <OfflineFields
+        kind={kind}
+        draft={draft}
+        setDraft={setDraft}
+        pending={pending}
+        venueId={venueId}
+        supabaseEnv={supabaseEnv}
+      />
       <Button
         type="button"
-        disabled={pending || !name.trim()}
+        disabled={pending || !name.trim() || (kind === "picture" && !String(draft.imageUrl ?? "").trim())}
         onClick={() => {
           const presetName = name.trim();
           if (!presetName) return;
+          if (kind === "picture" && !String(draft.imageUrl ?? "").trim()) {
+            toast.error("Upload a picture first.");
+            return;
+          }
           startTransition(async () => {
             const result = await saveAudiencePresetAction({
               kind,
               name: presetName,
+              title: kind === "picture" ? presetName : undefined,
               payload: draft,
             });
             if (!result.ok) toast.error(result.message);
@@ -705,10 +749,16 @@ function OfflineFields({
   kind,
   draft,
   setDraft,
+  pending,
+  venueId,
+  supabaseEnv,
 }: {
   kind: AudienceToolKind;
   draft: Record<string, unknown>;
   setDraft: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+  pending: boolean;
+  venueId: string;
+  supabaseEnv: PublicSupabaseEnv | null;
 }) {
   if (kind === "message") {
     return (
@@ -810,7 +860,88 @@ function OfflineFields({
       </div>
     );
   }
+  if (kind === "picture") {
+    return (
+      <PictureFields
+        draft={draft}
+        setDraft={setDraft}
+        pending={pending}
+        venueId={venueId}
+        supabaseEnv={supabaseEnv}
+      />
+    );
+  }
   return null;
+}
+
+function PictureFields({
+  draft,
+  setDraft,
+  pending,
+  venueId,
+  supabaseEnv,
+}: {
+  draft: Record<string, unknown>;
+  setDraft: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+  pending: boolean;
+  venueId: string;
+  supabaseEnv: PublicSupabaseEnv | null;
+}) {
+  const [, startTransition] = useTransition();
+  const imageUrl = String(draft.imageUrl ?? "");
+
+  return (
+    <div className="space-y-3 sm:col-span-2">
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="flex size-36 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-black/10">
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="size-full object-cover" />
+          ) : (
+            <span className="px-3 text-center text-xs text-muted-foreground">No picture yet</span>
+          )}
+        </div>
+        <div className="min-w-[14rem] flex-1 space-y-2">
+          <Label htmlFor="picture-upload">Upload picture (PNG, JPG, or WebP)</Label>
+          <Input
+            id="picture-upload"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={pending}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              startTransition(async () => {
+                const result = await uploadAudiencePictureFromBrowser({
+                  file,
+                  venueId,
+                  supabaseEnv,
+                });
+                if (!result.ok) toast.error(result.message);
+                else {
+                  toast.success(result.message);
+                  setDraft((prev) => ({
+                    ...prev,
+                    imageUrl: result.publicUrl,
+                    storagePath: result.storagePath,
+                  }));
+                }
+              });
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Save as a preset so you can put this graphic on the LED wall during the show.
+          </p>
+        </div>
+      </div>
+      <Field
+        label="Caption on the wall (optional)"
+        value={String(draft.caption ?? "")}
+        onChange={(value) => setDraft((prev) => ({ ...prev, caption: value }))}
+      />
+    </div>
+  );
 }
 
 function ToolEditor({
@@ -818,6 +949,8 @@ function ToolEditor({
   pending,
   presetName,
   onPresetNameChange,
+  venueId,
+  supabaseEnv,
   onSave,
   onSavePreset,
 }: {
@@ -825,6 +958,8 @@ function ToolEditor({
   pending: boolean;
   presetName: string;
   onPresetNameChange: (value: string) => void;
+  venueId: string;
+  supabaseEnv: PublicSupabaseEnv | null;
   onSave: (payload: Record<string, unknown>, title?: string) => void;
   onSavePreset: (payload: Record<string, unknown>, title?: string) => void;
 }) {
@@ -1095,6 +1230,27 @@ function ToolEditor({
           label="Seconds to show (example: 120)"
           value={String(draft.seconds ?? 120)}
           onChange={(value) => setDraft((prev) => ({ ...prev, seconds: Number(value) || 0, endsAt: null }))}
+        />
+      </EditorShell>
+    );
+  }
+
+  if (kind === "picture") {
+    const title = String(draft.caption ?? "").trim() || "Picture";
+    return (
+      <EditorShell
+        pending={pending}
+        onSave={() => save(title)}
+        presetName={presetName}
+        onPresetNameChange={onPresetNameChange}
+        onSavePreset={() => savePreset(title)}
+      >
+        <PictureFields
+          draft={draft}
+          setDraft={setDraft}
+          pending={pending}
+          venueId={venueId}
+          supabaseEnv={supabaseEnv}
         />
       </EditorShell>
     );
