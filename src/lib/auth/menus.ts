@@ -1,7 +1,7 @@
 import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
 
-export const STAFF_MENUS_SQL = "supabase/migrations/20260930000029_staff_menus.sql";
+export const STAFF_MENUS_SQL = "supabase/migrations/20261002000033_staff_menus_known.sql";
 
 export const STAFF_MENU_IDS = [
   "dashboard",
@@ -57,8 +57,12 @@ export function isMissingMenusColumn(message: string | null | undefined) {
   return /menus/i.test(message ?? "") && /does not exist|schema cache|could not find/i.test(message ?? "");
 }
 
+export function isMenusKnownConstraintError(message: string | null | undefined) {
+  return /venue_memberships_menus_known|check constraint.*menus_known/i.test(message ?? "");
+}
+
 export function staffMenusSqlMessage(message: string) {
-  if (!isMissingMenusColumn(message)) return message;
+  if (!isMissingMenusColumn(message) && !isMenusKnownConstraintError(message)) return message;
   return `Apply ${STAFF_MENUS_SQL} on the hosted database before saving menu access.`;
 }
 
