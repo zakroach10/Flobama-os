@@ -48,7 +48,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div className="container mx-auto px-4 h-24 md:h-28 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 z-50">
+          <Link href="/live-music" className="flex items-center gap-2 z-50">
             <img
               src="https://assets.cdn.filesafe.space/EoCbYBHBgxShA8KuCYLM/media/6934c64d1d466e655f1b0c45.png"
               alt="FloBama Logo"
@@ -108,12 +108,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           }`}
         >
           <nav className="flex flex-col gap-6 text-center">
-            <Link
-              href="/"
-              className="text-2xl font-heading font-bold uppercase tracking-wider"
-            >
-              Home
-            </Link>
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -362,7 +356,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 </li>
                 <li>
                   <Link
-                    href="/#staff-login"
+                    href="/"
                     className="text-muted-foreground hover:text-primary transition-colors"
                   >
                     Staff Login

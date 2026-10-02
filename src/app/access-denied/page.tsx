@@ -19,7 +19,7 @@ export default function AccessDeniedPage() {
             Log out
           </Button>
         </form>
-        <Button variant="ghost" render={<Link href="/login" />}>
+        <Button variant="ghost" render={<Link href="/" />}>
           Sign in with a different account
         </Button>
       </div>
