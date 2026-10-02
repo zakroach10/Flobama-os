@@ -111,11 +111,11 @@ export function WallOpsControlCenter({
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col gap-3 lg:min-h-[calc(100dvh-3.75rem)]">
+    <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col gap-3 text-foreground lg:min-h-[calc(100dvh-3.75rem)]">
       <section className="grid gap-3 rounded-2xl border border-border/80 bg-card/80 p-3 sm:grid-cols-[1fr_auto] sm:items-center sm:p-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.18em] text-primary uppercase">Now on the wall</p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{nowPlaying}</h1>
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{nowPlaying}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{agentStatusCopy(agent)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -136,7 +136,7 @@ export function WallOpsControlCenter({
             type="button"
             size="lg"
             variant="outline"
-            className="min-h-12 flex-1 sm:flex-none"
+            className="min-h-12 flex-1 text-foreground sm:flex-none"
             disabled={pendingKey !== null || refreshMissing}
             onClick={() => run("refresh", () => refreshWallDisplaysAction())}
           >
@@ -176,10 +176,10 @@ export function WallOpsControlCenter({
                     "min-h-24 rounded-xl border px-4 py-3 text-left transition-colors",
                     active
                       ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_1px_var(--primary)]"
-                      : "border-border/80 bg-background/60 hover:border-primary/50 hover:bg-muted/60",
+                      : "border-border/80 bg-background/60 text-foreground hover:border-primary/50 hover:bg-muted/60",
                   )}
                 >
-                  <span className="block text-base font-semibold">{scene.title}</span>
+                  <span className="block text-base font-semibold text-inherit">{scene.title}</span>
                   <span className={cn("mt-1 block text-sm", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
                     {pending ? "Switching…" : active ? "Live now" : ledSceneDetail(scene)}
                   </span>
@@ -210,7 +210,7 @@ export function WallOpsControlCenter({
                         "min-h-11 rounded-full border px-4 text-sm font-medium transition-colors",
                         active
                           ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/80 bg-background/60 hover:bg-muted/60",
+                          : "border-border/80 bg-background/60 text-foreground hover:bg-muted/60",
                       )}
                     >
                       {pending ? "Starting…" : playlist.name}
@@ -244,7 +244,7 @@ export function WallOpsControlCenter({
                         "flex min-h-16 items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors",
                         active
                           ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/80 bg-background/60 hover:bg-muted/60 disabled:opacity-45",
+                          : "border-border/80 bg-background/60 text-foreground hover:bg-muted/60 disabled:opacity-45",
                       )}
                     >
                       <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
@@ -252,11 +252,11 @@ export function WallOpsControlCenter({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={artist.publicUrl} alt="" className="max-h-full max-w-full object-contain" />
                         ) : (
-                          <span className="text-[10px] text-neutral-500">—</span>
+                          <span className="text-[10px] text-muted-foreground">—</span>
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{artist.name}</span>
+                        <span className="block truncate font-medium text-inherit">{artist.name}</span>
                         <span
                           className={cn(
                             "block truncate text-xs",
@@ -325,7 +325,7 @@ export function WallOpsControlCenter({
                 </label>
                 <select
                   id="wall-ops-ad"
-                  className="h-11 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                  className="h-11 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
                   value={takeoverAdId}
                   onChange={(event) => setTakeoverAdId(event.target.value)}
                 >
