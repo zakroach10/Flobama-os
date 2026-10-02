@@ -34,16 +34,21 @@ export function PrintWeekToolbar({
         {mode === "flyer" ? (
           <>
             <Button type="button" variant="outline" className="w-full sm:w-auto" render={<Link href="/print/week/social" />}>
-              Social sizes
+              Instagram Portrait
             </Button>
             <Button type="button" className="w-full sm:w-auto" onClick={() => window.print()}>
               Print / Save PDF
             </Button>
           </>
         ) : (
-          <Button type="button" variant="outline" className="w-full sm:w-auto" render={<Link href="/print/week" />}>
-            Weekly flyer
-          </Button>
+          <>
+            <Button type="button" className="w-full sm:w-auto" render={<Link href="/dashboard" />}>
+              FloBama OS
+            </Button>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" render={<Link href="/print/week" />}>
+              Weekly flyer
+            </Button>
+          </>
         )}
       </div>
     </div>

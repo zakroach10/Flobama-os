@@ -39,21 +39,21 @@ function configuredDeps(fetchImpl: typeof fetch): GhlDeps {
 describe("week social media URLs", () => {
   it("builds absolute HTTPS PNG URLs for each page", () => {
     const urls = weekSocialMediaUrls({
-      formatId: "ig-square",
+      formatId: "ig-portrait",
       pageCount: 2,
       origin: PRODUCTION_SITE_URL,
     });
     expect(urls).toEqual([
-      "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-square",
-      "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-square&page=2",
+      "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait",
+      "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait&page=2",
     ]);
   });
 
   it("maps media items as image/png", () => {
-    const media = weekSocialMediaItems({ formatId: "story", pageCount: 1, origin: PRODUCTION_SITE_URL });
+    const media = weekSocialMediaItems({ formatId: "ig-portrait", pageCount: 1, origin: PRODUCTION_SITE_URL });
     expect(media).toEqual([
       {
-        url: "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=story",
+        url: "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait",
         type: "image/png",
         altText: "Live music this week at FloBama",
       },
@@ -294,7 +294,7 @@ describe("social ghlFetch wrappers", () => {
         accountIds: ["acc_1"],
         summary: "Live music this week at FloBama.",
         status: "draft",
-        media: weekSocialMediaItems({ formatId: "ig-square", origin: PRODUCTION_SITE_URL }),
+        media: weekSocialMediaItems({ formatId: "ig-portrait", origin: PRODUCTION_SITE_URL }),
       },
       configuredDeps(fetchImpl),
     );
@@ -342,7 +342,7 @@ describe("social ghlFetch wrappers", () => {
         accountIds: ["acc_1"],
         summary: "Live music this week at FloBama.",
         status: "published",
-        media: weekSocialMediaItems({ formatId: "ig-square", origin: PRODUCTION_SITE_URL }),
+        media: weekSocialMediaItems({ formatId: "ig-portrait", origin: PRODUCTION_SITE_URL }),
       },
       configuredDeps(fetchImpl),
     );
