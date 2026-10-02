@@ -2,6 +2,8 @@
 
 Public FloBama Music Hall site plus the staff operations platform. `/` serves the GHL AI Studio redesign (events, menu, catering, and more) with **staff login at the bottom of the home page**. Staff tools remain under `/dashboard` and other authenticated routes. It does not modify flobamadowntown.com, Pick'em, or other production systems.
 
+**Product overview:** see [`docs/flobama-os-v1.pdf`](./docs/flobama-os-v1.pdf) for V1 features, APIs, architecture, and database diagrams (regenerate with `python3 scripts/generate-flobama-os-v1-pdf.py`).
+
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
