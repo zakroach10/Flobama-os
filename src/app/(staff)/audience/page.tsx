@@ -3,6 +3,7 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
+  AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
   AUDIENCE_SQL_ROLE,
@@ -31,7 +32,7 @@ export default async function AudiencePage() {
     return (
       <ErrorState
         title="Audience Interactor needs a database update"
-        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then ${AUDIENCE_SETTINGS_SQL}, then ${AUDIENCE_PRESETS_SQL}, then ${LED_AUDIENCE_SCENE_SQL} and ${LED_AUDIENCE_SCENE_SEED_SQL} in the Supabase SQL editor.`}
+        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then ${AUDIENCE_SETTINGS_SQL}, then ${AUDIENCE_PRESETS_SQL}, then ${AUDIENCE_PICTURE_SQL}, then ${LED_AUDIENCE_SCENE_SQL} and ${LED_AUDIENCE_SCENE_SEED_SQL} in the Supabase SQL editor.`}
       />
     );
   }

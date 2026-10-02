@@ -139,6 +139,24 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
             <p className="text-5xl font-black">{String(tool.payload.name ?? tool.title)}</p>
             <p className="mt-4 text-2xl text-white/75">{String(tool.payload.blurb ?? "")}</p>
           </div>
+        ) : tool.kind === "picture" ? (
+          <div className="flex h-full w-full max-w-6xl flex-col items-center justify-center gap-6">
+            {tool.payload.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={String(tool.payload.imageUrl)}
+                alt=""
+                className="max-h-[min(70vh,820px)] w-auto max-w-full rounded-2xl object-contain shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+              />
+            ) : (
+              <p className="text-3xl font-semibold text-white/70">Picture not uploaded yet</p>
+            )}
+            {tool.payload.caption ? (
+              <p className="max-w-4xl text-center text-3xl font-semibold text-white/85">
+                {String(tool.payload.caption)}
+              </p>
+            ) : null}
+          </div>
         ) : tool.kind === "questions" ? (
           <div className="max-w-5xl text-center">
             {tool.questionOnWall ? (

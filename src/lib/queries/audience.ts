@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AudienceToolKind, AudienceToolStatus } from "@/lib/audience/types";
-import { isMissingAudienceRelation } from "@/lib/audience/engine";
+import { isAudienceToolKind, isMissingAudienceRelation } from "@/lib/audience/engine";
 
 type Client = SupabaseClient;
 
@@ -80,11 +80,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
     payload: Record<string, unknown> | null;
     updated_at: string;
   }> | null) ?? [])
-    .filter((preset) =>
-      ["poll", "host_picks", "questions", "hot_take", "message", "matchup", "sponsor", "countdown"].includes(
-        preset.kind,
-      ),
-    )
+    .filter((preset) => isAudienceToolKind(preset.kind))
     .map((preset) => ({
       id: preset.id,
       kind: preset.kind,
@@ -196,11 +192,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       guestCount: guestsRes.count ?? 0,
       startedAt: row.started_at,
     } satisfies StaffAudienceSession,
-    tools: tools.filter((tool) =>
-      ["poll", "host_picks", "questions", "hot_take", "message", "matchup", "sponsor", "countdown"].includes(
-        tool.kind,
-      ),
-    ),
+    tools: tools.filter((tool) => isAudienceToolKind(tool.kind)),
     questions,
     presets,
     settings,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import {
+  AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
   AUDIENCE_SQL_ROLE,
@@ -53,6 +54,9 @@ function sqlHint(message: string) {
   }
   if (/audience_venue_settings/i.test(message)) {
     return `Apply ${AUDIENCE_SETTINGS_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  if (/invalid input value for enum audience_tool_kind|picture/i.test(message) && /enum|invalid/i.test(message)) {
+    return `Apply ${AUDIENCE_PICTURE_SQL} in the Supabase SQL editor, then try again.`;
   }
   if (isMissingAudienceRelation(message) || /interactor|staff_role/i.test(message)) {
     return `Apply ${AUDIENCE_SQL_ROLE} then ${AUDIENCE_SQL_TABLES} in the Supabase SQL editor, then try again.`;

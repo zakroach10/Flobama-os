@@ -51,7 +51,7 @@ export function ledSceneDetail(scene: {
     return "Automated trivia on the LED wall · QR join, questions, timer, top 3";
   }
   if (scene.kind === "audience") {
-    return "Live Audience Interactor · polls, Q&A, cards, countdowns";
+    return "Live Audience Interactor · polls, Q&A, pictures, cards, countdowns";
   }
   if (scene.media_kind === "video") return "MP4 loop on the FloBama display page";
   return "PNG on the FloBama display page";

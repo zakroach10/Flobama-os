@@ -7,6 +7,7 @@ export const AUDIENCE_TOOL_KINDS = [
   "matchup",
   "sponsor",
   "countdown",
+  "picture",
 ] as const;
 
 export type AudienceToolKind = (typeof AUDIENCE_TOOL_KINDS)[number];
@@ -62,6 +63,7 @@ export const AUDIENCE_TOOL_LABELS: Record<AudienceToolKind, string> = {
   matchup: "Matchup card",
   sponsor: "Sponsor card",
   countdown: "Countdown / break",
+  picture: "Picture / graphic",
 };
 
 export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
@@ -73,4 +75,5 @@ export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
   matchup: "Team names, kickoff, and a discussion prompt.",
   sponsor: "Bring up a sponsor name and blurb.",
   countdown: "Pre-show timer or “we’ll be right back” break.",
+  picture: "Upload a photo or graphic, save it as a preset, put it on the LED wall.",
 };
