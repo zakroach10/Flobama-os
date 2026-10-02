@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 import {
+  ARTIST_LED_AUTO_CATCHUP_MINUTES,
   ARTIST_LED_AUTO_ROLL_MINUTES,
   artistLedFileMeta,
   artistLedMediaKindForFile,
@@ -9,9 +10,12 @@ import {
   isWithinArtistLedAutoWindow,
   MAX_ARTIST_LED_BYTES,
   pickPrimaryArtistId,
+  shouldAutoActivateArtistLed,
   shouldRunAdRollReset,
   venueLocalDateString,
 } from "@/lib/screens/artist-led";
+import { canAutoArtistCut } from "@/lib/screens/led-wall-automation";
+import { isLedCronAuthorized } from "@/lib/screens/led-wall-cron";
 
 describe("artist LED helpers", () => {
   it("allows png, jpeg, heic logos and mp4 loops up to 2 GB", () => {
@@ -52,6 +56,23 @@ describe("artist LED helpers", () => {
     expect(isWithinArtistLedAutoWindow(starts.toISO()!, afterStart)).toBe(false);
   });
 
+  it("keeps catching up for a while after showtime", () => {
+    const starts = DateTime.fromISO("2026-09-30T23:00:00.000Z", { zone: "utc" });
+    expect(shouldAutoActivateArtistLed(starts.toISO()!, starts.plus({ minutes: 1 }).toJSDate())).toBe(true);
+    expect(
+      shouldAutoActivateArtistLed(
+        starts.toISO()!,
+        starts.plus({ minutes: ARTIST_LED_AUTO_CATCHUP_MINUTES }).toJSDate(),
+      ),
+    ).toBe(true);
+    expect(
+      shouldAutoActivateArtistLed(
+        starts.toISO()!,
+        starts.plus({ minutes: ARTIST_LED_AUTO_CATCHUP_MINUTES + 1 }).toJSDate(),
+      ),
+    ).toBe(false);
+  });
+
   it("picks the first billed artist with an LED config", () => {
     expect(
       pickPrimaryArtistId([
@@ -69,7 +90,30 @@ describe("artist LED helpers", () => {
     expect(canAutoReplaceLedWall("audience")).toBe(false);
   });
 
-  it("runs the 4AM ad-roll reset once per venue day", () => {
+  it("lets auto cuts replace artist logos even when put on manually", () => {
+    expect(
+      canAutoArtistCut({
+        activeKind: "media",
+        activationSource: "manual",
+        activePlaylistId: null,
+        defaultPlaylistId: "ad-roll",
+        activeSceneId: "artist-scene",
+        activeSceneArtistId: "artist-1",
+      }),
+    ).toBe(true);
+    expect(
+      canAutoArtistCut({
+        activeKind: "obs",
+        activationSource: "manual",
+        activePlaylistId: null,
+        defaultPlaylistId: "ad-roll",
+        activeSceneId: "house-scene",
+        activeSceneArtistId: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("runs the 4AM ad-roll reset once per venue day, with later catch-up", () => {
     const chicagoFour = DateTime.fromObject(
       { year: 2026, month: 9, day: 30, hour: 4, minute: 12 },
       { zone: "America/Chicago" },
@@ -90,7 +134,7 @@ describe("artist LED helpers", () => {
       }),
     ).toBe(false);
     const noon = DateTime.fromObject(
-      { year: 2026, month: 9, day: 30, hour: 12, minute: 0 },
+      { year: 2026, month: 9, day: 30, hour: 10, minute: 30 },
       { zone: "America/Chicago" },
     ).toUTC();
     expect(
@@ -99,6 +143,54 @@ describe("artist LED helpers", () => {
         timeZone: "America/Chicago",
         lastResetOn: null,
       }),
+    ).toBe(true);
+    const afternoon = DateTime.fromObject(
+      { year: 2026, month: 9, day: 30, hour: 12, minute: 0 },
+      { zone: "America/Chicago" },
+    ).toUTC();
+    expect(
+      shouldRunAdRollReset({
+        now: afternoon.toJSDate(),
+        timeZone: "America/Chicago",
+        lastResetOn: null,
+      }),
     ).toBe(false);
+    const beforeFour = DateTime.fromObject(
+      { year: 2026, month: 9, day: 30, hour: 3, minute: 59 },
+      { zone: "America/Chicago" },
+    ).toUTC();
+    expect(
+      shouldRunAdRollReset({
+        now: beforeFour.toJSDate(),
+        timeZone: "America/Chicago",
+        lastResetOn: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("LED cron auth", () => {
+  it("accepts bearer secret when configured", () => {
+    const previous = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "test-secret";
+    expect(
+      isLedCronAuthorized(new Request("https://example.com", { headers: { authorization: "Bearer test-secret" } })),
+    ).toBe(true);
+    expect(
+      isLedCronAuthorized(new Request("https://example.com", { headers: { "x-vercel-cron": "1" } })),
+    ).toBe(false);
+    if (previous === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previous;
+  });
+
+  it("falls back to x-vercel-cron when secret is unset", () => {
+    const previous = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    expect(
+      isLedCronAuthorized(new Request("https://example.com", { headers: { "x-vercel-cron": "1" } })),
+    ).toBe(true);
+    expect(isLedCronAuthorized(new Request("https://example.com"))).toBe(false);
+    if (previous === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previous;
   });
 });

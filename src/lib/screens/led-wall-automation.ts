@@ -2,10 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { DEFAULT_VENUE_TIMEZONE, FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import {
+  ARTIST_LED_AUTO_CATCHUP_MINUTES,
   ARTIST_LED_AUTO_ROLL_MINUTES,
   canAutoReplaceLedWall,
-  isWithinArtistLedAutoWindow,
   pickPrimaryArtistId,
+  shouldAutoActivateArtistLed,
   shouldRunAdRollReset,
   venueLocalDateString,
 } from "@/lib/screens/artist-led";
@@ -20,33 +21,53 @@ export type LedWallAutomationResult = {
 };
 
 const ARTIST_LED_LOOKAHEAD_MS = (ARTIST_LED_AUTO_ROLL_MINUTES + 1) * 60 * 1000;
+const ARTIST_LED_LOOKBEHIND_MS = (ARTIST_LED_AUTO_CATCHUP_MINUTES + 1) * 60 * 1000;
 
 async function loadVenueTimezone(client: Client, venueId: string) {
   const { data } = await client.from("venues").select("timezone").eq("id", venueId).maybeSingle();
   return data?.timezone?.trim() || DEFAULT_VENUE_TIMEZONE;
 }
 
-async function activeSceneKind(client: Client, sceneId: string | null | undefined) {
-  if (!sceneId) return null;
-  const { data } = await client.from("led_wall_scenes").select("kind").eq("id", sceneId).maybeSingle();
-  return data?.kind ?? null;
+async function loadActiveScene(
+  client: Client,
+  sceneId: string | null | undefined,
+): Promise<{ kind: string | null; artistId: string | null }> {
+  if (!sceneId) return { kind: null, artistId: null };
+  const { data } = await client
+    .from("led_wall_scenes")
+    .select("kind, artist_id")
+    .eq("id", sceneId)
+    .maybeSingle();
+  return { kind: data?.kind ?? null, artistId: data?.artist_id ?? null };
 }
 
-function canAutoArtistCut(input: {
+/**
+ * Auto may replace ad-roll / prior auto cuts / artist logos (even if put on
+ * manually). Manual house scenes (OBS loops, etc.) stay protected.
+ */
+export function canAutoArtistCut(input: {
   activeKind: string | null;
   activationSource: string | null | undefined;
   activePlaylistId: string | null | undefined;
   defaultPlaylistId: string | null | undefined;
   activeSceneId: string | null | undefined;
+  activeSceneArtistId?: string | null;
 }) {
   if (!canAutoReplaceLedWall(input.activeKind)) return false;
   if (!input.activeSceneId && !input.activePlaylistId) return true;
   if (input.activationSource === "ad_roll" || input.activationSource === "artist_auto") return true;
   if (input.activePlaylistId && input.activePlaylistId === input.defaultPlaylistId) return true;
+  if (input.activeSceneArtistId) return true;
   return false;
 }
 
-async function activateAdRoll(client: Client, venueId: string, playlistId: string, timeZone: string) {
+async function activateAdRoll(
+  client: Client,
+  venueId: string,
+  playlistId: string,
+  timeZone: string,
+  now: Date,
+) {
   await endTriviaSession(client, venueId);
   const { error } = await client.from("led_wall_runtime").upsert(
     {
@@ -61,7 +82,7 @@ async function activateAdRoll(client: Client, venueId: string, playlistId: strin
   );
   if (error) return error.message;
 
-  const today = venueLocalDateString(new Date(), timeZone);
+  const today = venueLocalDateString(now, timeZone);
   const { data: existing } = await client
     .from("led_wall_settings")
     .select("venue_id")
@@ -120,7 +141,8 @@ export async function runLedWallAutomation(
       .maybeSingle(),
   ]);
 
-  let activeKind = await activeSceneKind(client, runtime?.active_scene_id);
+  let activeScene = await loadActiveScene(client, runtime?.active_scene_id);
+  let activeKind = activeScene.kind;
 
   if (
     shouldRunAdRollReset({
@@ -134,11 +156,12 @@ export async function runLedWallAutomation(
     } else if (!canAutoReplaceLedWall(activeKind)) {
       result.skipped.push("Ad-roll reset skipped — trivia or audience is live.");
     } else {
-      const err = await activateAdRoll(client, venueId, settings.default_playlist_id, timeZone);
+      const err = await activateAdRoll(client, venueId, settings.default_playlist_id, timeZone, now);
       if (err) result.skipped.push(err);
       else {
         result.adRollReset = true;
         activeKind = null;
+        activeScene = { kind: null, artistId: null };
       }
     }
   }
@@ -149,7 +172,12 @@ export async function runLedWallAutomation(
     .eq("venue_id", venueId)
     .maybeSingle();
 
-  const windowStart = new Date(now.getTime() - 60_000).toISOString();
+  if (runtimeAfter?.active_scene_id !== runtime?.active_scene_id) {
+    activeScene = await loadActiveScene(client, runtimeAfter?.active_scene_id);
+    activeKind = activeScene.kind;
+  }
+
+  const windowStart = new Date(now.getTime() - ARTIST_LED_LOOKBEHIND_MS).toISOString();
   const windowEnd = new Date(now.getTime() + ARTIST_LED_LOOKAHEAD_MS).toISOString();
 
   const { data: events, error: eventsError } = await client
@@ -191,7 +219,7 @@ export async function runLedWallAutomation(
   );
 
   for (const event of events ?? []) {
-    if (!isWithinArtistLedAutoWindow(event.starts_at, now)) continue;
+    if (!shouldAutoActivateArtistLed(event.starts_at, now)) continue;
     if (runtimeAfter?.auto_event_id === event.id && runtimeAfter.activation_source === "artist_auto") {
       continue;
     }
@@ -202,6 +230,7 @@ export async function runLedWallAutomation(
         activePlaylistId: runtimeAfter?.active_playlist_id,
         defaultPlaylistId: settings?.default_playlist_id,
         activeSceneId: runtimeAfter?.active_scene_id,
+        activeSceneArtistId: activeScene.artistId,
       })
     ) {
       result.skipped.push(`Skipped auto for event ${event.id} — wall is on a manual selection.`);
@@ -222,6 +251,14 @@ export async function runLedWallAutomation(
     }
     const sceneId = sceneByArtist.get(artistId);
     if (!sceneId) continue;
+
+    // Already showing this artist's logo for this event (manual put-on-wall).
+    if (
+      runtimeAfter?.active_scene_id === sceneId &&
+      (runtimeAfter.auto_event_id === event.id || runtimeAfter.activation_source === "manual")
+    ) {
+      continue;
+    }
 
     const err = await activateArtistScene(client, venueId, {
       sceneId,

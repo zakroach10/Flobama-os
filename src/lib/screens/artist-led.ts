@@ -5,6 +5,12 @@ import type { LedWallMediaKind } from "@/lib/screens/led-wall";
 /** Minutes before showtime when artist LED graphics auto-roll. */
 export const ARTIST_LED_AUTO_ROLL_MINUTES = 5;
 
+/**
+ * Minutes after showtime when a missed auto-roll can still catch up.
+ * Cron/display ticks sometimes skip the narrow pre-show window.
+ */
+export const ARTIST_LED_AUTO_CATCHUP_MINUTES = 45;
+
 /** Artist profile LED logos/loops may be up to 2 GB. */
 export const MAX_ARTIST_LED_BYTES = 2 * 1024 * 1024 * 1024;
 
@@ -50,6 +56,9 @@ export function artistLedFileMeta(file: { type: string; name: string }, mediaKin
 /** Venue-local hour when the wall resets to the ad-roll playlist. */
 export const LED_AD_ROLL_RESET_HOUR = 4;
 
+/** Stop forcing morning ad-roll catch-up at this venue-local hour. */
+export const LED_AD_ROLL_CATCHUP_UNTIL_HOUR = 11;
+
 export type LedActivationSource = "manual" | "artist_auto" | "ad_roll";
 
 export function isArtistOwnedLedScene(scene: { artist_id?: string | null }) {
@@ -77,16 +86,43 @@ export function isWithinArtistLedAutoWindow(
   return nowUtc >= windowOpen && nowUtc < starts;
 }
 
+/**
+ * True when the artist LED should auto-activate for this showtime:
+ * [startsAt - minutesBefore, startsAt + catchupMinutes].
+ */
+export function shouldAutoActivateArtistLed(
+  startsAtIso: string,
+  now: Date = new Date(),
+  minutesBefore = ARTIST_LED_AUTO_ROLL_MINUTES,
+  catchupMinutes = ARTIST_LED_AUTO_CATCHUP_MINUTES,
+) {
+  const starts = DateTime.fromISO(startsAtIso, { zone: "utc" });
+  if (!starts.isValid) return false;
+  const nowUtc = DateTime.fromJSDate(now, { zone: "utc" });
+  const windowOpen = starts.minus({ minutes: minutesBefore });
+  const windowClose = starts.plus({ minutes: catchupMinutes });
+  return nowUtc >= windowOpen && nowUtc <= windowClose;
+}
+
 export function venueLocalDateString(now: Date = new Date(), timeZone = DEFAULT_VENUE_TIMEZONE) {
   return DateTime.fromJSDate(now, { zone: "utc" }).setZone(timeZone).toISODate();
 }
 
-/** True during the venue-local 4:00 hour (cron may hit any minute in that hour). */
-export function isAdRollResetHour(now: Date = new Date(), timeZone = DEFAULT_VENUE_TIMEZONE) {
+/** True during the morning ad-roll reset/catch-up window [4:00, 11:00). */
+export function isAtOrAfterAdRollResetTime(now: Date = new Date(), timeZone = DEFAULT_VENUE_TIMEZONE) {
   const local = DateTime.fromJSDate(now, { zone: "utc" }).setZone(timeZone);
-  return local.hour === LED_AD_ROLL_RESET_HOUR;
+  return local.hour >= LED_AD_ROLL_RESET_HOUR && local.hour < LED_AD_ROLL_CATCHUP_UNTIL_HOUR;
 }
 
+/** @deprecated Use isAtOrAfterAdRollResetTime — catch-up runs all morning, not only 4:xx. */
+export function isAdRollResetHour(now: Date = new Date(), timeZone = DEFAULT_VENUE_TIMEZONE) {
+  return isAtOrAfterAdRollResetTime(now, timeZone);
+}
+
+/**
+ * Reset to ad roll once per venue day at/after 4:00 AM.
+ * Catch-up after 4:59 is intentional — missed cron ticks should still recover.
+ */
 export function shouldRunAdRollReset(input: {
   now?: Date;
   timeZone?: string;
@@ -94,7 +130,7 @@ export function shouldRunAdRollReset(input: {
 }) {
   const now = input.now ?? new Date();
   const timeZone = input.timeZone ?? DEFAULT_VENUE_TIMEZONE;
-  if (!isAdRollResetHour(now, timeZone)) return false;
+  if (!isAtOrAfterAdRollResetTime(now, timeZone)) return false;
   const today = venueLocalDateString(now, timeZone);
   if (!today) return false;
   return input.lastResetOn !== today;
