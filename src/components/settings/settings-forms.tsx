@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { MoonIcon, SunIcon } from "lucide-react";
 import { signOutAction } from "@/actions/records";
 import { updateProfileAction, updateVenueAction } from "@/actions/records";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { StaffRole } from "@/lib/constants";
 import { STAFF_ROLE_LABELS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export function SettingsForms({
   displayName,
@@ -29,6 +32,8 @@ export function SettingsForms({
 
   return (
     <div className="space-y-10">
+      <AppearanceSettings />
+
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Your profile</h2>
         <form
@@ -116,5 +121,65 @@ export function SettingsForms({
         </Button>
       </section>
     </div>
+  );
+}
+
+function AppearanceSettings() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const active = mounted ? (theme === "dark" || resolvedTheme === "dark" ? "dark" : "light") : "light";
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">Appearance</h2>
+        <p className="text-sm text-muted-foreground">
+          Choose light or dark for your staff screens. Saved on this device.
+        </p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          aria-pressed={active === "light"}
+          disabled={!mounted}
+          onClick={() => setTheme("light")}
+          className={cn(
+            "flex min-h-14 items-center gap-3 rounded-xl border px-4 text-left transition-colors",
+            active === "light"
+              ? "border-primary bg-primary/10 text-foreground"
+              : "border-border bg-card hover:bg-muted/50",
+          )}
+        >
+          <SunIcon className="size-5 shrink-0" aria-hidden />
+          <span>
+            <span className="block font-medium">Light</span>
+            <span className="block text-xs text-muted-foreground">Default FloBama look</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={active === "dark"}
+          disabled={!mounted}
+          onClick={() => setTheme("dark")}
+          className={cn(
+            "flex min-h-14 items-center gap-3 rounded-xl border px-4 text-left transition-colors",
+            active === "dark"
+              ? "border-primary bg-primary/10 text-foreground"
+              : "border-border bg-card hover:bg-muted/50",
+          )}
+        >
+          <MoonIcon className="size-5 shrink-0" aria-hidden />
+          <span>
+            <span className="block font-medium">Dark</span>
+            <span className="block text-xs text-muted-foreground">Low-light control rooms</span>
+          </span>
+        </button>
+      </div>
+    </section>
   );
 }
