@@ -24,6 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type {
   StaffAudiencePreset,
   StaffAudienceQuestion,
@@ -71,6 +79,7 @@ export function AudienceWorkspace({
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
   const [presetName, setPresetName] = useState("");
   const [brandOpen, setBrandOpen] = useState(false);
+  const [confirmStartOpen, setConfirmStartOpen] = useState(false);
   const selected = tools.find((tool) => tool.id === selectedToolId) ?? tools[0] ?? null;
   const joinUrl = session ? `${apiBase}/live/${session.joinCode}` : "";
   const onWall = selected?.status === "on_wall";
@@ -220,19 +229,14 @@ export function AudienceWorkspace({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Start a session when the room is ready. Build presets anytime — even before you go live.
+                Starting a session switches the LED wall to FloBama in real time. Build presets anytime — even
+                before you go live.
               </p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             {!session ? (
-              <Button
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  run(async () => startAudienceSessionAction({ title: "FloBama Live" }))
-                }
-              >
+              <Button type="button" disabled={pending} onClick={() => setConfirmStartOpen(true)}>
                 Start session
               </Button>
             ) : (
@@ -422,10 +426,10 @@ export function AudienceWorkspace({
                       type="button"
                       size="sm"
                       className="mt-2 w-full"
-                      disabled={pending || !session}
+                      disabled={pending}
                       onClick={() => {
                         if (!session) {
-                          toast.error("Start a session first.");
+                          setConfirmStartOpen(true);
                           return;
                         }
                         run(
@@ -652,6 +656,33 @@ export function AudienceWorkspace({
           </div>
         </div>
       ) : null}
+
+      <Dialog open={confirmStartOpen} onOpenChange={setConfirmStartOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start audience session?</DialogTitle>
+            <DialogDescription>
+              Proceeding switches the LED wall to FloBama in real time. Only start if you are testing, or on stage
+              and ready to use Audience Interactor.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={pending} onClick={() => setConfirmStartOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setConfirmStartOpen(false);
+                run(async () => startAudienceSessionAction({ title: "FloBama Live" }));
+              }}
+            >
+              Start session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
