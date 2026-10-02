@@ -159,7 +159,7 @@ function DedicatedConsoleShell({
   dense?: boolean;
 }) {
   return (
-    <div className={cn("flex min-h-full flex-col bg-background", dark && "dark")}>
+    <div className={cn("flex min-h-full flex-col bg-background text-foreground", dark && "dark")}>
       <header
         className={cn(
           "sticky top-0 z-40 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm",
@@ -185,7 +185,7 @@ function DedicatedConsoleShell({
             </p>
           </div>
           <form action={signOutAction}>
-            <Button type="submit" variant="outline" size="sm">
+            <Button type="submit" variant="outline" size="sm" className="text-foreground">
               Log out
             </Button>
           </form>
@@ -193,7 +193,7 @@ function DedicatedConsoleShell({
       </header>
       <div
         className={cn(
-          "mx-auto w-full flex-1 overflow-x-hidden pb-[max(1rem,env(safe-area-inset-bottom))]",
+          "mx-auto w-full flex-1 overflow-x-hidden text-foreground pb-[max(1rem,env(safe-area-inset-bottom))]",
           dense
             ? "max-w-[90rem] px-3 py-3 sm:px-4 sm:py-3 lg:px-5"
             : "max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8",
