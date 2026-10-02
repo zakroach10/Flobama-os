@@ -1,8 +1,6 @@
--- Refresh the allowed sidebar menu ids.
--- Older hosted DBs still have venue_memberships_menus_known with `events` and
--- without `programming`, `audience`, or `cameras`, which rejects staff inserts.
+/* Refresh venue_memberships_menus_known for current sidebar menu ids.
+   Remap legacy events -> programming before tightening the check. */
 
--- Map any saved legacy id before tightening the check.
 update public.venue_memberships
 set menus = (
   select array_agg(
