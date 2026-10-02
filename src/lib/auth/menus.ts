@@ -64,9 +64,7 @@ export function staffMenusSqlMessage(message: string) {
 
 export function defaultMenusForRole(role: StaffRole): StaffMenuId[] {
   if (role === "interactor") {
-    return STAFF_MENU_IDS.filter((id) =>
-      id === "dashboard" || id === "audience" || id === "screens" || id === "settings",
-    );
+    return ["audience"];
   }
   if (role === "viewer") {
     return STAFF_MENU_IDS.filter(
@@ -81,10 +79,21 @@ export function normalizeMenuList(value: readonly string[]): StaffMenuId[] {
   return STAFF_MENU_IDS.filter((id) => selected.has(id));
 }
 
+/** Audience Interactors always land on the Audience console only — no sidebar menus. */
+export function menusForRole(role: StaffRole, menus: readonly string[]): StaffMenuId[] {
+  if (role === "interactor") return ["audience"];
+  return normalizeMenuList(menus);
+}
+
 /** Null means the person has never had a custom menu list, so the role defaults apply. */
 export function resolveMenus(stored: readonly string[] | null | undefined, role: StaffRole): StaffMenuId[] {
+  if (role === "interactor") return defaultMenusForRole(role);
   if (stored == null) return defaultMenusForRole(role);
   return normalizeMenuList(stored);
+}
+
+export function isAudienceOnlyShell(menus: readonly string[]) {
+  return menus.length === 1 && menus[0] === "audience";
 }
 
 export function sameMenus(left: readonly string[], right: readonly string[]) {

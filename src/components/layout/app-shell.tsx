@@ -21,7 +21,7 @@ import { signOutAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { STAFF_MENUS, type StaffMenuId } from "@/lib/auth/menus";
+import { isAudienceOnlyShell, STAFF_MENUS, type StaffMenuId } from "@/lib/auth/menus";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -141,6 +141,47 @@ function AccountFooter({
   );
 }
 
+function AudienceOnlyShell({
+  children,
+  venueName,
+  roleLabel,
+  userLabel,
+}: {
+  children: React.ReactNode;
+  venueName: string;
+  roleLabel: string;
+  userLabel: string;
+}) {
+  return (
+    <div className="flex min-h-full flex-col bg-background">
+      <header className="sticky top-0 z-40 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="min-w-0 flex-1">
+            <FlobamaLogo className="h-7 w-auto max-w-[132px]" />
+            <p className="truncate text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              Audience console
+            </p>
+          </div>
+          <div className="hidden min-w-0 text-right text-xs text-muted-foreground sm:block">
+            <p className="truncate font-medium text-foreground">{userLabel}</p>
+            <p className="truncate">
+              {roleLabel} · {venueName}
+            </p>
+          </div>
+          <form action={signOutAction}>
+            <Button type="submit" variant="outline" size="sm">
+              Log out
+            </Button>
+          </form>
+        </div>
+      </header>
+      <div className="mx-auto w-full max-w-6xl flex-1 overflow-x-hidden px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-5 lg:px-8">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({
   children,
   venueName,
@@ -158,6 +199,14 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  if (isAudienceOnlyShell(menus)) {
+    return (
+      <AudienceOnlyShell venueName={venueName} roleLabel={roleLabel} userLabel={userLabel}>
+        {children}
+      </AudienceOnlyShell>
+    );
+  }
 
   return (
     <div className="flex min-h-full bg-background">

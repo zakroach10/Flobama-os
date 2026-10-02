@@ -14,7 +14,9 @@ import {
   authorizeMenuSelection,
   defaultMenusForRole,
   firstMenuHref,
+  isAudienceOnlyShell,
   menuForPath,
+  menusForRole,
   resolveMenus,
   sameMenus,
 } from "@/lib/auth/menus";
@@ -135,12 +137,13 @@ describe("create staff validation", () => {
 });
 
 describe("staff menu access", () => {
-  it("starts viewers without booking/social/audience, interactors with the live tools set", () => {
+  it("starts viewers without booking/social/audience, interactors with audience only", () => {
     expect(defaultMenusForRole("viewer")).not.toContain("booking");
     expect(defaultMenusForRole("viewer")).not.toContain("social");
     expect(defaultMenusForRole("viewer")).not.toContain("audience");
     expect(defaultMenusForRole("viewer")).toContain("screens");
-    expect(defaultMenusForRole("interactor")).toEqual(["dashboard", "audience", "screens", "settings"]);
+    expect(defaultMenusForRole("interactor")).toEqual(["audience"]);
+    expect(resolveMenus(["dashboard", "settings"], "interactor")).toEqual(["audience"]);
     expect(defaultMenusForRole("admin")).toEqual([...STAFF_MENU_IDS]);
     expect(defaultMenusForRole("manager")).toEqual([...STAFF_MENU_IDS]);
   });
@@ -170,5 +173,13 @@ describe("staff menu access", () => {
   it("stores the same menu ids the database accepts", () => {
     const sql = readFileSync(STAFF_MENUS_SQL, "utf8");
     for (const id of STAFF_MENU_IDS) expect(sql).toContain(`'${id}'`);
+  });
+
+  it("locks interactors to the audience console shell", () => {
+    expect(menusForRole("interactor", ["dashboard", "settings"])).toEqual(["audience"]);
+    expect(menusForRole("manager", ["screens", "settings"])).toEqual(["screens", "settings"]);
+    expect(isAudienceOnlyShell(["audience"])).toBe(true);
+    expect(isAudienceOnlyShell(["audience", "settings"])).toBe(false);
+    expect(firstMenuHref(defaultMenusForRole("interactor"))).toBe("/audience");
   });
 });

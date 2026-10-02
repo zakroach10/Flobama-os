@@ -13,6 +13,7 @@ import {
   authorizeTriviaRun,
   canRunAudienceInteractor,
   isInteractorOnly,
+  ROLE_PERMISSIONS,
 } from "@/lib/auth/permissions";
 import { STAFF_ROLES } from "@/lib/constants";
 
@@ -27,6 +28,11 @@ describe("audience interactor role", () => {
     expect(authorizeTriviaRun("interactor").allowed).toBe(false);
     expect(isInteractorOnly("interactor")).toBe(true);
     expect(authorizeAudienceRun("viewer").allowed).toBe(false);
+  });
+
+  it("documents audience-only access for entertainers", () => {
+    expect(ROLE_PERMISSIONS.interactor.some((item) => /no sidebar/i.test(item))).toBe(true);
+    expect(ROLE_PERMISSIONS.interactor.some((item) => /preset/i.test(item))).toBe(true);
   });
 });
 
