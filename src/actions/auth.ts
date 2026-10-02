@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loginSchema, passwordResetRequestSchema } from "@/lib/validation/schemas";
 import { safeInternalPath } from "@/lib/auth/redirects";
+import { firstMenuHref, hasMenu, menuForPath } from "@/lib/auth/menus";
+import { getStaffContext } from "@/lib/auth/staff";
 import { getSiteUrl, isSupabaseConfigured } from "@/lib/env";
 
 export type AuthActionResult = {
@@ -33,7 +35,18 @@ export async function signInAction(formData: FormData): Promise<AuthActionResult
   });
   if (error) return { ok: false, message: error.message };
 
-  redirect(safeInternalPath(parsed.data.next, "/dashboard"));
+  const requested = safeInternalPath(parsed.data.next, "/dashboard");
+  const context = await getStaffContext();
+  if (context.status === "ok") {
+    const home = firstMenuHref(context.menus) ?? "/no-menus";
+    const menu = menuForPath(requested);
+    if (menu && hasMenu(context.menus, menu)) {
+      redirect(requested);
+    }
+    redirect(home);
+  }
+
+  redirect(requested);
 }
 
 export async function requestPasswordResetAction(formData: FormData): Promise<AuthActionResult> {

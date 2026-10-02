@@ -150,11 +150,11 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
           id="staff-role"
           className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
           value={role}
-          onChange={(e) => {
-            const next = e.target.value as StaffRole;
-            setRole(next);
-            if (!menusTouched) setMenus(defaultMenusForRole(next));
-          }}
+            onChange={(e) => {
+              const next = e.target.value as StaffRole;
+              setRole(next);
+              if (!menusTouched || next === "interactor") setMenus(defaultMenusForRole(next));
+            }}
         >
           {STAFF_ROLES.map((value) => (
             <option key={value} value={value}>
@@ -180,18 +180,26 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
         </div>
       </Field>
       <div className="sm:col-span-2">
-        <MenuToggles
-          idPrefix="new-staff"
-          menus={menus}
-          onChange={(next) => {
-            setMenusTouched(true);
-            setMenus(next);
-          }}
-        />
-        {fieldErrors.menus?.[0] ? <p className="mt-2 text-sm text-destructive">{fieldErrors.menus[0]}</p> : null}
-        <p className="mt-2 text-xs text-muted-foreground">
-          Checked menus show in the sidebar. Changing the role fills the usual menus until you edit a checkbox.
-        </p>
+        {role === "interactor" ? (
+          <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Audience Interactors only get the Audience console — no sidebar, dashboard, or settings.
+          </p>
+        ) : (
+          <>
+            <MenuToggles
+              idPrefix="new-staff"
+              menus={menus}
+              onChange={(next) => {
+                setMenusTouched(true);
+                setMenus(next);
+              }}
+            />
+            {fieldErrors.menus?.[0] ? <p className="mt-2 text-sm text-destructive">{fieldErrors.menus[0]}</p> : null}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Checked menus show in the sidebar. Changing the role fills the usual menus until you edit a checkbox.
+            </p>
+          </>
+        )}
       </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
@@ -232,12 +240,18 @@ function StaffRow({
         <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
         {canManage ? (
           <div className="mt-3">
-            <MenuToggles
-              idPrefix={member.userId}
-              menus={locked ? member.menus : menus}
-              disabled={locked || pending}
-              onChange={locked ? undefined : setMenus}
-            />
+            {role === "interactor" ? (
+              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Audience Interactors only see the Audience console (no sidebar or settings).
+              </p>
+            ) : (
+              <MenuToggles
+                idPrefix={member.userId}
+                menus={locked ? member.menus : menus}
+                disabled={locked || pending}
+                onChange={locked ? undefined : setMenus}
+              />
+            )}
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
@@ -252,7 +266,11 @@ function StaffRow({
             value={role}
             disabled={locked || pending}
             aria-label={`Role for ${member.displayName}`}
-            onChange={(e) => setRole(e.target.value as StaffRole)}
+            onChange={(e) => {
+              const next = e.target.value as StaffRole;
+              setRole(next);
+              setMenus(defaultMenusForRole(next));
+            }}
           >
             {roleOptions.map((value) => (
               <option key={value} value={value}>

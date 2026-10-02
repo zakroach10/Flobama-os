@@ -563,3 +563,78 @@ export async function moderateAudienceQuestion(
   if (error) return { ok: false, message: error.message };
   return { ok: true };
 }
+
+export async function saveAudiencePreset(
+  client: AnyClient,
+  input: {
+    venueId: string;
+    kind: AudienceToolKind;
+    name: string;
+    title: string;
+    payload: Record<string, unknown>;
+    createdBy: string;
+  },
+): Promise<{ ok: true; presetId: string } | { ok: false; message: string }> {
+  const { data, error } = await client
+    .from("audience_presets" as never)
+    .insert({
+      venue_id: input.venueId,
+      kind: input.kind,
+      name: input.name.trim(),
+      title: input.title.trim(),
+      payload: input.payload,
+      created_by: input.createdBy,
+    } as never)
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, message: error?.message ?? "Could not save preset." };
+  return { ok: true, presetId: (data as { id: string }).id };
+}
+
+export async function deleteAudiencePreset(
+  client: AnyClient,
+  input: { venueId: string; presetId: string },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await client
+    .from("audience_presets" as never)
+    .delete()
+    .eq("id", input.presetId)
+    .eq("venue_id", input.venueId);
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
+export async function loadAudiencePreset(
+  client: AnyClient,
+  input: { venueId: string; presetId: string },
+): Promise<
+  | { ok: true; preset: { id: string; kind: AudienceToolKind; name: string; title: string; payload: Record<string, unknown> } }
+  | { ok: false; message: string }
+> {
+  const { data, error } = await client
+    .from("audience_presets" as never)
+    .select("id, kind, name, title, payload")
+    .eq("id", input.presetId)
+    .eq("venue_id", input.venueId)
+    .maybeSingle();
+  if (error) return { ok: false, message: error.message };
+  if (!data) return { ok: false, message: "Preset not found." };
+  const row = data as {
+    id: string;
+    kind: string;
+    name: string;
+    title: string;
+    payload: Record<string, unknown> | null;
+  };
+  if (!isAudienceToolKind(row.kind)) return { ok: false, message: "Preset kind is not available." };
+  return {
+    ok: true,
+    preset: {
+      id: row.id,
+      kind: row.kind,
+      name: row.name,
+      title: row.title,
+      payload: row.payload ?? {},
+    },
+  };
+}

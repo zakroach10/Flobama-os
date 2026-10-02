@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import {
+  AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
   AUDIENCE_SQL_ROLE,
   AUDIENCE_SQL_TABLES,
@@ -19,9 +20,12 @@ import { AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 import {
   clearWallTool,
   createAudienceTool,
+  deleteAudiencePreset,
   endAudienceSession,
+  loadAudiencePreset,
   moderateAudienceQuestion,
   putToolOnWall,
+  saveAudiencePreset,
   setAudienceReveal,
   setAudienceVoting,
   startAudienceSession,
@@ -44,6 +48,9 @@ function fieldMessage(error: z.ZodError) {
 }
 
 function sqlHint(message: string) {
+  if (/audience_presets/i.test(message)) {
+    return `Apply ${AUDIENCE_PRESETS_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (/audience_venue_settings/i.test(message)) {
     return `Apply ${AUDIENCE_SETTINGS_SQL} in the Supabase SQL editor, then try again.`;
   }
@@ -338,4 +345,78 @@ export async function moderateAudienceQuestionAction(input: unknown): Promise<Au
   if (!result.ok) return { ok: false, message: sqlHint(result.message) };
   revalidateAudience();
   return { ok: true, message: `Question marked ${parsed.data.status.replaceAll("_", " ")}.` };
+}
+
+export async function saveAudiencePresetAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      kind: z.enum(AUDIENCE_TOOL_KINDS),
+      name: z.string().trim().min(1).max(80),
+      title: z.string().trim().min(1).max(200).optional(),
+      payload: z.record(z.string(), z.unknown()),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+  const title = parsed.data.title ?? titleForAudienceTool(parsed.data.kind);
+  const result = await saveAudiencePreset(gate.supabase, {
+    venueId: gate.context.venue.id,
+    kind: parsed.data.kind,
+    name: parsed.data.name,
+    title,
+    payload: parsed.data.payload,
+    createdBy: gate.context.userId,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  revalidateAudience();
+  return { ok: true, message: "Preset saved for later shows.", toolId: result.presetId };
+}
+
+export async function deleteAudiencePresetAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z.object({ presetId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+  const result = await deleteAudiencePreset(gate.supabase, {
+    venueId: gate.context.venue.id,
+    presetId: parsed.data.presetId,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  revalidateAudience();
+  return { ok: true, message: "Preset removed." };
+}
+
+export async function createAudienceToolFromPresetAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      sessionId: z.string().uuid(),
+      presetId: z.string().uuid(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const loaded = await loadAudiencePreset(gate.supabase, {
+    venueId: gate.context.venue.id,
+    presetId: parsed.data.presetId,
+  });
+  if (!loaded.ok) return { ok: false, message: sqlHint(loaded.message) };
+
+  const result = await createAudienceTool(gate.supabase, {
+    venueId: gate.context.venue.id,
+    sessionId: parsed.data.sessionId,
+    kind: loaded.preset.kind,
+    title: loaded.preset.title,
+    payload: loaded.preset.payload,
+    createdBy: gate.context.userId,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  revalidateAudience();
+  return {
+    ok: true,
+    message: `Loaded “${loaded.preset.name}” into the rundown.`,
+    toolId: result.toolId,
+  };
 }

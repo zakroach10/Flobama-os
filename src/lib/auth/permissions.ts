@@ -36,9 +36,9 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   interactor: [
     "Run Live Audience Interactor tools on the LED wall",
     "Start audience sessions, polls, Q&A, hot takes, messages, and cards",
+    "Save and reuse presets for each game mode before a show",
     "Activate the Audience Interactor LED scene",
-    "View Screens and the dashboard",
-    "View settings (read-only)",
+    "Audience console only — no sidebar, dashboard, or settings",
   ],
   viewer: [
     "View only the menus an admin turns on",

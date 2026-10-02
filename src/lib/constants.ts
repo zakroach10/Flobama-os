@@ -76,6 +76,7 @@ export const LED_AUDIENCE_SCENE_SEED_SQL = "supabase/migrations/20260930000026_l
 export const AUDIENCE_SQL_ROLE = "supabase/migrations/20260930000023_audience_interactor_role.sql";
 export const AUDIENCE_SQL_TABLES = "supabase/migrations/20260930000024_audience_interactor_tables.sql";
 export const AUDIENCE_SETTINGS_SQL = "supabase/migrations/20260930000027_audience_venue_settings.sql";
+export const AUDIENCE_PRESETS_SQL = "supabase/migrations/20261002000031_audience_presets.sql";
 export const AUDIENCE_GUEST_COOKIE = "flobama_audience_guest";
 export const AUDIENCE_POLL_MS = 1000;
 export const LED_OBS_CLIENT_VERSION = "1.0.2";

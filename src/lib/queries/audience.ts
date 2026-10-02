@@ -37,8 +37,17 @@ export type StaffAudienceSettings = {
   brandLogoUrl: string | null;
 };
 
+export type StaffAudiencePreset = {
+  id: string;
+  kind: AudienceToolKind;
+  name: string;
+  title: string;
+  payload: Record<string, unknown>;
+  updatedAt: string;
+};
+
 export async function loadAudienceWorkspace(client: Client, venueId: string) {
-  const [sessionRes, settingsRes] = await Promise.all([
+  const [sessionRes, settingsRes, presetsRes] = await Promise.all([
     client
       .from("audience_sessions" as never)
       .select("id, title, join_code, status, active_tool_id, voting_open, results_revealed, started_at")
@@ -52,19 +61,52 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       .select("brand_logo_url")
       .eq("venue_id", venueId)
       .maybeSingle(),
+    client
+      .from("audience_presets" as never)
+      .select("id, kind, name, title, payload, updated_at")
+      .eq("venue_id", venueId)
+      .order("updated_at", { ascending: false }),
   ]);
 
   const settings: StaffAudienceSettings = {
     brandLogoUrl: (settingsRes.data as { brand_logo_url?: string | null } | null)?.brand_logo_url?.trim() || null,
   };
 
+  const presets: StaffAudiencePreset[] = ((presetsRes.data as Array<{
+    id: string;
+    kind: AudienceToolKind;
+    name: string;
+    title: string;
+    payload: Record<string, unknown> | null;
+    updated_at: string;
+  }> | null) ?? [])
+    .filter((preset) =>
+      ["poll", "host_picks", "questions", "hot_take", "message", "matchup", "sponsor", "countdown"].includes(
+        preset.kind,
+      ),
+    )
+    .map((preset) => ({
+      id: preset.id,
+      kind: preset.kind,
+      name: preset.name,
+      title: preset.title,
+      payload: preset.payload ?? {},
+      updatedAt: preset.updated_at,
+    }));
+
+  const presetsMissing = Boolean(
+    presetsRes.error && isMissingAudienceRelation(presetsRes.error.message),
+  );
+
   if (sessionRes.error) {
     return {
       session: null as StaffAudienceSession | null,
       tools: [] as StaffAudienceTool[],
       questions: [] as StaffAudienceQuestion[],
+      presets,
       settings,
       missingTable: isMissingAudienceRelation(sessionRes.error.message),
+      missingPresetsTable: presetsMissing,
       error: sessionRes.error.message,
     };
   }
@@ -81,7 +123,16 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
   } | null;
 
   if (!row) {
-    return { session: null, tools: [], questions: [], settings, missingTable: false, error: null };
+    return {
+      session: null,
+      tools: [],
+      questions: [],
+      presets,
+      settings,
+      missingTable: false,
+      missingPresetsTable: presetsMissing,
+      error: presetsMissing ? null : presetsRes.error?.message ?? null,
+    };
   }
 
   const [toolsRes, questionsRes, guestsRes] = await Promise.all([
@@ -151,8 +202,10 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       ),
     ),
     questions,
+    presets,
     settings,
     missingTable: false,
-    error: toolsRes.error?.message ?? questionsRes.error?.message ?? null,
+    missingPresetsTable: presetsMissing,
+    error: toolsRes.error?.message ?? questionsRes.error?.message ?? (presetsMissing ? null : presetsRes.error?.message) ?? null,
   };
 }

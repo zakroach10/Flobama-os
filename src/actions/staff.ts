@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeMembershipChange, authorizeStaffAdmin } from "@/lib/auth/permissions";
-import { authorizeMenuSelection, normalizeMenuList, staffMenusSqlMessage } from "@/lib/auth/menus";
+import {
+  authorizeMenuSelection,
+  menusForRole,
+  staffMenusSqlMessage,
+} from "@/lib/auth/menus";
 import { createStaffSchema, removeStaffSchema, updateStaffRoleSchema } from "@/lib/validation/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceRoleClient, findAuthUserIdByEmail } from "@/lib/supabase/admin";
@@ -69,7 +73,7 @@ export async function createStaffAction(input: unknown): Promise<StaffActionResu
     return { ok: false, message: "That person already has access to this venue." };
   }
 
-  const menus = normalizeMenuList(parsed.data.menus);
+  const menus = menusForRole(parsed.data.role, parsed.data.menus);
   const menuDecision = authorizeMenuSelection(email, menus);
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 
@@ -147,7 +151,7 @@ export async function updateStaffRoleAction(input: unknown): Promise<StaffAction
   });
   if (!decision.allowed) return { ok: false, message: decision.reason };
 
-  const menus = normalizeMenuList(parsed.data.menus);
+  const menus = menusForRole(parsed.data.role as StaffRole, parsed.data.menus);
   const menuDecision = authorizeMenuSelection(target.email, menus);
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 
