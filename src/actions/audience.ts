@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import {
+  AUDIENCE_CORNER_SPONSOR_CONTACT_SQL,
   AUDIENCE_CORNER_SPONSOR_SQL,
   AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
@@ -54,6 +55,9 @@ function fieldMessage(error: z.ZodError) {
 function sqlHint(message: string) {
   if (/audience_presets/i.test(message)) {
     return `Apply ${AUDIENCE_PRESETS_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  if (/corner_sponsor_phone|corner_sponsor_message/i.test(message)) {
+    return `Apply ${AUDIENCE_CORNER_SPONSOR_CONTACT_SQL} in the Supabase SQL editor, then try again.`;
   }
   if (/corner_sponsor/i.test(message)) {
     return `Apply ${AUDIENCE_CORNER_SPONSOR_SQL} in the Supabase SQL editor, then try again.`;
@@ -238,6 +242,8 @@ export async function saveAudienceCornerSponsorAction(input: unknown): Promise<A
   const parsed = z
     .object({
       name: z.string().trim().max(80).optional(),
+      phone: z.string().trim().max(40).optional(),
+      message: z.string().trim().max(120).optional(),
       imageUrl: cornerSponsorImageUrl.optional(),
       imagePath: z.union([z.string().trim().min(3).max(400), z.literal(""), z.null()]).optional(),
       enabled: z.boolean().optional(),
@@ -258,8 +264,17 @@ export async function saveAudienceCornerSponsorAction(input: unknown): Promise<A
 
   const current = loaded.settings.row;
   const nextName = parsed.data.name !== undefined ? parsed.data.name.trim() : current.cornerSponsorName;
+  const nextPhone = parsed.data.phone !== undefined ? parsed.data.phone.trim() : current.cornerSponsorPhone;
+  const nextMessage = parsed.data.message !== undefined ? parsed.data.message.trim() : current.cornerSponsorMessage;
   const nextEnabled = parsed.data.enabled !== undefined ? parsed.data.enabled : current.cornerSponsorEnabled;
   const nextCorner = parsed.data.corner ?? current.cornerSponsorCorner;
+  const writeContact = !loaded.settings.missingCornerSponsorContactColumns;
+  if (!writeContact && (parsed.data.phone !== undefined || parsed.data.message !== undefined)) {
+    return {
+      ok: false,
+      message: `Apply ${AUDIENCE_CORNER_SPONSOR_CONTACT_SQL} in the Supabase SQL editor, then try again.`,
+    };
+  }
 
   let nextUrl = current.cornerSponsorImageUrl;
   let nextPath = current.cornerSponsorImagePath;
@@ -301,6 +316,12 @@ export async function saveAudienceCornerSponsorAction(input: unknown): Promise<A
       corner_sponsor_image_path: nextPath,
       corner_sponsor_image_url: nextUrl,
       corner_sponsor_corner: nextCorner,
+      ...(writeContact
+        ? {
+            corner_sponsor_phone: nextPhone || null,
+            corner_sponsor_message: nextMessage || null,
+          }
+        : {}),
     } as never,
     { onConflict: "venue_id" },
   );
@@ -341,6 +362,9 @@ export async function clearAudienceCornerSponsorAction(): Promise<AudienceAction
       corner_sponsor_name: null,
       corner_sponsor_image_path: null,
       corner_sponsor_image_url: null,
+      ...(loaded.settings.missingCornerSponsorContactColumns
+        ? {}
+        : { corner_sponsor_phone: null, corner_sponsor_message: null }),
     } as never,
     { onConflict: "venue_id" },
   );

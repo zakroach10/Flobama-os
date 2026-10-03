@@ -114,6 +114,8 @@ describe("audience engine", () => {
       name: "Acme",
       imageUrl: null,
       corner: "bottom-left",
+      phone: "",
+      message: "",
     });
     expect(
       cornerSponsorForWall({
@@ -121,11 +123,15 @@ describe("audience engine", () => {
         name: "",
         imageUrl: "https://cdn.example/logo.png",
         corner: "bottom-right",
+        phone: " 256-555-0100 ",
+        message: " Ask about tonight's special ",
       }),
     ).toEqual({
       name: "",
       imageUrl: "https://cdn.example/logo.png",
       corner: "bottom-right",
+      phone: "256-555-0100",
+      message: "Ask about tonight's special",
     });
   });
 
@@ -141,6 +147,8 @@ describe("audience engine", () => {
         name: "Acme Motors",
         imageUrl: "https://cdn.example/acme.png",
         corner: "bottom-right",
+        phone: "(256) 555-0199",
+        message: "Call for a table",
       },
       tool: {
         id: "tool",
@@ -161,6 +169,8 @@ describe("audience engine", () => {
     expect(html).toContain("Presented by");
     expect(html).toContain("bottom-10 right-10");
     expect(html).toContain("https://cdn.example/acme.png");
+    expect(html).toContain("(256) 555-0199");
+    expect(html).toContain("Call for a table");
   });
 
   it("supports picture presets for the LED wall", () => {

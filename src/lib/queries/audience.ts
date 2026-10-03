@@ -41,6 +41,8 @@ export type StaffAudienceSettings = {
     name: string;
     imageUrl: string | null;
     corner: AudienceCornerPosition;
+    phone: string;
+    message: string;
   };
 };
 
@@ -79,9 +81,12 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       name: loadedSettings.row.cornerSponsorName,
       imageUrl: loadedSettings.row.cornerSponsorImageUrl,
       corner: loadedSettings.row.cornerSponsorCorner,
+      phone: loadedSettings.row.cornerSponsorPhone,
+      message: loadedSettings.row.cornerSponsorMessage,
     },
   };
   const missingCornerSponsor = loadedSettings.missingCornerSponsorColumns;
+  const missingCornerSponsorContact = loadedSettings.missingCornerSponsorContactColumns;
 
   const presets: StaffAudiencePreset[] = ((presetsRes.data as Array<{
     id: string;
@@ -115,6 +120,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       missingTable: isMissingAudienceRelation(sessionRes.error.message),
       missingPresetsTable: presetsMissing,
       missingCornerSponsor,
+      missingCornerSponsorContact,
       error: sessionRes.error.message,
     };
   }
@@ -140,6 +146,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       missingTable: false,
       missingPresetsTable: presetsMissing,
       missingCornerSponsor,
+      missingCornerSponsorContact,
       error: presetsMissing ? null : presetsRes.error?.message ?? null,
     };
   }
@@ -212,6 +219,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
     missingTable: false,
     missingPresetsTable: presetsMissing,
     missingCornerSponsor,
+    missingCornerSponsorContact,
     error: toolsRes.error?.message ?? questionsRes.error?.message ?? (presetsMissing ? null : presetsRes.error?.message) ?? null,
   };
 }

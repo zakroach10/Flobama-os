@@ -3,6 +3,7 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
+  AUDIENCE_CORNER_SPONSOR_CONTACT_SQL,
   AUDIENCE_CORNER_SPONSOR_SQL,
   AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
@@ -33,7 +34,7 @@ export default async function AudiencePage() {
     return (
       <ErrorState
         title="Audience Interactor needs a database update"
-        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then ${AUDIENCE_SETTINGS_SQL}, then ${AUDIENCE_PRESETS_SQL}, then ${AUDIENCE_PICTURE_SQL}, then ${AUDIENCE_CORNER_SPONSOR_SQL}, then ${LED_AUDIENCE_SCENE_SQL} and ${LED_AUDIENCE_SCENE_SEED_SQL} in the Supabase SQL editor.`}
+        description={`Apply ${AUDIENCE_SQL_ROLE}, then ${AUDIENCE_SQL_TABLES}, then ${AUDIENCE_SETTINGS_SQL}, then ${AUDIENCE_PRESETS_SQL}, then ${AUDIENCE_PICTURE_SQL}, then ${AUDIENCE_CORNER_SPONSOR_SQL}, then ${AUDIENCE_CORNER_SPONSOR_CONTACT_SQL}, then ${LED_AUDIENCE_SCENE_SQL} and ${LED_AUDIENCE_SCENE_SEED_SQL} in the Supabase SQL editor.`}
       />
     );
   }
@@ -53,6 +54,7 @@ export default async function AudiencePage() {
       supabaseEnv={getPublicSupabaseEnv()}
       missingPresetsTable={data.missingPresetsTable}
       missingCornerSponsor={data.missingCornerSponsor}
+      missingCornerSponsorContact={data.missingCornerSponsorContact}
     />
   );
 }

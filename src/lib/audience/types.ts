@@ -42,6 +42,8 @@ export type AudienceCornerSponsor = {
   name: string;
   imageUrl: string | null;
   corner: AudienceCornerPosition;
+  phone: string;
+  message: string;
 };
 
 export type AudienceWallState = {
@@ -87,7 +89,7 @@ export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
   hot_take: "Put a statement up and let the room vote Agree or Terrible Take.",
   message: "Instant announcement on the wall.",
   matchup: "Team names, kickoff, and a discussion prompt.",
-  sponsor: "Full sponsor card with a name, phone number, and blurb, or pin a logo in the corner while other content stays up.",
+  sponsor: "Sponsor card with a phone number and optional message underneath, or pin a logo in the corner while other content stays up.",
   countdown: "Pre-show timer or “we’ll be right back” break.",
   picture: "Upload a photo or graphic, save it as a preset, put it on the LED wall.",
 };

@@ -7,7 +7,7 @@ import {
   saveAudienceCornerSponsorAction,
 } from "@/actions/audience";
 import { uploadAudienceCornerSponsorFromBrowser } from "@/lib/audience/corner-sponsor-upload";
-import { AUDIENCE_CORNER_SPONSOR_SQL } from "@/lib/constants";
+import { AUDIENCE_CORNER_SPONSOR_CONTACT_SQL, AUDIENCE_CORNER_SPONSOR_SQL } from "@/lib/constants";
 import type { AudienceCornerPosition } from "@/lib/audience/types";
 import type { StaffAudienceSettings } from "@/lib/queries/audience";
 import type { PublicSupabaseEnv } from "@/lib/env";
@@ -21,17 +21,21 @@ export function CornerSponsorPanel({
   venueId,
   supabaseEnv,
   missingColumns,
+  missingContactColumns,
   onChanged,
 }: {
   settings: StaffAudienceSettings;
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
   missingColumns?: boolean;
+  missingContactColumns?: boolean;
   onChanged: () => void;
 }) {
   const sponsor = settings.cornerSponsor;
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(sponsor.name);
+  const [phone, setPhone] = useState(sponsor.phone);
+  const [message, setMessage] = useState(sponsor.message);
 
   const hasSponsor = Boolean(sponsor.name || sponsor.imageUrl);
 
@@ -63,11 +67,17 @@ export function CornerSponsorPanel({
             <span className="block truncate text-sm font-black">{sponsor.name || "Sponsor"}</span>
           </span>
         </div>
+        {sponsor.phone || sponsor.message ? (
+          <div className="max-w-56 text-sm">
+            {sponsor.phone ? <p className="font-mono font-semibold">{sponsor.phone}</p> : null}
+            {sponsor.message ? <p className="text-muted-foreground">{sponsor.message}</p> : null}
+          </div>
+        ) : null}
         <div className="min-w-[16rem] flex-1 space-y-3">
           <div>
             <p className="font-medium">Corner sponsor</p>
             <p className="text-sm text-muted-foreground">
-              Stays in a corner of the LED wall while polls, questions, and other cards stay on screen.
+              Stays in a corner of the LED wall. A phone number and optional message sit under the card.
             </p>
           </div>
           {missingColumns ? (
@@ -118,11 +128,60 @@ export function CornerSponsorPanel({
                   type="button"
                   variant="secondary"
                   disabled={pending || name.trim() === sponsor.name}
-                  onClick={() => run(async () => saveAudienceCornerSponsorAction({ name }))}
+                  onClick={() =>
+                    run(async () =>
+                      saveAudienceCornerSponsorAction(
+                        missingContactColumns ? { name } : { name, phone, message },
+                      ),
+                    )
+                  }
                 >
                   Save name
                 </Button>
               </div>
+              {missingContactColumns ? (
+                <p className="text-sm text-amber-800">
+                  Apply {AUDIENCE_CORNER_SPONSOR_CONTACT_SQL} in the Supabase SQL editor to add a phone number and
+                  message, then refresh.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="corner-sponsor-phone">Phone number</Label>
+                    <Input
+                      id="corner-sponsor-phone"
+                      value={phone}
+                      maxLength={40}
+                      disabled={pending}
+                      placeholder="(256) 555-0100"
+                      onChange={(event) => setPhone(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="corner-sponsor-message">Optional message</Label>
+                    <Input
+                      id="corner-sponsor-message"
+                      value={message}
+                      maxLength={120}
+                      disabled={pending}
+                      placeholder="Shown under the card"
+                      onChange={(event) => setMessage(event.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={
+                        pending || (phone.trim() === sponsor.phone && message.trim() === sponsor.message)
+                      }
+                      onClick={() => run(async () => saveAudienceCornerSponsorAction({ phone, message }))}
+                    >
+                      Save phone and message
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">Corner</span>
                 {(
@@ -157,6 +216,7 @@ export function CornerSponsorPanel({
                       saveAudienceCornerSponsorAction({
                         enabled: !sponsor.enabled,
                         name: name.trim() || sponsor.name,
+                        ...(missingContactColumns ? {} : { phone, message }),
                       }),
                     )
                   }
