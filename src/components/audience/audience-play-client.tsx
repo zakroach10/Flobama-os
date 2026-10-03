@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function sponsorTelHref(phone: unknown) {
+  const display = String(phone ?? "").trim();
+  const dial = display.replace(/[^\d+]/g, "");
+  if (!display || !dial) return null;
+  return { display, href: `tel:${dial}` };
+}
+
 export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
   const [name, setName] = useState("");
   const [state, setState] = useState<AudienceGuestState | null>(null);
@@ -177,6 +184,8 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
             <p className="text-sm text-muted-foreground">Results stay hidden until the hosts reveal them.</p>
           )}
         </div>
+      ) : tool.kind === "sponsor" ? (
+        <SponsorCard payload={tool.payload} title={tool.title} />
       ) : (
         <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
           “{tool.title}” is on the wall — no phone action needed right now.
@@ -184,6 +193,22 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
       )}
 
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+    </div>
+  );
+}
+
+function SponsorCard({ payload, title }: { payload: Record<string, unknown>; title: string }) {
+  const phone = sponsorTelHref(payload.phone);
+  const blurb = String(payload.blurb ?? "").trim();
+  return (
+    <div className="space-y-2 rounded-xl border bg-card p-4">
+      <p className="text-lg font-semibold">{String(payload.name ?? title)}</p>
+      {phone ? (
+        <a className="block text-base font-semibold text-primary" href={phone.href}>
+          {phone.display}
+        </a>
+      ) : null}
+      {blurb ? <p className="text-sm text-muted-foreground">{blurb}</p> : null}
     </div>
   );
 }

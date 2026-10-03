@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -11,6 +11,7 @@ import {
   deleteAudiencePresetAction,
   endAudienceSessionAction,
   moderateAudienceQuestionAction,
+  pollAudienceInboxAction,
   putAudienceToolOnWallAction,
   saveAudienceCornerSponsorAction,
   saveAudiencePresetAction,
@@ -48,6 +49,7 @@ import {
   type AudienceToolKind,
 } from "@/lib/audience/types";
 import { defaultPayloadForKind } from "@/lib/audience/engine";
+import { AUDIENCE_POLL_MS } from "@/lib/constants";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +80,9 @@ export function AudienceWorkspace({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [polledQuestions, setPolledQuestions] = useState<StaffAudienceQuestion[] | null>(null);
+  const [polledGuestCount, setPolledGuestCount] = useState<number | null>(null);
+  const seenQuestionIds = useRef<Set<string> | null>(null);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(tools[0]?.id ?? null);
   const [addKind, setAddKind] = useState<AudienceToolKind>("poll");
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
@@ -97,9 +102,70 @@ export function AudienceWorkspace({
     }
   }, [tools, selectedToolId]);
 
+  const questionsKey = questions.map((question) => `${question.id}:${question.status}:${question.body}`).join("|");
+  const [questionsSnapshot, setQuestionsSnapshot] = useState(questionsKey);
+  if (questionsKey !== questionsSnapshot) {
+    setQuestionsSnapshot(questionsKey);
+    setPolledQuestions(null);
+    setPolledGuestCount(null);
+  }
+  const liveQuestions = polledQuestions ?? questions;
+  const guestCount = polledGuestCount ?? session?.guestCount ?? 0;
+
+  const liveSessionId = session?.id ?? null;
+  useEffect(() => {
+    if (!liveSessionId) return;
+    let cancelled = false;
+    async function pull() {
+      const result = await pollAudienceInboxAction();
+      if (cancelled || !result.ok) return;
+      setPolledQuestions((current) => {
+        const baseline = current ?? questions;
+        if (
+          baseline.length === result.questions.length &&
+          baseline.every((question, index) => {
+            const next = result.questions[index];
+            return (
+              next &&
+              question.id === next.id &&
+              question.status === next.status &&
+              question.body === next.body &&
+              question.displayName === next.displayName
+            );
+          })
+        ) {
+          return current;
+        }
+        return result.questions;
+      });
+      setPolledGuestCount((current) => (current === result.guestCount ? current : result.guestCount));
+    }
+    void pull();
+    const id = window.setInterval(() => void pull(), AUDIENCE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [liveSessionId, questions]);
+
+  useEffect(() => {
+    const known = seenQuestionIds.current;
+    if (known === null) {
+      seenQuestionIds.current = new Set(liveQuestions.map((question) => question.id));
+      return;
+    }
+    for (const question of liveQuestions) {
+      if (known.has(question.id)) continue;
+      known.add(question.id);
+      if (question.status === "pending") {
+        toast.message(`${question.displayName} asked a question`, { description: question.body });
+      }
+    }
+  }, [liveQuestions]);
+
   const pendingQuestions = useMemo(
-    () => questions.filter((q) => q.status === "pending" || q.status === "approved"),
-    [questions],
+    () => liveQuestions.filter((q) => q.status === "pending" || q.status === "approved"),
+    [liveQuestions],
   );
 
   const filteredPresets = useMemo(
@@ -259,7 +325,7 @@ export function AudienceWorkspace({
               <>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-mono text-2xl tracking-[0.18em] sm:text-3xl">{session.joinCode}</p>
-                  <Badge variant="secondary">{session.guestCount} guests</Badge>
+                  <Badge variant="secondary">{guestCount} guests</Badge>
                   <Badge variant={session.votingOpen ? "default" : "secondary"}>
                     {session.votingOpen ? "Voting open" : "Voting closed"}
                   </Badge>
@@ -666,10 +732,13 @@ export function AudienceWorkspace({
             )}
           </section>
 
-          {session && (pendingQuestions.length > 0 || selected?.kind === "questions") ? (
+          {session ? (
             <section className="rounded-xl border bg-card p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Audience questions</h2>
+                <div>
+                  <h2 className="text-lg font-semibold">Audience questions</h2>
+                  <p className="text-xs text-muted-foreground">New questions show up here on their own.</p>
+                </div>
                 <Badge variant="secondary">{pendingQuestions.length} waiting</Badge>
               </div>
               {pendingQuestions.length === 0 ? (
@@ -968,6 +1037,7 @@ function OfflineFields({
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Sponsor name" value={String(draft.name ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, name: value }))} />
+        <Field label="Phone number" value={String(draft.phone ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))} />
         <Field label="Short blurb" value={String(draft.blurb ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, blurb: value }))} />
       </div>
     );
@@ -1330,6 +1400,11 @@ function ToolEditor({
           label="Sponsor name"
           value={String(draft.name ?? "")}
           onChange={(value) => setDraft((prev) => ({ ...prev, name: value }))}
+        />
+        <Field
+          label="Phone number"
+          value={String(draft.phone ?? "")}
+          onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))}
         />
         <Field
           label="Short blurb"

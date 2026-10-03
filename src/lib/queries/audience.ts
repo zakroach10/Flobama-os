@@ -215,3 +215,45 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
     error: toolsRes.error?.message ?? questionsRes.error?.message ?? (presetsMissing ? null : presetsRes.error?.message) ?? null,
   };
 }
+
+export async function loadLiveAudienceInbox(client: Client, venueId: string) {
+  const { data, error } = await client
+    .from("audience_sessions" as never)
+    .select("id")
+    .eq("venue_id", venueId)
+    .eq("status", "live")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return { questions: [] as StaffAudienceQuestion[], guestCount: 0 };
+
+  const sessionId = (data as { id: string }).id;
+  const [questionsRes, guestsRes] = await Promise.all([
+    client
+      .from("audience_questions" as never)
+      .select("id, display_name, body, status, created_at")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false })
+      .limit(80),
+    client
+      .from("audience_guests" as never)
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId),
+  ]);
+
+  const questions: StaffAudienceQuestion[] = ((questionsRes.data as Array<{
+    id: string;
+    display_name: string;
+    body: string;
+    status: string;
+    created_at: string;
+  }> | null) ?? []).map((q) => ({
+    id: q.id,
+    displayName: q.display_name,
+    body: q.body,
+    status: q.status,
+    createdAt: q.created_at,
+  }));
+
+  return { questions, guestCount: guestsRes.count ?? 0 };
+}

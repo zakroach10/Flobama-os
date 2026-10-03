@@ -1,3 +1,5 @@
+import type { WallJoinNotice } from "@/lib/screens/join-notices";
+
 export const AUDIENCE_TOOL_KINDS = [
   "poll",
   "host_picks",
@@ -52,6 +54,7 @@ export type AudienceWallState = {
   cornerSponsor: AudienceCornerSponsor | null;
   tool: AudienceWallTool | null;
   lobbyMessage: string;
+  recentJoins: WallJoinNotice[];
 };
 
 export type AudienceGuestState = {
@@ -84,7 +87,7 @@ export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
   hot_take: "Put a statement up and let the room vote Agree or Terrible Take.",
   message: "Instant announcement on the wall.",
   matchup: "Team names, kickoff, and a discussion prompt.",
-  sponsor: "Full sponsor card, or pin a logo in the corner while other content stays up.",
+  sponsor: "Full sponsor card with a name, phone number, and blurb, or pin a logo in the corner while other content stays up.",
   countdown: "Pre-show timer or “we’ll be right back” break.",
   picture: "Upload a photo or graphic, save it as a preset, put it on the LED wall.",
 };

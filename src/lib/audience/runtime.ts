@@ -13,6 +13,7 @@ import type {
   AudienceWallState,
   AudienceWallTool,
 } from "@/lib/audience/types";
+import { mapJoinRows } from "@/lib/screens/join-notices";
 
 type AnyClient = SupabaseClient;
 
@@ -104,6 +105,19 @@ async function guestCount(client: AnyClient, sessionId: string) {
   return count ?? 0;
 }
 
+async function loadRecentJoins(client: AnyClient, sessionId: string) {
+  const { data, error } = await client
+    .from("audience_guests" as never)
+    .select("id, display_name, joined_at")
+    .eq("session_id", sessionId)
+    .order("joined_at", { ascending: false })
+    .limit(16);
+  if (error) return [];
+  return mapJoinRows(
+    (data as Array<{ id: string; display_name: string; joined_at: string }> | null) ?? [],
+  );
+}
+
 export async function loadAudienceBrandLogo(client: AnyClient, venueId: string) {
   const settings = await readAudienceVenueSettings(client, venueId);
   if (!settings.ok) return null;
@@ -162,6 +176,7 @@ export async function getAudienceWallState(
       brandLogoUrl: chrome.ok ? chrome.settings.row.brandLogoUrl : null,
       cornerSponsor: chrome.ok ? chrome.settings.cornerSponsor : null,
       tool: wallTool,
+      recentJoins: await loadRecentJoins(client, session.id),
       lobbyMessage: wallTool
         ? "Live on the wall — scan to join"
         : "Scan to join — waiting for the next interaction",

@@ -117,6 +117,7 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
     case "sponsor":
       return {
         name: "Sponsor",
+        phone: "",
         blurb: "Presented by our partners",
         imageUrl: "",
       };
