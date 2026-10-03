@@ -77,11 +77,15 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
         <img
           src={wall.brandLogoUrl}
           alt=""
-          className="pointer-events-none absolute top-[14%] left-1/2 z-20 max-h-[30vh] max-w-[46vw] -translate-x-1/2 object-contain"
+          className="pointer-events-none absolute top-5 left-1/2 z-30 h-20 w-auto max-w-[16rem] -translate-x-1/2 object-contain"
         />
       ) : null}
 
-      <main className="absolute inset-0 z-10 flex flex-col items-center justify-center px-12 py-6">
+      <main
+        className={`absolute inset-0 z-10 flex flex-col items-center justify-center px-12 ${
+          wall.brandLogoUrl && tool ? "pt-28 pb-8" : "py-6"
+        }`}
+      >
         {!tool ? (
           wall.brandLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

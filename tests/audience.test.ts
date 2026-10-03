@@ -211,8 +211,11 @@ describe("audience engine", () => {
       }),
     );
     expect(live).toContain("https://cdn.example/podcast.png");
-    expect(live).toContain("left-1/2");
-    expect(live).toContain("max-h-[30vh]");
+    expect(live).toContain("top-5");
+    expect(live).toContain("h-20");
+    expect(live).toContain("max-w-[16rem]");
+    expect(live).toContain("pt-28");
+    expect(live).not.toContain("max-h-[30vh]");
     expect(live).not.toContain("rounded-3xl bg-white p-3");
     expect(live).toContain("Going live");
   });
