@@ -147,6 +147,16 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
   }
 }
 
+export function isAudienceGuestTokenConflict(
+  error: { code?: string; message?: string } | null | undefined,
+) {
+  if (!error) return false;
+  if (error.code === "23505") return true;
+  return /audience_guests_guest_token_key|duplicate key value violates unique constraint/i.test(
+    error.message ?? "",
+  );
+}
+
 export function titleForAudienceTool(kind: AudienceToolKind): string {
   const labels: Record<AudienceToolKind, string> = {
     poll: "Audience poll",

@@ -9,6 +9,7 @@ import {
   createAudienceJoinCode,
   cornerSponsorForWall,
   defaultPayloadForKind,
+  isAudienceGuestTokenConflict,
   isAudienceToolKind,
   normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
@@ -228,6 +229,17 @@ describe("audience engine", () => {
       storagePath: "",
       caption: "",
     });
+  });
+
+  it("treats a reused guest token as a rejoin, not a hard failure", () => {
+    expect(
+      isAudienceGuestTokenConflict({
+        code: "23505",
+        message:
+          'duplicate key value violates unique constraint "audience_guests_guest_token_key"',
+      }),
+    ).toBe(true);
+    expect(isAudienceGuestTokenConflict({ message: "permission denied" })).toBe(false);
   });
 
   it("normalizes names and join codes", () => {
