@@ -3,6 +3,7 @@ import {
   applyVoteCounts,
   choiceLabelsForTool,
   createAudienceJoinCode,
+  isAudienceGuestTokenConflict,
   isAudienceToolKind,
   normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
@@ -374,6 +375,23 @@ export async function updateToolPayload(
   return { ok: true };
 }
 
+async function moveGuestToSession(
+  client: AnyClient,
+  input: { guestToken: string; sessionId: string; venueId: string; displayName: string },
+) {
+  const { error } = await client
+    .from("audience_guests" as never)
+    .update({
+      session_id: input.sessionId,
+      venue_id: input.venueId,
+      display_name: input.displayName,
+      joined_at: new Date().toISOString(),
+    } as never)
+    .eq("guest_token", input.guestToken);
+  if (error) return { ok: false as const, message: error.message };
+  return { ok: true as const };
+}
+
 export async function joinAudienceSession(
   client: AnyClient,
   input: { joinCode: string; displayName: string; guestToken: string },
@@ -385,12 +403,12 @@ export async function joinAudienceSession(
   const displayName = normalizeAudienceDisplayName(input.displayName);
   if (displayName.length < 1) return { ok: false, message: "Enter a display name." };
 
-  const { data: existing } = await client
+  const { data: existing, error: existingError } = await client
     .from("audience_guests" as never)
-    .select("id, display_name")
+    .select("id, session_id")
     .eq("guest_token", input.guestToken)
-    .eq("session_id", session.id)
     .maybeSingle();
+  if (existingError) return { ok: false, message: existingError.message };
 
   if (!existing) {
     const { error: insertError } = await client.from("audience_guests" as never).insert({
@@ -399,12 +417,31 @@ export async function joinAudienceSession(
       display_name: displayName,
       guest_token: input.guestToken,
     } as never);
-    if (insertError) return { ok: false, message: insertError.message };
+    if (insertError) {
+      if (!isAudienceGuestTokenConflict(insertError)) return { ok: false, message: insertError.message };
+      const moved = await moveGuestToSession(client, {
+        guestToken: input.guestToken,
+        sessionId: session.id,
+        venueId: session.venue_id,
+        displayName,
+      });
+      if (!moved.ok) return moved;
+    }
   } else {
-    await client
+    const row = existing as { id: string; session_id: string };
+    const patch: Record<string, unknown> = {
+      display_name: displayName,
+      venue_id: session.venue_id,
+    };
+    if (row.session_id !== session.id) {
+      patch.session_id = session.id;
+      patch.joined_at = new Date().toISOString();
+    }
+    const { error: updateError } = await client
       .from("audience_guests" as never)
-      .update({ display_name: displayName } as never)
-      .eq("id", (existing as { id: string }).id);
+      .update(patch as never)
+      .eq("id", row.id);
+    if (updateError) return { ok: false, message: updateError.message };
   }
 
   const state = await getGuestState(client, session, input.guestToken);
