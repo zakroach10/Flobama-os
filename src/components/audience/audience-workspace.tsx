@@ -66,6 +66,7 @@ export function AudienceWorkspace({
   supabaseEnv,
   missingPresetsTable,
   missingCornerSponsor,
+  missingCornerSponsorContact,
 }: {
   session: StaffAudienceSession | null;
   tools: StaffAudienceTool[];
@@ -77,6 +78,7 @@ export function AudienceWorkspace({
   supabaseEnv: PublicSupabaseEnv | null;
   missingPresetsTable?: boolean;
   missingCornerSponsor?: boolean;
+  missingCornerSponsorContact?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -309,11 +311,12 @@ export function AudienceWorkspace({
 
       {cornerOpen ? (
         <CornerSponsorPanel
-          key={`${settings.cornerSponsor.name}:${settings.cornerSponsor.imageUrl ?? ""}:${settings.cornerSponsor.enabled}`}
+          key={`${settings.cornerSponsor.name}:${settings.cornerSponsor.phone}:${settings.cornerSponsor.message}:${settings.cornerSponsor.imageUrl ?? ""}:${settings.cornerSponsor.enabled}`}
           settings={settings}
           venueId={venueId}
           supabaseEnv={supabaseEnv}
           missingColumns={missingCornerSponsor}
+          missingContactColumns={missingCornerSponsorContact}
           onChanged={refresh}
         />
       ) : null}
@@ -1038,7 +1041,7 @@ function OfflineFields({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Sponsor name" value={String(draft.name ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, name: value }))} />
         <Field label="Phone number" value={String(draft.phone ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))} />
-        <Field label="Short blurb" value={String(draft.blurb ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, blurb: value }))} />
+        <Field label="Optional message" value={String(draft.blurb ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, blurb: value }))} />
       </div>
     );
   }
@@ -1407,7 +1410,7 @@ function ToolEditor({
           onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))}
         />
         <Field
-          label="Short blurb"
+          label="Optional message"
           value={String(draft.blurb ?? "")}
           onChange={(value) => setDraft((prev) => ({ ...prev, blurb: value }))}
         />

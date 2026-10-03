@@ -100,20 +100,26 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
             <TeamSide name={String(tool.payload.teamB ?? "Team B")} logo={String(tool.payload.logoB ?? "")} />
           </div>
         ) : tool.kind === "sponsor" ? (
-          <div className="max-w-4xl text-center">
-            {tool.payload.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={String(tool.payload.imageUrl)}
-                alt=""
-                className="mx-auto mb-8 max-h-64 object-contain"
-              />
-            ) : null}
-            <p className="text-5xl font-black">{String(tool.payload.name ?? tool.title)}</p>
+          <div className="flex max-w-4xl flex-col items-center text-center">
+            <div className="rounded-[2rem] bg-white px-12 py-10 text-black shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+              {tool.payload.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={String(tool.payload.imageUrl)}
+                  alt=""
+                  className="mx-auto mb-6 max-h-56 object-contain"
+                />
+              ) : null}
+              <p className="text-5xl font-black">{String(tool.payload.name ?? tool.title)}</p>
+            </div>
             {sponsorPhone ? (
-              <p className="mt-5 font-mono text-4xl font-bold tracking-wide">{sponsorPhone}</p>
+              <p className="mt-6 font-mono text-4xl font-bold tracking-wide">{sponsorPhone}</p>
             ) : null}
-            <p className="mt-4 text-2xl text-white/75">{String(tool.payload.blurb ?? "")}</p>
+            {String(tool.payload.blurb ?? "").trim() ? (
+              <p className="mt-3 max-w-3xl text-3xl font-semibold text-white/85">
+                {String(tool.payload.blurb).trim()}
+              </p>
+            ) : null}
           </div>
         ) : tool.kind === "picture" ? (
           <div className="flex h-full w-full max-w-6xl flex-col items-center justify-center gap-6">
@@ -190,8 +196,8 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
 }
 
 function CornerSponsorBug({ sponsor }: { sponsor: AudienceCornerSponsor }) {
-  const corner =
-    sponsor.corner === "bottom-right" ? "bottom-10 right-10 items-end" : "bottom-10 left-10 items-start";
+  const right = sponsor.corner === "bottom-right";
+  const corner = right ? "bottom-10 right-10 items-end text-right" : "bottom-10 left-10 items-start text-left";
   return (
     <div className={`pointer-events-none absolute z-30 flex flex-col ${corner}`}>
       <div className="flex max-w-md items-center gap-4 rounded-3xl bg-white px-5 py-4 text-black shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
@@ -210,6 +216,16 @@ function CornerSponsorBug({ sponsor }: { sponsor: AudienceCornerSponsor }) {
           </div>
         ) : null}
       </div>
+      {sponsor.phone ? (
+        <p className="mt-3 max-w-md font-mono text-3xl font-bold tracking-wide text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+          {sponsor.phone}
+        </p>
+      ) : null}
+      {sponsor.message ? (
+        <p className="mt-1 max-w-md text-2xl font-semibold text-white/90 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+          {sponsor.message}
+        </p>
+      ) : null}
     </div>
   );
 }

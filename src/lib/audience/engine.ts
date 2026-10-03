@@ -20,13 +20,21 @@ export function cornerSponsorForWall(input: {
   name?: string | null;
   imageUrl?: string | null;
   corner?: string | null;
+  phone?: string | null;
+  message?: string | null;
 } | null | undefined): AudienceCornerSponsor | null {
   if (!input?.enabled) return null;
   const name = (input.name ?? "").trim().slice(0, 80);
   const imageUrl = (input.imageUrl ?? "").trim() || null;
   if (!name && !imageUrl) return null;
   const corner = input.corner && isAudienceCornerPosition(input.corner) ? input.corner : "bottom-left";
-  return { name, imageUrl, corner };
+  return {
+    name,
+    imageUrl,
+    corner,
+    phone: (input.phone ?? "").trim().slice(0, 40),
+    message: (input.message ?? "").trim().slice(0, 120),
+  };
 }
 
 export function createAudienceJoinCode() {
