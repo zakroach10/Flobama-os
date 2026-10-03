@@ -173,6 +173,50 @@ describe("audience engine", () => {
     expect(html).toContain("Call for a table");
   });
 
+  it("centers the podcast logo on the LED wall without a white plate", () => {
+    const wall: AudienceWallState = {
+      sessionId: "session",
+      title: "Live show",
+      joinCode: "ABC234",
+      joinPath: "/live/ABC234",
+      guestCount: 3,
+      brandLogoUrl: "https://cdn.example/podcast.png",
+      cornerSponsor: null,
+      tool: null,
+      lobbyMessage: "Scan to join",
+      recentJoins: [],
+    };
+    const idle = renderToStaticMarkup(createElement(AudienceWall, { initial: wall }));
+    expect(idle).toContain("https://cdn.example/podcast.png");
+    expect(idle).toContain("max-h-[68vh]");
+    expect(idle).toContain("max-w-[78vw]");
+    expect(idle).not.toContain("size-24");
+    expect(idle).toContain("Scan to join — stand by for the next interaction");
+
+    const live = renderToStaticMarkup(
+      createElement(AudienceWall, {
+        initial: {
+          ...wall,
+          tool: {
+            id: "tool",
+            kind: "message",
+            title: "Message",
+            payload: { text: "Going live" },
+            votingOpen: false,
+            resultsRevealed: false,
+            tallies: [],
+            totalVotes: 0,
+          },
+        },
+      }),
+    );
+    expect(live).toContain("https://cdn.example/podcast.png");
+    expect(live).toContain("left-1/2");
+    expect(live).toContain("max-h-[30vh]");
+    expect(live).not.toContain("rounded-3xl bg-white p-3");
+    expect(live).toContain("Going live");
+  });
+
   it("supports picture presets for the LED wall", () => {
     expect(AUDIENCE_TOOL_KINDS).toContain("picture");
     expect(isAudienceToolKind("picture")).toBe(true);

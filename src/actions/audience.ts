@@ -582,7 +582,51 @@ export async function createAudienceToolFromPresetAction(input: unknown): Promis
   revalidateAudience();
   return {
     ok: true,
-    message: `Loaded “${loaded.preset.name}” into the rundown.`,
+    message: `Loaded “${loaded.preset.name}”.`,
     toolId: result.toolId,
+  };
+}
+
+export async function putAudiencePresetOnWallAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      sessionId: z.string().uuid(),
+      presetId: z.string().uuid(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const loaded = await loadAudiencePreset(gate.supabase, {
+    venueId: gate.context.venue.id,
+    presetId: parsed.data.presetId,
+  });
+  if (!loaded.ok) return { ok: false, message: sqlHint(loaded.message) };
+
+  const created = await createAudienceTool(gate.supabase, {
+    venueId: gate.context.venue.id,
+    sessionId: parsed.data.sessionId,
+    kind: loaded.preset.kind,
+    title: loaded.preset.title,
+    payload: loaded.preset.payload,
+    createdBy: gate.context.userId,
+  });
+  if (!created.ok) return { ok: false, message: sqlHint(created.message) };
+
+  const placed = await putToolOnWall(gate.supabase, {
+    venueId: gate.context.venue.id,
+    toolId: created.toolId,
+    resultsRevealed: false,
+    votingOpen: true,
+  });
+  if (!placed.ok) return { ok: false, message: sqlHint(placed.message) };
+
+  await activateAudienceScene(gate.supabase, gate.context.venue.id);
+  revalidateAudience();
+  return {
+    ok: true,
+    message: `“${loaded.preset.name}” is on the LED wall.`,
+    toolId: created.toolId,
   };
 }

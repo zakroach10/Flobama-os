@@ -72,9 +72,29 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
     <div className="relative h-full w-full overflow-hidden bg-[#07090d] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
 
+      {wall.brandLogoUrl && tool ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={wall.brandLogoUrl}
+          alt=""
+          className="pointer-events-none absolute top-[14%] left-1/2 z-20 max-h-[30vh] max-w-[46vw] -translate-x-1/2 object-contain"
+        />
+      ) : null}
+
       <main className="absolute inset-0 z-10 flex flex-col items-center justify-center px-12 py-6">
         {!tool ? (
-          <p className="text-4xl font-semibold text-white/80">Scan to join — stand by for the next interaction</p>
+          wall.brandLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={wall.brandLogoUrl}
+              alt=""
+              className="max-h-[68vh] w-auto max-w-[78vw] object-contain"
+            />
+          ) : (
+            <p className="text-center text-4xl font-semibold text-white/80">
+              Scan to join — stand by for the next interaction
+            </p>
+          )
         ) : tool.kind === "message" ? (
           <div className="max-w-5xl text-center">
             <p className="text-6xl font-black tracking-tight md:text-7xl">{String(tool.payload.text ?? tool.title)}</p>
@@ -167,16 +187,6 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
           <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-4">
-          {wall.brandLogoUrl ? (
-            <div className="flex size-24 items-center justify-center rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={wall.brandLogoUrl}
-                alt=""
-                className="max-h-20 max-w-20 object-contain"
-              />
-            </div>
-          ) : null}
           <div className="rounded-2xl bg-white p-3 text-center text-black">
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -189,6 +199,11 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
           </div>
         </div>
       </header>
+      {!tool && wall.brandLogoUrl ? (
+        <p className="pointer-events-none absolute inset-x-0 bottom-16 z-20 px-10 text-center text-3xl font-semibold text-white/80">
+          Scan to join — stand by for the next interaction
+        </p>
+      ) : null}
       {wall.cornerSponsor ? <CornerSponsorBug sponsor={wall.cornerSponsor} /> : null}
       <JoinPopups joins={wall.recentJoins} />
     </div>
