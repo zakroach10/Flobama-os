@@ -1,9 +1,32 @@
 import { randomBytes } from "node:crypto";
-import type { AudienceToolKind, AudienceVoteTally } from "@/lib/audience/types";
-import { AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
+import type {
+  AudienceCornerPosition,
+  AudienceCornerSponsor,
+  AudienceToolKind,
+  AudienceVoteTally,
+} from "@/lib/audience/types";
+import { AUDIENCE_CORNER_POSITIONS, AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 
 export function isAudienceToolKind(value: string): value is AudienceToolKind {
   return (AUDIENCE_TOOL_KINDS as readonly string[]).includes(value);
+}
+
+export function isAudienceCornerPosition(value: string): value is AudienceCornerPosition {
+  return (AUDIENCE_CORNER_POSITIONS as readonly string[]).includes(value);
+}
+
+export function cornerSponsorForWall(input: {
+  enabled?: boolean | null;
+  name?: string | null;
+  imageUrl?: string | null;
+  corner?: string | null;
+} | null | undefined): AudienceCornerSponsor | null {
+  if (!input?.enabled) return null;
+  const name = (input.name ?? "").trim().slice(0, 80);
+  const imageUrl = (input.imageUrl ?? "").trim() || null;
+  if (!name && !imageUrl) return null;
+  const corner = input.corner && isAudienceCornerPosition(input.corner) ? input.corner : "bottom-left";
+  return { name, imageUrl, corner };
 }
 
 export function createAudienceJoinCode() {

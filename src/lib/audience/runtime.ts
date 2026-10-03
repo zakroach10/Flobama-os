@@ -6,6 +6,7 @@ import {
   isAudienceToolKind,
   normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
+import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import type {
   AudienceGuestState,
   AudienceToolKind,
@@ -104,13 +105,9 @@ async function guestCount(client: AnyClient, sessionId: string) {
 }
 
 export async function loadAudienceBrandLogo(client: AnyClient, venueId: string) {
-  const { data } = await client
-    .from("audience_venue_settings" as never)
-    .select("brand_logo_url")
-    .eq("venue_id", venueId)
-    .maybeSingle();
-  const url = (data as { brand_logo_url?: string | null } | null)?.brand_logo_url;
-  return url?.trim() || null;
+  const settings = await readAudienceVenueSettings(client, venueId);
+  if (!settings.ok) return null;
+  return settings.settings.row.brandLogoUrl;
 }
 
 function toWallTool(
@@ -152,6 +149,7 @@ export async function getAudienceWallState(
     tool && tool.status === "on_wall"
       ? toWallTool(tool, session.voting_open, session.results_revealed, tallies, questionOnWall)
       : null;
+  const chrome = await readAudienceVenueSettings(client, venueId);
 
   return {
     ok: true,
@@ -161,7 +159,8 @@ export async function getAudienceWallState(
       joinCode: session.join_code,
       joinPath: `/live/${session.join_code}`,
       guestCount: await guestCount(client, session.id),
-      brandLogoUrl: await loadAudienceBrandLogo(client, venueId),
+      brandLogoUrl: chrome.ok ? chrome.settings.row.brandLogoUrl : null,
+      cornerSponsor: chrome.ok ? chrome.settings.cornerSponsor : null,
       tool: wallTool,
       lobbyMessage: wallTool
         ? "Live on the wall — scan to join"

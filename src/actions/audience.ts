@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authorizeAudienceRun } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
 import {
+  AUDIENCE_CORNER_SPONSOR_SQL,
   AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
@@ -17,7 +18,7 @@ import {
   isMissingAudienceRelation,
   titleForAudienceTool,
 } from "@/lib/audience/engine";
-import { AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
+import { AUDIENCE_CORNER_POSITIONS, AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 import {
   clearWallTool,
   createAudienceTool,
@@ -32,6 +33,7 @@ import {
   startAudienceSession,
   updateToolPayload,
 } from "@/lib/audience/runtime";
+import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listLedWallScenes } from "@/lib/queries/led-wall";
@@ -51,6 +53,9 @@ function fieldMessage(error: z.ZodError) {
 function sqlHint(message: string) {
   if (/audience_presets/i.test(message)) {
     return `Apply ${AUDIENCE_PRESETS_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  if (/corner_sponsor/i.test(message)) {
+    return `Apply ${AUDIENCE_CORNER_SPONSOR_SQL} in the Supabase SQL editor, then try again.`;
   }
   if (/audience_venue_settings/i.test(message)) {
     return `Apply ${AUDIENCE_SETTINGS_SQL} in the Supabase SQL editor, then try again.`;
@@ -222,6 +227,128 @@ export async function saveAudienceBrandLogoAction(input: unknown): Promise<Audie
 
   revalidateAudience();
   return { ok: true, message: "Podcaster logo saved. It will show on the wall." };
+}
+
+const cornerSponsorImageUrl = z.union([z.string().trim().url().max(800), z.literal(""), z.null()]);
+
+export async function saveAudienceCornerSponsorAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      name: z.string().trim().max(80).optional(),
+      imageUrl: cornerSponsorImageUrl.optional(),
+      imagePath: z.union([z.string().trim().min(3).max(400), z.literal(""), z.null()]).optional(),
+      enabled: z.boolean().optional(),
+      corner: z.enum(AUDIENCE_CORNER_POSITIONS).optional(),
+    })
+    .safeParse(input ?? {});
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const venueId = gate.context.venue.id;
+  const loaded = await readAudienceVenueSettings(gate.supabase, venueId);
+  if (!loaded.ok) return { ok: false, message: sqlHint(loaded.message) };
+  if (loaded.settings.missingCornerSponsorColumns) {
+    return {
+      ok: false,
+      message: `Apply ${AUDIENCE_CORNER_SPONSOR_SQL} in the Supabase SQL editor, then try again.`,
+    };
+  }
+
+  const current = loaded.settings.row;
+  const nextName = parsed.data.name !== undefined ? parsed.data.name.trim() : current.cornerSponsorName;
+  const nextEnabled = parsed.data.enabled !== undefined ? parsed.data.enabled : current.cornerSponsorEnabled;
+  const nextCorner = parsed.data.corner ?? current.cornerSponsorCorner;
+
+  let nextUrl = current.cornerSponsorImageUrl;
+  let nextPath = current.cornerSponsorImagePath;
+  if (parsed.data.imageUrl !== undefined || parsed.data.imagePath !== undefined) {
+    const url =
+      parsed.data.imageUrl === undefined
+        ? current.cornerSponsorImageUrl
+        : parsed.data.imageUrl?.trim() || null;
+    const path =
+      parsed.data.imagePath === undefined ? null : parsed.data.imagePath?.trim() || null;
+    if (path && !path.startsWith(`${venueId}/audience/`)) {
+      return { ok: false, message: "Sponsor image path is not valid for this venue." };
+    }
+    if (path && !url) return { ok: false, message: "Sponsor image URL is missing." };
+    if (!url) {
+      nextUrl = null;
+      nextPath = null;
+    } else if (parsed.data.imagePath !== undefined) {
+      nextUrl = url;
+      nextPath = path;
+    } else if (url === current.cornerSponsorImageUrl) {
+      nextUrl = url;
+      nextPath = current.cornerSponsorImagePath;
+    } else {
+      nextUrl = url;
+      nextPath = null;
+    }
+  }
+
+  if (nextEnabled && !nextName && !nextUrl) {
+    return { ok: false, message: "Add a sponsor name or logo before showing it on the wall." };
+  }
+
+  const { error } = await gate.supabase.from("audience_venue_settings" as never).upsert(
+    {
+      venue_id: venueId,
+      corner_sponsor_enabled: nextEnabled,
+      corner_sponsor_name: nextName || null,
+      corner_sponsor_image_path: nextPath,
+      corner_sponsor_image_url: nextUrl,
+      corner_sponsor_corner: nextCorner,
+    } as never,
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlHint(error.message) };
+
+  if (current.cornerSponsorImagePath && current.cornerSponsorImagePath !== nextPath) {
+    await gate.supabase.storage.from("screen-ads").remove([current.cornerSponsorImagePath]);
+  }
+
+  revalidateAudience();
+  if (parsed.data.enabled === true) {
+    return { ok: true, message: "Sponsor is in the corner of the LED wall." };
+  }
+  if (parsed.data.enabled === false) {
+    return { ok: true, message: "Corner sponsor hidden." };
+  }
+  return { ok: true, message: "Corner sponsor saved." };
+}
+
+export async function clearAudienceCornerSponsorAction(): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const venueId = gate.context.venue.id;
+  const loaded = await readAudienceVenueSettings(gate.supabase, venueId);
+  if (!loaded.ok) return { ok: false, message: sqlHint(loaded.message) };
+  if (loaded.settings.missingCornerSponsorColumns) {
+    return {
+      ok: false,
+      message: `Apply ${AUDIENCE_CORNER_SPONSOR_SQL} in the Supabase SQL editor, then try again.`,
+    };
+  }
+
+  const previousPath = loaded.settings.row.cornerSponsorImagePath;
+  const { error } = await gate.supabase.from("audience_venue_settings" as never).upsert(
+    {
+      venue_id: venueId,
+      corner_sponsor_enabled: false,
+      corner_sponsor_name: null,
+      corner_sponsor_image_path: null,
+      corner_sponsor_image_url: null,
+    } as never,
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlHint(error.message) };
+  if (previousPath) {
+    await gate.supabase.storage.from("screen-ads").remove([previousPath]);
+  }
+  revalidateAudience();
+  return { ok: true, message: "Corner sponsor removed." };
 }
 
 export async function clearAudienceBrandLogoAction(): Promise<AudienceActionResult> {

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AudienceToolKind, AudienceToolStatus } from "@/lib/audience/types";
+import type { AudienceCornerPosition, AudienceToolKind, AudienceToolStatus } from "@/lib/audience/types";
 import { isAudienceToolKind, isMissingAudienceRelation } from "@/lib/audience/engine";
+import { emptyAudienceVenueSettings, readAudienceVenueSettings } from "@/lib/audience/settings";
 
 type Client = SupabaseClient;
 
@@ -35,6 +36,12 @@ export type StaffAudienceQuestion = {
 
 export type StaffAudienceSettings = {
   brandLogoUrl: string | null;
+  cornerSponsor: {
+    enabled: boolean;
+    name: string;
+    imageUrl: string | null;
+    corner: AudienceCornerPosition;
+  };
 };
 
 export type StaffAudiencePreset = {
@@ -47,7 +54,7 @@ export type StaffAudiencePreset = {
 };
 
 export async function loadAudienceWorkspace(client: Client, venueId: string) {
-  const [sessionRes, settingsRes, presetsRes] = await Promise.all([
+  const [sessionRes, settingsResult, presetsRes] = await Promise.all([
     client
       .from("audience_sessions" as never)
       .select("id, title, join_code, status, active_tool_id, voting_open, results_revealed, started_at")
@@ -56,11 +63,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    client
-      .from("audience_venue_settings" as never)
-      .select("brand_logo_url")
-      .eq("venue_id", venueId)
-      .maybeSingle(),
+    readAudienceVenueSettings(client, venueId),
     client
       .from("audience_presets" as never)
       .select("id, kind, name, title, payload, updated_at")
@@ -68,9 +71,17 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       .order("updated_at", { ascending: false }),
   ]);
 
+  const loadedSettings = settingsResult.ok ? settingsResult.settings : emptyAudienceVenueSettings();
   const settings: StaffAudienceSettings = {
-    brandLogoUrl: (settingsRes.data as { brand_logo_url?: string | null } | null)?.brand_logo_url?.trim() || null,
+    brandLogoUrl: loadedSettings.row.brandLogoUrl,
+    cornerSponsor: {
+      enabled: loadedSettings.row.cornerSponsorEnabled,
+      name: loadedSettings.row.cornerSponsorName,
+      imageUrl: loadedSettings.row.cornerSponsorImageUrl,
+      corner: loadedSettings.row.cornerSponsorCorner,
+    },
   };
+  const missingCornerSponsor = loadedSettings.missingCornerSponsorColumns;
 
   const presets: StaffAudiencePreset[] = ((presetsRes.data as Array<{
     id: string;
@@ -103,6 +114,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       settings,
       missingTable: isMissingAudienceRelation(sessionRes.error.message),
       missingPresetsTable: presetsMissing,
+      missingCornerSponsor,
       error: sessionRes.error.message,
     };
   }
@@ -127,6 +139,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       settings,
       missingTable: false,
       missingPresetsTable: presetsMissing,
+      missingCornerSponsor,
       error: presetsMissing ? null : presetsRes.error?.message ?? null,
     };
   }
@@ -198,6 +211,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
     settings,
     missingTable: false,
     missingPresetsTable: presetsMissing,
+    missingCornerSponsor,
     error: toolsRes.error?.message ?? questionsRes.error?.message ?? (presetsMissing ? null : presetsRes.error?.message) ?? null,
   };
 }

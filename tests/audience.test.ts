@@ -1,8 +1,13 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { AudienceWall } from "@/components/audience/audience-wall";
+import type { AudienceWallState } from "@/lib/audience/types";
 import {
   applyVoteCounts,
   choiceLabelsForTool,
   createAudienceJoinCode,
+  cornerSponsorForWall,
   defaultPayloadForKind,
   isAudienceToolKind,
   normalizeAudienceDisplayName,
@@ -71,6 +76,68 @@ describe("audience engine", () => {
     expect(AUDIENCE_TOOL_KINDS).not.toContain("leaderboard");
     expect(isAudienceToolKind("pickem_promo")).toBe(false);
     expect(isAudienceToolKind("leaderboard")).toBe(false);
+  });
+
+  it("shows a corner sponsor only when it is enabled and has a name or logo", () => {
+    expect(cornerSponsorForWall(null)).toBeNull();
+    expect(
+      cornerSponsorForWall({ enabled: false, name: "Acme", imageUrl: null, corner: "bottom-left" }),
+    ).toBeNull();
+    expect(
+      cornerSponsorForWall({ enabled: true, name: "  ", imageUrl: "  ", corner: "bottom-left" }),
+    ).toBeNull();
+    expect(
+      cornerSponsorForWall({ enabled: true, name: " Acme ", imageUrl: "", corner: "sideways" }),
+    ).toEqual({
+      name: "Acme",
+      imageUrl: null,
+      corner: "bottom-left",
+    });
+    expect(
+      cornerSponsorForWall({
+        enabled: true,
+        name: "",
+        imageUrl: "https://cdn.example/logo.png",
+        corner: "bottom-right",
+      }),
+    ).toEqual({
+      name: "",
+      imageUrl: "https://cdn.example/logo.png",
+      corner: "bottom-right",
+    });
+  });
+
+  it("renders the corner sponsor on the audience wall without replacing the live card", () => {
+    const wall: AudienceWallState = {
+      sessionId: "session",
+      title: "Live show",
+      joinCode: "ABC234",
+      joinPath: "/live/ABC234",
+      guestCount: 3,
+      brandLogoUrl: null,
+      cornerSponsor: {
+        name: "Acme Motors",
+        imageUrl: "https://cdn.example/acme.png",
+        corner: "bottom-right",
+      },
+      tool: {
+        id: "tool",
+        kind: "message",
+        title: "Message",
+        payload: { text: "Going live" },
+        votingOpen: false,
+        resultsRevealed: false,
+        tallies: [],
+        totalVotes: 0,
+      },
+      lobbyMessage: "Live on the wall — scan to join",
+    };
+    const html = renderToStaticMarkup(createElement(AudienceWall, { initial: wall }));
+    expect(html).toContain("Going live");
+    expect(html).toContain("Acme Motors");
+    expect(html).toContain("Presented by");
+    expect(html).toContain("bottom-10 right-10");
+    expect(html).toContain("https://cdn.example/acme.png");
   });
 
   it("supports picture presets for the LED wall", () => {
