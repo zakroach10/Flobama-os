@@ -32,6 +32,16 @@ export type AudienceWallTool = {
   questionOnWall?: { id: string; displayName: string; body: string } | null;
 };
 
+export const AUDIENCE_CORNER_POSITIONS = ["bottom-left", "bottom-right"] as const;
+
+export type AudienceCornerPosition = (typeof AUDIENCE_CORNER_POSITIONS)[number];
+
+export type AudienceCornerSponsor = {
+  name: string;
+  imageUrl: string | null;
+  corner: AudienceCornerPosition;
+};
+
 export type AudienceWallState = {
   sessionId: string;
   title: string;
@@ -39,6 +49,7 @@ export type AudienceWallState = {
   joinPath: string;
   guestCount: number;
   brandLogoUrl: string | null;
+  cornerSponsor: AudienceCornerSponsor | null;
   tool: AudienceWallTool | null;
   lobbyMessage: string;
 };
@@ -73,7 +84,7 @@ export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
   hot_take: "Put a statement up and let the room vote Agree or Terrible Take.",
   message: "Instant announcement on the wall.",
   matchup: "Team names, kickoff, and a discussion prompt.",
-  sponsor: "Bring up a sponsor name and blurb.",
+  sponsor: "Full sponsor card, or pin a logo in the corner while other content stays up.",
   countdown: "Pre-show timer or “we’ll be right back” break.",
   picture: "Upload a photo or graphic, save it as a preset, put it on the LED wall.",
 };

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
-import type { AudienceWallState, AudienceWallTool } from "@/lib/audience/types";
+import type { AudienceCornerSponsor, AudienceWallState, AudienceWallTool } from "@/lib/audience/types";
 
 export function AudienceWall({ initial }: { initial: AudienceWallState }) {
   const [wall, setWall] = useState(initial);
@@ -177,6 +177,33 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
           <p className="text-4xl font-semibold text-white/80">Scan to join — stand by for the next interaction</p>
         )}
       </main>
+
+      {wall.cornerSponsor ? <CornerSponsorBug sponsor={wall.cornerSponsor} /> : null}
+    </div>
+  );
+}
+
+function CornerSponsorBug({ sponsor }: { sponsor: AudienceCornerSponsor }) {
+  const corner =
+    sponsor.corner === "bottom-right" ? "bottom-10 right-10 items-end" : "bottom-10 left-10 items-start";
+  return (
+    <div className={`pointer-events-none absolute z-20 flex flex-col ${corner}`}>
+      <div className="flex max-w-md items-center gap-4 rounded-3xl bg-white px-5 py-4 text-black shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
+        {sponsor.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={sponsor.imageUrl}
+            alt={sponsor.name ? "" : "Sponsor"}
+            className="h-20 w-auto max-w-48 shrink-0 object-contain"
+          />
+        ) : null}
+        {sponsor.name ? (
+          <div className="min-w-0">
+            <p className="text-xs font-semibold tracking-[0.22em] text-neutral-500 uppercase">Presented by</p>
+            <p className="truncate text-3xl font-black leading-tight">{sponsor.name}</p>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

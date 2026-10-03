@@ -12,6 +12,7 @@ import {
   endAudienceSessionAction,
   moderateAudienceQuestionAction,
   putAudienceToolOnWallAction,
+  saveAudienceCornerSponsorAction,
   saveAudiencePresetAction,
   setAudienceRevealAction,
   setAudienceVotingAction,
@@ -20,6 +21,7 @@ import {
 } from "@/actions/audience";
 import { uploadAudienceBrandLogoFromBrowser } from "@/lib/audience/brand-upload";
 import { uploadAudiencePictureFromBrowser } from "@/lib/audience/picture-upload";
+import { CornerSponsorPanel } from "@/components/audience/corner-sponsor-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +63,7 @@ export function AudienceWorkspace({
   venueId,
   supabaseEnv,
   missingPresetsTable,
+  missingCornerSponsor,
 }: {
   session: StaffAudienceSession | null;
   tools: StaffAudienceTool[];
@@ -71,6 +74,7 @@ export function AudienceWorkspace({
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
   missingPresetsTable?: boolean;
+  missingCornerSponsor?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -79,6 +83,7 @@ export function AudienceWorkspace({
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
   const [presetName, setPresetName] = useState("");
   const [brandOpen, setBrandOpen] = useState(false);
+  const [cornerOpen, setCornerOpen] = useState(false);
   const [confirmStartOpen, setConfirmStartOpen] = useState(false);
   const selected = tools.find((tool) => tool.id === selectedToolId) ?? tools[0] ?? null;
   const joinUrl = session ? `${apiBase}/live/${session.joinCode}` : "";
@@ -130,6 +135,7 @@ export function AudienceWorkspace({
             Build your rundown from presets, put one thing on the wall, then reveal when ready.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setBrandOpen((open) => !open)}
@@ -150,6 +156,31 @@ export function AudienceWorkspace({
             </span>
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setCornerOpen((open) => !open)}
+          className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-left text-sm"
+        >
+          <span className="flex size-9 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-black/10">
+            {settings.cornerSponsor.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={settings.cornerSponsor.imageUrl} alt="" className="max-h-8 max-w-8 object-contain" />
+            ) : (
+              <span className="text-[10px] text-muted-foreground">Logo</span>
+            )}
+          </span>
+          <span>
+            <span className="block font-medium">Corner sponsor</span>
+            <span className="block text-xs text-muted-foreground">
+              {settings.cornerSponsor.enabled
+                ? "On the LED wall"
+                : settings.cornerSponsor.name || settings.cornerSponsor.imageUrl
+                  ? "Hidden"
+                  : "Optional corner logo"}
+            </span>
+          </span>
+        </button>
+        </div>
       </header>
 
       {brandOpen ? (
@@ -208,6 +239,17 @@ export function AudienceWorkspace({
             </div>
           </div>
         </section>
+      ) : null}
+
+      {cornerOpen ? (
+        <CornerSponsorPanel
+          key={`${settings.cornerSponsor.name}:${settings.cornerSponsor.imageUrl ?? ""}:${settings.cornerSponsor.enabled}`}
+          settings={settings}
+          venueId={venueId}
+          supabaseEnv={supabaseEnv}
+          missingColumns={missingCornerSponsor}
+          onChanged={refresh}
+        />
       ) : null}
 
       <section className="rounded-xl border bg-card p-4">
@@ -422,6 +464,32 @@ export function AudienceWorkspace({
                         Delete
                       </Button>
                     </div>
+                    {preset.kind === "sponsor" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 w-full"
+                        disabled={pending}
+                        onClick={() => {
+                          const name = String(preset.payload.name ?? preset.title ?? "").trim();
+                          const imageUrl = String(preset.payload.imageUrl ?? "").trim();
+                          if (!name && !imageUrl) {
+                            toast.error("This sponsor preset needs a name or image.");
+                            return;
+                          }
+                          run(async () =>
+                            saveAudienceCornerSponsorAction({
+                              name,
+                              imageUrl: imageUrl || null,
+                              enabled: true,
+                            }),
+                          );
+                        }}
+                      >
+                        Show in corner
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       size="sm"
@@ -550,6 +618,31 @@ export function AudienceWorkspace({
                         }),
                       );
                     }}
+                    onShowInCorner={
+                      selected.kind === "sponsor"
+                        ? (payload) => {
+                            const name = String(payload.name ?? "").trim();
+                            const imageUrl = String(payload.imageUrl ?? "").trim();
+                            if (!name && !imageUrl) {
+                              toast.error("Add a sponsor name or image first.");
+                              return;
+                            }
+                            run(async () => {
+                              const saved = await updateAudienceToolAction({
+                                toolId: selected.id,
+                                payload,
+                                title: name || selected.title,
+                              });
+                              if (!saved.ok) return saved;
+                              return saveAudienceCornerSponsorAction({
+                                name,
+                                imageUrl: imageUrl || null,
+                                enabled: true,
+                              });
+                            });
+                          }
+                        : undefined
+                    }
                     onSavePreset={(payload, title) => {
                       const name = presetName.trim();
                       if (!name) {
@@ -984,6 +1077,7 @@ function ToolEditor({
   supabaseEnv,
   onSave,
   onSavePreset,
+  onShowInCorner,
 }: {
   tool: StaffAudienceTool;
   pending: boolean;
@@ -993,6 +1087,7 @@ function ToolEditor({
   supabaseEnv: PublicSupabaseEnv | null;
   onSave: (payload: Record<string, unknown>, title?: string) => void;
   onSavePreset: (payload: Record<string, unknown>, title?: string) => void;
+  onShowInCorner?: (payload: Record<string, unknown>) => void;
 }) {
   const [draft, setDraft] = useState(() => ({ ...tool.payload }));
   const kind = tool.kind as AudienceToolKind;
@@ -1223,6 +1318,13 @@ function ToolEditor({
         presetName={presetName}
         onPresetNameChange={onPresetNameChange}
         onSavePreset={() => savePreset(String(draft.name ?? "Sponsor"))}
+        extraActions={
+          onShowInCorner ? (
+            <Button type="button" variant="outline" disabled={pending} onClick={() => onShowInCorner(draft)}>
+              Show in corner
+            </Button>
+          ) : null
+        }
       >
         <Field
           label="Sponsor name"
@@ -1297,6 +1399,7 @@ function EditorShell({
   presetName,
   onPresetNameChange,
   onSavePreset,
+  extraActions,
 }: {
   children: React.ReactNode;
   pending: boolean;
@@ -1304,6 +1407,7 @@ function EditorShell({
   presetName: string;
   onPresetNameChange: (value: string) => void;
   onSavePreset: () => void;
+  extraActions?: React.ReactNode;
 }) {
   return (
     <div className="space-y-3">
@@ -1312,6 +1416,7 @@ function EditorShell({
         <Button type="button" variant="secondary" disabled={pending} onClick={onSave}>
           Save changes
         </Button>
+        {extraActions}
       </div>
       <div className="flex flex-wrap items-end gap-2 border-t pt-4">
         <div className="min-w-[10rem] flex-1 space-y-1">
