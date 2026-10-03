@@ -6,12 +6,11 @@ import { toast } from "sonner";
 import {
   clearAudienceBrandLogoAction,
   clearAudienceWallAction,
-  createAudienceToolAction,
-  createAudienceToolFromPresetAction,
   deleteAudiencePresetAction,
   endAudienceSessionAction,
   moderateAudienceQuestionAction,
   pollAudienceInboxAction,
+  putAudiencePresetOnWallAction,
   putAudienceToolOnWallAction,
   saveAudienceCornerSponsorAction,
   saveAudiencePresetAction,
@@ -51,7 +50,6 @@ import {
 import { defaultPayloadForKind } from "@/lib/audience/engine";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
 import type { PublicSupabaseEnv } from "@/lib/env";
-import { cn } from "@/lib/utils";
 
 const REVEALABLE_KINDS = new Set<AudienceToolKind>(["poll", "host_picks", "hot_take"]);
 
@@ -85,24 +83,15 @@ export function AudienceWorkspace({
   const [polledQuestions, setPolledQuestions] = useState<StaffAudienceQuestion[] | null>(null);
   const [polledGuestCount, setPolledGuestCount] = useState<number | null>(null);
   const seenQuestionIds = useRef<Set<string> | null>(null);
-  const [selectedToolId, setSelectedToolId] = useState<string | null>(tools[0]?.id ?? null);
-  const [addKind, setAddKind] = useState<AudienceToolKind>("poll");
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
   const [presetName, setPresetName] = useState("");
   const [brandOpen, setBrandOpen] = useState(false);
   const [cornerOpen, setCornerOpen] = useState(false);
   const [confirmStartOpen, setConfirmStartOpen] = useState(false);
-  const selected = tools.find((tool) => tool.id === selectedToolId) ?? tools[0] ?? null;
+  const liveTool = tools.find((tool) => tool.status === "on_wall") ?? null;
   const joinUrl = session ? `${apiBase}/live/${session.joinCode}` : "";
-  const onWall = selected?.status === "on_wall";
-  const selectedKind = selected ? (selected.kind as AudienceToolKind) : null;
-  const showRevealControls = Boolean(session && selectedKind && REVEALABLE_KINDS.has(selectedKind));
-
-  useEffect(() => {
-    if (selectedToolId && !tools.some((tool) => tool.id === selectedToolId)) {
-      setSelectedToolId(tools[0]?.id ?? null);
-    }
-  }, [tools, selectedToolId]);
+  const liveKind = liveTool ? (liveTool.kind as AudienceToolKind) : null;
+  const showRevealControls = Boolean(session && liveKind && REVEALABLE_KINDS.has(liveKind));
 
   const questionsKey = questions.map((question) => `${question.id}:${question.status}:${question.body}`).join("|");
   const [questionsSnapshot, setQuestionsSnapshot] = useState(questionsKey);
@@ -200,7 +189,7 @@ export function AudienceWorkspace({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Audience Interactor</h1>
           <p className="text-sm text-muted-foreground">
-            Build your rundown from presets, put one thing on the wall, then reveal when ready.
+            Tap a preset to put it straight on the LED wall.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -377,100 +366,8 @@ export function AudienceWorkspace({
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-start">
         <div className="space-y-4">
-          <section className="rounded-xl border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold tracking-wide uppercase">Rundown</h2>
-              {session ? <Badge variant="secondary">{tools.length}</Badge> : null}
-            </div>
-
-            {session ? (
-              <div className="mb-3 flex gap-2">
-                <select
-                  className="h-10 min-h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm"
-                  value={addKind}
-                  onChange={(event) => setAddKind(event.target.value as AudienceToolKind)}
-                  aria-label="Tool kind to add"
-                >
-                  {AUDIENCE_TOOL_KINDS.map((kind) => (
-                    <option key={kind} value={kind}>
-                      {AUDIENCE_TOOL_LABELS[kind]}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() =>
-                    run(
-                      async () =>
-                        createAudienceToolAction({
-                          sessionId: session.id,
-                          kind: addKind,
-                          payload: defaultPayloadForKind(addKind),
-                        }),
-                      (toolId) => {
-                        if (toolId) setSelectedToolId(toolId);
-                      },
-                    )
-                  }
-                >
-                  Add
-                </Button>
-              </div>
-            ) : (
-              <p className="mb-3 text-sm text-muted-foreground">Start a session to add live tools.</p>
-            )}
-
-            {session && tools.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Load a preset below or add a blank tool.</p>
-            ) : null}
-
-            {session && tools.length > 0 ? (
-              <ul className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 lg:max-h-[52vh]">
-                {tools.map((tool) => {
-                  const active = selected?.id === tool.id;
-                  return (
-                    <li key={tool.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedToolId(tool.id)}
-                        className={cn(
-                          "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
-                          active ? "border-primary bg-primary/5" : "hover:bg-muted/40",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex min-w-0 items-start gap-2">
-                            {tool.kind === "picture" && typeof tool.payload.imageUrl === "string" && tool.payload.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={tool.payload.imageUrl}
-                                alt=""
-                                className="size-10 shrink-0 rounded-md object-cover ring-1 ring-black/10"
-                              />
-                            ) : null}
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{tool.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {AUDIENCE_TOOL_LABELS[tool.kind as AudienceToolKind] ?? tool.kind}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant={tool.status === "on_wall" ? "default" : "secondary"}>
-                            {tool.status === "on_wall" ? "Live" : "Ready"}
-                          </Badge>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </section>
-
           <section className="rounded-xl border bg-card p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold tracking-wide uppercase">Presets</h2>
@@ -500,7 +397,7 @@ export function AudienceWorkspace({
                 Save filled-in polls, hot takes, and cards here so you are not typing mid-show.
               </p>
             ) : (
-              <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 lg:max-h-[62vh]">
                 {filteredPresets.map((preset) => (
                   <li key={preset.id} className="rounded-lg border px-3 py-2">
                     <div className="flex items-start justify-between gap-2">
@@ -518,6 +415,9 @@ export function AudienceWorkspace({
                           <p className="text-xs text-muted-foreground">
                             {AUDIENCE_TOOL_LABELS[preset.kind]} · {preset.title}
                           </p>
+                          {liveTool && liveTool.kind === preset.kind && liveTool.title === preset.title ? (
+                            <Badge className="mt-1">On the wall</Badge>
+                          ) : null}
                         </div>
                       </div>
                       <Button
@@ -569,19 +469,15 @@ export function AudienceWorkspace({
                           setConfirmStartOpen(true);
                           return;
                         }
-                        run(
-                          async () =>
-                            createAudienceToolFromPresetAction({
-                              sessionId: session.id,
-                              presetId: preset.id,
-                            }),
-                          (toolId) => {
-                            if (toolId) setSelectedToolId(toolId);
-                          },
+                        run(async () =>
+                          putAudiencePresetOnWallAction({
+                            sessionId: session.id,
+                            presetId: preset.id,
+                          }),
                         );
                       }}
                     >
-                      {session ? "Add to rundown" : "Start session to use"}
+                      {session ? "Put on LED wall" : "Start session to use"}
                     </Button>
                   </li>
                 ))}
@@ -596,8 +492,8 @@ export function AudienceWorkspace({
               <div className="space-y-3">
                 <h2 className="text-lg font-semibold">Build presets before the show</h2>
                 <p className="text-sm text-muted-foreground">
-                  Pick a game mode, fill the fields, and save a named preset. During the show, add it to the
-                  rundown in one tap.
+                  Pick a game mode, fill the fields, and save a named preset. It shows up in the list and goes
+                  straight to the LED wall.
                 </p>
                 <PresetBuilder
                   pending={pending}
@@ -606,17 +502,28 @@ export function AudienceWorkspace({
                   supabaseEnv={supabaseEnv}
                 />
               </div>
-            ) : !selected ? (
-              <p className="text-sm text-muted-foreground">Select or add a tool to edit.</p>
+            ) : !liveTool ? (
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold">Nothing on the LED wall</h2>
+                <p className="text-sm text-muted-foreground">
+                  Choose a preset from the list to put it on the wall.
+                </p>
+                <PresetBuilder
+                  pending={pending}
+                  onSaved={refresh}
+                  venueId={venueId}
+                  supabaseEnv={supabaseEnv}
+                />
+              </div>
             ) : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-xl font-semibold">
-                      {AUDIENCE_TOOL_LABELS[selected.kind as AudienceToolKind] ?? selected.title}
+                      {AUDIENCE_TOOL_LABELS[liveTool.kind as AudienceToolKind] ?? liveTool.title}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      {AUDIENCE_TOOL_HINTS[selected.kind as AudienceToolKind] ?? ""}
+                      {AUDIENCE_TOOL_HINTS[liveTool.kind as AudienceToolKind] ?? ""}
                     </p>
                   </div>
                   <Button
@@ -625,14 +532,14 @@ export function AudienceWorkspace({
                     onClick={() =>
                       run(async () =>
                         putAudienceToolOnWallAction({
-                          toolId: selected.id,
+                          toolId: liveTool.id,
                           resultsRevealed: false,
                           votingOpen: true,
                         }),
                       )
                     }
                   >
-                    {onWall ? "Refresh on wall" : "Put on wall"}
+                    Update on wall
                   </Button>
                 </div>
 
@@ -671,8 +578,8 @@ export function AudienceWorkspace({
 
                 <div className="mt-4">
                   <ToolEditor
-                    key={selected.id}
-                    tool={selected}
+                    key={liveTool.id}
+                    tool={liveTool}
                     pending={pending}
                     presetName={presetName}
                     onPresetNameChange={setPresetName}
@@ -681,14 +588,14 @@ export function AudienceWorkspace({
                     onSave={(payload, title) => {
                       run(async () =>
                         updateAudienceToolAction({
-                          toolId: selected.id,
+                          toolId: liveTool.id,
                           payload,
                           title,
                         }),
                       );
                     }}
                     onShowInCorner={
-                      selected.kind === "sponsor"
+                      liveTool.kind === "sponsor"
                         ? (payload) => {
                             const name = String(payload.name ?? "").trim();
                             const imageUrl = String(payload.imageUrl ?? "").trim();
@@ -698,9 +605,9 @@ export function AudienceWorkspace({
                             }
                             run(async () => {
                               const saved = await updateAudienceToolAction({
-                                toolId: selected.id,
+                                toolId: liveTool.id,
                                 payload,
-                                title: name || selected.title,
+                                title: name || liveTool.title,
                               });
                               if (!saved.ok) return saved;
                               return saveAudienceCornerSponsorAction({
@@ -721,9 +628,9 @@ export function AudienceWorkspace({
                       run(
                         async () =>
                           saveAudiencePresetAction({
-                            kind: selected.kind as AudienceToolKind,
+                            kind: liveTool.kind as AudienceToolKind,
                             name,
-                            title: title ?? selected.title,
+                            title: title ?? liveTool.title,
                             payload,
                           }),
                         () => setPresetName(""),
@@ -734,6 +641,21 @@ export function AudienceWorkspace({
               </>
             )}
           </section>
+
+          {session && liveTool ? (
+            <section className="rounded-xl border bg-card p-4 sm:p-5">
+              <h2 className="text-lg font-semibold">New preset</h2>
+              <p className="mt-1 mb-3 text-sm text-muted-foreground">
+                Save another preset. It joins the list and can go on the wall immediately.
+              </p>
+              <PresetBuilder
+                pending={pending}
+                onSaved={refresh}
+                venueId={venueId}
+                supabaseEnv={supabaseEnv}
+              />
+            </section>
+          ) : null}
 
           {session ? (
             <section className="rounded-xl border bg-card p-4 sm:p-5">
@@ -868,9 +790,10 @@ function PresetBuilder({
   const [draft, setDraft] = useState(() => defaultPayloadForKind("picture"));
   const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    setDraft(defaultPayloadForKind(kind));
-  }, [kind]);
+  function changeKind(next: AudienceToolKind) {
+    setKind(next);
+    setDraft(defaultPayloadForKind(next));
+  }
 
   return (
     <div className="space-y-3">
@@ -881,7 +804,7 @@ function PresetBuilder({
             id="offline-kind"
             className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
             value={kind}
-            onChange={(event) => setKind(event.target.value as AudienceToolKind)}
+            onChange={(event) => changeKind(event.target.value as AudienceToolKind)}
           >
             {AUDIENCE_TOOL_KINDS.map((value) => (
               <option key={value} value={value}>
