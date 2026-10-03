@@ -12,6 +12,7 @@ import {
   isAudienceToolKind,
   normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
+import { takeUnseenJoins } from "@/lib/screens/join-notices";
 import { AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 import {
   authorizeAudienceRun,
@@ -78,6 +79,27 @@ describe("audience engine", () => {
     expect(isAudienceToolKind("leaderboard")).toBe(false);
   });
 
+  it("includes a phone number on sponsor cards", () => {
+    expect(defaultPayloadForKind("sponsor")).toMatchObject({
+      name: "Sponsor",
+      phone: "",
+      blurb: "Presented by our partners",
+      imageUrl: "",
+    });
+  });
+
+  it("announces new joins in arrival order", () => {
+    const seen = new Set(["a"]);
+    expect(
+      takeUnseenJoins(seen, [
+        { id: "c", displayName: "Cee", joinedAt: "2026-10-03T18:00:02.000Z" },
+        { id: "a", displayName: "Aye", joinedAt: "2026-10-03T18:00:00.000Z" },
+        { id: "b", displayName: "Bee", joinedAt: "2026-10-03T18:00:01.000Z" },
+        { id: "d", displayName: "   ", joinedAt: "2026-10-03T18:00:03.000Z" },
+      ]).map((join) => join.displayName),
+    ).toEqual(["Bee", "Cee"]);
+  });
+
   it("shows a corner sponsor only when it is enabled and has a name or logo", () => {
     expect(cornerSponsorForWall(null)).toBeNull();
     expect(
@@ -131,6 +153,7 @@ describe("audience engine", () => {
         totalVotes: 0,
       },
       lobbyMessage: "Live on the wall — scan to join",
+      recentJoins: [],
     };
     const html = renderToStaticMarkup(createElement(AudienceWall, { initial: wall }));
     expect(html).toContain("Going live");

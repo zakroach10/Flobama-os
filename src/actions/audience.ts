@@ -37,6 +37,7 @@ import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listLedWallScenes } from "@/lib/queries/led-wall";
+import { loadLiveAudienceInbox, type StaffAudienceQuestion } from "@/lib/queries/audience";
 
 export type AudienceActionResult = {
   ok: boolean;
@@ -456,6 +457,16 @@ export async function updateAudienceToolAction(input: unknown): Promise<Audience
   if (!result.ok) return { ok: false, message: sqlHint(result.message) };
   revalidateAudience();
   return { ok: true, message: "Tool updated." };
+}
+
+export async function pollAudienceInboxAction(): Promise<
+  | { ok: true; questions: StaffAudienceQuestion[]; guestCount: number }
+  | { ok: false; message: string }
+> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const inbox = await loadLiveAudienceInbox(gate.supabase, gate.context.venue.id);
+  return { ok: true, questions: inbox.questions, guestCount: inbox.guestCount };
 }
 
 export async function moderateAudienceQuestionAction(input: unknown): Promise<AudienceActionResult> {

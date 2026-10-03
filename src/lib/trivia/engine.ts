@@ -117,6 +117,7 @@ export function buildWallState(input: {
   question: TriviaWallQuestion | null;
   top3: TriviaLeaderboardEntry[];
   leaderboard: TriviaLeaderboardEntry[];
+  recentJoins?: TriviaWallState["recentJoins"];
   serverNow?: string;
 }): TriviaWallState {
   return {
@@ -133,6 +134,7 @@ export function buildWallState(input: {
     question: input.status === "lobby" || input.status === "final" ? null : input.question,
     top3: input.status === "podium" || input.status === "final" ? input.top3 : [],
     leaderboard: input.status === "final" ? input.leaderboard : [],
+    recentJoins: input.recentJoins ?? [],
     serverNow: input.serverNow ?? new Date().toISOString(),
   };
 }

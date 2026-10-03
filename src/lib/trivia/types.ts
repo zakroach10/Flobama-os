@@ -1,3 +1,5 @@
+import type { WallJoinNotice } from "@/lib/screens/join-notices";
+
 export const TRIVIA_SESSION_STATUSES = [
   "lobby",
   "question",
@@ -62,6 +64,7 @@ export type TriviaWallState = {
   question: TriviaWallQuestion | null;
   top3: TriviaLeaderboardEntry[];
   leaderboard: TriviaLeaderboardEntry[];
+  recentJoins: WallJoinNotice[];
   serverNow: string;
 };
 

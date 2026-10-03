@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
 import type { AudienceCornerSponsor, AudienceWallState, AudienceWallTool } from "@/lib/audience/types";
+import { JoinPopups } from "@/components/screens/join-popups";
 
 export function AudienceWall({ initial }: { initial: AudienceWallState }) {
   const [wall, setWall] = useState(initial);
@@ -65,41 +66,13 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
     return `${m}:${String(s).padStart(2, "0")}`;
   }, [endsAt, now, tool?.payload.seconds]);
 
+  const sponsorPhone = String(tool?.payload.phone ?? "").trim();
+
   return (
-    <div className="relative flex h-full w-full flex-col bg-[#07090d] text-white">
+    <div className="relative h-full w-full overflow-hidden bg-[#07090d] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
 
-      <header className="relative z-10 flex items-start justify-between gap-8 px-10 pt-8">
-        <div>
-          <p className="text-sm font-semibold tracking-[0.28em] text-white/55 uppercase">FloBama Live</p>
-          <h1 className="mt-2 text-5xl font-black tracking-tight">{wall.title}</h1>
-          <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-4">
-          {wall.brandLogoUrl ? (
-            <div className="flex size-[7.5rem] items-center justify-center rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={wall.brandLogoUrl}
-                alt=""
-                className="max-h-[6.5rem] max-w-[6.5rem] object-contain"
-              />
-            </div>
-          ) : null}
-          <div className="rounded-2xl bg-white p-3 text-center text-black">
-            {qr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="" className="size-40" />
-            ) : (
-              <div className="size-40 bg-neutral-200" />
-            )}
-            <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
-            <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 flex flex-1 items-center justify-center px-12 pb-12">
+      <main className="absolute inset-0 z-10 flex flex-col items-center justify-center px-12 py-6">
         {!tool ? (
           <p className="text-4xl font-semibold text-white/80">Scan to join — stand by for the next interaction</p>
         ) : tool.kind === "message" ? (
@@ -137,6 +110,9 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
               />
             ) : null}
             <p className="text-5xl font-black">{String(tool.payload.name ?? tool.title)}</p>
+            {sponsorPhone ? (
+              <p className="mt-5 font-mono text-4xl font-bold tracking-wide">{sponsorPhone}</p>
+            ) : null}
             <p className="mt-4 text-2xl text-white/75">{String(tool.payload.blurb ?? "")}</p>
           </div>
         ) : tool.kind === "picture" ? (
@@ -158,12 +134,12 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
             ) : null}
           </div>
         ) : tool.kind === "questions" ? (
-          <div className="max-w-5xl text-center">
+          <div className="mx-auto w-full max-w-5xl text-center">
             {tool.questionOnWall ? (
               <>
                 <p className="text-xl tracking-[0.2em] text-amber-300 uppercase">Audience question</p>
-                <p className="mt-6 text-5xl font-black leading-tight">“{tool.questionOnWall.body}”</p>
-                <p className="mt-6 text-2xl text-white/70">— {tool.questionOnWall.displayName}</p>
+                <p className="mt-6 text-5xl font-black leading-tight md:text-6xl">“{tool.questionOnWall.body}”</p>
+                <p className="mt-6 text-3xl text-white/70">— {tool.questionOnWall.displayName}</p>
               </>
             ) : (
               <p className="text-4xl font-semibold text-white/80">Submit your questions — producer is reviewing</p>
@@ -178,7 +154,37 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
         )}
       </main>
 
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-8 px-10 pt-8">
+        <div>
+          <p className="text-sm font-semibold tracking-[0.28em] text-white/55 uppercase">FloBama Live</p>
+          <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">{wall.title}</h1>
+          <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-4">
+          {wall.brandLogoUrl ? (
+            <div className="flex size-24 items-center justify-center rounded-3xl bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={wall.brandLogoUrl}
+                alt=""
+                className="max-h-20 max-w-20 object-contain"
+              />
+            </div>
+          ) : null}
+          <div className="rounded-2xl bg-white p-3 text-center text-black">
+            {qr ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={qr} alt="" className="size-32" />
+            ) : (
+              <div className="size-32 bg-neutral-200" />
+            )}
+            <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
+            <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
+          </div>
+        </div>
+      </header>
       {wall.cornerSponsor ? <CornerSponsorBug sponsor={wall.cornerSponsor} /> : null}
+      <JoinPopups joins={wall.recentJoins} />
     </div>
   );
 }
@@ -187,7 +193,7 @@ function CornerSponsorBug({ sponsor }: { sponsor: AudienceCornerSponsor }) {
   const corner =
     sponsor.corner === "bottom-right" ? "bottom-10 right-10 items-end" : "bottom-10 left-10 items-start";
   return (
-    <div className={`pointer-events-none absolute z-20 flex flex-col ${corner}`}>
+    <div className={`pointer-events-none absolute z-30 flex flex-col ${corner}`}>
       <div className="flex max-w-md items-center gap-4 rounded-3xl bg-white px-5 py-4 text-black shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
         {sponsor.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

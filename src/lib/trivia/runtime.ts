@@ -11,6 +11,7 @@ import {
 } from "@/lib/trivia/engine";
 import { buildLeaderboard, playerRank, scoreAnswer } from "@/lib/trivia/scoring";
 import type { TriviaPlayerState, TriviaWallState } from "@/lib/trivia/types";
+import { mapJoinRows } from "@/lib/screens/join-notices";
 
 type AnyClient = SupabaseClient;
 
@@ -95,6 +96,19 @@ async function loadPlayers(client: AnyClient, sessionId: string) {
   };
 }
 
+async function loadRecentJoins(client: AnyClient, sessionId: string) {
+  const { data, error } = await client
+    .from("trivia_players" as never)
+    .select("id, display_name, joined_at")
+    .eq("session_id", sessionId)
+    .order("joined_at", { ascending: false })
+    .limit(16);
+  if (error) return [];
+  return mapJoinRows(
+    (data as Array<{ id: string; display_name: string; joined_at: string }> | null) ?? [],
+  );
+}
+
 export async function advanceTriviaSession(client: AnyClient, session: SessionRow, now: Date = new Date()) {
   if (!isActiveTriviaStatus(session.status)) return { session, advanced: false, error: null as string | null };
   if (!shouldAdvancePhase(session.phase_ends_at, now)) {
@@ -177,12 +191,13 @@ export async function buildPublicWallState(
   if (error) return { wall: null, error };
   if (!session || !isActiveTriviaStatus(session.status)) return { wall: null, error: null };
 
-  const [pack, playersRes, questionRes] = await Promise.all([
+  const [pack, playersRes, questionRes, recentJoins] = await Promise.all([
     loadPackMeta(client, session.pack_id),
     loadPlayers(client, session.id),
     session.status === "lobby" || session.status === "final"
       ? Promise.resolve({ question: null as QuestionSnap | null, error: null as string | null })
       : loadSessionQuestion(client, session.id, session.current_question_index),
+    loadRecentJoins(client, session.id),
   ]);
 
   if (playersRes.error) return { wall: null, error: playersRes.error };
@@ -207,6 +222,7 @@ export async function buildPublicWallState(
       question,
       top3,
       leaderboard,
+      recentJoins,
       serverNow: now.toISOString(),
     }),
     error: null,

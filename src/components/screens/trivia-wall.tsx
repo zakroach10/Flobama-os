@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { TRIVIA_POLL_MS } from "@/lib/constants";
 import type { TriviaWallState } from "@/lib/trivia/types";
+import { JoinPopups } from "@/components/screens/join-popups";
 
 function remainingLabel(phaseEndsAt: string | null, serverNow: string) {
   if (!phaseEndsAt) return "";
@@ -79,9 +80,17 @@ export function TriviaWall({
   void tick;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#1b1612] text-[#f7f1ea]">
+    <div className="relative h-full w-full overflow-hidden bg-[#1b1612] text-[#f7f1ea]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(211,107,74,0.28),transparent_42%),radial-gradient(circle_at_80%_0%,rgba(244,235,227,0.12),transparent_35%),linear-gradient(160deg,#241c17_0%,#1b1612_55%,#120e0c_100%)]" />
-      <div className="relative z-10 flex items-center justify-between px-10 pt-8">
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-12 py-6">
+        {wall.status === "lobby" ? <LobbyFrame joinCode={wall.joinCode} joinUrl={joinUrl} qr={qrSrc} /> : null}
+        {wall.status === "question" || wall.status === "reveal" ? (
+          <QuestionFrame wall={wall} reveal={wall.status === "reveal"} />
+        ) : null}
+        {wall.status === "podium" ? <PodiumFrame wall={wall} tease /> : null}
+        {wall.status === "final" ? <PodiumFrame wall={wall} tease={false} /> : null}
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between px-10 pt-8">
         <div>
           <p className="text-sm font-semibold tracking-[0.28em] text-[#d36b4a] uppercase">FloBama Trivia</p>
           <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">{wall.packTitle}</h1>
@@ -93,15 +102,7 @@ export function TriviaWall({
           {timer ? <p className="mt-1 text-sm text-[#d36b4a] tabular-nums">{timer}</p> : null}
         </div>
       </div>
-
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-10 pb-10">
-        {wall.status === "lobby" ? <LobbyFrame joinCode={wall.joinCode} joinUrl={joinUrl} qr={qrSrc} /> : null}
-        {wall.status === "question" || wall.status === "reveal" ? (
-          <QuestionFrame wall={wall} reveal={wall.status === "reveal"} />
-        ) : null}
-        {wall.status === "podium" ? <PodiumFrame wall={wall} tease /> : null}
-        {wall.status === "final" ? <PodiumFrame wall={wall} tease={false} /> : null}
-      </div>
+      <JoinPopups joins={wall.recentJoins} />
     </div>
   );
 }
@@ -139,12 +140,12 @@ function QuestionFrame({ wall, reveal }: { wall: TriviaWallState; reveal: boolea
   if (!question) return null;
   const letters = ["A", "B", "C", "D"] as const;
   return (
-    <div className="w-full max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="mx-auto w-full max-w-6xl animate-in fade-in slide-in-from-bottom-4 text-center duration-500">
       <p className="text-sm font-semibold tracking-[0.24em] text-[#d36b4a] uppercase">
         Question {question.index + 1} / {wall.questionCount}
       </p>
-      <h2 className="mt-4 max-w-5xl text-4xl font-black leading-tight sm:text-5xl">{question.prompt}</h2>
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      <h2 className="mx-auto mt-4 max-w-5xl text-4xl font-black leading-tight sm:text-6xl">{question.prompt}</h2>
+      <div className="mt-10 grid gap-4 text-left sm:grid-cols-2">
         {question.choices.map((choice, index) => {
           const isCorrect = reveal && question.correctIndex === index;
           const isWrong = reveal && question.correctIndex !== index;
@@ -165,7 +166,7 @@ function QuestionFrame({ wall, reveal }: { wall: TriviaWallState; reveal: boolea
           );
         })}
       </div>
-      {reveal ? <p className="mt-8 text-2xl font-bold text-[#d36b4a]">Correct answer highlighted</p> : null}
+      {reveal ? <p className="mt-8 text-center text-2xl font-bold text-[#d36b4a]">Correct answer highlighted</p> : null}
     </div>
   );
 }
@@ -173,12 +174,12 @@ function QuestionFrame({ wall, reveal }: { wall: TriviaWallState; reveal: boolea
 function PodiumFrame({ wall, tease }: { wall: TriviaWallState; tease: boolean }) {
   const rows = tease ? wall.top3 : wall.leaderboard.slice(0, 10);
   return (
-    <div className="w-full max-w-4xl animate-in fade-in zoom-in-95 duration-500">
+    <div className="mx-auto w-full max-w-4xl animate-in fade-in zoom-in-95 text-center duration-500">
       <p className="text-sm font-semibold tracking-[0.24em] text-[#d36b4a] uppercase">
         {tease ? "Top 3 this round" : "Grand leaderboard"}
       </p>
       <h2 className="mt-3 text-5xl font-black">{tease ? "Standing" : "Final scores"}</h2>
-      <ol className="mt-10 space-y-4">
+      <ol className="mt-10 space-y-4 text-left">
         {rows.length === 0 ? (
           <li className="text-2xl text-[#8a7368]">Waiting for scores…</li>
         ) : (

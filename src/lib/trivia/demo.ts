@@ -16,6 +16,7 @@ export function demoTriviaWall(origin = "https://flobama-os.vercel.app"): Trivia
     question: null,
     top3: [],
     leaderboard: [],
+    recentJoins: [],
     serverNow: new Date().toISOString(),
   };
 }
