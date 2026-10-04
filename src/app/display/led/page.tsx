@@ -4,6 +4,7 @@ import { getPublicAppUrl } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
+import { DEMO_LED_AD_ROLL } from "@/lib/screens/demo";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
@@ -18,6 +19,18 @@ export default async function LedDisplayPage({
   searchParams: Promise<{ demo?: string; phase?: string }>;
 }) {
   const params = await searchParams;
+  if (process.env.NODE_ENV !== "production" && params.demo === "adroll") {
+    return (
+      <LedDisplay
+        initial={null}
+        initialPlaylist={DEMO_LED_AD_ROLL}
+        initialMode="playlist"
+        initialRevision="demo-adroll"
+        initialStartedAt={new Date().toISOString()}
+        lockPlaylist
+      />
+    );
+  }
   if (process.env.NODE_ENV !== "production" && params.demo === "1") {
     const origin = getPublicAppUrl();
     const trivia =
