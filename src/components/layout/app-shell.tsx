@@ -129,14 +129,22 @@ function AccountFooter({
       <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
       <p className="mt-1 truncate">{userLabel}</p>
       <p className="truncate">{roleLabel}</p>
-      <form action={signOutAction} className="mt-3">
-        <button
-          type="submit"
+      <div className="mt-3 space-y-2">
+        <Link
+          href="/help"
           className="flex min-h-11 w-full items-center justify-center rounded-lg border border-sidebar-border px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
         >
-          Log out
-        </button>
-      </form>
+          Help Center
+        </Link>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex min-h-11 w-full items-center justify-center rounded-lg border border-sidebar-border px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
+          >
+            Log out
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

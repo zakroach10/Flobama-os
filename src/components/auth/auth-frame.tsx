@@ -20,13 +20,21 @@ export function AuthFrame({
         <h1 className="mt-2 text-2xl font-semibold">{title}</h1>
         <p className="mt-2 mb-6 text-sm text-muted-foreground">{subtitle}</p>
         {children}
-        {showBackToLogin ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            <Link href="/" className="underline-offset-4 hover:underline">
-              Back to sign in
-            </Link>
-          </p>
-        ) : null}
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          {showBackToLogin ? (
+            <>
+              <Link href="/" className="underline-offset-4 hover:underline">
+                Back to sign in
+              </Link>
+              <span className="mx-2" aria-hidden>
+                ·
+              </span>
+            </>
+          ) : null}
+          <Link href="/help" className="underline-offset-4 hover:underline">
+            Help Center
+          </Link>
+        </p>
       </div>
     </main>
   );
