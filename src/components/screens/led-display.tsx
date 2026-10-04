@@ -6,6 +6,7 @@ import type { PublicLedMedia } from "@/lib/screens/led-wall";
 import {
   ledPlaylistIndexAt,
   ledPlaylistsEqual,
+  nextLedPlaylistMediaItem,
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 import type { TriviaWallState } from "@/lib/trivia/types";
@@ -57,6 +58,7 @@ export function LedDisplay({
   const reloadNonceRef = useRef(initialReloadNonce);
   const revisionRef = useRef(initialRevision);
   const modeRef = useRef(initialMode);
+  const overlayKeyRef = useRef(overlayStateKey(initialTrivia, initialAudience));
 
   useEffect(() => {
     if (lockTriviaDemo) return;
@@ -80,8 +82,15 @@ export function LedDisplay({
           return;
         }
 
-        setTrivia(triviaJson.trivia ?? null);
-        setAudience(audienceJson.wall ?? null);
+        const nextTrivia = triviaJson.trivia ?? null;
+        const nextAudience = audienceJson.wall ?? null;
+        const nextOverlayKey = overlayStateKey(nextTrivia, nextAudience);
+        if (nextOverlayKey !== overlayKeyRef.current) {
+          overlayKeyRef.current = nextOverlayKey;
+          setTrivia(nextTrivia);
+          setAudience(nextAudience);
+        }
+
         const nextRevision = ledJson.revision ?? "idle";
         const nextMode = ledJson.mode ?? (ledJson.active ? "scene" : "idle");
         const nextPlaylist = ledJson.playlist ?? [];
@@ -100,7 +109,7 @@ export function LedDisplay({
 
         if (nextMode === "playlist") {
           setPlaylist((current) => (ledPlaylistsEqual(current, nextPlaylist) ? current : nextPlaylist));
-          setStartedAt(nextStartedAt);
+          setStartedAt((current) => (current === nextStartedAt ? current : nextStartedAt));
         } else {
           setMedia(ledJson.active ?? null);
           setPlaylist([]);
@@ -120,7 +129,10 @@ export function LedDisplay({
   // Keep display + OBS agent on the same time-based playlist slot (wraps / loops).
   useEffect(() => {
     if (mode !== "playlist" || playlist.length === 0 || trivia || audience?.tool) return;
-    const sync = () => setIndex(ledPlaylistIndexAt(playlist, startedAt));
+    const sync = () => {
+      const next = ledPlaylistIndexAt(playlist, startedAt);
+      setIndex((current) => (current === next ? current : next));
+    };
     sync();
     const timer = window.setInterval(sync, 250);
     return () => window.clearInterval(timer);
@@ -131,30 +143,7 @@ export function LedDisplay({
   if (audience?.tool) return <AudienceWall initial={audience} />;
 
   if (mode === "playlist" && playlist.length > 0) {
-    const item = playlist[index] ?? playlist[0];
-    if (!item || item.kind === "obs") {
-      return <div className="h-full w-full bg-black" />;
-    }
-    if (item.kind === "media" && item.url && item.mediaKind === "video") {
-      return (
-        <video
-          key={`${item.id}-${index}`}
-          src={item.url}
-          className="h-full w-full bg-black object-contain"
-          autoPlay
-          muted
-          playsInline
-          loop={playlist.length === 1}
-        />
-      );
-    }
-    if (item.kind === "media" && item.url) {
-      return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={`${item.id}-${index}`} src={item.url} alt="" className="h-full w-full bg-black object-contain" />
-      );
-    }
-    return <div className="h-full w-full bg-black" />;
+    return <LedPlaylistStage playlist={playlist} index={index} />;
   }
 
   // Audience lobby (session live, nothing on wall) only when LED is not running an ad-roll playlist.
@@ -172,6 +161,7 @@ export function LedDisplay({
         muted
         loop
         playsInline
+        preload="auto"
       />
     );
   }
@@ -180,4 +170,95 @@ export function LedDisplay({
     // eslint-disable-next-line @next/next/no-img-element
     <img key={media.id} src={media.url} alt="" className="h-full w-full bg-black object-contain" />
   );
+}
+
+function LedPlaylistStage({ playlist, index }: { playlist: PublicLedPlaylistItem[]; index: number }) {
+  const current = playlist[index] ?? playlist[0];
+  if (!current) return <div className="h-full w-full bg-black" />;
+
+  const warm = nextLedPlaylistMediaItem(playlist, index);
+  const surfaces: PublicLedPlaylistItem[] = [];
+  if (current.kind === "media" && current.url && current.mediaKind) {
+    surfaces.push(current);
+  }
+  if (warm && warm.id !== current.id) {
+    surfaces.push(warm);
+  }
+
+  return (
+    <div className="relative h-full w-full bg-black">
+      {surfaces.map((item) => (
+        <LedMediaSurface
+          key={item.id}
+          item={item}
+          active={item.id === current.id}
+          loop={playlist.length === 1}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LedMediaSurface({
+  item,
+  active,
+  loop,
+}: {
+  item: PublicLedPlaylistItem;
+  active: boolean;
+  loop: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (active) {
+      try {
+        video.currentTime = 0;
+      } catch {
+        /* ignore seek before metadata */
+      }
+      void video.play().catch(() => {
+        /* autoplay can be blocked until a booth gesture; muted + playsInline usually ok */
+      });
+      return;
+    }
+    video.pause();
+    try {
+      video.currentTime = 0;
+    } catch {
+      /* ignore */
+    }
+  }, [active, item.url]);
+
+  if (item.kind !== "media" || !item.url) return null;
+
+  const className = active
+    ? "absolute inset-0 z-10 h-full w-full bg-black object-contain opacity-100"
+    : "pointer-events-none absolute inset-0 z-0 h-full w-full bg-black object-contain opacity-0";
+
+  if (item.mediaKind === "video") {
+    return (
+      <video
+        ref={videoRef}
+        src={item.url}
+        className={className}
+        muted
+        playsInline
+        preload="auto"
+        loop={loop && active}
+        aria-hidden={!active}
+      />
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={item.url} alt="" className={className} aria-hidden={!active} />
+  );
+}
+
+function overlayStateKey(trivia: TriviaWallState | null, audience: AudienceWallState | null) {
+  return JSON.stringify({ trivia, audience });
 }

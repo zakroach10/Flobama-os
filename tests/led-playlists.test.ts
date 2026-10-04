@@ -5,6 +5,7 @@ import {
   ledPlaylistIndexAt,
   ledPlaylistsEqual,
   nextLedPlaylistIndex,
+  nextLedPlaylistMediaItem,
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 
@@ -48,5 +49,44 @@ describe("LED wall playlists", () => {
     };
     expect(ledPlaylistsEqual([item], [{ ...item }])).toBe(true);
     expect(ledPlaylistsEqual([item], [{ ...item, durationSeconds: 20 }])).toBe(false);
+  });
+
+  it("finds the next media item for preload, skipping OBS slots", () => {
+    const imageA: PublicLedPlaylistItem = {
+      id: "a",
+      sceneId: "sa",
+      title: "A",
+      kind: "media",
+      mediaKind: "image",
+      url: "https://cdn.example/a.png",
+      obsSceneName: null,
+      durationSeconds: 10,
+    };
+    const obs: PublicLedPlaylistItem = {
+      id: "obs",
+      sceneId: "so",
+      title: "Cam",
+      kind: "obs",
+      mediaKind: null,
+      url: null,
+      obsSceneName: "Cam 1",
+      durationSeconds: 20,
+    };
+    const videoB: PublicLedPlaylistItem = {
+      id: "b",
+      sceneId: "sb",
+      title: "B",
+      kind: "media",
+      mediaKind: "video",
+      url: "https://cdn.example/b.mp4",
+      obsSceneName: null,
+      durationSeconds: 15,
+    };
+    const items = [imageA, obs, videoB];
+    expect(nextLedPlaylistMediaItem(items, 0)?.id).toBe("b");
+    expect(nextLedPlaylistMediaItem(items, 1)?.id).toBe("b");
+    expect(nextLedPlaylistMediaItem(items, 2)?.id).toBe("a");
+    expect(nextLedPlaylistMediaItem([imageA], 0)).toBeNull();
+    expect(nextLedPlaylistMediaItem([imageA, obs], 0)).toBeNull();
   });
 });

@@ -58,6 +58,21 @@ export function nextLedPlaylistIndex(index: number, length: number) {
   return (index + 1) % length;
 }
 
+/** Next media asset after `fromIndex`, skipping OBS slots so the wall can preload it. */
+export function nextLedPlaylistMediaItem(items: PublicLedPlaylistItem[], fromIndex: number) {
+  if (items.length <= 1) return null;
+  const start = ((fromIndex % items.length) + items.length) % items.length;
+  const currentId = items[start]?.id;
+  for (let step = 1; step < items.length; step += 1) {
+    const item = items[(start + step) % items.length];
+    if (!item || item.id === currentId) continue;
+    if (item.kind === "media" && item.url && (item.mediaKind === "image" || item.mediaKind === "video")) {
+      return item;
+    }
+  }
+  return null;
+}
+
 /** Avoid resetting hold timers when the poll returns the same playlist content. */
 export function ledPlaylistsEqual(left: PublicLedPlaylistItem[], right: PublicLedPlaylistItem[]) {
   if (left.length !== right.length) return false;
