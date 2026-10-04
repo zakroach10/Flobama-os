@@ -35,6 +35,7 @@ export function LedDisplay({
   initialTrivia = null,
   initialAudience = null,
   lockTriviaDemo = false,
+  lockPlaylist = false,
 }: {
   initial: PublicLedMedia | null;
   initialPlaylist?: PublicLedPlaylistItem[];
@@ -45,6 +46,7 @@ export function LedDisplay({
   initialTrivia?: TriviaWallState | null;
   initialAudience?: AudienceWallState | null;
   lockTriviaDemo?: boolean;
+  lockPlaylist?: boolean;
 }) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
   const [playlist, setPlaylist] = useState<PublicLedPlaylistItem[]>(initialPlaylist);
@@ -61,7 +63,7 @@ export function LedDisplay({
   const overlayKeyRef = useRef(overlayStateKey(initialTrivia, initialAudience));
 
   useEffect(() => {
-    if (lockTriviaDemo) return;
+    if (lockTriviaDemo || lockPlaylist) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -124,7 +126,7 @@ export function LedDisplay({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [lockTriviaDemo]);
+  }, [lockTriviaDemo, lockPlaylist]);
 
   // Keep display + OBS agent on the same time-based playlist slot (wraps / loops).
   useEffect(() => {
