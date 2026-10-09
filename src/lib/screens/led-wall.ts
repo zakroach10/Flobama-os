@@ -5,6 +5,9 @@ import { DEFAULT_VENUE_TIMEZONE, LED_AGENT_STALE_MS } from "@/lib/constants";
 export type LedWallSceneKind = "obs" | "media" | "trivia" | "audience";
 export type LedWallMediaKind = "image" | "video";
 
+/** MP4 loops and PNG stills uploaded from Screens → LED wall may be up to 2 GB. */
+export const MAX_LED_MEDIA_BYTES = 2 * 1024 * 1024 * 1024;
+
 export type LedSceneRef = {
   id: string;
   kind: LedWallSceneKind;

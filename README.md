@@ -148,7 +148,7 @@ This cloud preview cannot reach a booth PC on your LAN. Staff activate scenes in
 
 ### LED wall client
 
-Admins open **Screens → LED wall** to add scene names or upload an MP4 loop / PNG. **OBS Setup** on that page names the OBS scene that contains the `/display/led` browser source and creates the booth token. Managers and viewers see the enabled list and can activate a scene. Uploaded media plays full-screen from `https://flobama-os.vercel.app/display/led` (playlist JSON: `/api/public/v1/screens/led`). The page polls about once a second, so a second upload can replace the first without refreshing the browser source.
+Admins open **Screens → LED wall** to add scene names or upload an MP4 loop or PNG still up to 2 GB. **OBS Setup** on that page names the OBS scene that contains the `/display/led` browser source and creates the booth token. Managers and viewers see the enabled list and can activate a scene. Uploaded media plays full-screen from `https://flobama-os.vercel.app/display/led` (playlist JSON: `/api/public/v1/screens/led`). The page polls about once a second, so a second upload can replace the first without refreshing the browser source.
 
 On the sign-in page and in **Settings**, **Download OBS client 1.0.2 (.dmg)** is the Mac app (`FloBama-LED-OBS-1.0.2.dmg`). Eject any older FloBama LED OBS disk, drag the app to Applications, and open it. Terminal must start with `FloBama LED OBS 1.0.2`. The first launch downloads Node.js and asks for the booth token. If macOS blocks the app, right-click it and choose Open.
 
@@ -170,7 +170,7 @@ Every staff role can open **Screens**. Viewers get the LED wall list. Admins and
 
 ### LED wall
 
-Screens has two tabs: **LED wall** and **Vertical screens**. Viewers only see LED wall. Admins preconfigure the scene list. Every staff role can activate one. Apply `supabase/migrations/20260928000011_led_wall.sql` after the screens migration. The older ads/band auto cut is no longer driven from the browser; `screen_wall_state` remains in the database for that earlier migration.
+Screens has two tabs: **LED wall** and **Vertical screens**. Viewers only see LED wall. Admins preconfigure the scene list. Every staff role can activate one. Apply `supabase/migrations/20260928000011_led_wall.sql` after the screens migration. MP4 loops and PNG stills uploaded on that tab can be up to 2 GB; apply `supabase/migrations/20261009000037_screen_led_loops_2gb.sql` so the `screen-ads` bucket accepts them. The older ads/band auto cut is no longer driven from the browser; `screen_wall_state` remains in the database for that earlier migration.
 
 ### Vertical TVs
 

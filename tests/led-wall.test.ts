@@ -8,6 +8,7 @@ import {
   ledAgentTokensMatch,
   ledMediaKindForFile,
   ledSceneKindLabel,
+  MAX_LED_MEDIA_BYTES,
   resolveDesiredObsScene,
   toPublicLedMedia,
 } from "@/lib/screens/led-wall";
@@ -112,7 +113,8 @@ describe("LED wall booth token", () => {
 });
 
 describe("LED wall uploads", () => {
-  it("accepts mp4 and png only", () => {
+  it("accepts mp4 loops and png stills up to 2 GB", () => {
+    expect(MAX_LED_MEDIA_BYTES).toBe(2 * 1024 * 1024 * 1024);
     expect(ledMediaKindForFile({ type: "video/mp4", name: "loop.mp4" })).toBe("video");
     expect(ledMediaKindForFile({ type: "image/png", name: "still.png" })).toBe("image");
     expect(ledMediaKindForFile({ type: "image/jpeg", name: "photo.jpg" })).toBeNull();
