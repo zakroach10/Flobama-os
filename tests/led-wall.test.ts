@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import {
   createLedAgentToken,
   describeAgentLink,
@@ -119,6 +120,33 @@ describe("LED wall uploads", () => {
     expect(ledMediaKindForFile({ type: "image/png", name: "still.png" })).toBe("image");
     expect(ledMediaKindForFile({ type: "image/jpeg", name: "photo.jpg" })).toBeNull();
     expect(ledMediaKindForFile({ type: "video/webm", name: "clip.webm" })).toBeNull();
+  });
+
+  it("rejects a loop or still larger than 2 GB before upload", async () => {
+    const tooBig = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES + 1, type: "video/mp4", name: "loop.mp4" } as File,
+      venueId: "venue",
+      title: "Loop",
+      supabaseEnv: null,
+    });
+    expect(tooBig).toEqual({ ok: false, message: "File must be 2 GB or smaller." });
+
+    const stillTooBig = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES + 1, type: "image/png", name: "still.png" } as File,
+      venueId: "venue",
+      title: "Still",
+      supabaseEnv: null,
+    });
+    expect(stillTooBig).toEqual({ ok: false, message: "File must be 2 GB or smaller." });
+
+    const atLimit = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES, type: "image/png", name: "still.png" } as File,
+      venueId: "venue",
+      title: "Still",
+      supabaseEnv: null,
+    });
+    expect(atLimit.ok).toBe(false);
+    expect(atLimit.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
   });
 });
 
