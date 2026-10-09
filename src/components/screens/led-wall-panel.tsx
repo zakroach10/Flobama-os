@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -19,10 +19,16 @@ import { Label } from "@/components/ui/label";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
 import { houseLedScenes } from "@/lib/screens/artist-led";
-import { agentStatusCopy, ledSceneDetail } from "@/lib/screens/led-wall";
-import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
-import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
+import { agentStatusCopy, ledSceneDetail, MAX_LED_MEDIA_BYTES } from "@/lib/screens/led-wall";
+import { uploadLedMediaFromBrowser, type LedMediaUploadPhase } from "@/lib/screens/led-upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
 
 export function LedWallPanel({
   scenes,
@@ -267,9 +273,16 @@ function AdminLedWall({
   const [mediaTitle, setMediaTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
+  const uploadLock = useRef(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<LedMediaUploadPhase | null>(null);
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadLoaded, setUploadLoaded] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
   const [browserScene, setBrowserScene] = useState(mediaObsSceneName);
   const [token, setToken] = useState<string | null>(null);
   const reported = agent.obsScenes;
+  const busy = pending || uploading;
 
   return (
     <>
@@ -336,25 +349,44 @@ function AdminLedWall({
         <div>
           <h2 className="text-lg font-semibold">Upload a loop or still</h2>
           <p className="text-sm text-muted-foreground">
-            MP4 files loop and PNG files stay on screen. Activating an upload or Shoals Trivia cuts OBS to the media
-            browser scene, which loads {displayUrl}.
+            MP4 files loop and PNG files stay on screen. Either can be up to 2 GB. Activating an upload or Shoals
+            Trivia cuts OBS to the media browser scene, which loads {displayUrl}.
           </p>
         </div>
         <form
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!file) {
-              toast.error("Choose an MP4 or PNG.");
+            if (!file || uploadLock.current) {
+              if (!file) toast.error("Choose an MP4 or PNG.");
               return;
             }
-            startTransition(async () => {
+            if (file.size > MAX_LED_MEDIA_BYTES) {
+              toast.error("File must be 2 GB or smaller.");
+              return;
+            }
+            uploadLock.current = true;
+            setUploading(true);
+            setUploadPhase("uploading");
+            setUploadPercent(0);
+            setUploadLoaded(0);
+            setUploadTotal(file.size);
+            void (async () => {
               const result = await uploadLedMediaFromBrowser({
                 file,
                 venueId,
                 title: mediaTitle,
                 supabaseEnv,
+                onPhase: setUploadPhase,
+                onProgress: (progress) => {
+                  setUploadPercent(progress.percent);
+                  setUploadLoaded(progress.loaded);
+                  setUploadTotal(progress.total);
+                },
               });
+              uploadLock.current = false;
+              setUploading(false);
+              setUploadPhase(null);
               if (!result.ok) {
                 toast.error(result.message);
                 return;
@@ -364,27 +396,69 @@ function AdminLedWall({
               setFile(null);
               setFileKey((value) => value + 1);
               router.refresh();
-            });
+            })();
           }}
         >
           <div className="space-y-2">
             <Label htmlFor="led-media-title">Title</Label>
-            <Input id="led-media-title" value={mediaTitle} onChange={(event) => setMediaTitle(event.target.value)} />
+            <Input
+              id="led-media-title"
+              value={mediaTitle}
+              disabled={uploading}
+              onChange={(event) => setMediaTitle(event.target.value)}
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="led-media-file">MP4 or PNG</Label>
+            <Label htmlFor="led-media-file">MP4 loop or PNG still (2 GB max)</Label>
             <input
               key={fileKey}
               id="led-media-file"
               type="file"
               accept="video/mp4,image/png,.mp4,.png"
               className="block w-full text-sm"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              disabled={uploading}
+              onChange={(event) => {
+                const next = event.target.files?.[0] ?? null;
+                if (next && next.size > MAX_LED_MEDIA_BYTES) {
+                  toast.error("File must be 2 GB or smaller.");
+                  setFile(null);
+                  setFileKey((value) => value + 1);
+                  return;
+                }
+                setFile(next);
+              }}
             />
-            <p className="text-xs text-muted-foreground">50 MB max ({Math.round(MAX_SCREEN_AD_BYTES / (1024 * 1024))} MB).</p>
+            <p className="text-xs text-muted-foreground">2 GB max.</p>
+            {uploading ? (
+              <div className="space-y-1.5" aria-live="polite">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>{uploadPhase === "saving" ? "Saving scene…" : `Uploading… ${uploadPercent}%`}</span>
+                  {uploadPhase === "uploading" && uploadTotal > 0 ? (
+                    <span>
+                      {formatBytes(uploadLoaded)} / {formatBytes(uploadTotal)}
+                    </span>
+                  ) : null}
+                </div>
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={uploadPhase === "saving" ? 100 : uploadPercent}
+                  aria-label="LED loop or still upload progress"
+                >
+                  <div
+                    className={`h-full rounded-full bg-primary transition-[width] duration-150 ease-out ${
+                      uploadPhase === "saving" ? "animate-pulse" : ""
+                    }`}
+                    style={{ width: `${uploadPhase === "saving" ? 100 : uploadPercent}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Uploading…" : "Upload scene"}
+          <Button type="submit" disabled={busy}>
+            {uploading ? (uploadPhase === "saving" ? "Saving…" : `Uploading ${uploadPercent}%`) : "Upload scene"}
           </Button>
         </form>
       </section>

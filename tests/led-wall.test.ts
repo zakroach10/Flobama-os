@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import {
   createLedAgentToken,
   describeAgentLink,
@@ -8,6 +9,7 @@ import {
   ledAgentTokensMatch,
   ledMediaKindForFile,
   ledSceneKindLabel,
+  MAX_LED_MEDIA_BYTES,
   resolveDesiredObsScene,
   toPublicLedMedia,
 } from "@/lib/screens/led-wall";
@@ -112,11 +114,39 @@ describe("LED wall booth token", () => {
 });
 
 describe("LED wall uploads", () => {
-  it("accepts mp4 and png only", () => {
+  it("accepts mp4 loops and png stills up to 2 GB", () => {
+    expect(MAX_LED_MEDIA_BYTES).toBe(2 * 1024 * 1024 * 1024);
     expect(ledMediaKindForFile({ type: "video/mp4", name: "loop.mp4" })).toBe("video");
     expect(ledMediaKindForFile({ type: "image/png", name: "still.png" })).toBe("image");
     expect(ledMediaKindForFile({ type: "image/jpeg", name: "photo.jpg" })).toBeNull();
     expect(ledMediaKindForFile({ type: "video/webm", name: "clip.webm" })).toBeNull();
+  });
+
+  it("rejects a loop or still larger than 2 GB before upload", async () => {
+    const tooBig = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES + 1, type: "video/mp4", name: "loop.mp4" } as File,
+      venueId: "venue",
+      title: "Loop",
+      supabaseEnv: null,
+    });
+    expect(tooBig).toEqual({ ok: false, message: "File must be 2 GB or smaller." });
+
+    const stillTooBig = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES + 1, type: "image/png", name: "still.png" } as File,
+      venueId: "venue",
+      title: "Still",
+      supabaseEnv: null,
+    });
+    expect(stillTooBig).toEqual({ ok: false, message: "File must be 2 GB or smaller." });
+
+    const atLimit = await uploadLedMediaFromBrowser({
+      file: { size: MAX_LED_MEDIA_BYTES, type: "image/png", name: "still.png" } as File,
+      venueId: "venue",
+      title: "Still",
+      supabaseEnv: null,
+    });
+    expect(atLimit.ok).toBe(false);
+    expect(atLimit.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
   });
 });
 
