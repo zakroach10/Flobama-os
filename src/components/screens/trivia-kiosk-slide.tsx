@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { FlobamaLogo } from "@/components/brand/flobama-logo";
 
 export type TriviaKioskPromo = {
   joinCode: string;
@@ -30,7 +29,6 @@ export function TriviaKioskSlide({ promo }: { promo: TriviaKioskPromo }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-between bg-[#1b1612] px-16 py-20 text-center text-[#f7f1ea]">
       <div className="space-y-6">
-        <FlobamaLogo className="mx-auto w-[640px]" />
         <p className="text-[34px] font-semibold tracking-[0.28em] text-[#d36b4a] uppercase">Live trivia</p>
         <h2 className="text-[64px] leading-none font-black tracking-tight">{promo.packTitle}</h2>
         <p className="text-[34px] text-[#cbb7a8]">Scan to join on your phone</p>
