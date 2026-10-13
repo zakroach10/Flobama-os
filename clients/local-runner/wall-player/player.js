@@ -16,7 +16,8 @@ function ledPlaylistIndexAt(items, startedAt, now = Date.now()) {
 
 const stage = document.getElementById("stage");
 let revision = "";
-let reloadNonce = 1;
+/** null until first /api/playback poll — never assume 1 (venue nonce is often higher). */
+let reloadNonce = null;
 let mode = "idle";
 let playlist = [];
 let startedAt = null;
@@ -119,10 +120,15 @@ async function refreshOverlays() {
 async function refresh() {
   try {
     const data = await fetchJson("/api/playback");
-    if (typeof data.reloadNonce === "number" && data.reloadNonce !== reloadNonce) {
-      reloadNonce = data.reloadNonce;
-      window.location.reload();
-      return;
+    if (typeof data.reloadNonce === "number") {
+      if (reloadNonce === null) {
+        // First observation: adopt without reloading (avoids infinite reload when nonce ≠ 1).
+        reloadNonce = data.reloadNonce;
+      } else if (data.reloadNonce !== reloadNonce) {
+        reloadNonce = data.reloadNonce;
+        window.location.reload();
+        return;
+      }
     }
     apiBase = data.apiBase || apiBase;
     const nextRevision = data.revision || "idle";
@@ -148,12 +154,10 @@ async function refresh() {
         index = ledPlaylistIndexAt(playlist, startedAt);
       }
       render();
-    } else if (nextMode === "playlist") {
+    } else {
+      // Keep playlist/startedAt fresh without remounting media every poll.
       playlist = nextPlaylist;
       startedAt = nextStartedAt;
-    } else {
-      playlist = nextPlaylist;
-      render();
     }
     await refreshOverlays();
   } catch {
