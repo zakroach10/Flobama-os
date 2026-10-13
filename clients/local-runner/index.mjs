@@ -125,7 +125,10 @@ async function main() {
     process.exit(1);
   }
   if (!config.token) {
-    console.error("Set token via pairing (Screens → Display devices) or config.");
+    console.error("No device token yet.");
+    console.error("Open FloBama → Screens → Display devices, create an LED Local Runner pairing code,");
+    console.error("then re-open this app (or run: node index.mjs --pair --code=YOURCODE config.json).");
+    console.error(`Config file: ${configPath}`);
     process.exit(1);
   }
 

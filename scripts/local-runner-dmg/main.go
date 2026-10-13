@@ -14,7 +14,7 @@ func main() {
 	}
 	volume := os.Getenv("FLOBAMA_LOCAL_RUNNER_VOLUME")
 	if volume == "" {
-		volume = "FloBama Local Runner 1.0.0"
+		volume = "FloBama Local Runner 1.0.1"
 	}
 	image := &dmg.DMG{
 		VolumeName: volume,
