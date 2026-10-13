@@ -86,6 +86,9 @@ export const AUDIENCE_POLL_MS = 1000;
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
 export const LED_OBS_DMG_HREF = `/downloads/${LED_OBS_DMG_FILENAME}`;
+export const LOCAL_RUNNER_VERSION = "1.0.0";
+export const LOCAL_RUNNER_DMG_FILENAME = `FloBama-Local-Runner-${LOCAL_RUNNER_VERSION}.dmg`;
+export const LOCAL_RUNNER_DMG_HREF = `/downloads/${LOCAL_RUNNER_DMG_FILENAME}`;
 export const LED_DISPLAY_POLL_MS = 1000;
 export const LED_AGENT_STALE_MS = 15_000;
 

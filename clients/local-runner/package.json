@@ -1,0 +1,14 @@
+{
+  "name": "flobama-local-runner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "FloBama Local Runner — OBS sync, media cache, and localhost wall player",
+  "scripts": {
+    "start": "node index.mjs",
+    "pair": "node index.mjs --pair"
+  },
+  "dependencies": {
+    "obs-websocket-js": "^5.0.8"
+  }
+}
