@@ -13,6 +13,7 @@ describe("local-runner playback payload", () => {
       const runtime = {
         db,
         config: { apiBase: "https://example.test" },
+        reloadNonce: 1,
         manifest: {
           revision: "rev-1",
           mode: "playlist",
@@ -63,10 +64,12 @@ describe("local-runner playback payload", () => {
         config: { apiBase: "https://example.test" },
         manifest: null,
         manifestRevision: getMeta(db, "manifestRevision"),
+        reloadNonce: 9,
       });
       expect(payload.mode).toBe("idle");
       expect(payload.playlist).toEqual([]);
       expect(payload.revision).toBe("stale-rev");
+      expect(payload.reloadNonce).toBe(9);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

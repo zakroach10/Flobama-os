@@ -211,6 +211,7 @@ async function main() {
     manifest: savedManifest,
     manifestRevision: savedManifest?.revision || getMeta(db, "manifestRevision"),
     manifestEtag: getMeta(db, "manifestEtag"),
+    reloadNonce: Number(savedManifest?.reloadNonce) || Number(getMeta(db, "reloadNonce")) || 1,
   };
 
   try {
@@ -274,6 +275,10 @@ async function main() {
     runtime.manifest = manifest;
     runtime.manifestRevision = manifest.revision;
     runtime.manifestEtag = etag;
+    if (typeof manifest.reloadNonce === "number") {
+      runtime.reloadNonce = manifest.reloadNonce;
+      await setMeta(db, "reloadNonce", manifest.reloadNonce);
+    }
     await setMeta(db, "manifestRevision", manifest.revision);
     await setMeta(db, "manifestEtag", etag);
     await setMeta(db, "manifestJson", JSON.stringify(manifest));
@@ -368,7 +373,10 @@ async function main() {
       void maybeSyncMedia();
     }
     if (desired.commands?.safeRefresh) {
-      await log("Safe refresh requested — remounting wall clients via reload nonce on next poll.");
+      runtime.reloadNonce = (Number(runtime.reloadNonce) || 1) + 1;
+      if (runtime.manifest) runtime.manifest.reloadNonce = runtime.reloadNonce;
+      await setMeta(db, "reloadNonce", runtime.reloadNonce);
+      await log(`Safe refresh requested — wall reload nonce → ${runtime.reloadNonce}`);
     }
 
     const sceneName =

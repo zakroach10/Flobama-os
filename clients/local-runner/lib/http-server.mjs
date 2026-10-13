@@ -89,7 +89,8 @@ export function playbackPayload(runtime) {
       revision: runtime.manifestRevision || "idle",
       startedAt: null,
       playlistId: null,
-      reloadNonce: 1,
+      // Prefer last known nonce so idle polls do not flap to 1 and trigger wall reloads.
+      reloadNonce: Number(runtime.reloadNonce) || 1,
       items: [],
       playlist: [],
       active: null,

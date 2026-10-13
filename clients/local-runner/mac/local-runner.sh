@@ -15,7 +15,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Local Runner 1.0.5"
+echo "FloBama Local Runner 1.0.6"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Local Runner"

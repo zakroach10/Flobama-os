@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const VERSION = "1.0.5";
+export const VERSION = "1.0.6";
 export const DEFAULT_CACHE_ROOT = "/Users/Shared/FloBamaOS/media";
 export const SUPPORT_DIR = join(homedir(), "Library", "Application Support", "FloBama Local Runner");
 export const LOG_DIR = join(homedir(), "Library", "Logs", "FloBamaLocalRunner");
