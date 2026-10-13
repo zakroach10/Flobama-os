@@ -81,7 +81,7 @@ async function sendFile(res, filePath, mediaType, request) {
   createReadStream(filePath).pipe(res);
 }
 
-function playbackPayload(runtime) {
+export function playbackPayload(runtime) {
   const manifest = runtime.manifest;
   if (!manifest) {
     return {
@@ -91,7 +91,9 @@ function playbackPayload(runtime) {
       playlistId: null,
       reloadNonce: 1,
       items: [],
+      playlist: [],
       active: null,
+      apiBase: runtime.config?.apiBase || "",
     };
   }
 

@@ -116,6 +116,17 @@ async function fetchManifest(config, etag) {
   return { unchanged: false, manifest: body, etag: body.etag || body.revision };
 }
 
+function readSavedManifest(db) {
+  const raw = getMeta(db, "manifestJson");
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const log = await makeLogger();
   let config = await loadConfig();
@@ -139,6 +150,7 @@ async function main() {
 
   const db = await openCache(config.cacheRoot);
   const state = { downloads: {}, lastError: null };
+  const savedManifest = readSavedManifest(db);
   const runtime = {
     version: VERSION,
     config,
@@ -148,8 +160,9 @@ async function main() {
     connected: false,
     obsConnected: false,
     programScene: null,
-    manifest: null,
-    manifestRevision: getMeta(db, "manifestRevision"),
+    // Restore last manifest so /api/playback is not idle across restarts before the next 200.
+    manifest: savedManifest,
+    manifestRevision: savedManifest?.revision || getMeta(db, "manifestRevision"),
     manifestEtag: getMeta(db, "manifestEtag"),
   };
 
@@ -199,20 +212,35 @@ async function main() {
 
   let syncingMedia = false;
 
+  async function applyManifest(manifest, etag) {
+    runtime.manifest = manifest;
+    runtime.manifestRevision = manifest.revision;
+    runtime.manifestEtag = etag;
+    await setMeta(db, "manifestRevision", manifest.revision);
+    await setMeta(db, "manifestEtag", etag);
+    await setMeta(db, "manifestJson", JSON.stringify(manifest));
+    await log(`Manifest ${manifest.revision} — syncing ${manifest.assets?.length ?? 0} assets`);
+    await syncManifestAssets(db, config, manifest, state);
+    await evictIfNeeded(db, config.maxCacheBytes, null, unlink);
+  }
+
   async function maybeSyncMedia() {
     if (syncingMedia) return;
     syncingMedia = true;
     try {
-      const result = await fetchManifest(config, runtime.manifestEtag);
-      if (result.unchanged) return;
-      runtime.manifest = result.manifest;
-      runtime.manifestRevision = result.manifest.revision;
-      runtime.manifestEtag = result.etag;
-      await setMeta(db, "manifestRevision", result.manifest.revision);
-      await setMeta(db, "manifestEtag", result.etag);
-      await log(`Manifest ${result.manifest.revision} — syncing ${result.manifest.assets?.length ?? 0} assets`);
-      await syncManifestAssets(db, config, result.manifest, state);
-      await evictIfNeeded(db, config.maxCacheBytes, null, unlink);
+      let result = await fetchManifest(config, runtime.manifestEtag);
+      // 304 after restart used to keep runtime.manifest null forever (etag persisted, body not).
+      if (result.unchanged && !runtime.manifest) {
+        result = await fetchManifest(config, null);
+      }
+      if (result.unchanged) {
+        if (runtime.manifest) {
+          await syncManifestAssets(db, config, runtime.manifest, state);
+          await evictIfNeeded(db, config.maxCacheBytes, null, unlink);
+        }
+        return;
+      }
+      await applyManifest(result.manifest, result.etag);
     } catch (error) {
       state.lastError = error instanceof Error ? error.message : String(error);
       await log(`Media sync error: ${state.lastError}`);
