@@ -13,6 +13,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Update events from the master sheet",
     "Manage Booking from GoHighLevel custom objects",
     "Configure LED wall scenes and the booth client",
+    "Pair and revoke display devices (Local Runner and Vertical Player)",
     "Pair and revoke the FloBama Mac camera connector",
     "Operate remote cameras and live previews",
     "Manage vertical ads",
