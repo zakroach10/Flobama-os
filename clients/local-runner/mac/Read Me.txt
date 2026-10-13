@@ -1,4 +1,4 @@
-FloBama Local Runner 1.0.3
+FloBama Local Runner 1.0.4
 
 Caches LED wall media on this Mac and serves the OBS Browser Source from localhost
 so playback does not stream from Supabase.
@@ -17,3 +17,5 @@ the LaunchAgent from the project macos/ folder on a developer machine.
 If macOS says the app cannot be opened, right-click → Open.
 
 Reset settings on this disk image clears the saved token and OBS password.
+If Terminal says the device credential was not recognized, create a new pairing
+code and open the app again (1.0.4+ clears the bad token automatically).

@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "local-runner");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "local-runner-dmg");
-const version = "1.0.3";
+const version = "1.0.4";
 const output = path.join(root, "public", "downloads", `FloBama-Local-Runner-${version}.dmg`);
 
 const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");
@@ -67,4 +67,5 @@ if (writer.status !== 0) process.exit(writer.status ?? 1);
 await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.0.dmg"), { force: true });
 await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.1.dmg"), { force: true });
 await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.2.dmg"), { force: true });
+await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.3.dmg"), { force: true });
 console.log(output);
