@@ -24,6 +24,14 @@ let index = 0;
 let apiBase = "";
 let trivia = null;
 let audience = null;
+/** Tracks url readiness so we re-render when cache finishes under the same revision. */
+let playlistReadyKey = "";
+
+function playlistSignature(items) {
+  return (items || [])
+    .map((item) => `${item.id || ""}:${item.url || ""}:${item.kind || ""}:${item.mediaKind || ""}`)
+    .join("|");
+}
 
 async function fetchJson(url) {
   const res = await fetch(url, { cache: "no-store" });
@@ -122,12 +130,23 @@ async function refresh() {
     const nextPlaylist = data.playlist || data.items || [];
     const nextStartedAt = data.startedAt || null;
 
+    const nextReadyKey = playlistSignature(nextPlaylist);
     if (nextRevision !== revision || nextMode !== mode) {
       revision = nextRevision;
       mode = nextMode;
       playlist = nextPlaylist;
       startedAt = nextStartedAt;
+      playlistReadyKey = nextReadyKey;
       index = nextMode === "playlist" ? ledPlaylistIndexAt(playlist, startedAt) : 0;
+      render();
+    } else if (nextReadyKey !== playlistReadyKey) {
+      // Same revision, but local cache URLs flipped null → /media/... (or mediaKind filled in).
+      playlist = nextPlaylist;
+      startedAt = nextStartedAt;
+      playlistReadyKey = nextReadyKey;
+      if (nextMode === "playlist") {
+        index = ledPlaylistIndexAt(playlist, startedAt);
+      }
       render();
     } else if (nextMode === "playlist") {
       playlist = nextPlaylist;
