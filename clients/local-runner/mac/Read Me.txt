@@ -1,4 +1,4 @@
-FloBama Local Runner 1.0.4
+FloBama Local Runner 1.0.5
 
 Caches LED wall media on this Mac and serves the OBS Browser Source from localhost
 so playback does not stream from Supabase.
@@ -19,3 +19,6 @@ If macOS says the app cannot be opened, right-click → Open.
 Reset settings on this disk image clears the saved token and OBS password.
 If Terminal says the device credential was not recognized, create a new pairing
 code and open the app again (1.0.4+ clears the bad token automatically).
+If Terminal says address already in use (port 4173), quit other Local Runner
+windows or run: lsof -nP -iTCP:4173 -sTCP:LISTEN -t | xargs kill
+Then reopen the app (1.0.5+ stops the prior instance automatically).

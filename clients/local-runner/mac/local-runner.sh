@@ -15,15 +15,41 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Local Runner 1.0.4"
+echo "FloBama Local Runner 1.0.5"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Local Runner"
 NODE_HOME="$SUPPORT/node"
 CONFIG="$SUPPORT/local-runner.config.json"
 NODE_VERSION="v22.22.2"
+WALL_PORT=4173
 mkdir -p "$SUPPORT" "/Users/Shared/FloBamaOS/media/blobs" "/Users/Shared/FloBamaOS/media/tmp" 2>/dev/null || true
 chmod -R u+rwX,go+rX "/Users/Shared/FloBamaOS" 2>/dev/null || true
+
+# A previous Terminal/LaunchAgent instance often still holds :4173 and blocks relaunch + re-pair.
+stop_prior_runner() {
+  launchctl bootout "gui/$(id -u)/com.flobama.local-runner" 2>/dev/null || true
+  pkill -f "FloBama Local Runner.app/Contents/Resources/app/index.mjs" 2>/dev/null || true
+  pkill -f "clients/local-runner/index.mjs" 2>/dev/null || true
+  if command -v lsof >/dev/null 2>&1; then
+    local pids
+    pids="$(lsof -nP -iTCP:"$WALL_PORT" -sTCP:LISTEN -t 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+      echo "Stopping previous Local Runner on port ${WALL_PORT}…"
+      # shellcheck disable=SC2086
+      kill $pids 2>/dev/null || true
+      sleep 0.4
+      pids="$(lsof -nP -iTCP:"$WALL_PORT" -sTCP:LISTEN -t 2>/dev/null || true)"
+      if [[ -n "$pids" ]]; then
+        # shellcheck disable=SC2086
+        kill -9 $pids 2>/dev/null || true
+        sleep 0.2
+      fi
+    fi
+  fi
+}
+
+stop_prior_runner
 
 if [[ ! -x "$NODE_HOME/bin/node" ]]; then
   echo "Downloading Node.js ${NODE_VERSION}…"
@@ -144,6 +170,7 @@ run_setup() {
 }
 
 # Exit code 77 from index.mjs means the saved token was rejected — clear and re-pair.
+port_retries=0
 while true; do
   if ! config_has_token; then
     run_setup
@@ -154,18 +181,29 @@ while true; do
     exit 1
   fi
 
-  echo "Local wall: http://127.0.0.1:4173/wall"
+  echo "Local wall: http://127.0.0.1:${WALL_PORT}/wall"
   echo "Point the LED media OBS Browser Source at that URL."
   echo "Logs: ~/Library/Logs/FloBamaLocalRunner/runner.log"
+  stop_prior_runner
   set +e
   (cd "$APP_ROOT" && "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG")
   code=$?
   set -e
   if [[ "$code" -eq 77 ]]; then
+    port_retries=0
     echo ""
     echo "Saved device token was rejected (revoked or expired)."
     echo "Create a new LED Local Runner pairing code, then continue."
     continue
+  fi
+  # Port still busy after stop attempt — free again and retry a couple times.
+  if [[ "$code" -ne 0 && "$port_retries" -lt 2 ]] && command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:"$WALL_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+      port_retries=$((port_retries + 1))
+      echo "Port ${WALL_PORT} still busy — retrying after force-stop (${port_retries}/2)…"
+      stop_prior_runner
+      continue
+    fi
   fi
   exit "$code"
 done
