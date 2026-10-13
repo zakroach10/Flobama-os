@@ -1,8 +1,8 @@
 # FloBama Local Runner — macOS Plan
 
-**Status:** Planning document.  
+**Status:** Phase 2 MVP implemented in `clients/local-runner/` (v1.0.0 DMG).  
 **Depends on:** [local-media-architecture.md](./local-media-architecture.md), [media-sync-api-contract.md](./media-sync-api-contract.md)  
-**Successor to:** `clients/led-obs/` (v1.0.2 DMG today)
+**Successor to:** `clients/led-obs/` (v1.0.2 DMG — scene cuts only; keep for rollback)
 
 ---
 

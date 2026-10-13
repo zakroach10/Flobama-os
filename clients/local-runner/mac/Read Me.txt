@@ -1,0 +1,19 @@
+FloBama Local Runner 1.0.0
+
+Caches LED wall media on this Mac and serves the OBS Browser Source from localhost
+so playback does not stream from Supabase.
+
+Install
+1. Drag FloBama Local Runner into Applications, then open it.
+2. Enter the FloBama OS address (https://flobama-os.vercel.app).
+3. In FloBama → Screens → Display devices, create a pairing code for LED Local Runner.
+4. Enter that code here, plus OBS WebSocket host/port/password.
+5. In OBS, set the media Browser Source URL to:
+   http://127.0.0.1:4173/wall
+
+Leave this app running (menu bar status “Flo”). After reboot, reopen the app or install
+the LaunchAgent from the project macos/ folder on a developer machine.
+
+If macOS says the app cannot be opened, right-click → Open.
+
+Reset settings on this disk image clears the saved token and OBS password.

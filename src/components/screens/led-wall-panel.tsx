@@ -23,6 +23,7 @@ import { agentStatusCopy, ledSceneDetail } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
+import { LocalRunnerDownload } from "@/components/screens/local-runner-download";
 
 export function LedWallPanel({
   scenes,
@@ -395,7 +396,15 @@ function AdminLedWall({
             <h2 className="text-lg font-semibold">OBS setup</h2>
             <p className="text-sm text-muted-foreground">{agentStatusCopy(agent)}</p>
           </div>
-          <ObsClientDownload />
+          <div className="flex flex-wrap gap-2">
+            <LocalRunnerDownload />
+            <ObsClientDownload />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Prefer <span className="font-medium text-foreground">Local Runner</span> for cached playback at{" "}
+            <code className="text-xs">http://127.0.0.1:4173/wall</code>. The older OBS client only cuts scenes and
+            still streams media from the hosted display URL.
+          </p>
           <form
             className="grid gap-3"
             onSubmit={(event) => {

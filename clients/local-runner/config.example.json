@@ -1,0 +1,15 @@
+{
+  "apiBase": "https://flobama-os.vercel.app",
+  "token": "",
+  "deviceId": "",
+  "label": "FloBama Local Runner",
+  "obsHost": "127.0.0.1",
+  "obsPort": "4455",
+  "obsPassword": "",
+  "bindHost": "127.0.0.1",
+  "bindPort": 4173,
+  "cacheRoot": "/Users/Shared/FloBamaOS/media",
+  "maxCacheBytes": 40000000000,
+  "heartbeatMs": 2000,
+  "menubarEnabled": true
+}

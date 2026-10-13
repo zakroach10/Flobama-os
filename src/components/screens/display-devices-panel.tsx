@@ -8,6 +8,7 @@ import {
   requestDisplaySafeRefreshAction,
   revokeDisplayDeviceAction,
 } from "@/actions/display-devices";
+import { LocalRunnerDownload } from "@/components/screens/local-runner-download";
 import { Button } from "@/components/ui/button";
 import {
   DISPLAY_DEVICE_KIND_LABELS,
@@ -64,6 +65,8 @@ export function DisplayDevicesPanel({
           play from local cache.
         </p>
       </div>
+
+      <LocalRunnerDownload />
 
       {canConfigure ? (
         <div className="flex flex-wrap items-end gap-2">

@@ -36,6 +36,8 @@ yarn-error.log*
 
 # booth PC OBS client
 clients/led-obs/node_modules
+clients/local-runner/node_modules
+tmp/
 clients/led-obs/led-obs.config.json
 
 # vercel
