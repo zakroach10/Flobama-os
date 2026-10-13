@@ -185,6 +185,16 @@ async function main() {
     process.exit(1);
   }
 
+  // Validate token before binding :4173 so a dead prior runner cannot block re-pairing.
+  try {
+    await fetchManifest(config, null);
+  } catch (error) {
+    if (error instanceof DeviceAuthError) {
+      await requireReauth(log, error.message);
+    }
+    await log(`Credential check warning: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   const db = await openCache(config.cacheRoot);
   const state = { downloads: {}, lastError: null };
   const savedManifest = readSavedManifest(db);
@@ -203,7 +213,18 @@ async function main() {
     manifestEtag: getMeta(db, "manifestEtag"),
   };
 
-  await startHttpServer(runtime);
+  try {
+    await startHttpServer(runtime);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "EADDRINUSE") {
+      await log(
+        `Port ${config.bindHost}:${config.bindPort} is already in use. Quit the other FloBama Local Runner window, then reopen.`,
+      );
+      await log(`Or run: lsof -nP -iTCP:${config.bindPort} -sTCP:LISTEN -t | xargs kill`);
+      process.exit(1);
+    }
+    throw error;
+  }
   if (config.menubarEnabled) startMenubarHelper(log);
 
   const obs = new OBSWebSocket();
