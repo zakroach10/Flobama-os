@@ -36,9 +36,18 @@ export async function uploadLedMediaFromBrowser(input: {
   const id = crypto.randomUUID();
   const ext = mediaKind === "video" ? "mp4" : "png";
   const storagePath = `${input.venueId}/led/${id}.${ext}`;
+  const contentType = mediaKind === "video" ? "video/mp4" : "image/png";
+
+  let sha256: string | undefined;
+  try {
+    const { sha256HexFromBlob } = await import("@/lib/display-devices/hashes");
+    sha256 = await sha256HexFromBlob(input.file);
+  } catch {
+    sha256 = undefined;
+  }
 
   const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
-    contentType: mediaKind === "video" ? "video/mp4" : "image/png",
+    contentType,
     upsert: false,
   });
   if (uploadError) return { ok: false as const, message: describeLedUploadFailure(uploadError.message) };
@@ -50,6 +59,9 @@ export async function uploadLedMediaFromBrowser(input: {
     mediaKind,
     storagePath,
     publicUrl,
+    sha256,
+    sizeBytes: input.file.size,
+    mediaType: contentType,
   });
   if (!result.ok) {
     await supabase.storage.from("screen-ads").remove([storagePath]);

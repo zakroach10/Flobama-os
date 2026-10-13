@@ -921,6 +921,164 @@ export type Database = {
           },
         ];
       };
+      media_content_hashes: {
+        Row: {
+          id: string;
+          venue_id: string;
+          asset_kind: "screen_ad" | "led_scene" | "menu_special" | "audience_asset";
+          asset_id: string;
+          storage_path: string;
+          sha256: string | null;
+          size_bytes: number | null;
+          media_type: string | null;
+          computed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          asset_kind: "screen_ad" | "led_scene" | "menu_special" | "audience_asset";
+          asset_id: string;
+          storage_path: string;
+          sha256?: string | null;
+          size_bytes?: number | null;
+          media_type?: string | null;
+          computed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          storage_path?: string;
+          sha256?: string | null;
+          size_bytes?: number | null;
+          media_type?: string | null;
+          computed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      display_device_pairing_codes: {
+        Row: {
+          id: string;
+          venue_id: string;
+          code_hash: string;
+          intended_kind: "led_runner" | "vertical_kiosk";
+          expires_at: string;
+          consumed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          code_hash: string;
+          intended_kind: "led_runner" | "vertical_kiosk";
+          expires_at: string;
+          consumed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          consumed_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      display_devices: {
+        Row: {
+          id: string;
+          venue_id: string;
+          label: string;
+          kind: "led_runner" | "vertical_kiosk";
+          token_hash: string;
+          revoked_at: string | null;
+          last_seen_at: string | null;
+          app_version: string | null;
+          hostname: string | null;
+          capabilities: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          label?: string;
+          kind: "led_runner" | "vertical_kiosk";
+          token_hash: string;
+          revoked_at?: string | null;
+          last_seen_at?: string | null;
+          app_version?: string | null;
+          hostname?: string | null;
+          capabilities?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          label?: string;
+          token_hash?: string;
+          revoked_at?: string | null;
+          last_seen_at?: string | null;
+          app_version?: string | null;
+          hostname?: string | null;
+          capabilities?: Json;
+        };
+        Relationships: [];
+      };
+      display_device_status: {
+        Row: {
+          device_id: string;
+          venue_id: string;
+          obs_connected: boolean | null;
+          program_scene: string | null;
+          cache_bytes: number | null;
+          cache_limit_bytes: number | null;
+          assets_ready: number | null;
+          assets_pending: number | null;
+          manifest_revision: string | null;
+          current_asset_id: string | null;
+          playback_state: string | null;
+          download_progress: Json;
+          disk_free_bytes: number | null;
+          last_error: string | null;
+          safe_refresh_requested_at: string | null;
+          reported_at: string;
+        };
+        Insert: {
+          device_id: string;
+          venue_id: string;
+          obs_connected?: boolean | null;
+          program_scene?: string | null;
+          cache_bytes?: number | null;
+          cache_limit_bytes?: number | null;
+          assets_ready?: number | null;
+          assets_pending?: number | null;
+          manifest_revision?: string | null;
+          current_asset_id?: string | null;
+          playback_state?: string | null;
+          download_progress?: Json;
+          disk_free_bytes?: number | null;
+          last_error?: string | null;
+          safe_refresh_requested_at?: string | null;
+          reported_at?: string;
+        };
+        Update: {
+          obs_connected?: boolean | null;
+          program_scene?: string | null;
+          cache_bytes?: number | null;
+          cache_limit_bytes?: number | null;
+          assets_ready?: number | null;
+          assets_pending?: number | null;
+          manifest_revision?: string | null;
+          current_asset_id?: string | null;
+          playback_state?: string | null;
+          download_progress?: Json;
+          disk_free_bytes?: number | null;
+          last_error?: string | null;
+          safe_refresh_requested_at?: string | null;
+          reported_at?: string;
+        };
+        Relationships: [];
+      };
 
 
       camera_inventory: {
@@ -1353,6 +1511,7 @@ export type Database = {
       camera_command_kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
       camera_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";
       camera_preview_mode: "snapshot" | "webrtc";
+      display_device_kind: "led_runner" | "vertical_kiosk";
     };
     CompositeTypes: {
       [_ in never]: never;

@@ -204,6 +204,9 @@ export const createScreenAdRecordSchema = z.object({
   publicUrl: z.string().trim().min(8).max(800),
   sortOrder: z.number().int().min(0),
   playlistId: z.string().uuid().nullable().optional(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+  mediaType: z.string().trim().min(1).max(120).optional(),
 });
 
 export const reorderScreenAdsSchema = z.object({
@@ -343,6 +346,9 @@ export const createLedMediaSceneSchema = z.object({
   mediaKind: z.enum(["image", "video"]),
   storagePath: z.string().trim().min(1).max(500),
   publicUrl: z.string().trim().min(8).max(800),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+  mediaType: z.string().trim().min(1).max(120).optional(),
 });
 
 export const updateLedWallSceneSchema = z.object({
@@ -583,5 +589,64 @@ export const cameraPreviewStartSchema = z.object({
 });
 
 export const revokeCameraDeviceSchema = z.object({
+  deviceId: z.string().uuid(),
+});
+
+export const displayDevicePairSchema = z.object({
+  code: z.string().trim().min(6).max(32),
+  label: z.string().trim().min(1).max(120).optional(),
+  kind: z.enum(["led_runner", "vertical_kiosk"]).optional(),
+  hostname: z.string().trim().min(1).max(200).optional(),
+  appVersion: z.string().trim().min(1).max(40).optional(),
+  capabilities: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const displayDeviceHeartbeatSchema = z.object({
+  appVersion: z.string().trim().min(1).max(40).optional(),
+  manifestRevision: z.string().trim().max(500).optional().nullable(),
+  currentAssetId: z.string().trim().max(120).optional().nullable(),
+  playbackState: z.string().trim().max(40).optional().nullable(),
+  obs: z
+    .object({
+      connected: z.boolean(),
+      programScene: z.string().trim().max(200).nullable().optional(),
+      scenes: z.array(z.string().trim().min(1).max(200)).max(200).optional(),
+    })
+    .optional(),
+  cache: z
+    .object({
+      bytesUsed: z.number().int().nonnegative().optional(),
+      bytesLimit: z.number().int().nonnegative().optional(),
+      assetsReady: z.number().int().nonnegative().optional(),
+      assetsPending: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+  downloads: z
+    .object({
+      active: z
+        .array(
+          z.object({
+            assetId: z.string().trim().min(1).max(120),
+            bytesReceived: z.number().int().nonnegative().optional(),
+            bytesTotal: z.number().int().nonnegative().optional(),
+          }),
+        )
+        .max(20)
+        .optional(),
+    })
+    .optional(),
+  diskFreeBytes: z.number().int().nonnegative().optional().nullable(),
+  lastError: z.string().trim().max(500).optional().nullable(),
+});
+
+export const createDisplayPairingCodeSchema = z.object({
+  kind: z.enum(["led_runner", "vertical_kiosk"]),
+});
+
+export const revokeDisplayDeviceSchema = z.object({
+  deviceId: z.string().uuid(),
+});
+
+export const requestDisplaySafeRefreshSchema = z.object({
   deviceId: z.string().uuid(),
 });

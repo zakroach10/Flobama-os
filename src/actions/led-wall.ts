@@ -213,6 +213,20 @@ export async function createLedMediaSceneAction(input: unknown): Promise<LedWall
     enabled: true,
   });
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
+
+  if (parsed.data.sha256 || parsed.data.sizeBytes != null) {
+    const { upsertMediaContentHash } = await import("@/lib/display-devices/hashes");
+    await upsertMediaContentHash(gate.supabase, {
+      venueId: gate.context.venue.id,
+      assetKind: "led_scene",
+      assetId: parsed.data.id,
+      storagePath: parsed.data.storagePath,
+      sha256: parsed.data.sha256 ?? null,
+      sizeBytes: parsed.data.sizeBytes ?? null,
+      mediaType: parsed.data.mediaType ?? null,
+    });
+  }
+
   revalidateLedWall();
   return { ok: true, message: `${parsed.data.title} was added.` };
 }

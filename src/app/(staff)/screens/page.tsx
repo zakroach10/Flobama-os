@@ -24,7 +24,9 @@ import { TakeoverPanel } from "@/components/screens/takeover-panel";
 import { TriviaPanel } from "@/components/screens/trivia-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
 import { WallOpsControlCenter } from "@/components/screens/wall-ops-control-center";
+import { DisplayDevicesPanel } from "@/components/screens/display-devices-panel";
 import { ErrorState } from "@/components/states";
+import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +70,7 @@ export default async function ScreensPage({
     displaySignalRes,
     todayLedRes,
     artistLedRes,
+    displayDevicesRes,
   ] = await Promise.all([
     listLedWallScenes(supabase, context.venue.id),
     getLedWallRuntime(supabase, context.venue.id),
@@ -87,6 +90,9 @@ export default async function ScreensPage({
     getStaffDisplayReloadSignal(supabase, context.venue.id),
     listTodayLedListings(supabase, context.venue.id, context.venue.timezone),
     listArtistLedConfigs(supabase, context.venue.id),
+    canConfigure
+      ? listStaffDisplayDevices(supabase, context.venue.id)
+      : Promise.resolve({ devices: [], missingTable: false, error: null }),
   ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes.missingTable) {
@@ -232,6 +238,14 @@ export default async function ScreensPage({
               missingTable={ledPlaylistsRes.missingTable}
               canConfigure={canConfigure}
             />
+            {canConfigure ? (
+              <DisplayDevicesPanel
+                devices={displayDevicesRes.devices}
+                missingTable={displayDevicesRes.missingTable}
+                canConfigure={canConfigure}
+                apiBase={getPublicAppUrl()}
+              />
+            ) : null}
           </>
         }
         vertical={

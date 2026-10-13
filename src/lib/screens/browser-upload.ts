@@ -38,9 +38,18 @@ export async function uploadScreenAdFromBrowser(input: {
   const id = crypto.randomUUID();
   const ext = extensionForFile(input.file) ?? (mediaKind === "video" ? "mp4" : "jpg");
   const storagePath = `${input.venueId}/${id}.${ext}`;
+  const contentType = input.file.type || (mediaKind === "video" ? "video/mp4" : "image/jpeg");
+
+  let sha256: string | undefined;
+  try {
+    const { sha256HexFromBlob } = await import("@/lib/display-devices/hashes");
+    sha256 = await sha256HexFromBlob(input.file);
+  } catch {
+    sha256 = undefined;
+  }
 
   const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
-    contentType: input.file.type || (mediaKind === "video" ? "video/mp4" : "image/jpeg"),
+    contentType,
     upsert: false,
   });
   if (uploadError) return { ok: false as const, message: describeUploadFailure(uploadError.message) };
@@ -57,6 +66,9 @@ export async function uploadScreenAdFromBrowser(input: {
     publicUrl,
     sortOrder: input.sortOrder,
     playlistId: input.playlistId ?? null,
+    sha256,
+    sizeBytes: input.file.size,
+    mediaType: contentType,
   });
   if (!result.ok) {
     await supabase.storage.from("screen-ads").remove([storagePath]);
