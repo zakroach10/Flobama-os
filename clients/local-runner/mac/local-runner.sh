@@ -15,7 +15,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Local Runner 1.0.0"
+echo "FloBama Local Runner 1.0.1"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Local Runner"
@@ -68,36 +68,84 @@ end run
 APPLESCRIPT
 }
 
-if [[ ! -f "$CONFIG" ]]; then
-  api="$(ask "FloBama OS address" "https://flobama-os.vercel.app")" || exit 1
-  code=""
-  while [[ -z "$code" ]]; do
-    code="$(ask "Pairing code from Screens → Display devices (LED Local Runner)" "")" || exit 1
-  done
-  host="$(ask "OBS WebSocket host" "127.0.0.1")" || exit 1
-  port="$(ask "OBS WebSocket port" "4455")" || exit 1
-  pass="$(ask_secret "OBS WebSocket password")" || exit 1
+config_has_token() {
+  [[ -f "$CONFIG" ]] || return 1
+  "$NODE_HOME/bin/node" -e '
+    const fs = require("fs");
+    try {
+      const c = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      process.exit(c.token && String(c.token).trim() ? 0 : 1);
+    } catch {
+      process.exit(1);
+    }
+  ' "$CONFIG"
+}
+
+write_base_config() {
+  local api="$1" host="$2" port="$3" pass="$4"
   "$NODE_HOME/bin/node" -e '
     const fs = require("fs");
     const [file, apiBase, obsHost, obsPort, obsPassword] = process.argv.slice(1);
+    let previous = {};
+    try { previous = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
     fs.writeFileSync(file, JSON.stringify({
+      ...previous,
       apiBase,
-      token: "",
-      deviceId: "",
-      label: "FloBama Local Runner",
+      token: previous.token || "",
+      deviceId: previous.deviceId || "",
+      label: previous.label || "FloBama Local Runner",
       obsHost,
       obsPort,
       obsPassword,
-      bindHost: "127.0.0.1",
-      bindPort: 4173,
-      cacheRoot: "/Users/Shared/FloBamaOS/media",
-      maxCacheBytes: 40000000000,
-      heartbeatMs: 2000,
-      menubarEnabled: true
+      bindHost: previous.bindHost || "127.0.0.1",
+      bindPort: previous.bindPort || 4173,
+      cacheRoot: previous.cacheRoot || "/Users/Shared/FloBamaOS/media",
+      maxCacheBytes: previous.maxCacheBytes || 40000000000,
+      heartbeatMs: previous.heartbeatMs || 2000,
+      menubarEnabled: previous.menubarEnabled !== false
     }, null, 2) + "\n");
   ' "$CONFIG" "$api" "$host" "$port" "$pass"
+}
+
+pair_with_code() {
+  local code="$1"
   echo "Pairing with FloBama OS…"
-  (cd "$APP_ROOT" && "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" --pair --code="$code" "$CONFIG")
+  if ! (cd "$APP_ROOT" && "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" --pair --code="$code" "$CONFIG"); then
+    echo ""
+    echo "Pairing failed."
+    echo "1) In FloBama → Screens → Display devices, create a new LED Local Runner code."
+    echo "2) Confirm the display_devices SQL migrations were applied in Supabase."
+    echo "3) Open this app again (or double-click Reset settings on the DMG first)."
+    exit 1
+  fi
+}
+
+if ! config_has_token; then
+  echo "Setup needed — no device token yet."
+  default_api="https://flobama-os.vercel.app"
+  if [[ -f "$CONFIG" ]]; then
+    default_api="$("$NODE_HOME/bin/node" -e 'try{const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(c.apiBase||"")}catch{process.stdout.write("")}' "$CONFIG")"
+    [[ -n "$default_api" ]] || default_api="https://flobama-os.vercel.app"
+  fi
+  api="$(ask "FloBama OS address" "$default_api")" || exit 1
+  echo ""
+  echo "Create a pairing code now:"
+  echo "  FloBama OS → Screens → Display devices → kind: LED Local Runner → Create pairing code"
+  echo ""
+  code=""
+  while [[ -z "$code" ]]; do
+    code="$(ask "Paste the pairing code from Screens → Display devices" "")" || exit 1
+  done
+  host="$(ask "OBS WebSocket host" "127.0.0.1")" || exit 1
+  port="$(ask "OBS WebSocket port" "4455")" || exit 1
+  pass="$(ask_secret "OBS WebSocket password (blank if none)")" || exit 1
+  write_base_config "$api" "$host" "$port" "$pass"
+  pair_with_code "$code"
+fi
+
+if ! config_has_token; then
+  echo "Still no token after pairing. Check Screens → Display devices and try Reset settings."
+  exit 1
 fi
 
 echo "Local wall: http://127.0.0.1:4173/wall"
