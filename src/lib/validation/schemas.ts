@@ -592,13 +592,21 @@ export const revokeCameraDeviceSchema = z.object({
   deviceId: z.string().uuid(),
 });
 
+/** Treat blank strings as omitted so optional pair fields do not fail min(1). */
+const optionalPairText = (max: number) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().trim().min(1).max(max).optional(),
+  );
+
 export const displayDevicePairSchema = z.object({
-  code: z.string().trim().min(6).max(32),
-  label: z.string().trim().min(1).max(120).optional(),
+  // Allow messy pastes; route normalizes and enforces length >= 6.
+  code: z.string().trim().min(1).max(64),
+  label: optionalPairText(120),
   kind: z.enum(["led_runner", "vertical_kiosk"]).optional(),
-  hostname: z.string().trim().min(1).max(200).optional(),
-  appVersion: z.string().trim().min(1).max(40).optional(),
-  capabilities: z.record(z.string(), z.unknown()).optional(),
+  hostname: optionalPairText(200),
+  appVersion: optionalPairText(40),
+  capabilities: z.record(z.string(), z.any()).optional(),
 });
 
 export const displayDeviceHeartbeatSchema = z.object({

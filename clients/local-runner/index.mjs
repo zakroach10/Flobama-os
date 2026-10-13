@@ -63,21 +63,26 @@ async function pair(config, log) {
     process.exit(1);
   }
 
+  const cleanedCode = String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const host = hostname().trim();
+  const label = String(config.label || "FloBama Local Runner").trim() || "FloBama Local Runner";
+  const payload = {
+    code: cleanedCode,
+    label,
+    kind: "led_runner",
+    appVersion: VERSION,
+  };
+  if (host) payload.hostname = host;
+
   const response = await fetch(`${config.apiBase}/api/agent/v1/display-devices/pair`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      code,
-      label: config.label,
-      kind: "led_runner",
-      hostname: hostname(),
-      appVersion: VERSION,
-      capabilities: { obs: true, localHttp: true, orientation: "landscape" },
-    }),
+    body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    await log(`Pair failed (${response.status}): ${body.error || "unknown"}`);
+    const detail = body.detail ? ` (${body.detail})` : "";
+    await log(`Pair failed (${response.status}): ${body.error || "unknown"}${detail}`);
     process.exit(1);
   }
 

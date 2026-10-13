@@ -24,10 +24,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Send a JSON body." }, { status: 400 });
   }
   const parsed = displayDevicePairSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Check the pairing payload." }, { status: 400 });
+  if (!parsed.success) {
+    const detail = parsed.error.issues.map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`).join("; ");
+    return NextResponse.json(
+      { error: "Check the pairing payload.", detail },
+      { status: 400 },
+    );
+  }
 
   const code = normalizeDisplayPairingCode(parsed.data.code);
-  if (code.length < 6) return NextResponse.json({ error: "Pairing code is invalid." }, { status: 400 });
+  if (code.length < 6) {
+    return NextResponse.json(
+      { error: "Pairing code is invalid.", detail: "Use the 8-character code from Screens → Display devices." },
+      { status: 400 },
+    );
+  }
 
   const codeHash = hashDisplaySecret(code);
   const now = new Date();
