@@ -15,7 +15,7 @@ APPLESCRIPT
   exit 0
 fi
 
-echo "FloBama Local Runner 1.0.3"
+echo "FloBama Local Runner 1.0.4"
 
 APP_ROOT="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
 SUPPORT="$HOME/Library/Application Support/FloBama Local Runner"
@@ -120,7 +120,7 @@ pair_with_code() {
   fi
 }
 
-if ! config_has_token; then
+run_setup() {
   echo "Setup needed — no device token yet."
   default_api="https://flobama-os.vercel.app"
   if [[ -f "$CONFIG" ]]; then
@@ -141,15 +141,31 @@ if ! config_has_token; then
   pass="$(ask_secret "OBS WebSocket password (blank if none)")" || exit 1
   write_base_config "$api" "$host" "$port" "$pass"
   pair_with_code "$code"
-fi
+}
 
-if ! config_has_token; then
-  echo "Still no token after pairing. Check Screens → Display devices and try Reset settings."
-  exit 1
-fi
+# Exit code 77 from index.mjs means the saved token was rejected — clear and re-pair.
+while true; do
+  if ! config_has_token; then
+    run_setup
+  fi
 
-echo "Local wall: http://127.0.0.1:4173/wall"
-echo "Point the LED media OBS Browser Source at that URL."
-echo "Logs: ~/Library/Logs/FloBamaLocalRunner/runner.log"
-cd "$APP_ROOT"
-exec "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG"
+  if ! config_has_token; then
+    echo "Still no token after pairing. Check Screens → Display devices and try Reset settings."
+    exit 1
+  fi
+
+  echo "Local wall: http://127.0.0.1:4173/wall"
+  echo "Point the LED media OBS Browser Source at that URL."
+  echo "Logs: ~/Library/Logs/FloBamaLocalRunner/runner.log"
+  set +e
+  (cd "$APP_ROOT" && "$NODE_HOME/bin/node" "$APP_ROOT/index.mjs" "$CONFIG")
+  code=$?
+  set -e
+  if [[ "$code" -eq 77 ]]; then
+    echo ""
+    echo "Saved device token was rejected (revoked or expired)."
+    echo "Create a new LED Local Runner pairing code, then continue."
+    continue
+  fi
+  exit "$code"
+done

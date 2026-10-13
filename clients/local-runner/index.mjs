@@ -20,6 +20,15 @@ import { unlink } from "node:fs/promises";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const configPath = resolve(args.find((arg) => arg.endsWith(".json")) || `${__dirname}/local-runner.config.json`);
+/** Shell wrapper re-enters pairing setup when the runner exits with this code. */
+const EXIT_REAUTH = 77;
+
+class DeviceAuthError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "DeviceAuthError";
+  }
+}
 
 async function loadConfig() {
   const raw = JSON.parse(await readFile(configPath, "utf8"));
@@ -106,12 +115,40 @@ async function pair(config, log) {
   process.exit(0);
 }
 
+async function clearDeviceCredential(log) {
+  const previous = JSON.parse(await readFile(configPath, "utf8"));
+  await writeFile(
+    configPath,
+    `${JSON.stringify(
+      {
+        ...previous,
+        token: "",
+        deviceId: "",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  await log(`Cleared invalid device token from ${configPath}`);
+}
+
+async function requireReauth(log, message) {
+  await log(message);
+  await clearDeviceCredential(log);
+  await log("Re-pair required: FloBama → Screens → Display devices → new LED Local Runner code, then re-open this app.");
+  process.exit(EXIT_REAUTH);
+}
+
 async function fetchManifest(config, etag) {
   const headers = { authorization: `Bearer ${config.token}` };
   if (etag) headers["if-none-match"] = `"${etag}"`;
   const response = await fetch(`${config.apiBase}/api/agent/v1/display-devices/manifest`, { headers });
   if (response.status === 304) return { unchanged: true, etag };
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    throw new DeviceAuthError(body.error || "Device credential was not recognized.");
+  }
   if (!response.ok) throw new Error(body.error || `Manifest failed (${response.status})`);
   return { unchanged: false, manifest: body, etag: body.etag || body.revision };
 }
@@ -242,6 +279,9 @@ async function main() {
       }
       await applyManifest(result.manifest, result.etag);
     } catch (error) {
+      if (error instanceof DeviceAuthError) {
+        await requireReauth(log, `Media sync error: ${error.message}`);
+      }
       state.lastError = error instanceof Error ? error.message : String(error);
       await log(`Media sync error: ${state.lastError}`);
     } finally {
@@ -289,6 +329,15 @@ async function main() {
     if (!response.ok) {
       const body = await response.text();
       runtime.connected = false;
+      if (response.status === 401) {
+        let message = "Device credential was not recognized.";
+        try {
+          message = JSON.parse(body).error || message;
+        } catch {
+          /* keep default */
+        }
+        await requireReauth(log, `Heartbeat failed (401): ${message}`);
+      }
       throw new Error(`Heartbeat failed (${response.status}): ${body}`);
     }
 
@@ -340,6 +389,9 @@ async function main() {
       await heartbeat();
       state.lastError = null;
     } catch (error) {
+      if (error instanceof DeviceAuthError) {
+        await requireReauth(log, error.message);
+      }
       state.lastError = error instanceof Error ? error.message : String(error);
       await log(state.lastError);
     }
