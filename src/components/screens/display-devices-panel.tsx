@@ -8,6 +8,7 @@ import {
   requestDisplaySafeRefreshAction,
   revokeDisplayDeviceAction,
 } from "@/actions/display-devices";
+import { setHostedPublicPlaybackAction } from "@/actions/display-signals";
 import { LocalRunnerDownload } from "@/components/screens/local-runner-download";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import {
   type DisplayDeviceKind,
   type StaffDisplayDevice,
 } from "@/lib/display-devices/types";
+import { HOSTED_PUBLIC_PLAYBACK_SQL } from "@/lib/constants";
 
 function formatBytes(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -30,11 +32,17 @@ export function DisplayDevicesPanel({
   missingTable,
   canConfigure,
   apiBase,
+  hostedLedPublicEnabled = true,
+  hostedVerticalPublicEnabled = true,
+  signalsMissingTable = false,
 }: {
   devices: StaffDisplayDevice[];
   missingTable: boolean;
   canConfigure: boolean;
   apiBase: string;
+  hostedLedPublicEnabled?: boolean;
+  hostedVerticalPublicEnabled?: boolean;
+  signalsMissingTable?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -67,6 +75,80 @@ export function DisplayDevicesPanel({
       </div>
 
       <LocalRunnerDownload />
+
+      {canConfigure ? (
+        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">Hosted public display URLs</h3>
+            <p className="text-sm text-muted-foreground">
+              Turn these off after OBS points at Local Runner so old{" "}
+              <code className="text-xs">/display/led</code> and{" "}
+              <code className="text-xs">/display/vertical</code> tabs stop streaming Supabase media.
+              Local Runner pairing and downloads stay on.
+            </p>
+          </div>
+          {signalsMissingTable ? (
+            <p className="text-sm text-amber-800">
+              Apply <code className="text-xs">{HOSTED_PUBLIC_PLAYBACK_SQL}</code> in Supabase to enable these
+              toggles.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={hostedLedPublicEnabled ? "outline" : "default"}
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await setHostedPublicPlaybackAction({
+                      surface: "led",
+                      enabled: !hostedLedPublicEnabled,
+                    });
+                    if (!result.ok) toast.error(result.message);
+                    else {
+                      toast.success(result.message);
+                      router.refresh();
+                    }
+                  });
+                }}
+              >
+                {hostedLedPublicEnabled ? "Turn off hosted LED" : "Turn on hosted LED"}
+              </Button>
+              <Button
+                type="button"
+                variant={hostedVerticalPublicEnabled ? "outline" : "default"}
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await setHostedPublicPlaybackAction({
+                      surface: "vertical",
+                      enabled: !hostedVerticalPublicEnabled,
+                    });
+                    if (!result.ok) toast.error(result.message);
+                    else {
+                      toast.success(result.message);
+                      router.refresh();
+                    }
+                  });
+                }}
+              >
+                {hostedVerticalPublicEnabled ? "Turn off hosted vertical" : "Turn on hosted vertical"}
+              </Button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            LED:{" "}
+            <span className={hostedLedPublicEnabled ? "text-amber-700" : "text-emerald-700"}>
+              {hostedLedPublicEnabled ? "public /display/led ON" : "public /display/led OFF"}
+            </span>
+            {" · "}
+            Vertical:{" "}
+            <span className={hostedVerticalPublicEnabled ? "text-amber-700" : "text-emerald-700"}>
+              {hostedVerticalPublicEnabled ? "public /display/vertical ON" : "public /display/vertical OFF"}
+            </span>
+          </p>
+        </div>
+      ) : null}
 
       {canConfigure ? (
         <div className="flex flex-wrap items-end gap-2">

@@ -2,6 +2,10 @@ import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
 import { PUBLIC_NO_STORE, publicJson, publicOptions } from "@/lib/public/http";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
+import {
+  hostedPublicDisabledLedPayload,
+  isHostedPublicPlaybackEnabled,
+} from "@/lib/screens/hosted-public-playback";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +17,17 @@ export function OPTIONS() {
 export async function GET() {
   const client = createAnonSupabaseClient();
   if (!client) return publicJson({ error: "Public listings are not configured." }, 503);
-  const [{ playback, error }, signalRes] = await Promise.all([
-    getPublicLedPlayback(client, FLO_BAMA_VENUE_ID),
-    getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID),
-  ]);
+
+  const signalRes = await getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID);
+  if (!isHostedPublicPlaybackEnabled("led", signalRes.signal)) {
+    return publicJson(
+      hostedPublicDisabledLedPayload(signalRes.signal.reloadNonce),
+      200,
+      PUBLIC_NO_STORE,
+    );
+  }
+
+  const { playback, error } = await getPublicLedPlayback(client, FLO_BAMA_VENUE_ID);
   if (error) return publicJson({ error }, 500);
   return publicJson(
     {
@@ -27,6 +38,7 @@ export async function GET() {
       startedAt: playback.startedAt,
       revision: playback.revision,
       reloadNonce: signalRes.signal.reloadNonce,
+      disabled: false,
     },
     200,
     PUBLIC_NO_STORE,

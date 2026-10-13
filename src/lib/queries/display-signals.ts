@@ -9,48 +9,96 @@ import {
 
 type Client = SupabaseClient<Database>;
 
+function toSignal(row: {
+  reload_nonce?: number | null;
+  reload_requested_at?: string | null;
+  hosted_led_public_enabled?: boolean | null;
+  hosted_vertical_public_enabled?: boolean | null;
+} | null): DisplayReloadSignal {
+  return {
+    reloadNonce: normalizeReloadNonce(row?.reload_nonce ?? 1),
+    reloadRequestedAt: row?.reload_requested_at ?? null,
+    // Missing columns / null → treat as enabled (pre-migration safe default).
+    hostedLedPublicEnabled: row?.hosted_led_public_enabled !== false,
+    hostedVerticalPublicEnabled: row?.hosted_vertical_public_enabled !== false,
+  };
+}
+
+const defaultSignal = (): DisplayReloadSignal => ({
+  reloadNonce: 1,
+  reloadRequestedAt: null,
+  hostedLedPublicEnabled: true,
+  hostedVerticalPublicEnabled: true,
+});
+
 export async function getPublicDisplayReloadSignal(
   client: Client,
   venueId = FLO_BAMA_VENUE_ID,
 ): Promise<{ signal: DisplayReloadSignal; error: string | null }> {
   const { data, error } = await client
     .from("screen_display_signal_listings")
-    .select("reload_nonce, reload_requested_at")
+    .select(
+      "reload_nonce, reload_requested_at, hosted_led_public_enabled, hosted_vertical_public_enabled",
+    )
     .eq("venue_id", venueId)
     .maybeSingle();
   if (error) {
     if (isMissingDisplaySignalRelation(error.message)) {
-      return { signal: { reloadNonce: 1, reloadRequestedAt: null }, error: null };
+      // Column missing before migration — retry without new fields.
+      const legacy = await client
+        .from("screen_display_signal_listings")
+        .select("reload_nonce, reload_requested_at")
+        .eq("venue_id", venueId)
+        .maybeSingle();
+      if (legacy.error) {
+        if (isMissingDisplaySignalRelation(legacy.error.message)) {
+          return { signal: defaultSignal(), error: null };
+        }
+        return { signal: defaultSignal(), error: legacy.error.message };
+      }
+      return { signal: toSignal(legacy.data), error: null };
     }
-    return { signal: { reloadNonce: 1, reloadRequestedAt: null }, error: error.message };
+    return { signal: defaultSignal(), error: error.message };
   }
-  return {
-    signal: {
-      reloadNonce: normalizeReloadNonce(data?.reload_nonce ?? 1),
-      reloadRequestedAt: data?.reload_requested_at ?? null,
-    },
-    error: null,
-  };
+  return { signal: toSignal(data), error: null };
 }
 
 export async function getStaffDisplayReloadSignal(client: Client, venueId: string) {
   const { data, error } = await client
     .from("screen_display_signals")
-    .select("reload_nonce, reload_requested_at")
+    .select(
+      "reload_nonce, reload_requested_at, hosted_led_public_enabled, hosted_vertical_public_enabled",
+    )
     .eq("venue_id", venueId)
     .maybeSingle();
   if (error) {
+    if (isMissingDisplaySignalRelation(error.message)) {
+      const legacy = await client
+        .from("screen_display_signals")
+        .select("reload_nonce, reload_requested_at")
+        .eq("venue_id", venueId)
+        .maybeSingle();
+      if (legacy.error) {
+        return {
+          signal: null as DisplayReloadSignal | null,
+          missingTable: isMissingDisplaySignalRelation(legacy.error.message),
+          error: isMissingDisplaySignalRelation(legacy.error.message) ? null : legacy.error.message,
+        };
+      }
+      return {
+        signal: toSignal(legacy.data),
+        missingTable: false,
+        error: null,
+      };
+    }
     return {
       signal: null as DisplayReloadSignal | null,
-      missingTable: isMissingDisplaySignalRelation(error.message),
-      error: isMissingDisplaySignalRelation(error.message) ? null : error.message,
+      missingTable: false,
+      error: error.message,
     };
   }
   return {
-    signal: {
-      reloadNonce: normalizeReloadNonce(data?.reload_nonce ?? 1),
-      reloadRequestedAt: data?.reload_requested_at ?? null,
-    },
+    signal: toSignal(data),
     missingTable: false,
     error: null,
   };

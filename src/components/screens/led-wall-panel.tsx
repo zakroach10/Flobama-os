@@ -402,8 +402,10 @@ function AdminLedWall({
           </div>
           <p className="text-sm text-muted-foreground">
             Prefer <span className="font-medium text-foreground">Local Runner</span> for cached playback at{" "}
-            <code className="text-xs">http://127.0.0.1:4173/wall</code>. The older OBS client only cuts scenes and
-            still streams media from the hosted display URL.
+            <code className="text-xs">http://127.0.0.1:4173/wall</code>. After cutover, turn off hosted public LED
+            under <span className="font-medium text-foreground">Display devices</span> so old{" "}
+            <code className="text-xs">/display/led</code> Browser Sources stop streaming. The older OBS client only
+            cuts scenes and still uses the hosted URL for media.
           </p>
           <form
             className="grid gap-3"

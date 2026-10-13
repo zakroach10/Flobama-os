@@ -5,6 +5,10 @@ import { listPublicWeekEvents } from "@/lib/public/queries";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
+import {
+  hostedPublicDisabledVerticalPayload,
+  isHostedPublicPlaybackEnabled,
+} from "@/lib/screens/hosted-public-playback";
 import { normalizePublicPlaylist } from "@/lib/screens/playlist";
 import { displayRevision, normalizePublicTakeover } from "@/lib/screens/takeover";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
@@ -22,11 +26,20 @@ export function OPTIONS() {
 export async function GET() {
   const client = createAnonSupabaseClient();
   if (!client) return publicJson({ error: "Public listings are not configured." }, 503);
-  const [{ ads, error }, weekRes, takeoverRes, signalRes] = await Promise.all([
+
+  const signalRes = await getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID);
+  if (!isHostedPublicPlaybackEnabled("vertical", signalRes.signal)) {
+    return publicJson(
+      hostedPublicDisabledVerticalPayload(signalRes.signal.reloadNonce),
+      200,
+      PUBLIC_NO_STORE,
+    );
+  }
+
+  const [{ ads, error }, weekRes, takeoverRes] = await Promise.all([
     listPublicVerticalAds(client, FLO_BAMA_VENUE_ID),
     listPublicWeekEvents(client, FLO_BAMA_VENUE_ID),
     getPublicTakeover(client, FLO_BAMA_VENUE_ID),
-    getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID),
   ]);
   if (error) return publicJson({ error }, 500);
   const playlist = normalizePublicPlaylist(ads);

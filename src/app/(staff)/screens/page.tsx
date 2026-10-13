@@ -244,6 +244,11 @@ export default async function ScreensPage({
                 missingTable={displayDevicesRes.missingTable}
                 canConfigure={canConfigure}
                 apiBase={getPublicAppUrl()}
+                hostedLedPublicEnabled={displaySignalRes.signal?.hostedLedPublicEnabled !== false}
+                hostedVerticalPublicEnabled={
+                  displaySignalRes.signal?.hostedVerticalPublicEnabled !== false
+                }
+                signalsMissingTable={displaySignalRes.missingTable}
               />
             ) : null}
           </>
