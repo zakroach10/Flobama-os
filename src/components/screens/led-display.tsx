@@ -22,6 +22,7 @@ type LedApiPayload = {
   startedAt?: string | null;
   revision?: string;
   reloadNonce?: number;
+  disabled?: boolean;
   error?: string;
 };
 
@@ -81,6 +82,19 @@ export function LedDisplay({
         if (typeof ledJson.reloadNonce === "number" && ledJson.reloadNonce !== reloadNonceRef.current) {
           reloadNonceRef.current = ledJson.reloadNonce;
           window.location.reload();
+          return;
+        }
+
+        if (ledJson.disabled) {
+          // Hosted public LED turned off — stop streaming media URLs.
+          revisionRef.current = "hosted-disabled";
+          modeRef.current = "idle";
+          setMode("idle");
+          setPlaylist([]);
+          setStartedAt(null);
+          setMedia(null);
+          setTrivia(null);
+          setAudience(null);
           return;
         }
 

@@ -3,6 +3,10 @@ export const SCREEN_DISPLAY_SIGNALS_SQL = "supabase/migrations/20260929000017_sc
 export type DisplayReloadSignal = {
   reloadNonce: number;
   reloadRequestedAt: string | null;
+  /** When false, hosted /display/led + public LED API return no media. Default true. */
+  hostedLedPublicEnabled: boolean;
+  /** When false, hosted /display/vertical + public vertical API return no media. Default true. */
+  hostedVerticalPublicEnabled: boolean;
 };
 
 export function isMissingDisplaySignalRelation(message: string | null | undefined) {

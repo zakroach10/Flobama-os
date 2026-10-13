@@ -104,6 +104,8 @@ export const SCREEN_PLAYLISTS_SQL = "supabase/migrations/20260929000014_screen_p
 export const LED_WALL_PLAYLISTS_SQL = "supabase/migrations/20260929000016_led_wall_playlists.sql";
 export const LED_PLAYLIST_DEFAULT_SECONDS = 15;
 export const SCREEN_DISPLAY_SIGNALS_SQL = "supabase/migrations/20260929000017_screen_display_signals.sql";
+export const HOSTED_PUBLIC_PLAYBACK_SQL =
+  "supabase/migrations/20261013000042_hosted_public_playback.sql";
 export const CAMERA_CONNECTOR_SQL = "supabase/migrations/20260929000018_camera_connector.sql";
 export const MEDIA_CONTENT_HASHES_SQL = "supabase/migrations/20261013000040_media_content_hashes.sql";
 export const DISPLAY_DEVICES_SQL = "supabase/migrations/20261013000041_display_devices.sql";

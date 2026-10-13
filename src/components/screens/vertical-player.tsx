@@ -78,16 +78,24 @@ export function VerticalPlayer({
           ads?: PublicScreenAd[];
           revision?: string;
           reloadNonce?: number;
+          disabled?: boolean;
           week?: WeekSlidePayload | null;
           takeover?: PublicTakeover | null;
           trivia?: TriviaKioskPromo | null;
         };
-        if (cancelled || !Array.isArray(playlist.ads)) return;
+        if (cancelled) return;
         if (typeof playlist.reloadNonce === "number" && playlist.reloadNonce !== reloadNonceRef.current) {
           reloadNonceRef.current = playlist.reloadNonce;
           window.location.reload();
           return;
         }
+        if (playlist.disabled) {
+          setAds([]);
+          setTakeover(null);
+          setTrivia(null);
+          return;
+        }
+        if (!Array.isArray(playlist.ads)) return;
         const next = normalizePublicPlaylist(playlist.ads);
         const nextTakeover = normalizePublicTakeover(playlist.takeover);
         const nextTrivia = playlist.trivia ?? null;

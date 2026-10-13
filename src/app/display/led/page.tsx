@@ -5,6 +5,7 @@ import { joinPublicUrl } from "@/lib/public/urls";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
 import { DEMO_LED_AD_ROLL } from "@/lib/screens/demo";
+import { isHostedPublicPlaybackEnabled } from "@/lib/screens/hosted-public-playback";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
@@ -43,6 +44,20 @@ export default async function LedDisplayPage({
   }
 
   const client = createAnonSupabaseClient();
+  const signal = client
+    ? (await getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID)).signal
+    : {
+        reloadNonce: 1,
+        reloadRequestedAt: null,
+        hostedLedPublicEnabled: true,
+        hostedVerticalPublicEnabled: true,
+      };
+
+  if (!isHostedPublicPlaybackEnabled("led", signal)) {
+    // Black frame for any OBS Browser Source still pointed at the hosted URL.
+    return <div className="h-full w-full bg-black" />;
+  }
+
   const playback = client
     ? (await getPublicLedPlayback(client, FLO_BAMA_VENUE_ID)).playback
     : {
@@ -53,9 +68,6 @@ export default async function LedDisplayPage({
         startedAt: null,
         revision: "idle",
       };
-  const reloadNonce = client
-    ? (await getPublicDisplayReloadSignal(client, FLO_BAMA_VENUE_ID)).signal.reloadNonce
-    : 1;
 
   let trivia = null;
   let audience = null;
@@ -77,7 +89,7 @@ export default async function LedDisplayPage({
       initialMode={playback.mode}
       initialRevision={playback.revision}
       initialStartedAt={playback.startedAt}
-      initialReloadNonce={reloadNonce}
+      initialReloadNonce={signal.reloadNonce}
       initialTrivia={trivia}
       initialAudience={audience}
     />

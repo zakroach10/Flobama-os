@@ -897,6 +897,8 @@ export type Database = {
           reload_nonce: number;
           reload_requested_at: string;
           reload_requested_by: string | null;
+          hosted_led_public_enabled: boolean;
+          hosted_vertical_public_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -905,11 +907,15 @@ export type Database = {
           reload_nonce?: number;
           reload_requested_at?: string;
           reload_requested_by?: string | null;
+          hosted_led_public_enabled?: boolean;
+          hosted_vertical_public_enabled?: boolean;
         };
         Update: {
           reload_nonce?: number;
           reload_requested_at?: string;
           reload_requested_by?: string | null;
+          hosted_led_public_enabled?: boolean;
+          hosted_vertical_public_enabled?: boolean;
         };
         Relationships: [
           {
@@ -1448,6 +1454,8 @@ export type Database = {
           venue_id: string;
           reload_nonce: number;
           reload_requested_at: string;
+          hosted_led_public_enabled: boolean;
+          hosted_vertical_public_enabled: boolean;
         };
         Relationships: [];
       };
