@@ -11,6 +11,8 @@ import { isSupabaseConfigured, missingPublicEnvNames } from "@/lib/env";
 import { wallOpsPwaMetadata, WALL_OPS_PWA_THEME_COLOR } from "@/lib/pwa/wall-ops";
 import { SetupRequired } from "@/components/states";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   ...wallOpsPwaMetadata,
   title: "FloBama Screens",
