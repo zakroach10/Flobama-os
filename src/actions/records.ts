@@ -280,3 +280,11 @@ export async function signOutAction() {
   }
   redirect("/login");
 }
+
+export async function signOutWallOpsAction() {
+  const supabase = await createServerSupabaseClient();
+  if (supabase) {
+    await supabase.auth.signOut();
+  }
+  redirect("/wall");
+}

@@ -36,6 +36,17 @@ const nextConfig: NextConfig = {
         source: `/downloads/${CAMERA_CONNECTOR_DMG_FILENAME}`,
         headers: dmgHeaders(CAMERA_CONNECTOR_DMG_FILENAME),
       },
+      {
+        source: "/wall-sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/wall.webmanifest",
+        headers: [{ key: "Content-Type", value: "application/manifest+json" }],
+      },
     ];
   },
 };
