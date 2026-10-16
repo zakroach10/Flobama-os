@@ -36,7 +36,7 @@ export default async function ScreensPage({
   searchParams: Promise<{ tab?: string; playlist?: string; ledPlaylist?: string }>;
 }) {
   const context = await getStaffContext();
-  if (context.status !== "ok") redirect("/login");
+  if (context.status !== "ok") redirect("/wall?next=/screens&reason=expired");
   const wallOps = isWallOpsShell(context.menus);
   const canProgram = canManageScreensControls(context.role, context.email, {
     userId: context.userId,
@@ -44,7 +44,7 @@ export default async function ScreensPage({
   });
   const canConfigure = canConfigureLedWall(context.role);
   const supabase = await createServerSupabaseClient();
-  if (!supabase) redirect("/login");
+  if (!supabase) redirect("/wall?next=/screens&reason=expired");
 
   const params = await searchParams;
   const requested = params.tab;
@@ -180,6 +180,8 @@ export default async function ScreensPage({
         lastRefreshAt={displaySignalRes.signal?.reloadRequestedAt ?? null}
         timeZone={context.venue.timezone}
         canControlVertical={canProgram}
+        venueId={context.venue.id}
+        supabaseEnv={supabaseEnv}
       />
     );
   }

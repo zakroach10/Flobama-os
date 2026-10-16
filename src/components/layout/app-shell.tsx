@@ -17,7 +17,7 @@ import {
   UtensilsCrossedIcon,
   VideoIcon,
 } from "lucide-react";
-import { signOutAction } from "@/actions/records";
+import { signOutAction, signOutWallOpsAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -149,6 +149,8 @@ function DedicatedConsoleShell({
   consoleLabel,
   dark = false,
   dense = false,
+  bare = false,
+  wallOpsSignOut = false,
 }: {
   children: React.ReactNode;
   venueName: string;
@@ -157,7 +159,35 @@ function DedicatedConsoleShell({
   consoleLabel: string;
   dark?: boolean;
   dense?: boolean;
+  /** When true, skip the chrome header — the page owns branding and logout. */
+  bare?: boolean;
+  wallOpsSignOut?: boolean;
 }) {
+  const logoutAction = wallOpsSignOut ? signOutWallOpsAction : signOutAction;
+
+  if (bare) {
+    return (
+      <div
+        className={cn(
+          "flex min-h-full flex-col bg-background text-foreground",
+          dark && "dark",
+          "bg-[radial-gradient(ellipse_at_top,_rgba(196,86,48,0.12),_transparent_55%),linear-gradient(180deg,_#141210_0%,_#1c1916_40%,_#12100e_100%)]",
+        )}
+      >
+        <div
+          className={cn(
+            "mx-auto w-full flex-1 overflow-x-hidden text-foreground pb-[max(1rem,env(safe-area-inset-bottom))]",
+            dense
+              ? "max-w-[90rem] px-3 py-3 sm:px-4 sm:py-3 lg:px-5"
+              : "max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8",
+          )}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex min-h-full flex-col bg-background text-foreground", dark && "dark")}>
       <header
@@ -184,7 +214,7 @@ function DedicatedConsoleShell({
               {roleLabel} · {venueName}
             </p>
           </div>
-          <form action={signOutAction}>
+          <form action={logoutAction}>
             <Button type="submit" variant="outline" size="sm" className="text-foreground">
               Log out
             </Button>
@@ -245,6 +275,8 @@ export function AppShell({
         consoleLabel="Wall & Screens"
         dark
         dense
+        bare
+        wallOpsSignOut
       >
         {children}
       </DedicatedConsoleShell>

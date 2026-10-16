@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
+  "/wall",
   "/forgot-password",
   "/reset-password",
   "/access-denied",

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { withPersistentAuthCookieOptions } from "@/lib/auth/session-cookies";
 import { getPublicSupabaseEnv } from "@/lib/env";
 import type { Database } from "@/lib/database.types";
 
@@ -17,7 +18,7 @@ export async function createServerSupabaseClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
+            cookieStore.set(name, value, withPersistentAuthCookieOptions(options));
           });
         } catch {
           // Called from a Server Component; proxy handles refresh.
