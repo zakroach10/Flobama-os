@@ -1,0 +1,186 @@
+import type { BandFitAnalysisResult } from "@/lib/booking/analyze-band";
+import type { BookingRecord } from "@/lib/ghl/objects";
+
+export function demoBandPacketRecords(): BookingRecord[] {
+  return [
+    {
+      id: "demo-band-1",
+      schemaKey: "custom_objects.band_inquiries",
+      displayName: "Gulf Coast Revival",
+      contactName: "Jordan Lee",
+      email: "booking@gulfcoastrevival.example",
+      phone: "(251) 555-0142",
+      contactId: "demo-contact-1",
+      contactLinkStatus: "linked",
+      contactLinkMessage: null,
+      requestedDates: "Fri/Sat nights in April",
+      compensation: "$800–$1,200",
+      status: "New",
+      notes: null,
+      updatedAt: "2026-03-12T18:30:00.000Z",
+      createdAt: "2026-03-10T15:00:00.000Z",
+      properties: {},
+      statusOptions: ["New"],
+      statusFieldKey: "booking_status",
+      notesFieldKey: null,
+      inquiry: {
+        contactName: "Jordan Lee",
+        genre: "Southern rock / Americana",
+        homeCity: "Mobile, AL",
+        compensation: "$800–$1,200",
+        availableDates: "Fri/Sat nights in April",
+        fields: [
+          { key: "genre", label: "Genre", value: "Southern rock / Americana", href: null, section: "profile" },
+          { key: "home_city__state", label: "Home city / state", value: "Mobile, AL", href: null, section: "profile" },
+          {
+            key: "website",
+            label: "Website",
+            value: "https://gulfcoastrevival.example",
+            href: "https://gulfcoastrevival.example",
+            section: "links",
+          },
+          {
+            key: "instagram",
+            label: "Instagram",
+            value: "@gulfcoastrevival",
+            href: "https://instagram.com/gulfcoastrevival",
+            section: "links",
+          },
+          { key: "number_of_performers", label: "Number of performers", value: "5", href: null, section: "booking" },
+          {
+            key: "typical_performance_length",
+            label: "Typical performance length",
+            value: "2 × 45 min",
+            href: null,
+            section: "booking",
+          },
+          {
+            key: "available_dates",
+            label: "Available dates",
+            value: "Fri/Sat nights in April",
+            href: null,
+            section: "booking",
+          },
+          {
+            key: "expected_compensation",
+            label: "Expected compensation",
+            value: "$800–$1,200",
+            href: null,
+            section: "booking",
+          },
+          { key: "typical_draw", label: "Typical draw", value: "120–180 local", href: null, section: "booking" },
+          {
+            key: "previously_played_flobama",
+            label: "Previously played FloBama",
+            value: "No",
+            href: null,
+            section: "booking",
+          },
+          {
+            key: "production_requirements",
+            label: "Production requirements",
+            value: "Full backline preferred; can bring drums if needed.",
+            href: null,
+            section: "about",
+          },
+          {
+            key: "artist_biography",
+            label: "Artist biography",
+            value:
+              "Gulf Coast Revival is a Mobile-based five-piece blending southern rock and Americana for club and festival crowds along the I-10 corridor.",
+            href: null,
+            section: "about",
+          },
+        ],
+      },
+    },
+    {
+      id: "demo-band-2",
+      schemaKey: "custom_objects.band_inquiries",
+      displayName: "Neon Harbor",
+      contactName: "Sam Rivera",
+      email: "sam@neonharbor.example",
+      phone: "(850) 555-0199",
+      contactId: "demo-contact-2",
+      contactLinkStatus: "linked",
+      contactLinkMessage: null,
+      requestedDates: "Weeknights in May",
+      compensation: "$500",
+      status: "Reviewing",
+      notes: null,
+      updatedAt: "2026-03-18T20:00:00.000Z",
+      createdAt: "2026-03-15T12:00:00.000Z",
+      properties: {},
+      statusOptions: ["Reviewing"],
+      statusFieldKey: "booking_status",
+      notesFieldKey: null,
+      inquiry: {
+        contactName: "Sam Rivera",
+        genre: "Indie pop",
+        homeCity: "Pensacola, FL",
+        compensation: "$500",
+        availableDates: "Weeknights in May",
+        fields: [
+          { key: "genre", label: "Genre", value: "Indie pop", href: null, section: "profile" },
+          { key: "home_city__state", label: "Home city / state", value: "Pensacola, FL", href: null, section: "profile" },
+          { key: "number_of_performers", label: "Number of performers", value: "3", href: null, section: "booking" },
+          {
+            key: "expected_compensation",
+            label: "Expected compensation",
+            value: "$500",
+            href: null,
+            section: "booking",
+          },
+          { key: "typical_draw", label: "Typical draw", value: "40–60", href: null, section: "booking" },
+          {
+            key: "artist_biography",
+            label: "Artist biography",
+            value: "Trio writing breezy indie pop with coastal influences; growing regional following.",
+            href: null,
+            section: "about",
+          },
+        ],
+      },
+    },
+  ];
+}
+
+export function demoBandPacketFitById(): Record<string, BandFitAnalysisResult> {
+  return {
+    "demo-band-1": {
+      configured: true,
+      analysis: {
+        verdict: "strong_fit",
+        score: 82,
+        summary:
+          "Local five-piece with workable compensation and a realistic Mobile draw. Strong regional presence signals for a Friday or Saturday slot.",
+        strengths: ["Local/regional home base", "Compensation in club range", "Clear production needs"],
+        risks: ["Follower counts not provided in GHL fields"],
+        signals: {
+          onlinePresence: "Website and Instagram listed; metrics unknown.",
+          following: "Follower counts unknown from provided fields.",
+          draw: "Self-reported 120–180 local draw.",
+          compensation: "$800–$1,200 fits mid-size club expectations.",
+          localFit: "Mobile-based act — strong local fit.",
+        },
+      },
+    },
+    "demo-band-2": {
+      configured: true,
+      analysis: {
+        verdict: "possible_fit",
+        score: 61,
+        summary: "Affordable trio with modest draw; better as a weeknight support or early set than a Saturday headliner.",
+        strengths: ["Low compensation ask", "Weeknight availability"],
+        risks: ["Smaller reported draw", "Limited online fields"],
+        signals: {
+          onlinePresence: "Limited links in submission.",
+          following: "Follower counts unknown from provided fields.",
+          draw: "Self-reported 40–60.",
+          compensation: "$500 is easy to work with.",
+          localFit: "Pensacola is regional — possible drive-in crowd.",
+        },
+      },
+    },
+  };
+}

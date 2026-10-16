@@ -41,4 +41,24 @@ body {
     min-height: 0 !important;
     width: 100% !important;
   }
+
+  .band-packet-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    width: 100% !important;
+    height: 10.36in !important;
+    max-height: 10.36in !important;
+    overflow: hidden !important;
+    padding: 0.08in 0.12in;
+    box-sizing: border-box;
+  }
+
+  .band-packet-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
 }

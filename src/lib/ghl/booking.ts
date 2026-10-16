@@ -144,6 +144,85 @@ export async function loadBookingInbox(
   }
 }
 
+const ALL_RECORDS_PAGE_LIMIT = 100;
+const ALL_RECORDS_MAX_PAGES = 20;
+
+/** Load every page of booking records (up to ALL_RECORDS_MAX_PAGES × page limit). */
+export async function loadAllBookingRecords(kind: BookingKind, deps?: GhlDeps): Promise<BookingInboxResult> {
+  const config = resolveGhlConfig(deps);
+  if (!ghlConfigured(config)) return { configured: false };
+
+  try {
+    const schemas = await loadSchemas({ ...deps, config });
+    const resolved = await loadSchema(schemas, kind, config, { ...deps, config });
+    if (!resolved) {
+      return {
+        configured: true,
+        schemaKey: null,
+        matchedBy: null,
+        records: [],
+        statusOptions: [],
+        error: `Could not find a custom object labeled “${BOOKING_KIND_META[kind].title}”. Set ${kind === "band_submission" ? "GHL_OBJECT_BAND_SUBMISSION" : "GHL_OBJECT_PRIVATE_EVENTS"} if the schema key differs.`,
+      };
+    }
+
+    const fieldMap = resolveFieldMap(resolved.schema, kind);
+    const collected: BookingRecord[] = [];
+    for (let page = 1; page <= ALL_RECORDS_MAX_PAGES; page += 1) {
+      const body = buildSearchRecordsBody({
+        locationId: config.locationId,
+        page,
+        pageLimit: ALL_RECORDS_PAGE_LIMIT,
+      });
+      const payload = await searchRecords(resolved.key, body, { ...deps, config });
+      const batch = extractRecords(payload)
+        .map((record) => mapRecordToBooking(record, resolved.key, fieldMap, kind))
+        .filter((record) => record.id);
+      collected.push(...batch);
+      if (batch.length < ALL_RECORDS_PAGE_LIMIT) break;
+    }
+
+    collected.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+
+    const linked = await loadLinkedContacts(
+      collected.map((record) => record.id),
+      { ...deps, config },
+    );
+    const records = collected.map((record) =>
+      applyLinkedContact(
+        record,
+        linked.get(record.id) ?? {
+          status: "none",
+          contactId: null,
+          name: null,
+          email: null,
+          phone: null,
+          relationshipLabel: null,
+          message: "No linked contact",
+        },
+      ),
+    );
+
+    const statusOptions = [...new Set(records.flatMap((record) => record.statusOptions.concat(record.status ? [record.status] : [])))];
+    return {
+      configured: true,
+      schemaKey: resolved.key,
+      matchedBy: resolved.matchedBy,
+      records,
+      statusOptions,
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      schemaKey: null,
+      matchedBy: null,
+      records: [],
+      statusOptions: [],
+      error: error instanceof Error ? error.message : "Could not load GoHighLevel records.",
+    };
+  }
+}
+
 export async function loadBookingDetail(kind: BookingKind, recordId: string, deps?: GhlDeps): Promise<BookingDetailResult> {
   const config = resolveGhlConfig(deps);
   if (!ghlConfigured(config)) return { configured: false };
