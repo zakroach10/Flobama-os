@@ -12,6 +12,7 @@ import {
   RadioIcon,
   SettingsIcon,
   Share2Icon,
+  StoreIcon,
   TicketIcon,
   UsersIcon,
   UtensilsCrossedIcon,
@@ -37,6 +38,7 @@ const MENU_ICONS = {
   spoton: UtensilsCrossedIcon,
   artists: UsersIcon,
   settings: SettingsIcon,
+  server: StoreIcon,
 } as const;
 
 function NavLinks({
@@ -109,6 +111,7 @@ function mobileSection(pathname: string) {
   if (pathname.startsWith("/ticketing")) return "Ticketing";
   if (pathname.startsWith("/artists")) return "Artists";
   if (pathname.startsWith("/settings")) return "Settings";
+  if (pathname.startsWith("/server")) return "Server Station";
   if (pathname.startsWith("/screens")) return "Screens";
   if (pathname.startsWith("/cameras")) return "Cameras";
   if (pathname.startsWith("/dashboard")) return "Dashboard";

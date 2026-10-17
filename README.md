@@ -72,8 +72,9 @@ npm run dev
 
 | Role | What they can do |
 | --- | --- |
-| Admin | Create staff, change roles, rename the venue, edit events/artists, screens, ticketing |
-| Manager | Edit events/artists, import listings, screens, ticketing. Cannot create staff or rename the venue |
+| Admin | Create staff, change roles, rename the venue, edit events/artists, screens, ticketing, Server Station config |
+| Manager | Edit events/artists, import listings, screens, ticketing; can open Server Station |
+| Server | Server Station kiosk only — events lookup, approved LED scenes, temporary wall graphics |
 | Viewer | Read-only calendar, artists, staff directory, ticketing sales. Can activate LED wall scenes |
 
 There is still no public registration. The **first** admin is created once:
@@ -84,6 +85,16 @@ There is still no public registration. The **first** admin is created once:
 After that, signed-in admins use **Settings → Staff** to create more logins (email, temporary password, role). People cannot raise their own role. You cannot remove or demote the last admin, or change your own access. `zak@view360.marketing` is the master admin and cannot be removed or demoted by other staff.
 
 Creating a login needs `SUPABASE_SERVICE_ROLE_KEY` on the server. Role changes and removals use the signed-in admin session and RLS.
+
+### Server Station (floor kiosk)
+
+1. Apply `supabase/migrations/20261017000050_server_role.sql`, then `20261017000051_server_station.sql`.
+2. In **Settings → Server Station**, approve LED scenes, set the temporary playlist, create a pairing code, and assign staff PINs.
+3. On the kiosk open `/server/login`, enter the pairing code, then unlock with a staff PIN.
+4. Admins/managers can open `/server` with their normal staff login.
+5. `CRON_SECRET` (already used for LED automation) also signs Server Station staff cookies and phone upload tokens when set; otherwise the service role key is used as a fallback. No service-role credentials are stored in the browser.
+
+Architecture notes: [`docs/server-station-architecture.md`](./docs/server-station-architecture.md).
 
 ## Scripts
 

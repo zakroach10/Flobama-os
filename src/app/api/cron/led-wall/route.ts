@@ -28,13 +28,21 @@ export async function GET(request: Request) {
   }
 
   try {
+    const { runServerStationMaintenance } = await import("@/actions/server-station");
+    const maintenance = await runServerStationMaintenance(FLO_BAMA_VENUE_ID);
     const result = await runLedWallAutomation(admin, FLO_BAMA_VENUE_ID, new Date());
-    if (result.adRollReset || result.artistAutoActivated.length > 0) {
+    if (
+      result.adRollReset ||
+      result.artistAutoActivated.length > 0 ||
+      maintenance.overridesCleared ||
+      maintenance.itemsExpired > 0
+    ) {
       revalidatePath("/screens");
+      revalidatePath("/server");
       revalidatePath("/display/led");
       revalidatePath("/api/public/v1/screens/led");
     }
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, ...result, serverStation: maintenance });
   } catch (error) {
     const message = error instanceof Error ? error.message : "LED wall automation failed.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

@@ -51,6 +51,14 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "View ticketing sales, orders, and check-in status without selling or refunding",
     "View settings (read-only)",
   ],
+  server: [
+    "Open the Server Station kiosk only",
+    "Look up published event info for guests",
+    "Switch LED wall scenes an admin marked for servers",
+    "Create temporary specials, birthday, and announcement graphics",
+    "Upload a picture from a phone with a QR code",
+    "Cannot change settings, OBS, playlists, events, or staff",
+  ],
 };
 
 export function isMasterAdminEmail(email: string | null | undefined): boolean {
@@ -113,6 +121,27 @@ export function isInteractorOnly(role: StaffRole): boolean {
   return role === "interactor";
 }
 
+export function isServerOnly(role: StaffRole): boolean {
+  return role === "server";
+}
+
+export function canAccessServerStation(role: StaffRole): boolean {
+  return role === "admin" || role === "manager" || role === "server";
+}
+
+export function canConfigureServerStation(role: StaffRole): boolean {
+  return role === "admin";
+}
+
+/** Servers may activate only scenes an admin marked server_approved. */
+export function canActivateApprovedServerScenes(role: StaffRole): boolean {
+  return canAccessServerStation(role);
+}
+
+export function canCreateServerStationContent(role: StaffRole): boolean {
+  return canAccessServerStation(role);
+}
+
 export function isReadOnly(role: StaffRole): boolean {
   return role === "viewer";
 }
@@ -127,7 +156,40 @@ function requireRole(role: StaffRole | null): AuthzDecision {
 }
 
 export function authorizeLedWallActivate(role: StaffRole | null): AuthzDecision {
+  if (role === "server") {
+    return {
+      allowed: false,
+      reason: "Use Server Station LED controls for approved scenes only.",
+    };
+  }
   return requireRole(role);
+}
+
+export function authorizeServerStation(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canAccessServerStation(role!)) {
+    return { allowed: false, reason: "Your role cannot open Server Station." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeServerStationConfigure(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canConfigureServerStation(role!)) {
+    return { allowed: false, reason: "Only admins can change Server Station settings." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeServerStationContent(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canCreateServerStationContent(role!)) {
+    return { allowed: false, reason: "Your role cannot create Server Station wall content." };
+  }
+  return { allowed: true };
 }
 
 export function authorizeAudienceRun(role: StaffRole | null): AuthzDecision {
@@ -197,6 +259,9 @@ export function authorizeCameraConfigure(role: StaffRole | null): AuthzDecision 
 export function authorizeProgramming(role: StaffRole | null): AuthzDecision {
   const access = requireRole(role);
   if (!access.allowed) return access;
+  if (role === "server") {
+    return { allowed: false, reason: "Servers cannot change event programming." };
+  }
   if (!canManageProgramming(role!)) {
     return { allowed: false, reason: "Your role is read-only. Viewers cannot change records." };
   }

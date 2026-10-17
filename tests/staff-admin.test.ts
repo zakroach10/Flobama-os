@@ -140,13 +140,16 @@ describe("create staff validation", () => {
 });
 
 describe("staff menu access", () => {
-  it("starts viewers without booking/social/audience, interactors with audience only", () => {
+  it("starts viewers without booking/social/audience/server, interactors with audience only", () => {
     expect(defaultMenusForRole("viewer")).not.toContain("booking");
     expect(defaultMenusForRole("viewer")).not.toContain("social");
     expect(defaultMenusForRole("viewer")).not.toContain("audience");
+    expect(defaultMenusForRole("viewer")).not.toContain("server");
     expect(defaultMenusForRole("viewer")).toContain("screens");
     expect(defaultMenusForRole("interactor")).toEqual(["audience"]);
+    expect(defaultMenusForRole("server")).toEqual(["server"]);
     expect(resolveMenus(["dashboard", "settings"], "interactor")).toEqual(["audience"]);
+    expect(resolveMenus(["dashboard"], "server")).toEqual(["server"]);
     expect(defaultMenusForRole("admin")).toEqual([...STAFF_MENU_IDS]);
     expect(defaultMenusForRole("manager")).toEqual([...STAFF_MENU_IDS]);
   });
@@ -180,10 +183,8 @@ describe("staff menu access", () => {
     expect(allowed?.[1]).toBeTruthy();
     expect(allowed?.[1]).not.toContain("'events'");
     for (const id of STAFF_MENU_IDS) expect(allowed?.[1]).toContain(`'${id}'`);
-    // Old check rejects programming; drop it before remapping events -> programming.
-    expect(sql.indexOf("drop constraint if exists venue_memberships_menus_known")).toBeLessThan(
-      sql.indexOf("events' then 'programming"),
-    );
+    expect(sql).toContain("drop constraint if exists venue_memberships_menus_known");
+    expect(sql).toContain("'server'");
   });
 
   it("points staff at the menus SQL when the known-menus check fails", () => {

@@ -96,6 +96,32 @@ export async function getPublicLedPlayback(
   client: Client,
   venueId = FLO_BAMA_VENUE_ID,
 ): Promise<{ playback: PublicLedPlayback; error: string | null }> {
+  // Timed Server Station "Show Now" overrides win over playlist rotation.
+  const overrideRes = await client
+    .from("led_wall_override_listings")
+    .select("*")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  const overrideRow = overrideRes.data;
+  if (!overrideRes.error && overrideRow && typeof overrideRow.public_url === "string") {
+    return {
+      playback: {
+        mode: "scene",
+        active: {
+          id: overrideRow.scene_id,
+          title: overrideRow.title,
+          url: overrideRow.public_url,
+          mediaKind: overrideRow.media_kind === "video" ? "video" : "image",
+        },
+        playlist: [],
+        playlistId: null,
+        startedAt: null,
+        revision: `override:${overrideRow.scene_id}:${overrideRow.ends_at}`,
+      },
+      error: null,
+    };
+  }
+
   const playlistRes = await client
     .from("led_wall_active_playlist_listings")
     .select("*")

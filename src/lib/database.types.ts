@@ -47,7 +47,7 @@ export type Database = {
         Row: {
           venue_id: string;
           user_id: string;
-          role: "admin" | "manager" | "interactor" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer" | "server";
           menus: string[] | null;
           created_at: string;
           updated_at: string;
@@ -55,11 +55,11 @@ export type Database = {
         Insert: {
           venue_id: string;
           user_id: string;
-          role: "admin" | "manager" | "interactor" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer" | "server";
           menus?: string[] | null;
         };
         Update: {
-          role?: "admin" | "manager" | "interactor" | "viewer";
+          role?: "admin" | "manager" | "interactor" | "viewer" | "server";
           menus?: string[] | null;
         };
         Relationships: [
@@ -503,6 +503,7 @@ export type Database = {
           artist_id: string | null;
           sort_order: number;
           enabled: boolean;
+          server_approved: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -518,6 +519,7 @@ export type Database = {
           artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;
+          server_approved?: boolean;
         };
         Update: {
           title?: string;
@@ -529,6 +531,7 @@ export type Database = {
           artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;
+          server_approved?: boolean;
         };
         Relationships: [
           {
@@ -616,7 +619,7 @@ export type Database = {
           venue_id: string;
           active_scene_id: string | null;
           active_playlist_id: string | null;
-          activation_source: "manual" | "artist_auto" | "ad_roll";
+          activation_source: "manual" | "artist_auto" | "ad_roll" | "server_override";
           auto_event_id: string | null;
           auto_artist_id: string | null;
           activated_by: string | null;
@@ -628,7 +631,7 @@ export type Database = {
           venue_id: string;
           active_scene_id?: string | null;
           active_playlist_id?: string | null;
-          activation_source?: "manual" | "artist_auto" | "ad_roll";
+          activation_source?: "manual" | "artist_auto" | "ad_roll" | "server_override";
           auto_event_id?: string | null;
           auto_artist_id?: string | null;
           activated_by?: string | null;
@@ -637,7 +640,7 @@ export type Database = {
         Update: {
           active_scene_id?: string | null;
           active_playlist_id?: string | null;
-          activation_source?: "manual" | "artist_auto" | "ad_roll";
+          activation_source?: "manual" | "artist_auto" | "ad_roll" | "server_override";
           auto_event_id?: string | null;
           auto_artist_id?: string | null;
           activated_by?: string | null;
@@ -776,6 +779,282 @@ export type Database = {
           },
         ];
       };
+      server_station_settings: {
+        Row: {
+          venue_id: string;
+          show_now_enabled: boolean;
+          birthday_approval_required: boolean;
+          temporary_playlist_id: string | null;
+          default_slide_seconds: number;
+          default_override_minutes: number;
+          max_upload_bytes: number;
+          business_night_end_hour: number;
+          staff_idle_seconds: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          show_now_enabled?: boolean;
+          birthday_approval_required?: boolean;
+          temporary_playlist_id?: string | null;
+          default_slide_seconds?: number;
+          default_override_minutes?: number;
+          max_upload_bytes?: number;
+          business_night_end_hour?: number;
+          staff_idle_seconds?: number;
+        };
+        Update: {
+          show_now_enabled?: boolean;
+          birthday_approval_required?: boolean;
+          temporary_playlist_id?: string | null;
+          default_slide_seconds?: number;
+          default_override_minutes?: number;
+          max_upload_bytes?: number;
+          business_night_end_hour?: number;
+          staff_idle_seconds?: number;
+        };
+        Relationships: [];
+      };
+      server_station_devices: {
+        Row: {
+          id: string;
+          venue_id: string;
+          label: string;
+          token_hash: string;
+          last_seen_at: string | null;
+          revoked_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          label?: string;
+          token_hash: string;
+          last_seen_at?: string | null;
+          revoked_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          label?: string;
+          token_hash?: string;
+          last_seen_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Relationships: [];
+      };
+      server_station_pairing_codes: {
+        Row: {
+          id: string;
+          venue_id: string;
+          code_hash: string;
+          label: string;
+          expires_at: string;
+          consumed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          code_hash: string;
+          label?: string;
+          expires_at: string;
+          consumed_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          consumed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      server_station_pins: {
+        Row: {
+          venue_id: string;
+          user_id: string;
+          pin_hash: string;
+          pin_salt: string;
+          failed_attempts: number;
+          locked_until: string | null;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          user_id: string;
+          pin_hash: string;
+          pin_salt: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          updated_by?: string | null;
+        };
+        Update: {
+          pin_hash?: string;
+          pin_salt?: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      led_server_items: {
+        Row: {
+          id: string;
+          venue_id: string;
+          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload";
+          title: string;
+          subtitle: string | null;
+          template_id: string;
+          status: "queued" | "active" | "expired" | "removed" | "pending_approval";
+          scene_id: string | null;
+          playlist_item_id: string | null;
+          thumbnail_url: string | null;
+          public_url: string | null;
+          storage_path: string | null;
+          content_hash: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          device_id: string | null;
+          starts_at: string;
+          ends_at: string;
+          show_now: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload";
+          title: string;
+          subtitle?: string | null;
+          template_id?: string;
+          status?: "queued" | "active" | "expired" | "removed" | "pending_approval";
+          scene_id?: string | null;
+          playlist_item_id?: string | null;
+          thumbnail_url?: string | null;
+          public_url?: string | null;
+          storage_path?: string | null;
+          content_hash?: string | null;
+          created_by?: string | null;
+          created_by_name?: string | null;
+          device_id?: string | null;
+          starts_at?: string;
+          ends_at: string;
+          show_now?: boolean;
+        };
+        Update: {
+          status?: "queued" | "active" | "expired" | "removed" | "pending_approval";
+          scene_id?: string | null;
+          playlist_item_id?: string | null;
+          ends_at?: string;
+          show_now?: boolean;
+        };
+        Relationships: [];
+      };
+      led_wall_overrides: {
+        Row: {
+          venue_id: string;
+          scene_id: string;
+          server_item_id: string | null;
+          ends_at: string;
+          previous_scene_id: string | null;
+          previous_playlist_id: string | null;
+          previous_activation_source: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          scene_id: string;
+          server_item_id?: string | null;
+          ends_at: string;
+          previous_scene_id?: string | null;
+          previous_playlist_id?: string | null;
+          previous_activation_source?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          scene_id?: string;
+          server_item_id?: string | null;
+          ends_at?: string;
+          previous_scene_id?: string | null;
+          previous_playlist_id?: string | null;
+          previous_activation_source?: string | null;
+        };
+        Relationships: [];
+      };
+      server_station_audit_log: {
+        Row: {
+          id: string;
+          venue_id: string;
+          actor_user_id: string | null;
+          actor_name: string | null;
+          device_id: string | null;
+          action: string;
+          detail: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          actor_user_id?: string | null;
+          actor_name?: string | null;
+          device_id?: string | null;
+          action: string;
+          detail?: Json;
+        };
+        Update: {
+          action?: string;
+          detail?: Json;
+        };
+        Relationships: [];
+      };
+      server_station_upload_sessions: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string | null;
+          created_by: string | null;
+          workflow: "upload" | "special" | "birthday" | "message";
+          token_hash: string;
+          expires_at: string;
+          consumed_at: string | null;
+          uploaded_url: string | null;
+          uploaded_storage_path: string | null;
+          uploaded_media_kind: string | null;
+          uploaded_content_hash: string | null;
+          uploaded_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id?: string | null;
+          created_by?: string | null;
+          workflow?: "upload" | "special" | "birthday" | "message";
+          token_hash: string;
+          expires_at: string;
+          consumed_at?: string | null;
+          uploaded_url?: string | null;
+          uploaded_storage_path?: string | null;
+          uploaded_media_kind?: string | null;
+          uploaded_content_hash?: string | null;
+          uploaded_at?: string | null;
+        };
+        Update: {
+          consumed_at?: string | null;
+          uploaded_url?: string | null;
+          uploaded_storage_path?: string | null;
+          uploaded_media_kind?: string | null;
+          uploaded_content_hash?: string | null;
+          uploaded_at?: string | null;
+        };
+        Relationships: [];
+      };
       screen_takeovers: {
         Row: {
           venue_id: string;
@@ -888,6 +1167,22 @@ export type Database = {
           public_url: string | null;
           obs_scene_name: string | null;
           activated_at: string | null;
+        };
+        Relationships: [];
+      };
+      led_wall_override_listings: {
+        Row: {
+          venue_id: string;
+          scene_id: string;
+          server_item_id: string | null;
+          ends_at: string;
+          updated_at: string;
+          title: string;
+          kind: "obs" | "media" | "trivia" | "audience";
+          media_kind: "image" | "video" | "week_events" | null;
+          public_url: string | null;
+          obs_scene_name: string | null;
+          duration_seconds: number;
         };
         Relationships: [];
       };
@@ -1485,21 +1780,24 @@ export type Database = {
       };
       current_membership_role: {
         Args: { p_venue_id: string };
-        Returns: "admin" | "manager" | "interactor" | "viewer";
+        Returns: "admin" | "manager" | "interactor" | "viewer" | "server";
       };
       is_venue_member: {
         Args: { p_venue_id: string };
         Returns: boolean;
       };
       has_venue_role: {
-        Args: { p_venue_id: string; p_roles: ("admin" | "manager" | "interactor" | "viewer")[] };
+        Args: {
+          p_venue_id: string;
+          p_roles: ("admin" | "manager" | "interactor" | "viewer" | "server")[];
+        };
         Returns: boolean;
       };
       list_venue_staff: {
         Args: { p_venue_id: string };
         Returns: {
           user_id: string;
-          role: "admin" | "manager" | "interactor" | "viewer";
+          role: "admin" | "manager" | "interactor" | "viewer" | "server";
           display_name: string;
           email: string | null;
           created_at: string;
@@ -1507,7 +1805,7 @@ export type Database = {
       };
     };
     Enums: {
-      staff_role: "admin" | "manager" | "interactor" | "viewer";
+      staff_role: "admin" | "manager" | "interactor" | "viewer" | "server";
       event_status: "draft" | "published" | "cancelled";
       event_visibility: "public" | "private";
       event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";

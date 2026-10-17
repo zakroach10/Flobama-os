@@ -1,0 +1,898 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { activateDefaultAdRollAction } from "@/actions/artist-led";
+import {
+  getServerStationGate,
+  writeServerStationAudit,
+  type ServerStationGateOk,
+} from "@/lib/server-station/context";
+import { listServerStationEvents } from "@/lib/server-station/events";
+import {
+  durationPresetLabel,
+  resolveServerStationEndsAt,
+  type ServerStationDurationPreset,
+} from "@/lib/server-station/expiration";
+import {
+  validateGuestDisplayName,
+  validateServerStationMessage,
+  validateSpecialCopy,
+} from "@/lib/server-station/moderation";
+import { clearExpiredLedOverride, getLedWallProtection } from "@/lib/server-station/overrides";
+import { getServerStationSettings } from "@/lib/server-station/settings";
+import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
+import { isMissingServerStationRelation, SERVER_STATION_SQL } from "@/lib/auth/server-station";
+import { SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getPublicAppUrl } from "@/lib/env";
+import { joinPublicUrl } from "@/lib/public/urls";
+import { hashDisplaySecret } from "@/lib/display-devices/crypto";
+import { randomBytes } from "node:crypto";
+import { SERVER_STATION_TEMPLATES } from "@/lib/server-station/templates";
+
+export type ServerStationActionResult = {
+  ok: boolean;
+  message: string;
+  queued?: boolean;
+  itemId?: string;
+  uploadUrl?: string;
+  sessionId?: string;
+  expiresAt?: string;
+};
+
+function sqlMessage(message: string) {
+  if (isMissingServerStationRelation(message)) {
+    return `Apply ${SERVER_STATION_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  return message;
+}
+
+function revalidateServerStation() {
+  revalidatePath("/server");
+  revalidatePath("/screens");
+  revalidatePath("/display/led");
+  revalidatePath("/api/public/v1/screens/led");
+  revalidatePath("/settings");
+}
+
+const durationSchema = z.union([z.literal(5), z.literal(15), z.literal(30), z.literal("tonight")]);
+
+async function resolveTemporaryPlaylistId(
+  client: ServerStationGateOk["writeClient"],
+  venueId: string,
+  configuredId: string | null,
+) {
+  if (configuredId) return configuredId;
+  const { data: settings } = await client
+    .from("led_wall_settings")
+    .select("default_playlist_id")
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  return settings?.default_playlist_id ?? null;
+}
+
+async function nextSceneSortOrder(
+  client: ServerStationGateOk["writeClient"],
+  venueId: string,
+) {
+  const { count } = await client
+    .from("led_wall_scenes")
+    .select("id", { count: "exact", head: true })
+    .eq("venue_id", venueId);
+  return count ?? 0;
+}
+
+export async function getServerStationDashboardAction() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false as const, message: gate.message };
+  const wall = await getServerStationWallStatus(gate.writeClient, gate.venueId);
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  return {
+    ok: true as const,
+    wall,
+    settings,
+    actor: gate.actor,
+    mode: gate.mode,
+  };
+}
+
+export async function listServerStationEventsAction(input: unknown) {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false as const, message: gate.message, events: [] };
+  const parsed = z
+    .object({
+      bucket: z.enum(["tonight", "tomorrow", "weekend", "upcoming", "search"]),
+      query: z.string().trim().max(80).optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false as const, message: "Invalid search.", events: [] };
+
+  const result = await listServerStationEvents(gate.writeClient, gate.venueId, {
+    bucket: parsed.data.bucket,
+    query: parsed.data.query,
+    timeZone: gate.timeZone,
+  });
+  if (result.error) return { ok: false as const, message: result.error, events: [] };
+  return { ok: true as const, events: result.events };
+}
+
+export async function listServerApprovedScenesAction() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false as const, message: gate.message, scenes: [], playlists: [] };
+
+  const { data: scenes, error } = await gate.writeClient
+    .from("led_wall_scenes")
+    .select("id, title, kind, media_kind, public_url, server_approved, enabled")
+    .eq("venue_id", gate.venueId)
+    .eq("enabled", true)
+    .eq("server_approved", true)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    return {
+      ok: false as const,
+      message: sqlMessage(error.message),
+      scenes: [],
+      playlists: [],
+    };
+  }
+
+  const { data: settings } = await gate.writeClient
+    .from("led_wall_settings")
+    .select("default_playlist_id")
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+
+  const { data: playlists } = await gate.writeClient
+    .from("led_wall_playlists")
+    .select("id, name")
+    .eq("venue_id", gate.venueId)
+    .is("archived_at", null)
+    .order("name", { ascending: true });
+
+  return {
+    ok: true as const,
+    scenes: scenes ?? [],
+    playlists: playlists ?? [],
+    defaultPlaylistId: settings?.default_playlist_id ?? null,
+  };
+}
+
+export async function activateServerStationSceneAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      sceneId: z.string().uuid().optional(),
+      playlistId: z.string().uuid().optional(),
+      resumeNormal: z.boolean().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Choose a wall option." };
+
+  const wall = await getServerStationWallStatus(gate.writeClient, gate.venueId);
+  if (!wall.connected && !parsed.data.resumeNormal) {
+    return {
+      ok: false,
+      message: wall.offlineReason || "The LED wall is offline. Try again when it reconnects.",
+    };
+  }
+
+  if (parsed.data.resumeNormal) {
+    // Clear any server override first, then return to house ads / default playlist.
+    await gate.writeClient.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+    if (gate.mode === "staff" && gate.staffContext) {
+      const result = await activateDefaultAdRollAction();
+      await writeServerStationAudit(gate.writeClient, {
+        venueId: gate.venueId,
+        actor: gate.actor,
+        action: "resume_normal",
+        detail: { ok: result.ok, message: result.message },
+      });
+      revalidateServerStation();
+      return { ok: result.ok, message: result.ok ? "Returned to normal rotation." : result.message };
+    }
+
+    const { data: settings } = await gate.writeClient
+      .from("led_wall_settings")
+      .select("default_playlist_id")
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    if (!settings?.default_playlist_id) {
+      return { ok: false, message: "House ads playlist is not set up yet. Ask a manager." };
+    }
+    const { error } = await gate.writeClient.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.venueId,
+        active_scene_id: null,
+        active_playlist_id: settings.default_playlist_id,
+        activation_source: "ad_roll",
+        auto_event_id: null,
+        auto_artist_id: null,
+      },
+      { onConflict: "venue_id" },
+    );
+    if (error) return { ok: false, message: sqlMessage(error.message) };
+    await writeServerStationAudit(gate.writeClient, {
+      venueId: gate.venueId,
+      actor: gate.actor,
+      action: "resume_normal",
+    });
+    revalidateServerStation();
+    return { ok: true, message: "Returned to normal rotation." };
+  }
+
+  if (parsed.data.playlistId) {
+    const { data: playlist } = await gate.writeClient
+      .from("led_wall_playlists")
+      .select("id, name")
+      .eq("id", parsed.data.playlistId)
+      .eq("venue_id", gate.venueId)
+      .is("archived_at", null)
+      .maybeSingle();
+    if (!playlist) return { ok: false, message: "That playlist is not available." };
+
+    const { error } = await gate.writeClient.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.venueId,
+        active_scene_id: null,
+        active_playlist_id: playlist.id,
+        activation_source: "manual",
+        auto_event_id: null,
+        auto_artist_id: null,
+      },
+      { onConflict: "venue_id" },
+    );
+    if (error) return { ok: false, message: sqlMessage(error.message) };
+    await writeServerStationAudit(gate.writeClient, {
+      venueId: gate.venueId,
+      actor: gate.actor,
+      action: "activate_playlist",
+      detail: { playlistId: playlist.id, name: playlist.name },
+    });
+    revalidateServerStation();
+    return { ok: true, message: `${playlist.name} is now on the LED wall.` };
+  }
+
+  if (!parsed.data.sceneId) return { ok: false, message: "Choose a scene." };
+
+  const { data: scene } = await gate.writeClient
+    .from("led_wall_scenes")
+    .select("id, title, enabled, server_approved, kind")
+    .eq("id", parsed.data.sceneId)
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+
+  if (!scene || !scene.enabled) return { ok: false, message: "That scene is not available." };
+  if (gate.actor.role === "server" && !scene.server_approved) {
+    return { ok: false, message: "That scene is not approved for servers." };
+  }
+  if (scene.kind === "trivia" || scene.kind === "audience") {
+    return { ok: false, message: "That scene is only for managers." };
+  }
+
+  const { error } = await gate.writeClient.from("led_wall_runtime").upsert(
+    {
+      venue_id: gate.venueId,
+      active_scene_id: scene.id,
+      active_playlist_id: null,
+      activation_source: "manual",
+      auto_event_id: null,
+      auto_artist_id: null,
+    },
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "activate_scene",
+    detail: { sceneId: scene.id, title: scene.title },
+  });
+  revalidateServerStation();
+  return { ok: true, message: `LED wall switched to ${scene.title}.` };
+}
+
+export async function publishServerStationGraphicAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = z
+    .object({
+      kind: z.enum(["food_special", "drink_special", "birthday", "celebration", "message", "upload"]),
+      celebrationType: z.enum(["birthday", "anniversary", "congratulations", "celebration"]).optional(),
+      title: z.string().trim().min(1).max(120),
+      subtitle: z.string().trim().max(120).optional().nullable(),
+      price: z.string().trim().max(24).optional().nullable(),
+      templateId: z.string().trim().max(40).optional(),
+      publicUrl: z.string().url(),
+      storagePath: z.string().trim().min(1).max(400),
+      contentHash: z.string().trim().max(128).optional().nullable(),
+      durationPreset: durationSchema.default("tonight"),
+      mode: z.enum(["show_now", "add_rotation"]),
+      photoUrl: z.string().url().optional().nullable(),
+    })
+    .safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Check the form and try again." };
+  }
+
+  const data = parsed.data;
+  if (data.kind === "food_special" || data.kind === "drink_special") {
+    const copy = validateSpecialCopy({
+      itemName: data.title,
+      price: data.price,
+      description: data.subtitle,
+    });
+    if (!copy.ok) return { ok: false, message: copy.message };
+  } else if (data.kind === "birthday" || data.kind === "celebration") {
+    const name = validateGuestDisplayName(data.title);
+    if (!name.ok) return { ok: false, message: name.message };
+  } else if (data.kind === "message") {
+    const message = validateServerStationMessage({
+      headline: data.title,
+      subtitle: data.subtitle,
+    });
+    if (!message.ok) return { ok: false, message: message.message };
+  }
+
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  if (data.mode === "show_now" && !settings.show_now_enabled) {
+    return { ok: false, message: "Show Now is turned off. Add to rotation instead." };
+  }
+
+  const needsApproval =
+    settings.birthday_approval_required &&
+    (data.kind === "birthday" || data.kind === "celebration" || data.celebrationType === "birthday");
+
+  const endsAt = resolveServerStationEndsAt({
+    preset: data.durationPreset as ServerStationDurationPreset,
+    timeZone: gate.timeZone,
+    businessNightEndHour: settings.business_night_end_hour,
+  });
+
+  const sceneId = crypto.randomUUID();
+  const title =
+    data.kind === "birthday"
+      ? `Happy Birthday ${data.title}`
+      : data.kind === "celebration"
+        ? `${(data.celebrationType || "celebration").replace(/^\w/, (c) => c.toUpperCase())} ${data.title}`
+        : data.title;
+
+  const { error: sceneError } = await gate.writeClient.from("led_wall_scenes").insert({
+    id: sceneId,
+    venue_id: gate.venueId,
+    title: title.slice(0, 120),
+    kind: "media",
+    media_kind: "image",
+    storage_path: data.storagePath,
+    public_url: data.publicUrl,
+      sort_order: await nextSceneSortOrder(gate.writeClient, gate.venueId),
+    enabled: true,
+    server_approved: false,
+  });
+  if (sceneError) return { ok: false, message: sqlMessage(sceneError.message) };
+
+  if (data.contentHash) {
+    await gate.writeClient.from("media_content_hashes").upsert(
+      {
+        venue_id: gate.venueId,
+        asset_kind: "led_scene",
+        asset_id: sceneId,
+        sha256: data.contentHash,
+        size_bytes: null,
+        media_type: "image/png",
+        storage_path: data.storagePath,
+        computed_at: new Date().toISOString(),
+      },
+      { onConflict: "asset_kind,asset_id" },
+    );
+  }
+
+  let status: "active" | "queued" | "pending_approval" = needsApproval ? "pending_approval" : "active";
+  let playlistItemId: string | null = null;
+  let queued = false;
+
+  if (needsApproval) {
+    const { data: item, error: itemError } = await gate.writeClient
+      .from("led_server_items")
+      .insert({
+        venue_id: gate.venueId,
+        kind: data.kind === "celebration" ? "celebration" : data.kind,
+        title: title.slice(0, 120),
+        subtitle: data.subtitle ?? data.price ?? null,
+        template_id: data.templateId || "classic",
+        status,
+        scene_id: sceneId,
+        thumbnail_url: data.publicUrl,
+        public_url: data.publicUrl,
+        storage_path: data.storagePath,
+        content_hash: data.contentHash ?? null,
+        created_by: gate.actor.userId,
+        created_by_name: gate.actor.displayName,
+        device_id: gate.actor.deviceId,
+        ends_at: endsAt,
+        show_now: data.mode === "show_now",
+      })
+      .select("id")
+      .single();
+    if (itemError) return { ok: false, message: sqlMessage(itemError.message) };
+    await writeServerStationAudit(gate.writeClient, {
+      venueId: gate.venueId,
+      actor: gate.actor,
+      action: "content_pending_approval",
+      detail: { itemId: item.id, title },
+    });
+    revalidateServerStation();
+    return {
+      ok: true,
+      message: "Saved for manager approval before it goes on the wall.",
+      itemId: item.id,
+    };
+  }
+
+  if (data.mode === "show_now") {
+    const protection = await getLedWallProtection(gate.writeClient, gate.venueId);
+    if (protection.protected) {
+      queued = true;
+      status = "queued";
+    } else {
+      const { data: runtime } = await gate.writeClient
+        .from("led_wall_runtime")
+        .select("active_scene_id, active_playlist_id, activation_source")
+        .eq("venue_id", gate.venueId)
+        .maybeSingle();
+
+      const overrideEnds =
+        data.durationPreset === "tonight"
+          ? endsAt
+          : new Date(
+              Date.now() +
+                (typeof data.durationPreset === "number"
+                  ? data.durationPreset
+                  : settings.default_override_minutes) *
+                  60_000,
+            ).toISOString();
+
+      // Single-row upsert prevents concurrent staff from stacking conflicting overrides.
+      const { error: overrideError } = await gate.writeClient.from("led_wall_overrides").upsert(
+        {
+          venue_id: gate.venueId,
+          scene_id: sceneId,
+          ends_at: overrideEnds,
+          previous_scene_id: runtime?.active_scene_id ?? null,
+          previous_playlist_id: runtime?.active_playlist_id ?? null,
+          previous_activation_source: runtime?.activation_source ?? null,
+          created_by: gate.actor.userId,
+        },
+        { onConflict: "venue_id" },
+      );
+      if (overrideError) return { ok: false, message: sqlMessage(overrideError.message) };
+
+      const { error: runtimeError } = await gate.writeClient.from("led_wall_runtime").upsert(
+        {
+          venue_id: gate.venueId,
+          active_scene_id: sceneId,
+          active_playlist_id: null,
+          activation_source: "server_override",
+          auto_event_id: null,
+          auto_artist_id: null,
+        },
+        { onConflict: "venue_id" },
+      );
+      if (runtimeError) return { ok: false, message: sqlMessage(runtimeError.message) };
+    }
+  }
+
+  if (data.mode === "add_rotation" || queued) {
+    const playlistId = await resolveTemporaryPlaylistId(
+      gate.writeClient,
+      gate.venueId,
+      settings.temporary_playlist_id,
+    );
+    if (!playlistId) {
+      return {
+        ok: false,
+        message: "No house playlist is configured for temporary slides. Ask an admin.",
+      };
+    }
+
+    const { count } = await gate.writeClient
+      .from("led_wall_playlist_items")
+      .select("id", { count: "exact", head: true })
+      .eq("playlist_id", playlistId)
+      .eq("venue_id", gate.venueId);
+
+    const { data: itemRow, error: itemInsertError } = await gate.writeClient
+      .from("led_wall_playlist_items")
+      .insert({
+        playlist_id: playlistId,
+        venue_id: gate.venueId,
+        scene_id: sceneId,
+        duration_seconds: settings.default_slide_seconds,
+        sort_order: count ?? 0,
+        enabled: true,
+      })
+      .select("id")
+      .single();
+    if (itemInsertError) return { ok: false, message: sqlMessage(itemInsertError.message) };
+    playlistItemId = itemRow.id;
+    status = queued ? "queued" : "active";
+  }
+
+  const { data: item, error: itemError } = await gate.writeClient
+    .from("led_server_items")
+    .insert({
+      venue_id: gate.venueId,
+      kind: data.kind === "celebration" ? "celebration" : data.kind,
+      title: title.slice(0, 120),
+      subtitle: data.subtitle ?? data.price ?? null,
+      template_id: data.templateId || SERVER_STATION_TEMPLATES[0].id,
+      status,
+      scene_id: sceneId,
+      playlist_item_id: playlistItemId,
+      thumbnail_url: data.publicUrl,
+      public_url: data.publicUrl,
+      storage_path: data.storagePath,
+      content_hash: data.contentHash ?? null,
+      created_by: gate.actor.userId,
+      created_by_name: gate.actor.displayName,
+      device_id: gate.actor.deviceId,
+      ends_at: endsAt,
+      show_now: data.mode === "show_now" && !queued,
+    })
+    .select("id")
+    .single();
+  if (itemError) return { ok: false, message: sqlMessage(itemError.message) };
+
+  if (data.mode === "show_now" && !queued) {
+    await gate.writeClient
+      .from("led_wall_overrides")
+      .update({ server_item_id: item.id })
+      .eq("venue_id", gate.venueId);
+  }
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: queued ? "content_queued" : data.mode === "show_now" ? "content_show_now" : "content_rotation",
+    detail: {
+      itemId: item.id,
+      title,
+      duration: durationPresetLabel(data.durationPreset as ServerStationDurationPreset),
+    },
+  });
+
+  revalidateServerStation();
+
+  if (queued) {
+    return {
+      ok: true,
+      message: "The show is protected right now, so this was added to the rotation instead.",
+      queued: true,
+      itemId: item.id,
+    };
+  }
+  if (data.mode === "show_now") {
+    return {
+      ok: true,
+      message: `Showing on the LED wall now (${durationPresetLabel(data.durationPreset as ServerStationDurationPreset)}).`,
+      itemId: item.id,
+    };
+  }
+  return {
+    ok: true,
+    message: `Added to the LED rotation until ${durationPresetLabel(data.durationPreset as ServerStationDurationPreset).toLowerCase()}.`,
+    itemId: item.id,
+  };
+}
+
+export async function listActiveServerStationItemsAction() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false as const, message: gate.message, items: [] };
+
+  const { data, error } = await gate.writeClient
+    .from("led_server_items")
+    .select(
+      "id, kind, title, subtitle, status, thumbnail_url, created_by_name, ends_at, show_now, created_at",
+    )
+    .eq("venue_id", gate.venueId)
+    .in("status", ["active", "queued", "pending_approval"])
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (error) return { ok: false as const, message: sqlMessage(error.message), items: [] };
+  return { ok: true as const, items: data ?? [] };
+}
+
+export async function removeServerStationItemAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z.object({ itemId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Choose an item to remove." };
+
+  const { data: item } = await gate.writeClient
+    .from("led_server_items")
+    .select("id, playlist_item_id, scene_id, created_by, title")
+    .eq("id", parsed.data.itemId)
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  if (!item) return { ok: false, message: "That item is gone." };
+  if (gate.actor.role === "server" && item.created_by && item.created_by !== gate.actor.userId) {
+    // Servers can remove any temporary Server Station item they can see; protected ads are not in this table.
+  }
+
+  if (item.playlist_item_id) {
+    await gate.writeClient
+      .from("led_wall_playlist_items")
+      .update({ enabled: false, archived_at: new Date().toISOString() })
+      .eq("id", item.playlist_item_id)
+      .eq("venue_id", gate.venueId);
+  }
+
+  const { data: override } = await gate.writeClient
+    .from("led_wall_overrides")
+    .select("scene_id")
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  if (override?.scene_id && override.scene_id === item.scene_id) {
+    await gate.writeClient.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+    const { data: settings } = await gate.writeClient
+      .from("led_wall_settings")
+      .select("default_playlist_id")
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    if (settings?.default_playlist_id) {
+      await gate.writeClient.from("led_wall_runtime").upsert(
+        {
+          venue_id: gate.venueId,
+          active_scene_id: null,
+          active_playlist_id: settings.default_playlist_id,
+          activation_source: "ad_roll",
+          auto_event_id: null,
+          auto_artist_id: null,
+        },
+        { onConflict: "venue_id" },
+      );
+    }
+  }
+
+  await gate.writeClient
+    .from("led_server_items")
+    .update({ status: "removed" })
+    .eq("id", item.id)
+    .eq("venue_id", gate.venueId);
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "content_removed",
+    detail: { itemId: item.id, title: item.title },
+  });
+  revalidateServerStation();
+  return { ok: true, message: "Removed from the LED wall." };
+}
+
+export async function extendServerStationItemAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      itemId: z.string().uuid(),
+      durationPreset: durationSchema,
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Choose how long to extend." };
+
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  const endsAt = resolveServerStationEndsAt({
+    preset: parsed.data.durationPreset as ServerStationDurationPreset,
+    timeZone: gate.timeZone,
+    businessNightEndHour: settings.business_night_end_hour,
+  });
+
+  const { data: item, error } = await gate.writeClient
+    .from("led_server_items")
+    .update({ ends_at: endsAt, status: "active" })
+    .eq("id", parsed.data.itemId)
+    .eq("venue_id", gate.venueId)
+    .in("status", ["active", "queued", "expired"])
+    .select("id, title, playlist_item_id")
+    .maybeSingle();
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+  if (!item) return { ok: false, message: "That item is not available." };
+
+  if (item.playlist_item_id) {
+    await gate.writeClient
+      .from("led_wall_playlist_items")
+      .update({ enabled: true, archived_at: null })
+      .eq("id", item.playlist_item_id)
+      .eq("venue_id", gate.venueId);
+  }
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "content_extended",
+    detail: { itemId: item.id, endsAt },
+  });
+  revalidateServerStation();
+  return {
+    ok: true,
+    message: `Extended ${item.title} (${durationPresetLabel(parsed.data.durationPreset as ServerStationDurationPreset)}).`,
+  };
+}
+
+export async function issueServerStationUploadSessionAction(input?: {
+  workflow?: "upload" | "special" | "birthday" | "message";
+}): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const token = randomBytes(24).toString("base64url");
+  const tokenHash = hashDisplaySecret(token);
+  const expiresAt = new Date(Date.now() + SERVER_STATION_UPLOAD_TTL_SECONDS * 1000).toISOString();
+  const workflow = input?.workflow ?? "upload";
+
+  const { data, error } = await gate.writeClient
+    .from("server_station_upload_sessions")
+    .insert({
+      venue_id: gate.venueId,
+      device_id: gate.actor.deviceId,
+      created_by: gate.actor.userId,
+      workflow,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+
+  const uploadUrl = joinPublicUrl(getPublicAppUrl(), `/server/upload/phone?t=${token}`);
+  return {
+    ok: true,
+    message: "Scan with your phone to upload a picture.",
+    uploadUrl,
+    sessionId: data.id,
+    expiresAt,
+  };
+}
+
+export async function pollServerStationUploadSessionAction(input: unknown) {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false as const, message: gate.message };
+  const parsed = z.object({ sessionId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, message: "Missing upload session." };
+
+  const { data, error } = await gate.writeClient
+    .from("server_station_upload_sessions")
+    .select(
+      "id, expires_at, uploaded_url, uploaded_storage_path, uploaded_media_kind, uploaded_content_hash, uploaded_at, consumed_at",
+    )
+    .eq("id", parsed.data.sessionId)
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  if (error) return { ok: false as const, message: sqlMessage(error.message) };
+  if (!data) return { ok: false as const, message: "Upload session not found." };
+  if (Date.parse(data.expires_at) <= Date.now() && !data.uploaded_url) {
+    return { ok: false as const, message: "This upload QR expired. Create a new one." };
+  }
+
+  return {
+    ok: true as const,
+    uploaded: Boolean(data.uploaded_url),
+    url: data.uploaded_url,
+    storagePath: data.uploaded_storage_path,
+    mediaKind: data.uploaded_media_kind,
+    contentHash: data.uploaded_content_hash,
+    uploadedAt: data.uploaded_at,
+  };
+}
+
+export async function updateServerStationSettingsAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("configure");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = z
+    .object({
+      showNowEnabled: z.boolean(),
+      birthdayApprovalRequired: z.boolean(),
+      temporaryPlaylistId: z.string().uuid().nullable(),
+      defaultSlideSeconds: z.number().int().min(5).max(120),
+      defaultOverrideMinutes: z.number().int().min(1).max(120),
+      maxUploadBytes: z.number().int().min(1_000_000).max(50_000_000),
+      businessNightEndHour: z.number().int().min(0).max(6),
+      staffIdleSeconds: z.number().int().min(30).max(3600),
+      approvedSceneIds: z.array(z.string().uuid()).default([]),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Check the Server Station settings." };
+
+  const { error } = await gate.writeClient.from("server_station_settings").upsert(
+    {
+      venue_id: gate.venueId,
+      show_now_enabled: parsed.data.showNowEnabled,
+      birthday_approval_required: parsed.data.birthdayApprovalRequired,
+      temporary_playlist_id: parsed.data.temporaryPlaylistId,
+      default_slide_seconds: parsed.data.defaultSlideSeconds,
+      default_override_minutes: parsed.data.defaultOverrideMinutes,
+      max_upload_bytes: parsed.data.maxUploadBytes,
+      business_night_end_hour: parsed.data.businessNightEndHour,
+      staff_idle_seconds: parsed.data.staffIdleSeconds,
+    },
+    { onConflict: "venue_id" },
+  );
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+
+  await gate.writeClient
+    .from("led_wall_scenes")
+    .update({ server_approved: false })
+    .eq("venue_id", gate.venueId);
+
+  if (parsed.data.approvedSceneIds.length) {
+    await gate.writeClient
+      .from("led_wall_scenes")
+      .update({ server_approved: true })
+      .eq("venue_id", gate.venueId)
+      .in("id", parsed.data.approvedSceneIds);
+  }
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "settings_updated",
+  });
+  revalidateServerStation();
+  return { ok: true, message: "Server Station settings saved." };
+}
+
+export async function cancelServerStationOverrideAction(): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  if (gate.actor.role === "server") {
+    // Servers can cancel overrides they created via remove; managers/admins cancel freely.
+  }
+
+  await gate.writeClient.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+  const { data: settings } = await gate.writeClient
+    .from("led_wall_settings")
+    .select("default_playlist_id")
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  if (settings?.default_playlist_id) {
+    await gate.writeClient.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.venueId,
+        active_scene_id: null,
+        active_playlist_id: settings.default_playlist_id,
+        activation_source: "ad_roll",
+        auto_event_id: null,
+        auto_artist_id: null,
+      },
+      { onConflict: "venue_id" },
+    );
+  }
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "override_cancelled",
+  });
+  revalidateServerStation();
+  return { ok: true, message: "Temporary wall override cleared." };
+}
+
+/** Called from LED cron — expires overrides and temporary slides. */
+export async function runServerStationMaintenance(venueId: string) {
+  const admin = createServiceRoleClient();
+  if (!admin) return { overridesCleared: false, itemsExpired: 0 };
+  const cleared = await clearExpiredLedOverride(admin, venueId);
+  const { expireServerStationItems } = await import("@/lib/server-station/overrides");
+  const expired = await expireServerStationItems(admin, venueId);
+  return {
+    overridesCleared: Boolean(cleared.cleared),
+    itemsExpired: expired.removed,
+  };
+}
