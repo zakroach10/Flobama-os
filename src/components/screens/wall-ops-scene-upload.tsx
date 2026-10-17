@@ -17,10 +17,12 @@ export function WallOpsSceneUpload({
   venueId,
   supabaseEnv,
   disabled = false,
+  compact = false,
 }: {
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -47,7 +49,7 @@ export function WallOpsSceneUpload({
     }
     void QRCode.toDataURL(uploadUrl, {
       margin: 1,
-      width: 280,
+      width: compact ? 200 : 280,
       color: { dark: "#1b1612", light: "#f7f1ea" },
     }).then((url) => {
       if (!cancelled) setQrDataUrl(url);
@@ -55,7 +57,7 @@ export function WallOpsSceneUpload({
     return () => {
       cancelled = true;
     };
-  }, [uploadUrl]);
+  }, [compact, uploadUrl]);
 
   function refreshPhoneLink() {
     startPhoneTransition(async () => {
@@ -72,153 +74,178 @@ export function WallOpsSceneUpload({
   }
 
   return (
-    <section className="flex min-h-0 flex-col gap-4 rounded-2xl border border-border/70 bg-card/75 p-4 sm:p-5">
-      <div>
-        <h2 className="text-sm font-semibold tracking-[0.16em] text-muted-foreground uppercase">Upload Scene</h2>
-        <p className="text-sm text-muted-foreground">
-          Drop an MP4 loop or PNG still onto the LED wall from this computer, or scan a QR to upload from a phone.
-        </p>
+    <section
+      className={cn(
+        "flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/75",
+        compact ? "gap-2 p-3" : "gap-4 p-4 sm:p-5",
+      )}
+    >
+      <div className="shrink-0">
+        <h2 className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">Upload Scene</h2>
+        <p className="text-xs text-muted-foreground">MP4 loop or PNG still · phone QR available</p>
       </div>
 
-      <form
-        className="grid gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (disabled) return;
-          if (!file) {
-            toast.error("Choose an MP4 or PNG.");
-            return;
-          }
-          startTransition(async () => {
-            const result = await uploadLedMediaFromBrowser({
-              file,
-              venueId,
-              title,
-              supabaseEnv,
-            });
-            if (!result.ok) {
-              toast.error(result.message);
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+        <form
+          className="grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (disabled) return;
+            if (!file) {
+              toast.error("Choose an MP4 or PNG.");
               return;
             }
-            toast.success(result.message);
-            if (activateAfter && result.id) {
-              const activated = await activateLedWallSceneAction({ sceneId: result.id });
-              if (!activated.ok) toast.error(activated.message);
-              else toast.success(activated.message);
-            }
-            setTitle("");
-            setFile(null);
-            setFileKey((value) => value + 1);
-            router.refresh();
-          });
-        }}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="wall-ops-media-title">Title</Label>
-          <Input
-            id="wall-ops-media-title"
-            value={title}
-            disabled={disabled || pending}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Optional — defaults to the file name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="wall-ops-media-file">MP4 or PNG</Label>
-          <input
-            key={fileKey}
-            id="wall-ops-media-file"
-            type="file"
-            accept="video/mp4,image/png,.mp4,.png"
-            disabled={disabled || pending}
-            className="block w-full text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-secondary-foreground"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-          <p className="text-xs text-muted-foreground">
-            50 MB max ({Math.round(MAX_SCREEN_AD_BYTES / (1024 * 1024))} MB).
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            className="size-4 rounded border-border"
-            checked={activateAfter}
-            disabled={disabled || pending}
-            onChange={(event) => setActivateAfter(event.target.checked)}
-          />
-          Put on the wall after upload
-        </label>
-        <Button type="submit" size="lg" className="min-h-12" disabled={disabled || pending || !file}>
-          {pending ? "Uploading…" : "Upload scene"}
-        </Button>
-      </form>
-
-      <div className="border-t border-border/60 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
-              Phone QR upload
-            </h3>
-            <p className="text-sm text-muted-foreground">Scan with a phone camera — no staff login on the phone.</p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="text-foreground"
-            disabled={disabled || phonePending}
-            onClick={() => {
-              if (phoneOpen && uploadUrl) {
-                setPhoneOpen(false);
+            startTransition(async () => {
+              const result = await uploadLedMediaFromBrowser({
+                file,
+                venueId,
+                title,
+                supabaseEnv,
+              });
+              if (!result.ok) {
+                toast.error(result.message);
                 return;
               }
-              refreshPhoneLink();
-            }}
-          >
-            {phonePending ? "Creating…" : phoneOpen ? "Hide QR" : "Show phone QR"}
+              toast.success(result.message);
+              if (activateAfter && result.id) {
+                const activated = await activateLedWallSceneAction({ sceneId: result.id });
+                if (!activated.ok) toast.error(activated.message);
+                else toast.success(activated.message);
+              }
+              setTitle("");
+              setFile(null);
+              setFileKey((value) => value + 1);
+              router.refresh();
+            });
+          }}
+        >
+          <div className="space-y-1">
+            <Label htmlFor="wall-ops-media-title" className="text-xs">
+              Title
+            </Label>
+            <Input
+              id="wall-ops-media-title"
+              value={title}
+              disabled={disabled || pending}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Optional file name"
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="wall-ops-media-file" className="text-xs">
+              MP4 or PNG
+            </Label>
+            <input
+              key={fileKey}
+              id="wall-ops-media-file"
+              type="file"
+              accept="video/mp4,image/png,.mp4,.png"
+              disabled={disabled || pending}
+              className="block w-full text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-secondary file:px-2.5 file:py-1.5 file:text-secondary-foreground"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {Math.round(MAX_SCREEN_AD_BYTES / (1024 * 1024))} MB max
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              className="size-3.5 rounded border-border"
+              checked={activateAfter}
+              disabled={disabled || pending}
+              onChange={(event) => setActivateAfter(event.target.checked)}
+            />
+            Put on the wall after upload
+          </label>
+          <Button type="submit" className="min-h-10" disabled={disabled || pending || !file}>
+            {pending ? "Uploading…" : "Upload scene"}
           </Button>
-        </div>
+        </form>
 
-        {phoneOpen && uploadUrl ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
-            <div className="mx-auto rounded-xl bg-[#f7f1ea] p-3">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={qrDataUrl} alt="Phone upload QR code" className="size-44" />
-              ) : (
-                <div className="flex size-44 items-center justify-center text-xs text-[#1b1612]/70">Building QR…</div>
-              )}
+        <div className="border-t border-border/60 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Phone QR
+              </h3>
+              <p className="text-xs text-muted-foreground">No staff login on the phone</p>
             </div>
-            <div className="space-y-3 text-sm">
-              <p className="text-muted-foreground">
-                Expires {expiresAt ? new Date(expiresAt).toLocaleTimeString() : "in 15 minutes"}. Generate a new QR
-                anytime.
-              </p>
-              <p className={cn("break-all rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs")}>
-                {uploadUrl}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={phonePending}
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(uploadUrl);
-                      toast.success("Upload link copied.");
-                    } catch {
-                      toast.error("Could not copy the link.");
-                    }
-                  }}
-                >
-                  Copy link
-                </Button>
-                <Button type="button" variant="outline" className="text-foreground" disabled={phonePending} onClick={refreshPhoneLink}>
-                  {phonePending ? "Refreshing…" : "New QR"}
-                </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-foreground"
+              disabled={disabled || phonePending}
+              onClick={() => {
+                if (phoneOpen && uploadUrl) {
+                  setPhoneOpen(false);
+                  return;
+                }
+                refreshPhoneLink();
+              }}
+            >
+              {phonePending ? "Creating…" : phoneOpen ? "Hide QR" : "Show QR"}
+            </Button>
+          </div>
+
+          {phoneOpen && uploadUrl ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-start">
+              <div className="mx-auto rounded-lg bg-[#f7f1ea] p-2">
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrDataUrl} alt="Phone upload QR code" className={compact ? "size-36" : "size-44"} />
+                ) : (
+                  <div
+                    className={cn(
+                      "flex items-center justify-center text-xs text-[#1b1612]/70",
+                      compact ? "size-36" : "size-44",
+                    )}
+                  >
+                    Building QR…
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 text-xs">
+                <p className="text-muted-foreground">
+                  Expires {expiresAt ? new Date(expiresAt).toLocaleTimeString() : "in 15 minutes"}.
+                </p>
+                <p className={cn("break-all rounded-lg border border-border/70 bg-background/50 px-2 py-1.5 text-[10px]")}>
+                  {uploadUrl}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={phonePending}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(uploadUrl);
+                        toast.success("Upload link copied.");
+                      } catch {
+                        toast.error("Could not copy the link.");
+                      }
+                    }}
+                  >
+                    Copy link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-foreground"
+                    disabled={phonePending}
+                    onClick={refreshPhoneLink}
+                  >
+                    {phonePending ? "Refreshing…" : "New QR"}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </section>
   );
