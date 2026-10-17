@@ -137,7 +137,7 @@ export function ServerStationPhoneUploadPanel({
             </div>
             <div className="flex flex-wrap gap-3">
               <ServerStationButton
-                disabled={pending || !wall.connected}
+                disabled={pending}
                 onClick={() => {
                   startTransition(async () => {
                     const blob = await renderServerStationGraphicBlob({

@@ -1,52 +1,68 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  activateServerStationSceneAction,
-  listServerApprovedScenesAction,
-} from "@/actions/server-station";
+import { activateServerStationSceneAction } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
+import type {
+  ServerStationPlaylistCard,
+  ServerStationSceneCard,
+} from "@/lib/server-station/scenes";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 
-type Scene = {
-  id: string;
-  title: string;
-  kind: string;
-  media_kind: string | null;
-  public_url: string | null;
-};
-
-type Playlist = { id: string; name: string };
+function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
+  const url = scene.preview_url;
+  if (url && scene.media_kind === "video") {
+    return (
+      <video
+        src={url}
+        muted
+        playsInline
+        preload="metadata"
+        className="h-28 w-full object-cover"
+      />
+    );
+  }
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" className="h-28 w-full object-cover" loading="lazy" decoding="async" />
+    );
+  }
+  if (scene.kind === "obs") {
+    return (
+      <div className="flex h-28 flex-col items-center justify-center gap-1 bg-white/5 px-3 text-center text-[#e8d5c4]">
+        <span className="text-xs font-semibold tracking-[0.16em] uppercase opacity-70">OBS</span>
+        <span className="line-clamp-2 text-sm font-medium">{scene.obs_scene_name || scene.title}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-28 items-center justify-center bg-white/5 text-[#e8d5c4]">Scene</div>
+  );
+}
 
 export function ServerStationWallControls({
   actorName,
   wall,
+  initialScenes,
+  initialPlaylists,
+  initialDefaultPlaylistId,
 }: {
   actorName: string;
   wall: ServerStationWallStatus;
+  initialScenes: ServerStationSceneCard[];
+  initialPlaylists: ServerStationPlaylistCard[];
+  initialDefaultPlaylistId: string | null;
 }) {
-  const [scenes, setScenes] = useState<Scene[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [defaultPlaylistId, setDefaultPlaylistId] = useState<string | null>(null);
+  const [scenes] = useState(initialScenes);
+  const [playlists] = useState(initialPlaylists);
+  const [defaultPlaylistId] = useState(initialDefaultPlaylistId);
   const [confirm, setConfirm] = useState<{ label: string; payload: Record<string, unknown> } | null>(
     null,
   );
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await listServerApprovedScenesAction();
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      setScenes(result.scenes as Scene[]);
-      setPlaylists(result.playlists as Playlist[]);
-      setDefaultPlaylistId(result.defaultPlaylistId);
-    });
-  }, []);
 
   function run(payload: Record<string, unknown>) {
     startTransition(async () => {
@@ -58,8 +74,6 @@ export function ServerStationWallControls({
     });
   }
 
-  const disabled = !wall.connected;
-
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="LED Wall Controls">
       <div className="mb-5 space-y-2">
@@ -69,7 +83,7 @@ export function ServerStationWallControls({
         </p>
       </div>
 
-      {disabled ? (
+      {!wall.connected && wall.offlineReason ? (
         <p className="mb-5 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-amber-50">
           {wall.offlineReason}
         </p>
@@ -83,7 +97,7 @@ export function ServerStationWallControls({
       <div className="grid gap-4 sm:grid-cols-2">
         <button
           type="button"
-          disabled={disabled || pending || !defaultPlaylistId}
+          disabled={pending || !defaultPlaylistId}
           onClick={() =>
             setConfirm({
               label: "House Ads / normal rotation",
@@ -99,7 +113,7 @@ export function ServerStationWallControls({
         {defaultPlaylistId ? (
           <button
             type="button"
-            disabled={disabled || pending}
+            disabled={pending}
             onClick={() =>
               setConfirm({
                 label: "House Ads",
@@ -120,7 +134,7 @@ export function ServerStationWallControls({
             <button
               key={playlist.id}
               type="button"
-              disabled={disabled || pending}
+              disabled={pending}
               onClick={() =>
                 setConfirm({
                   label: playlist.name,
@@ -138,7 +152,7 @@ export function ServerStationWallControls({
           <button
             key={scene.id}
             type="button"
-            disabled={disabled || pending}
+            disabled={pending}
             onClick={() =>
               setConfirm({
                 label: scene.title,
@@ -147,12 +161,7 @@ export function ServerStationWallControls({
             }
             className="min-h-[140px] overflow-hidden rounded-[28px] border border-white/15 bg-black/25 text-left disabled:opacity-40"
           >
-            {scene.public_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={scene.public_url} alt="" className="h-28 w-full object-cover" />
-            ) : (
-              <div className="flex h-28 items-center justify-center bg-white/5 text-[#e8d5c4]">Scene</div>
-            )}
+            <ScenePreview scene={scene} />
             <div className="p-5">
               <p className="text-xl font-bold text-[#f7efe6]">{scene.title}</p>
               <p className="mt-1 text-sm text-[#e8d5c4]">Approved scene</p>
@@ -161,7 +170,7 @@ export function ServerStationWallControls({
         ))}
       </div>
 
-      {!scenes.length && !pending ? (
+      {!scenes.length ? (
         <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5 text-[#e8d5c4]">
           No scenes are marked for servers yet. Ask an admin to approve scenes in Settings → Server Station.
         </p>

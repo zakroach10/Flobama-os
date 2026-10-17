@@ -87,7 +87,7 @@ export function ServerStationShell({
               )}
             >
               {wallStatusLabel(wall)}
-              {wall.connected ? ` · ${wall.currentlyPlaying}` : null}
+              {wall.currentlyPlaying ? ` · ${wall.currentlyPlaying}` : null}
             </p>
           </div>
           <Link
@@ -120,7 +120,7 @@ export function ServerStationShell({
             )}
           >
             {wallStatusLabel(wall)}
-            {wall.connected ? ` · Currently Playing: ${wall.currentlyPlaying}` : null}
+            {wall.currentlyPlaying ? ` · Currently Playing: ${wall.currentlyPlaying}` : null}
           </p>
           {!wall.connected && wall.offlineReason ? (
             <p className="mt-1 text-sm text-amber-100/90">{wall.offlineReason}</p>
