@@ -32,9 +32,10 @@ import { resolveServerStationEndsAt, durationPresetLabel } from "@/lib/server-st
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
 import {
-  filterServerStationScenes,
   isServerStationActivatableScene,
+  paginateServerStationScenes,
   resolveLedScenePreviewUrl,
+  SERVER_STATION_SCENE_PAGE_SIZE,
 } from "@/lib/server-station/scenes";
 import { wallStatusLabel } from "@/lib/server-station/wall-status-shared";
 import { canAutoArtistCut } from "@/lib/screens/led-wall-automation";
@@ -240,33 +241,23 @@ describe("server station artist scene access", () => {
     ).toBe(true);
   });
 
-  it("filters artists by search and letter without dumping the full roster", () => {
-    const scenes = [
-      {
-        id: "1",
-        title: "Alpha Band",
-        kind: "media",
-        media_kind: "image",
-        public_url: null,
-        preview_url: null,
-        obs_scene_name: null,
-        artist_id: "a",
-        server_approved: false,
-      },
-      {
-        id: "2",
-        title: "Zed Duo",
-        kind: "media",
-        media_kind: "image",
-        public_url: null,
-        preview_url: null,
-        obs_scene_name: null,
-        artist_id: "z",
-        server_approved: false,
-      },
-    ];
-    expect(filterServerStationScenes(scenes, { query: "zed" }).map((s) => s.id)).toEqual(["2"]);
-    expect(filterServerStationScenes(scenes, { letter: "A" }).map((s) => s.id)).toEqual(["1"]);
+  it("pages scenes twenty at a time for the POS wall grid", () => {
+    const scenes = Array.from({ length: 45 }, (_, index) => ({ id: String(index + 1) }));
+    expect(SERVER_STATION_SCENE_PAGE_SIZE).toBe(20);
+    const first = paginateServerStationScenes(scenes, 1);
+    expect(first.items).toHaveLength(20);
+    expect(first.pageCount).toBe(3);
+    expect(first.hasPrev).toBe(false);
+    expect(first.hasNext).toBe(true);
+    const last = paginateServerStationScenes(scenes, 3);
+    expect(last.items.map((item) => item.id)).toEqual([
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+    ]);
+    expect(last.hasNext).toBe(false);
   });
 });
 

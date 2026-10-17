@@ -18,17 +18,21 @@ export function ServerStationShell({
   actorName,
   wall,
   showBack = true,
+  /** Fixed kiosk viewport — content must fit without page scrolling (POS wall grid). */
+  layout = "scroll",
 }: {
   children: React.ReactNode;
   title?: string;
   actorName: string;
   wall: ServerStationWallStatus;
   showBack?: boolean;
+  layout?: "scroll" | "pos";
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const atHome = pathname === "/server";
+  const pos = layout === "pos";
 
   useEffect(() => {
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,21 +64,31 @@ export function ServerStationShell({
   }, [router]);
 
   return (
-    <div className="dark min-h-full bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_50%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/40 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl min-h-16 items-center gap-3 py-3">
+    <div
+      className={cn(
+        "dark bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_50%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground",
+        pos ? "flex h-dvh max-h-dvh flex-col overflow-hidden" : "min-h-full",
+      )}
+    >
+      <header
+        className={cn(
+          "z-40 shrink-0 border-b border-white/10 bg-black/40 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4",
+          pos ? "relative" : "sticky top-0",
+        )}
+      >
+        <div className="mx-auto flex max-w-[1600px] min-h-14 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
           {showBack && !atHome ? (
             <Link
               href="/server"
-              className="inline-flex min-h-16 min-w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-base font-semibold"
+              className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-base font-semibold sm:min-h-16 sm:min-w-16"
             >
               <ArrowLeftIcon className="size-6" aria-hidden />
               <span className="sr-only">Back</span>
             </Link>
           ) : null}
           <div className="min-w-0 flex-1">
-            <FlobamaLogo className="h-8 w-auto max-w-[150px] brightness-110" priority />
-            <p className="truncate text-xs font-semibold tracking-[0.18em] text-[#e8d5c4]/uppercase">
+            <FlobamaLogo className="h-7 w-auto max-w-[130px] brightness-110 sm:h-8 sm:max-w-[150px]" priority />
+            <p className="truncate text-[10px] font-semibold tracking-[0.18em] text-[#e8d5c4] uppercase sm:text-xs">
               {title || "Server Station"}
             </p>
           </div>
@@ -92,7 +106,7 @@ export function ServerStationShell({
           </div>
           <Link
             href="/server"
-            className="inline-flex min-h-16 min-w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/5"
+            className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
             aria-label="Home"
           >
             <HomeIcon className="size-6" />
@@ -106,28 +120,37 @@ export function ServerStationShell({
                 router.replace("/server/login");
               });
             }}
-            className="inline-flex min-h-16 min-w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/5"
+            className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
             aria-label="Lock"
           >
             <LockIcon className="size-6" />
           </button>
         </div>
-        <div className="mx-auto max-w-6xl pb-3 sm:hidden">
-          <p
-            className={cn(
-              "text-sm font-semibold",
-              wall.connected ? "text-emerald-300" : "text-amber-300",
-            )}
-          >
-            {wallStatusLabel(wall)}
-            {wall.currentlyPlaying ? ` · Currently Playing: ${wall.currentlyPlaying}` : null}
-          </p>
-          {!wall.connected && wall.offlineReason ? (
-            <p className="mt-1 text-sm text-amber-100/90">{wall.offlineReason}</p>
-          ) : null}
-        </div>
+        {!pos ? (
+          <div className="mx-auto max-w-6xl pb-3 sm:hidden">
+            <p
+              className={cn(
+                "text-sm font-semibold",
+                wall.connected ? "text-emerald-300" : "text-amber-300",
+              )}
+            >
+              {wallStatusLabel(wall)}
+              {wall.currentlyPlaying ? ` · Currently Playing: ${wall.currentlyPlaying}` : null}
+            </p>
+            {!wall.connected && wall.offlineReason ? (
+              <p className="mt-1 text-sm text-amber-100/90">{wall.offlineReason}</p>
+            ) : null}
+          </div>
+        ) : null}
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
+      <main
+        className={cn(
+          "mx-auto w-full",
+          pos
+            ? "flex min-h-0 max-w-[1600px] flex-1 flex-col overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 sm:px-4"
+            : "max-w-6xl px-4 py-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6",
+        )}
+      >
         {children}
       </main>
     </div>
