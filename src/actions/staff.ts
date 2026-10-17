@@ -87,7 +87,10 @@ export async function createStaffAction(input: unknown): Promise<StaffActionResu
 
   const wallOpsUserId = gate.context.venue.wall_ops_user_id;
   const menus = menusForRole(parsed.data.role, parsed.data.menus);
-  const menuDecision = authorizeMenuSelection(email, menus, { wallOpsUserId });
+  const menuDecision = authorizeMenuSelection(email, menus, {
+    wallOpsUserId,
+    role: parsed.data.role,
+  });
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 
   let userId: string | null = null;
@@ -175,6 +178,7 @@ export async function updateStaffRoleAction(input: unknown): Promise<StaffAction
   const menuDecision = authorizeMenuSelection(target.email, menus, {
     userId: target.userId,
     wallOpsUserId,
+    role: parsed.data.role as StaffRole,
   });
   if (!menuDecision.allowed) return { ok: false, message: menuDecision.reason };
 

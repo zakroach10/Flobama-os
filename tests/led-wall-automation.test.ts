@@ -54,5 +54,15 @@ describe("LED wall automation guards", () => {
         activeSceneId: "scene-1",
       }),
     ).toBe(false);
+
+    expect(
+      canAutoArtistCut({
+        activeKind: "media",
+        activationSource: "server_override",
+        activePlaylistId: null,
+        defaultPlaylistId: "default",
+        activeSceneId: "server-1",
+      }),
+    ).toBe(false);
   });
 });

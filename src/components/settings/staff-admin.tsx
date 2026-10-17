@@ -41,7 +41,7 @@ export function RolePermissionGuide() {
           Access is venue-scoped. Nobody can grant themselves a higher role. Viewers stay read-only.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {STAFF_ROLES.map((role) => (
           <div key={role} className="rounded-xl border bg-card p-4">
             <p className="font-semibold">{STAFF_ROLE_LABELS[role]}</p>
@@ -330,7 +330,9 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
             onChange={(e) => {
               const next = e.target.value as StaffRole;
               setRole(next);
-              if (!menusTouched || next === "interactor") setMenus(defaultMenusForRole(next));
+              if (!menusTouched || next === "interactor" || next === "server") {
+                setMenus(defaultMenusForRole(next));
+              }
             }}
         >
           {STAFF_ROLES.map((value) => (
@@ -360,6 +362,10 @@ function CreateStaffForm({ serviceRoleConfigured }: { serviceRoleConfigured: boo
         {role === "interactor" ? (
           <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
             Audience Interactors only get the Audience console — no sidebar, dashboard, or settings.
+          </p>
+        ) : role === "server" ? (
+          <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Servers only get the Server Station kiosk. Set a PIN in Server Station settings for shared kiosk unlock.
           </p>
         ) : (
           <>
@@ -429,6 +435,11 @@ function StaffRow({
             {role === "interactor" ? (
               <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 Audience Interactors only see the Audience console (no sidebar or settings).
+              </p>
+            ) : role === "server" ? (
+              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Servers only see Server Station. Pair the kiosk at /server/login and set a PIN below in Server Station
+                settings.
               </p>
             ) : isWallOps ? (
               <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">

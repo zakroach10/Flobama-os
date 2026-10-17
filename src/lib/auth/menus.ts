@@ -2,7 +2,7 @@ import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
 import { isWallOpsAccount, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
-export const STAFF_MENUS_SQL = "supabase/migrations/20261002000033_staff_menus_known.sql";
+export const STAFF_MENUS_SQL = "supabase/migrations/20261017000051_server_station.sql";
 
 export const STAFF_MENU_IDS = [
   "dashboard",
@@ -16,6 +16,7 @@ export const STAFF_MENU_IDS = [
   "spoton",
   "artists",
   "settings",
+  "server",
 ] as const;
 
 export type StaffMenuId = (typeof STAFF_MENU_IDS)[number];
@@ -37,6 +38,7 @@ export const STAFF_MENUS: {
   { id: "spoton", label: "Spot on BOH", href: "https://client.restaurantpos.spoton.com/b/", external: true },
   { id: "artists", label: "Artists", href: "/artists" },
   { id: "settings", label: "Settings", href: "/settings" },
+  { id: "server", label: "Server Station", href: "/server" },
 ];
 
 const MENU_PREFIXES: { prefix: string; id: StaffMenuId }[] = [
@@ -52,6 +54,7 @@ const MENU_PREFIXES: { prefix: string; id: StaffMenuId }[] = [
   { prefix: "/ticketing", id: "ticketing" },
   { prefix: "/artists", id: "artists" },
   { prefix: "/settings", id: "settings" },
+  { prefix: "/server", id: "server" },
 ];
 
 export function isMissingMenusColumn(message: string | null | undefined) {
@@ -71,9 +74,12 @@ export function defaultMenusForRole(role: StaffRole): StaffMenuId[] {
   if (role === "interactor") {
     return ["audience"];
   }
+  if (role === "server") {
+    return ["server"];
+  }
   if (role === "viewer") {
     return STAFF_MENU_IDS.filter(
-      (id) => id !== "booking" && id !== "social" && id !== "audience",
+      (id) => id !== "booking" && id !== "social" && id !== "audience" && id !== "server",
     );
   }
   return [...STAFF_MENU_IDS];
@@ -87,18 +93,23 @@ export function normalizeMenuList(value: readonly string[]): StaffMenuId[] {
 /** Audience Interactors always land on the Audience console only — no sidebar menus. */
 export function menusForRole(role: StaffRole, menus: readonly string[]): StaffMenuId[] {
   if (role === "interactor") return ["audience"];
+  if (role === "server") return ["server"];
   return normalizeMenuList(menus);
 }
 
 /** Null means the person has never had a custom menu list, so the role defaults apply. */
 export function resolveMenus(stored: readonly string[] | null | undefined, role: StaffRole): StaffMenuId[] {
-  if (role === "interactor") return defaultMenusForRole(role);
+  if (role === "interactor" || role === "server") return defaultMenusForRole(role);
   if (stored == null) return defaultMenusForRole(role);
   return normalizeMenuList(stored);
 }
 
 export function isAudienceOnlyShell(menus: readonly string[]) {
   return menus.length === 1 && menus[0] === "audience";
+}
+
+export function isServerStationShell(menus: readonly string[]) {
+  return menus.length === 1 && menus[0] === "server";
 }
 
 export { isWallOpsShell } from "@/lib/auth/wall-ops";
@@ -127,7 +138,11 @@ export function menuForPath(pathname: string): StaffMenuId | null {
 export function authorizeMenuSelection(
   email: string | null | undefined,
   menus: readonly string[],
-  options?: { userId?: string | null; wallOpsUserId?: string | null },
+  options?: {
+    userId?: string | null;
+    wallOpsUserId?: string | null;
+    role?: StaffRole | null;
+  },
 ): { allowed: true } | { allowed: false; reason: string } {
   if (isMasterAdminEmail(email) && !sameMenus(menus, defaultMenusForRole("admin"))) {
     return { allowed: false, reason: "The master admin keeps every menu." };
@@ -137,6 +152,12 @@ export function authorizeMenuSelection(
     !sameMenus(menus, WALL_OPS_MENUS)
   ) {
     return { allowed: false, reason: "The computer control login keeps Screens only." };
+  }
+  if (options?.role === "server" && !sameMenus(menus, ["server"])) {
+    return { allowed: false, reason: "Server accounts keep Server Station only." };
+  }
+  if (options?.role === "interactor" && !sameMenus(menus, ["audience"])) {
+    return { allowed: false, reason: "Audience Interactors keep Audience only." };
   }
   return { allowed: true };
 }

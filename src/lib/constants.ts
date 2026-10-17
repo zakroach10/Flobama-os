@@ -4,7 +4,7 @@ export const MASTER_ADMIN_EMAIL = "zak@view360.marketing";
 export const EVENT_PAGE_SIZE = 20;
 export const ARTIST_PAGE_SIZE = 20;
 
-export const STAFF_ROLES = ["admin", "manager", "interactor", "viewer"] as const;
+export const STAFF_ROLES = ["admin", "manager", "interactor", "viewer", "server"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const EVENT_STATUSES = ["draft", "published", "cancelled"] as const;
@@ -129,7 +129,21 @@ export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
   manager: "Manager",
   interactor: "Audience Interactor",
   viewer: "Viewer",
+  server: "Server",
 };
+
+export const SERVER_STATION_SQL_ROLE = "supabase/migrations/20261017000050_server_role.sql";
+export const SERVER_STATION_SQL = "supabase/migrations/20261017000051_server_station.sql";
+export const SERVER_STATION_HOME_PATH = "/server";
+export const SERVER_STATION_LOGIN_PATH = "/server/login";
+export const SERVER_STATION_DEVICE_COOKIE = "flobama_server_kiosk";
+export const SERVER_STATION_STAFF_COOKIE = "flobama_server_staff";
+export const SERVER_STATION_PIN_MAX_ATTEMPTS = 5;
+export const SERVER_STATION_PIN_LOCK_SECONDS = 60;
+export const SERVER_STATION_UPLOAD_TTL_SECONDS = 10 * 60;
+export const SERVER_STATION_DURATION_PRESETS = [5, 15, 30] as const;
+export const SERVER_STATION_GRAPHIC_WIDTH = 1920;
+export const SERVER_STATION_GRAPHIC_HEIGHT = 1080;
 
 export const REQUIRED_PUBLIC_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",

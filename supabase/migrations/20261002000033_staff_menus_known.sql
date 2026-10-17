@@ -30,7 +30,8 @@ alter table public.venue_memberships
       'ticketing',
       'spoton',
       'artists',
-      'settings'
+      'settings',
+      'server'
     ]::text[]
   );
 
@@ -51,7 +52,8 @@ declare
     'ticketing',
     'spoton',
     'artists',
-    'settings'
+    'settings',
+    'server'
   ];
 begin
   if public.is_master_admin_user(old.user_id) then

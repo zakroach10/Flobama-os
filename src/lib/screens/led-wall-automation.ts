@@ -43,6 +43,8 @@ export function canAutoArtistCut(input: {
   activeSceneId: string | null | undefined;
 }) {
   if (!canAutoReplaceLedWall(input.activeKind)) return false;
+  // Timed Server Station overrides must expire on their own schedule.
+  if (input.activationSource === "server_override") return false;
   if (!input.activeSceneId && !input.activePlaylistId) return true;
   if (input.activationSource === "ad_roll" || input.activationSource === "artist_auto") return true;
   if (input.activePlaylistId && input.activePlaylistId === input.defaultPlaylistId) return true;
@@ -55,6 +57,7 @@ async function activateAdRoll(client: Client, venueId: string, playlistId: strin
   // Daily reset clears interactive takeovers so the wall returns to ads.
   await endTriviaSession(client, venueId);
   await endAudienceSession(client, venueId);
+  await client.from("led_wall_overrides").delete().eq("venue_id", venueId);
   const { error } = await client.from("led_wall_runtime").upsert(
     {
       venue_id: venueId,

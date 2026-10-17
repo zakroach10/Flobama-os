@@ -4,11 +4,14 @@ import { SettingsForms } from "@/components/settings/settings-forms";
 import { WebsiteEmbedCard } from "@/components/settings/website-embed-card";
 import { GhlIntegrationsCard } from "@/components/settings/ghl-integrations-card";
 import { RolePermissionGuide, StaffDirectory } from "@/components/settings/staff-admin";
+import { ServerStationAdminPanel } from "@/components/settings/server-station-admin";
 import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listVenueStaff, withWallOpsMenus } from "@/lib/queries/staff";
-import { canManageStaff } from "@/lib/auth/permissions";
+import { canManageStaff, canConfigureServerStation } from "@/lib/auth/permissions";
 import { isMissingWallOpsColumn } from "@/lib/auth/wall-ops";
+import { isMissingServerStationRelation } from "@/lib/auth/server-station";
+import { getServerStationSettings } from "@/lib/server-station/settings";
 import { ErrorState } from "@/components/states";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 
@@ -33,12 +36,71 @@ export default async function SettingsPage() {
     }
   }
 
+  const { settings: serverStationSettings, missingTable: serverStationMissing } =
+    await getServerStationSettings(supabase, context.venue.id);
+
+  const scenesRes = await supabase
+    .from("led_wall_scenes")
+    .select("id, title, server_approved")
+    .eq("venue_id", context.venue.id)
+    .eq("enabled", true)
+    .order("sort_order", { ascending: true });
+  const playlistsRes = await supabase
+    .from("led_wall_playlists")
+    .select("id, name")
+    .eq("venue_id", context.venue.id)
+    .is("archived_at", null)
+    .order("name", { ascending: true });
+  const devicesRes = await supabase
+    .from("server_station_devices")
+    .select("id, label, last_seen_at, revoked_at")
+    .eq("venue_id", context.venue.id)
+    .order("created_at", { ascending: false });
+  const pinsRes = await supabase
+    .from("server_station_pins")
+    .select("user_id")
+    .eq("venue_id", context.venue.id);
+  const auditRes = await supabase
+    .from("server_station_audit_log")
+    .select("id, actor_name, action, created_at")
+    .eq("venue_id", context.venue.id)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  const pinUserIds = new Set((pinsRes.data ?? []).map((row) => row.user_id));
+  const staffPinOptions = members
+    .filter((member) => member.role === "admin" || member.role === "manager" || member.role === "server")
+    .map((member) => ({
+      userId: member.userId,
+      displayName: member.displayName || member.email || "Staff",
+      hasPin: pinUserIds.has(member.userId),
+    }));
+
+  const serverStationTableMissing =
+    serverStationMissing ||
+    Boolean(scenesRes.error && isMissingServerStationRelation(scenesRes.error.message)) ||
+    Boolean(devicesRes.error && isMissingServerStationRelation(devicesRes.error.message));
+
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">Account, roles, and venue defaults for this staff workspace.</p>
       </div>
+      <ServerStationAdminPanel
+        settings={serverStationSettings}
+        scenes={(scenesRes.data ?? []).map((scene) => ({
+          id: scene.id,
+          title: scene.title,
+          server_approved: Boolean((scene as { server_approved?: boolean }).server_approved),
+        }))}
+        playlists={playlistsRes.data ?? []}
+        devices={devicesRes.data ?? []}
+        staffOptions={staffPinOptions}
+        audit={auditRes.data ?? []}
+        missingTable={serverStationTableMissing}
+        canManage={canConfigureServerStation(context.role)}
+      />
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">LED wall OBS client</h2>
         <p className="text-sm text-muted-foreground">
