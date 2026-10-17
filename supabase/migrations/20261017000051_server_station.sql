@@ -85,9 +85,10 @@ grant execute on function public.list_venue_staff(uuid) to authenticated;
 alter table public.led_wall_scenes
   add column if not exists server_approved boolean not null default false;
 
+drop index if exists public.led_wall_scenes_server_approved_idx;
 create index if not exists led_wall_scenes_server_approved_idx
   on public.led_wall_scenes (venue_id)
-  where server_approved = true and enabled = true and archived_at is null;
+  where server_approved = true and enabled = true;
 
 -- ---------------------------------------------------------------------------
 -- Runtime activation source: server_override
@@ -364,11 +365,10 @@ select
   s.media_kind,
   s.public_url,
   s.obs_scene_name,
-  coalesce(s.duration_seconds, 15) as duration_seconds
+  15 as duration_seconds
 from public.led_wall_overrides o
 join public.led_wall_scenes s on s.id = o.scene_id
-where s.archived_at is null
-  and s.enabled = true
+where s.enabled = true
   and o.ends_at > now();
 
 alter table public.led_wall_overrides enable row level security;
