@@ -31,8 +31,22 @@ import {
 import { resolveServerStationEndsAt, durationPresetLabel } from "@/lib/server-station/expiration";
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
+import { resolveLedScenePreviewUrl } from "@/lib/server-station/scenes";
+import { wallStatusLabel } from "@/lib/server-station/wall-status-shared";
 import { canAutoArtistCut } from "@/lib/screens/led-wall-automation";
-import { STAFF_ROLES, STAFF_ROLE_LABELS } from "@/lib/constants";
+import {
+  SERVER_STATION_HOME_PATH,
+  SERVER_STATION_LOGIN_PATH,
+  STAFF_ROLES,
+  STAFF_ROLE_LABELS,
+} from "@/lib/constants";
+import {
+  SERVER_STATION_PWA_MANIFEST_PATH,
+  SERVER_STATION_PWA_NAME,
+  serverStationPwaMetadata,
+} from "@/lib/pwa/server-station";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("server role and menus", () => {
   it("includes server in staff roles", () => {
@@ -156,5 +170,104 @@ describe("server override priority", () => {
         activeSceneId: "birthday-1",
       }),
     ).toBe(false);
+  });
+});
+
+describe("server station wall status copy", () => {
+  it("labels local runner and agent links", () => {
+    expect(
+      wallStatusLabel({
+        connected: true,
+        link: "local_runner",
+        currentlyPlaying: "House Ads",
+        offlineReason: null,
+        activationSource: null,
+        protectedMode: false,
+      }),
+    ).toBe("Wall Connected · Local Runner");
+    expect(
+      wallStatusLabel({
+        connected: true,
+        link: "agent",
+        currentlyPlaying: "House Ads",
+        offlineReason: null,
+        activationSource: null,
+        protectedMode: false,
+      }),
+    ).toBe("Wall Connected");
+    expect(
+      wallStatusLabel({
+        connected: false,
+        link: null,
+        currentlyPlaying: "House Ads",
+        offlineReason: "offline",
+        activationSource: null,
+        protectedMode: false,
+      }),
+    ).toBe("Wall Offline");
+  });
+});
+
+describe("server station scene previews", () => {
+  it("prefers public_url and falls back to storage path when supabase url is set", () => {
+    expect(
+      resolveLedScenePreviewUrl({
+        public_url: "https://cdn.example/scene.png",
+        storage_path: "led/scene.png",
+      }),
+    ).toBe("https://cdn.example/scene.png");
+
+    const previous = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "test-anon";
+    expect(
+      resolveLedScenePreviewUrl({
+        public_url: null,
+        storage_path: "/led/scene.png",
+      }),
+    ).toBe("https://project.supabase.co/storage/v1/object/public/screen-ads/led/scene.png");
+    process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
+  });
+});
+
+describe("Server Station PWA", () => {
+  const manifest = JSON.parse(
+    readFileSync(join(process.cwd(), "public/server.webmanifest"), "utf8"),
+  ) as {
+    id: string;
+    name: string;
+    short_name: string;
+    start_url: string;
+    display: string;
+    icons: Array<{ src: string; sizes: string; purpose: string }>;
+  };
+
+  it("uses Server Station branding and standalone launch", () => {
+    expect(manifest.name).toBe(SERVER_STATION_PWA_NAME);
+    expect(manifest.short_name).toBe(SERVER_STATION_PWA_NAME);
+    expect(manifest.id).toBe(SERVER_STATION_HOME_PATH);
+    expect(manifest.start_url).toBe(SERVER_STATION_LOGIN_PATH);
+    expect(manifest.display).toBe("standalone");
+    expect(serverStationPwaMetadata.manifest).toBe(SERVER_STATION_PWA_MANIFEST_PATH);
+  });
+
+  it("ships square and maskable icons", () => {
+    const sizes = new Set(manifest.icons.map((icon) => `${icon.sizes}:${icon.purpose}`));
+    expect(sizes.has("192x192:any")).toBe(true);
+    expect(sizes.has("512x512:any")).toBe(true);
+    expect(sizes.has("192x192:maskable")).toBe(true);
+    expect(sizes.has("512x512:maskable")).toBe(true);
+    for (const icon of manifest.icons) {
+      const bytes = readFileSync(join(process.cwd(), "public", icon.src.replace(/^\//, "")));
+      expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    }
+  });
+
+  it("does not cache HTML navigations or API traffic in the service worker", () => {
+    const source = readFileSync(join(process.cwd(), "public/server-sw.js"), "utf8");
+    expect(source).toContain('request.mode === "navigate"');
+    expect(source).toContain("text/html");
+    expect(source).toContain("/_next/static/");
+    expect(source).toContain("/icons/");
   });
 });

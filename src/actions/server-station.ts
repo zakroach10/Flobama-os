@@ -21,6 +21,7 @@ import {
 } from "@/lib/server-station/moderation";
 import { clearExpiredLedOverride, getLedWallProtection } from "@/lib/server-station/overrides";
 import { getServerStationSettings } from "@/lib/server-station/settings";
+import { listServerApprovedScenes } from "@/lib/server-station/scenes";
 import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
 import { isMissingServerStationRelation, SERVER_STATION_SQL } from "@/lib/auth/server-station";
 import { SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
@@ -119,43 +120,32 @@ export async function listServerStationEventsAction(input: unknown) {
 
 export async function listServerApprovedScenesAction() {
   const gate = await getServerStationGate("access");
-  if (!gate.ok) return { ok: false as const, message: gate.message, scenes: [], playlists: [] };
-
-  const { data: scenes, error } = await gate.writeClient
-    .from("led_wall_scenes")
-    .select("id, title, kind, media_kind, public_url, server_approved, enabled")
-    .eq("venue_id", gate.venueId)
-    .eq("enabled", true)
-    .eq("server_approved", true)
-    .order("sort_order", { ascending: true });
-
-  if (error) {
+  if (!gate.ok) {
     return {
       ok: false as const,
-      message: sqlMessage(error.message),
+      message: gate.message,
       scenes: [],
       playlists: [],
+      defaultPlaylistId: null,
     };
   }
 
-  const { data: settings } = await gate.writeClient
-    .from("led_wall_settings")
-    .select("default_playlist_id")
-    .eq("venue_id", gate.venueId)
-    .maybeSingle();
-
-  const { data: playlists } = await gate.writeClient
-    .from("led_wall_playlists")
-    .select("id, name")
-    .eq("venue_id", gate.venueId)
-    .is("archived_at", null)
-    .order("name", { ascending: true });
+  const result = await listServerApprovedScenes(gate.writeClient, gate.venueId);
+  if (result.error) {
+    return {
+      ok: false as const,
+      message: sqlMessage(result.error),
+      scenes: [],
+      playlists: [],
+      defaultPlaylistId: null,
+    };
+  }
 
   return {
     ok: true as const,
-    scenes: scenes ?? [],
-    playlists: playlists ?? [],
-    defaultPlaylistId: settings?.default_playlist_id ?? null,
+    scenes: result.scenes,
+    playlists: result.playlists,
+    defaultPlaylistId: result.defaultPlaylistId,
   };
 }
 
@@ -171,13 +161,8 @@ export async function activateServerStationSceneAction(input: unknown): Promise<
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "Choose a wall option." };
 
-  const wall = await getServerStationWallStatus(gate.writeClient, gate.venueId);
-  if (!wall.connected && !parsed.data.resumeNormal) {
-    return {
-      ok: false,
-      message: wall.offlineReason || "The LED wall is offline. Try again when it reconnects.",
-    };
-  }
+  // Scene commands write to led_wall_runtime; the local runner or booth agent
+  // picks them up on the next heartbeat even if check-in looked stale.
 
   if (parsed.data.resumeNormal) {
     // Clear any server override first, then return to house ads / default playlist.

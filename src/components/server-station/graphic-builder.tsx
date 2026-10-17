@@ -435,7 +435,7 @@ export function ServerStationGraphicBuilder({
           ) : null}
 
           <div className="flex flex-wrap gap-3 pt-2">
-            <ServerStationButton disabled={pending || !wall.connected} onClick={() => void uploadGraphicAndPublish("show_now")}>
+            <ServerStationButton disabled={pending} onClick={() => void uploadGraphicAndPublish("show_now")}>
               Show Now
             </ServerStationButton>
             <ServerStationButton

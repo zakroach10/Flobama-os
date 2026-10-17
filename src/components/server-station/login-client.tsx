@@ -8,6 +8,7 @@ import {
   verifyServerStationPinAction,
 } from "@/actions/server-station-auth";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
+import { ServerStationInstallCard } from "@/components/pwa/server-station-install-card";
 import { ServerStationButton, serverStationInputClass } from "@/components/server-station/shell";
 import { cn } from "@/lib/utils";
 
@@ -174,6 +175,10 @@ export function ServerStationLoginClient({
             </div>
           </div>
         ) : null}
+
+        <div className="mt-8">
+          <ServerStationInstallCard />
+        </div>
       </div>
     </div>
   );
