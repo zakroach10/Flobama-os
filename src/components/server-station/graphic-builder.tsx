@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   issueServerStationUploadSessionAction,
@@ -20,6 +20,7 @@ import {
   type ServerStationGraphicKind,
   type ServerStationTemplateId,
 } from "@/lib/server-station/templates";
+import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { PublicSupabaseEnv } from "@/lib/env";
@@ -51,11 +52,55 @@ export function ServerStationGraphicBuilder({
   const [templateId, setTemplateId] = useState<ServerStationTemplateId>(SERVER_STATION_TEMPLATES[0].id);
   const [duration, setDuration] = useState<ServerStationDurationPreset>(mode === "special" ? "tonight" : 5);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [localPhotoName, setLocalPhotoName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [uploadSessionId, setUploadSessionId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const localObjectUrlRef = useRef<string | null>(null);
+
+  function clearLocalPhotoObjectUrl() {
+    if (localObjectUrlRef.current) {
+      URL.revokeObjectURL(localObjectUrlRef.current);
+      localObjectUrlRef.current = null;
+    }
+  }
+
+  function clearPhoto() {
+    clearLocalPhotoObjectUrl();
+    setPhotoUrl(null);
+    setLocalPhotoName(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function onChooseLocalPhoto(file: File | null) {
+    if (!file) return;
+    const kind = detectServerStationUploadKind(file);
+    if (kind !== "image") {
+      toast.error("Choose a JPG, PNG, or WebP photo.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Photo must be 10 MB or smaller.");
+      return;
+    }
+    clearLocalPhotoObjectUrl();
+    const objectUrl = URL.createObjectURL(file);
+    localObjectUrlRef.current = objectUrl;
+    setPhotoUrl(objectUrl);
+    setLocalPhotoName(file.name);
+    setUploadSessionId(null);
+    setQrDataUrl(null);
+    toast.success("Photo added. Check the preview.");
+  }
+
+  useEffect(() => {
+    return () => {
+      clearLocalPhotoObjectUrl();
+    };
+  }, []);
 
   const kind: ServerStationGraphicKind = useMemo(() => {
     if (mode === "special") return category;
@@ -110,6 +155,8 @@ export function ServerStationGraphicBuilder({
       void (async () => {
         const result = await pollServerStationUploadSessionAction({ sessionId: uploadSessionId });
         if (result.ok && result.uploaded && result.url) {
+          clearLocalPhotoObjectUrl();
+          setLocalPhotoName(null);
           setPhotoUrl(result.url);
           setUploadSessionId(null);
           setQrDataUrl(null);
@@ -318,36 +365,64 @@ export function ServerStationGraphicBuilder({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <ServerStationButton
-              variant="secondary"
-              disabled={pending}
-              onClick={() => {
-                startTransition(async () => {
-                  const result = await issueServerStationUploadSessionAction({
-                    workflow: mode === "special" ? "special" : mode === "birthday" ? "birthday" : "message",
-                  });
-                  if (!result.ok || !result.uploadUrl || !result.sessionId) {
-                    toast.error(result.message);
-                    return;
-                  }
-                  setUploadSessionId(result.sessionId);
-                  const dataUrl = await QRCode.toDataURL(result.uploadUrl, {
-                    width: 512,
-                    margin: 1,
-                    color: { dark: "#1a1410", light: "#ffffff" },
-                  });
-                  setQrDataUrl(dataUrl);
-                  toast.success(result.message);
-                });
+          <div className="space-y-3">
+            <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Photo (optional)</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              className="sr-only"
+              onChange={(event) => {
+                onChooseLocalPhoto(event.target.files?.[0] ?? null);
               }}
-            >
-              Add photo from phone
-            </ServerStationButton>
-            {photoUrl ? (
-              <ServerStationButton variant="secondary" onClick={() => setPhotoUrl(null)}>
-                Remove photo
+            />
+            <div className="flex flex-wrap gap-3">
+              <ServerStationButton
+                variant="secondary"
+                disabled={pending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Choose photo from this device
               </ServerStationButton>
+              <ServerStationButton
+                variant="secondary"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await issueServerStationUploadSessionAction({
+                      workflow: mode === "special" ? "special" : mode === "birthday" ? "birthday" : "message",
+                    });
+                    if (!result.ok || !result.uploadUrl || !result.sessionId) {
+                      toast.error(result.message);
+                      return;
+                    }
+                    setUploadSessionId(result.sessionId);
+                    const dataUrl = await QRCode.toDataURL(result.uploadUrl, {
+                      width: 512,
+                      margin: 1,
+                      color: { dark: "#1a1410", light: "#ffffff" },
+                    });
+                    setQrDataUrl(dataUrl);
+                    toast.success(result.message);
+                  });
+                }}
+              >
+                Add photo from phone
+              </ServerStationButton>
+              {photoUrl ? (
+                <ServerStationButton variant="secondary" onClick={clearPhoto}>
+                  Remove photo
+                </ServerStationButton>
+              ) : null}
+            </div>
+            {localPhotoName ? (
+              <p className="text-sm text-[#e8d5c4]">Selected: {localPhotoName}</p>
+            ) : null}
+            {photoUrl && !qrDataUrl ? (
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl} alt="Selected photo" className="max-h-48 w-full object-contain" />
+              </div>
             ) : null}
           </div>
 
