@@ -41,10 +41,10 @@ export default async function SettingsPage() {
 
   const scenesRes = await supabase
     .from("led_wall_scenes")
-    .select("id, title, server_approved")
+    .select("id, title, server_approved, artist_id")
     .eq("venue_id", context.venue.id)
     .eq("enabled", true)
-    .order("sort_order", { ascending: true });
+    .order("title", { ascending: true });
   const playlistsRes = await supabase
     .from("led_wall_playlists")
     .select("id, name")
@@ -93,6 +93,7 @@ export default async function SettingsPage() {
           id: scene.id,
           title: scene.title,
           server_approved: Boolean((scene as { server_approved?: boolean }).server_approved),
+          artist_id: (scene as { artist_id?: string | null }).artist_id ?? null,
         }))}
         playlists={playlistsRes.data ?? []}
         devices={devicesRes.data ?? []}

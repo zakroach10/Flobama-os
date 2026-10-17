@@ -133,7 +133,7 @@ export function canConfigureServerStation(role: StaffRole): boolean {
   return role === "admin";
 }
 
-/** Servers may activate only scenes an admin marked server_approved. */
+/** Servers may activate artist scenes plus house scenes marked server_approved. */
 export function canActivateApprovedServerScenes(role: StaffRole): boolean {
   return canAccessServerStation(role);
 }

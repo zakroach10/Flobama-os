@@ -21,7 +21,10 @@ import {
 } from "@/lib/server-station/moderation";
 import { clearExpiredLedOverride, getLedWallProtection } from "@/lib/server-station/overrides";
 import { getServerStationSettings } from "@/lib/server-station/settings";
-import { listServerApprovedScenes } from "@/lib/server-station/scenes";
+import {
+  isServerStationActivatableScene,
+  listServerApprovedScenes,
+} from "@/lib/server-station/scenes";
 import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
 import { isMissingServerStationRelation, SERVER_STATION_SQL } from "@/lib/auth/server-station";
 import { SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
@@ -144,6 +147,8 @@ export async function listServerApprovedScenesAction() {
   return {
     ok: true as const,
     scenes: result.scenes,
+    artistScenes: result.artistScenes,
+    houseScenes: result.houseScenes,
     playlists: result.playlists,
     defaultPlaylistId: result.defaultPlaylistId,
   };
@@ -244,17 +249,25 @@ export async function activateServerStationSceneAction(input: unknown): Promise<
 
   const { data: scene } = await gate.writeClient
     .from("led_wall_scenes")
-    .select("id, title, enabled, server_approved, kind")
+    .select("id, title, enabled, server_approved, kind, artist_id")
     .eq("id", parsed.data.sceneId)
     .eq("venue_id", gate.venueId)
     .maybeSingle();
 
   if (!scene || !scene.enabled) return { ok: false, message: "That scene is not available." };
-  if (gate.actor.role === "server" && !scene.server_approved) {
-    return { ok: false, message: "That scene is not approved for servers." };
-  }
   if (scene.kind === "trivia" || scene.kind === "audience") {
     return { ok: false, message: "That scene is only for managers." };
+  }
+  if (
+    gate.actor.role === "server" &&
+    !isServerStationActivatableScene({
+      enabled: scene.enabled,
+      kind: scene.kind,
+      server_approved: scene.server_approved,
+      artist_id: scene.artist_id,
+    })
+  ) {
+    return { ok: false, message: "That scene is not approved for servers." };
   }
 
   const { error } = await gate.writeClient.from("led_wall_runtime").upsert(
@@ -812,16 +825,19 @@ export async function updateServerStationSettingsAction(input: unknown): Promise
   );
   if (error) return { ok: false, message: sqlMessage(error.message) };
 
+  // Artist scenes are always available to servers; only house scenes use server_approved.
   await gate.writeClient
     .from("led_wall_scenes")
     .update({ server_approved: false })
-    .eq("venue_id", gate.venueId);
+    .eq("venue_id", gate.venueId)
+    .is("artist_id", null);
 
   if (parsed.data.approvedSceneIds.length) {
     await gate.writeClient
       .from("led_wall_scenes")
       .update({ server_approved: true })
       .eq("venue_id", gate.venueId)
+      .is("artist_id", null)
       .in("id", parsed.data.approvedSceneIds);
   }
 

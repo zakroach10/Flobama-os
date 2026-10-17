@@ -10,6 +10,8 @@ export default async function ServerStationWallPage() {
       actorName={gate.actor.displayName}
       wall={wall}
       initialScenes={approved.scenes}
+      initialArtistScenes={approved.artistScenes}
+      initialHouseScenes={approved.houseScenes}
       initialPlaylists={approved.playlists}
       initialDefaultPlaylistId={approved.defaultPlaylistId}
     />

@@ -31,7 +31,11 @@ import {
 import { resolveServerStationEndsAt, durationPresetLabel } from "@/lib/server-station/expiration";
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
-import { resolveLedScenePreviewUrl } from "@/lib/server-station/scenes";
+import {
+  filterServerStationScenes,
+  isServerStationActivatableScene,
+  resolveLedScenePreviewUrl,
+} from "@/lib/server-station/scenes";
 import { wallStatusLabel } from "@/lib/server-station/wall-status-shared";
 import { canAutoArtistCut } from "@/lib/screens/led-wall-automation";
 import {
@@ -205,6 +209,64 @@ describe("server station wall status copy", () => {
         protectedMode: false,
       }),
     ).toBe("Wall Offline");
+  });
+});
+
+describe("server station artist scene access", () => {
+  it("lets servers activate every artist scene without server_approved", () => {
+    expect(
+      isServerStationActivatableScene({
+        enabled: true,
+        kind: "media",
+        server_approved: false,
+        artist_id: "artist-1",
+      }),
+    ).toBe(true);
+    expect(
+      isServerStationActivatableScene({
+        enabled: true,
+        kind: "media",
+        server_approved: false,
+        artist_id: null,
+      }),
+    ).toBe(false);
+    expect(
+      isServerStationActivatableScene({
+        enabled: true,
+        kind: "media",
+        server_approved: true,
+        artist_id: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("filters artists by search and letter without dumping the full roster", () => {
+    const scenes = [
+      {
+        id: "1",
+        title: "Alpha Band",
+        kind: "media",
+        media_kind: "image",
+        public_url: null,
+        preview_url: null,
+        obs_scene_name: null,
+        artist_id: "a",
+        server_approved: false,
+      },
+      {
+        id: "2",
+        title: "Zed Duo",
+        kind: "media",
+        media_kind: "image",
+        public_url: null,
+        preview_url: null,
+        obs_scene_name: null,
+        artist_id: "z",
+        server_approved: false,
+      },
+    ];
+    expect(filterServerStationScenes(scenes, { query: "zed" }).map((s) => s.id)).toEqual(["2"]);
+    expect(filterServerStationScenes(scenes, { letter: "A" }).map((s) => s.id)).toEqual(["1"]);
   });
 });
 
