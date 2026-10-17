@@ -356,6 +356,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                 </li>
                 <li>
                   <Link
+                    href="/help"
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Help Center
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/"
                     className="text-muted-foreground hover:text-primary transition-colors"
                   >
@@ -448,6 +456,12 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
               Hall. All rights reserved.
             </p>
             <div className="flex gap-4">
+              <Link
+                href="/help"
+                className="hover:text-foreground transition-colors"
+              >
+                Help Center
+              </Link>
               <Link
                 href="/privacy-policy"
                 className="hover:text-foreground transition-colors"
