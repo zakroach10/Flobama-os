@@ -40,6 +40,7 @@ export async function proxy(request: NextRequest) {
 
   const isPublic =
     PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/wall/") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/embed") ||
     pathname.startsWith("/overlay") ||

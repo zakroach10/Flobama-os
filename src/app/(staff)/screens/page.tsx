@@ -173,13 +173,9 @@ export default async function ScreensPage({
         listings={todayLedRes.listings}
         artistConfigs={artistLedRes.configs}
         agent={agentRes.agent}
-        ads={adsRes?.ads ?? []}
-        takeover={takeoverRes?.takeover ?? null}
-        takeoverMissing={Boolean(takeoverRes?.missingTable)}
         refreshMissing={displaySignalRes.missingTable}
         lastRefreshAt={displaySignalRes.signal?.reloadRequestedAt ?? null}
         timeZone={context.venue.timezone}
-        canControlVertical={canProgram}
         venueId={context.venue.id}
         supabaseEnv={supabaseEnv}
       />
