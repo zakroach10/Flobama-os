@@ -1,7 +1,7 @@
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 
 export function ServerStationLoadingSplash({
-  label = "Loading Server Station…",
+  label = "Loading…",
 }: {
   label?: string;
 }) {
@@ -10,13 +10,11 @@ export function ServerStationLoadingSplash({
       <FlobamaLogo className="h-14 w-auto max-w-[240px] brightness-110" priority />
       <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-[#e8d5c4] uppercase">Server Station</p>
       <div
-        className="mt-8 h-1.5 w-40 overflow-hidden rounded-full bg-white/10"
+        className="mt-8 size-8 animate-spin rounded-full border-2 border-[#e8d5c4]/25 border-t-[#d36b4a]"
         role="status"
         aria-live="polite"
         aria-label={label}
-      >
-        <div className="h-full w-1/2 animate-pulse rounded-full bg-[#d36b4a]" />
-      </div>
+      />
       <p className="mt-4 text-base text-[#e8d5c4]/90">{label}</p>
     </div>
   );
