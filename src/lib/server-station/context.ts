@@ -156,6 +156,9 @@ export async function getServerStationGate(
   if (!allowed.allowed) return { ok: false, message: allowed.reason };
 
   const { settings } = await getServerStationSettings(admin, device.venue_id);
+  // Refresh idle cookie when allowed (Server Actions / Route Handlers).
+  // During RSC page render Next.js seals cookies as read-only — swallow that
+  // and let proxy.ts extend the cookie on /server navigations instead.
   const refreshed = refreshServerStationStaffCookie(
     {
       ...verified.session,
@@ -164,13 +167,17 @@ export async function getServerStationGate(
     settings.staff_idle_seconds,
   );
   if (refreshed) {
-    jar.set(STAFF_COOKIE_NAME, refreshed, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: settings.staff_idle_seconds,
-      secure: process.env.NODE_ENV === "production",
-    });
+    try {
+      jar.set(STAFF_COOKIE_NAME, refreshed, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: settings.staff_idle_seconds,
+        secure: process.env.NODE_ENV === "production",
+      });
+    } catch {
+      // Server Component render — cookie write is not allowed here.
+    }
   }
 
   const { data: venue } = await admin.from("venues").select("timezone").eq("id", device.venue_id).maybeSingle();

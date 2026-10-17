@@ -345,3 +345,52 @@ export async function lockServerStationStaffAction(): Promise<ServerStationAuthR
   jar.delete(SERVER_STATION_STAFF_COOKIE);
   return { ok: true, message: "Locked. Enter a PIN to continue." };
 }
+
+/** Extends the kiosk staff PIN cookie. Safe to call from the client while browsing. */
+export async function refreshServerStationStaffSessionAction(): Promise<ServerStationAuthResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, message: "Server Station is not configured." };
+
+  const jar = await cookies();
+  const deviceToken = jar.get(SERVER_STATION_DEVICE_COOKIE)?.value;
+  const staffToken = jar.get(SERVER_STATION_STAFF_COOKIE)?.value;
+  if (!deviceToken || !staffToken) return { ok: false, message: "Staff session expired." };
+
+  const { data: device } = await admin
+    .from("server_station_devices")
+    .select("id, venue_id, revoked_at")
+    .eq("token_hash", hashServerStationToken(deviceToken))
+    .maybeSingle();
+  if (!device || device.revoked_at) return { ok: false, message: "This kiosk is not paired." };
+
+  const { verifyServerStationStaffCookie, issueServerStationStaffCookie } = await import(
+    "@/lib/auth/server-station"
+  );
+  const verified = verifyServerStationStaffCookie(staffToken);
+  if (!verified.ok) return { ok: false, message: verified.message };
+  if (verified.session.venueId !== device.venue_id) {
+    return { ok: false, message: "Staff session does not match this kiosk." };
+  }
+
+  const { getServerStationSettings } = await import("@/lib/server-station/settings");
+  const { settings } = await getServerStationSettings(admin, device.venue_id);
+  const cookie = issueServerStationStaffCookie(
+    {
+      venueId: verified.session.venueId,
+      userId: verified.session.userId,
+      deviceId: device.id,
+      displayName: verified.session.displayName,
+    },
+    settings.staff_idle_seconds,
+  );
+  if (!cookie) return { ok: false, message: "Could not refresh the staff session." };
+
+  jar.set(SERVER_STATION_STAFF_COOKIE, cookie, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: settings.staff_idle_seconds,
+    secure: process.env.NODE_ENV === "production",
+  });
+  return { ok: true, message: "Session refreshed." };
+}
