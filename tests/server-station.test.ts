@@ -262,24 +262,29 @@ describe("server station artist scene access", () => {
 });
 
 describe("server station scene previews", () => {
-  it("prefers public_url and falls back to storage path when supabase url is set", () => {
+  it("rebuilds public storage URLs from storage_path when possible", () => {
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     expect(
       resolveLedScenePreviewUrl({
         public_url: "https://cdn.example/scene.png",
-        storage_path: "led/scene.png",
+        storage_path: null,
       }),
     ).toBe("https://cdn.example/scene.png");
 
-    const previous = process.env.NEXT_PUBLIC_SUPABASE_URL;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "test-anon";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey || "test-anon";
     expect(
       resolveLedScenePreviewUrl({
-        public_url: null,
-        storage_path: "/led/scene.png",
+        public_url: "https://cdn.example/stale.png",
+        storage_path: "/led/artists/band logo.png",
       }),
-    ).toBe("https://project.supabase.co/storage/v1/object/public/screen-ads/led/scene.png");
-    process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
+    ).toBe(
+      "https://project.supabase.co/storage/v1/object/public/screen-ads/led/artists/band%20logo.png",
+    );
+    process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
   });
 });
 

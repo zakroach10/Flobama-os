@@ -14,43 +14,94 @@ import {
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 import { cn } from "@/lib/utils";
 
-function ScenePreview({ scene, eager }: { scene: ServerStationSceneCard; eager: boolean }) {
+function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
   const url = scene.preview_url;
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(url ? "loading" : "error");
+
+  useEffect(() => {
+    setStatus(url ? "loading" : "error");
+  }, [url, scene.id]);
+
   if (url && scene.media_kind === "video") {
     return (
-      <video
-        src={url}
-        muted
-        playsInline
-        preload={eager ? "metadata" : "none"}
-        className="h-full w-full object-cover"
-      />
+      <div className="relative h-full w-full bg-black">
+        {status === "loading" ? (
+          <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
+        ) : null}
+        <video
+          key={url}
+          src={url}
+          muted
+          playsInline
+          preload="metadata"
+          className={cn(
+            "absolute inset-0 h-full w-full object-contain transition-opacity duration-150",
+            status === "ready" ? "opacity-100" : "opacity-0",
+          )}
+          onLoadedData={() => setStatus("ready")}
+          onError={() => setStatus("error")}
+        />
+        {status === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-[#e8d5c4]">
+            Preview unavailable
+          </div>
+        ) : null}
+      </div>
     );
   }
+
   if (url) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt=""
-        className="h-full w-full object-cover"
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-        fetchPriority={eager ? "high" : "auto"}
-      />
+      <div className="relative h-full w-full bg-black">
+        {status === "loading" ? (
+          <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
+        ) : null}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={url}
+          src={url}
+          alt=""
+          className={cn(
+            "absolute inset-0 h-full w-full object-contain p-1 transition-opacity duration-150",
+            status === "ready" ? "opacity-100" : "opacity-0",
+          )}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+          onLoad={() => setStatus("ready")}
+          onError={() => setStatus("error")}
+        />
+        {status === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-[#e8d5c4]">
+            Preview unavailable
+          </div>
+        ) : null}
+      </div>
     );
   }
+
   if (scene.kind === "obs") {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 bg-white/5 px-2 text-center text-[#e8d5c4]">
+      <div className="flex h-full flex-col items-center justify-center gap-1 bg-black px-2 text-center text-[#e8d5c4]">
         <span className="text-[10px] font-semibold tracking-[0.16em] uppercase opacity-70">OBS</span>
         <span className="line-clamp-3 text-xs font-medium sm:text-sm">{scene.obs_scene_name || scene.title}</span>
       </div>
     );
   }
+
   return (
-    <div className="flex h-full items-center justify-center bg-white/5 text-sm text-[#e8d5c4]">Scene</div>
+    <div className="flex h-full items-center justify-center bg-black text-sm text-[#e8d5c4]">No preview</div>
   );
+}
+
+function prefetchScenePreviews(scenes: ServerStationSceneCard[]) {
+  if (typeof window === "undefined") return;
+  for (const scene of scenes) {
+    if (!scene.preview_url || scene.media_kind === "video") continue;
+    const img = new window.Image();
+    img.decoding = "async";
+    img.src = scene.preview_url;
+  }
 }
 
 export function ServerStationWallControls({
@@ -100,17 +151,13 @@ export function ServerStationWallControls({
     if (page !== paged.page) setPage(paged.page);
   }, [page, paged.page]);
 
-  // Warm the next page's image previews so paging feels instant.
+  // Current page must load immediately; next page warms in the background.
   useEffect(() => {
-    if (typeof window === "undefined" || !paged.hasNext) return;
+    prefetchScenePreviews(paged.items);
+    if (!paged.hasNext) return;
     const next = paginateServerStationScenes(catalog, paged.page + 1, SERVER_STATION_SCENE_PAGE_SIZE);
-    for (const scene of next.items) {
-      if (!scene.preview_url || scene.media_kind === "video") continue;
-      const img = new window.Image();
-      img.decoding = "async";
-      img.src = scene.preview_url;
-    }
-  }, [catalog, paged.hasNext, paged.page]);
+    prefetchScenePreviews(next.items);
+  }, [catalog, paged.hasNext, paged.items, paged.page]);
 
   function run(payload: Record<string, unknown>) {
     startTransition(async () => {
@@ -192,9 +239,9 @@ export function ServerStationWallControls({
 
         {catalog.length ? (
           <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-5 gap-2 sm:grid-cols-5 sm:grid-rows-4 sm:gap-2.5">
-            {paged.items.map((scene, index) => (
+            {paged.items.map((scene) => (
               <button
-                key={scene.id}
+                key={`${paged.page}-${scene.id}`}
                 type="button"
                 disabled={pending}
                 onClick={() =>
@@ -205,8 +252,8 @@ export function ServerStationWallControls({
                 }
                 className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40"
               >
-                <div className="min-h-0 flex-1 bg-black/40">
-                  <ScenePreview scene={scene} eager={index < 8} />
+                <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+                  <ScenePreview scene={scene} />
                 </div>
                 <div className="shrink-0 border-t border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
                   <p className="line-clamp-2 text-xs font-bold leading-tight text-[#f7efe6] sm:text-sm">

@@ -27,18 +27,23 @@ export function resolveLedScenePreviewUrl(scene: {
   public_url: string | null | undefined;
   storage_path: string | null | undefined;
 }): string | null {
-  const direct = scene.public_url?.trim();
-  if (direct) return direct;
-
   const path = scene.storage_path?.trim();
-  if (!path) return null;
-
   const env = getPublicSupabaseEnv();
-  if (!env?.url) return null;
 
-  const base = env.url.replace(/\/$/, "");
-  const cleaned = path.replace(/^\//, "");
-  return `${base}/storage/v1/object/public/screen-ads/${cleaned}`;
+  // Prefer a reconstructed public storage URL so previews stay consistent even when
+  // older rows have blank/stale public_url values.
+  if (path && env?.url) {
+    const base = env.url.replace(/\/$/, "");
+    const cleaned = path
+      .replace(/^\//, "")
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${base}/storage/v1/object/public/screen-ads/${cleaned}`;
+  }
+
+  const direct = scene.public_url?.trim();
+  return direct || null;
 }
 
 /** Artist scenes are always available on Server Station; house scenes need server_approved. */
