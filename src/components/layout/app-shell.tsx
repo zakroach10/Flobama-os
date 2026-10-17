@@ -169,16 +169,16 @@ function DedicatedConsoleShell({
     return (
       <div
         className={cn(
-          "flex min-h-full flex-col bg-background text-foreground",
+          "flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground",
           dark && "dark",
           "bg-[radial-gradient(ellipse_at_top,_rgba(196,86,48,0.12),_transparent_55%),linear-gradient(180deg,_#141210_0%,_#1c1916_40%,_#12100e_100%)]",
         )}
       >
         <div
           className={cn(
-            "mx-auto w-full flex-1 overflow-x-hidden text-foreground pb-[max(1rem,env(safe-area-inset-bottom))]",
+            "mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden text-foreground",
             dense
-              ? "max-w-[90rem] px-3 py-3 sm:px-4 sm:py-3 lg:px-5"
+              ? "max-w-[90rem] px-2 py-2 sm:px-3 sm:py-2 lg:px-4"
               : "max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8",
           )}
         >
