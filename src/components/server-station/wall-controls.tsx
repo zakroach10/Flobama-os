@@ -1,25 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { activateServerStationSceneAction } from "@/actions/server-station";
+import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
 import {
-  ServerStationButton,
-  ServerStationField,
-  ServerStationShell,
-  serverStationInputClass,
-} from "@/components/server-station/shell";
-import {
-  filterServerStationScenes,
+  paginateServerStationScenes,
+  SERVER_STATION_SCENE_PAGE_SIZE,
   type ServerStationPlaylistCard,
   type ServerStationSceneCard,
 } from "@/lib/server-station/scenes";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 import { cn } from "@/lib/utils";
 
-const LETTERS = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
-
-function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
+function ScenePreview({ scene, eager }: { scene: ServerStationSceneCard; eager: boolean }) {
   const url = scene.preview_url;
   if (url && scene.media_kind === "video") {
     return (
@@ -27,54 +22,34 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
         src={url}
         muted
         playsInline
-        preload="metadata"
-        className="h-28 w-full object-cover"
+        preload={eager ? "metadata" : "none"}
+        className="h-full w-full object-cover"
       />
     );
   }
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={url} alt="" className="h-28 w-full object-cover" loading="lazy" decoding="async" />
+      <img
+        src={url}
+        alt=""
+        className="h-full w-full object-cover"
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={eager ? "high" : "auto"}
+      />
     );
   }
   if (scene.kind === "obs") {
     return (
-      <div className="flex h-28 flex-col items-center justify-center gap-1 bg-white/5 px-3 text-center text-[#e8d5c4]">
-        <span className="text-xs font-semibold tracking-[0.16em] uppercase opacity-70">OBS</span>
-        <span className="line-clamp-2 text-sm font-medium">{scene.obs_scene_name || scene.title}</span>
+      <div className="flex h-full flex-col items-center justify-center gap-1 bg-white/5 px-2 text-center text-[#e8d5c4]">
+        <span className="text-[10px] font-semibold tracking-[0.16em] uppercase opacity-70">OBS</span>
+        <span className="line-clamp-3 text-xs font-medium sm:text-sm">{scene.obs_scene_name || scene.title}</span>
       </div>
     );
   }
   return (
-    <div className="flex h-28 items-center justify-center bg-white/5 text-[#e8d5c4]">Scene</div>
-  );
-}
-
-function SceneButton({
-  scene,
-  pending,
-  onPick,
-}: {
-  scene: ServerStationSceneCard;
-  pending: boolean;
-  onPick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={onPick}
-      className="min-h-[140px] overflow-hidden rounded-[28px] border border-white/15 bg-black/25 text-left disabled:opacity-40"
-    >
-      <ScenePreview scene={scene} />
-      <div className="p-5">
-        <p className="text-xl font-bold text-[#f7efe6]">{scene.title}</p>
-        <p className="mt-1 text-sm text-[#e8d5c4]">
-          {scene.artist_id ? "Artist graphic" : "Approved scene"}
-        </p>
-      </div>
-    </button>
+    <div className="flex h-full items-center justify-center bg-white/5 text-sm text-[#e8d5c4]">Scene</div>
   );
 }
 
@@ -95,33 +70,47 @@ export function ServerStationWallControls({
   initialPlaylists: ServerStationPlaylistCard[];
   initialDefaultPlaylistId: string | null;
 }) {
-  const [artistScenes] = useState(initialArtistScenes);
-  const [houseScenes] = useState(initialHouseScenes.length ? initialHouseScenes : initialScenes.filter((s) => !s.artist_id));
+  const catalog = useMemo(() => {
+    const house =
+      initialHouseScenes.length > 0
+        ? initialHouseScenes
+        : initialScenes.filter((scene) => !scene.artist_id);
+    const artists =
+      initialArtistScenes.length > 0
+        ? initialArtistScenes
+        : initialScenes.filter((scene) => Boolean(scene.artist_id));
+    return [...house, ...artists];
+  }, [initialArtistScenes, initialHouseScenes, initialScenes]);
+
   const [playlists] = useState(initialPlaylists);
   const [defaultPlaylistId] = useState(initialDefaultPlaylistId);
-  const [artistQuery, setArtistQuery] = useState("");
-  const [artistLetter, setArtistLetter] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState<{ label: string; payload: Record<string, unknown> } | null>(
     null,
   );
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  const filteredArtists = useMemo(
-    () => filterServerStationScenes(artistScenes, { query: artistQuery, letter: artistLetter }),
-    [artistScenes, artistQuery, artistLetter],
+  const paged = useMemo(
+    () => paginateServerStationScenes(catalog, page, SERVER_STATION_SCENE_PAGE_SIZE),
+    [catalog, page],
   );
 
-  const availableLetters = useMemo(() => {
-    const set = new Set<string>();
-    for (const scene of artistScenes) {
-      const first = scene.title.trim().charAt(0).toUpperCase();
-      set.add(/^[A-Z]$/.test(first) ? first : "#");
-    }
-    return set;
-  }, [artistScenes]);
+  useEffect(() => {
+    if (page !== paged.page) setPage(paged.page);
+  }, [page, paged.page]);
 
-  const showArtistResults = Boolean(artistQuery.trim() || artistLetter);
+  // Warm the next page's image previews so paging feels instant.
+  useEffect(() => {
+    if (typeof window === "undefined" || !paged.hasNext) return;
+    const next = paginateServerStationScenes(catalog, paged.page + 1, SERVER_STATION_SCENE_PAGE_SIZE);
+    for (const scene of next.items) {
+      if (!scene.preview_url || scene.media_kind === "video") continue;
+      const img = new window.Image();
+      img.decoding = "async";
+      img.src = scene.preview_url;
+    }
+  }, [catalog, paged.hasNext, paged.page]);
 
   function run(payload: Record<string, unknown>) {
     startTransition(async () => {
@@ -133,63 +122,43 @@ export function ServerStationWallControls({
     });
   }
 
+  const extraPlaylists = playlists
+    .filter((playlist) => playlist.id !== defaultPlaylistId)
+    .slice(0, 2);
+
   return (
-    <ServerStationShell actorName={actorName} wall={wall} title="LED Wall Controls">
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">Change the wall</h1>
-        <p className="text-lg text-[#e8d5c4]/90">
-          Every artist graphic is available here. Search or tap a letter — no long scrolling.
-        </p>
-      </div>
-
-      {!wall.connected && wall.offlineReason ? (
-        <p className="mb-5 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-amber-50">
-          {wall.offlineReason}
-        </p>
-      ) : null}
-      {message ? (
-        <p className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-50">
-          {message}
-        </p>
-      ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <button
-          type="button"
-          disabled={pending || !defaultPlaylistId}
-          onClick={() =>
-            setConfirm({
-              label: "House Ads / normal rotation",
-              payload: { resumeNormal: true },
-            })
-          }
-          className="min-h-[140px] rounded-[28px] border border-[#d36b4a]/40 bg-gradient-to-br from-[#d36b4a]/25 to-transparent p-6 text-left disabled:opacity-40"
-        >
-          <p className="text-2xl font-bold text-[#f7efe6]">Resume Normal Rotation</p>
-          <p className="mt-2 text-[#e8d5c4]">Return to house ads and scheduled programming.</p>
-        </button>
-
-        {defaultPlaylistId ? (
+    <ServerStationShell actorName={actorName} wall={wall} title="LED Wall Controls" layout="pos">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={pending}
+            disabled={pending || !defaultPlaylistId}
             onClick={() =>
               setConfirm({
-                label: "House Ads",
-                payload: { playlistId: defaultPlaylistId },
+                label: "House Ads / normal rotation",
+                payload: { resumeNormal: true },
               })
             }
-            className="min-h-[140px] rounded-[28px] border border-white/15 bg-black/25 p-6 text-left disabled:opacity-40"
+            className="min-h-12 rounded-2xl border border-[#d36b4a]/50 bg-[#d36b4a]/25 px-4 text-sm font-bold text-[#f7efe6] disabled:opacity-40 sm:min-h-14 sm:px-5 sm:text-base"
           >
-            <p className="text-2xl font-bold text-[#f7efe6]">House Ads</p>
-            <p className="mt-2 text-[#e8d5c4]">Play the default advertising playlist.</p>
+            Resume Normal
           </button>
-        ) : null}
-
-        {playlists
-          .filter((playlist) => playlist.id !== defaultPlaylistId)
-          .slice(0, 4)
-          .map((playlist) => (
+          {defaultPlaylistId ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                setConfirm({
+                  label: "House Ads",
+                  payload: { playlistId: defaultPlaylistId },
+                })
+              }
+              className="min-h-12 rounded-2xl border border-white/15 bg-black/30 px-4 text-sm font-bold text-[#f7efe6] disabled:opacity-40 sm:min-h-14 sm:px-5 sm:text-base"
+            >
+              House Ads
+            </button>
+          ) : null}
+          {extraPlaylists.map((playlist) => (
             <button
               key={playlist.id}
               type="button"
@@ -200,118 +169,94 @@ export function ServerStationWallControls({
                   payload: { playlistId: playlist.id },
                 })
               }
-              className="min-h-[140px] rounded-[28px] border border-white/15 bg-black/25 p-6 text-left disabled:opacity-40"
+              className="min-h-12 rounded-2xl border border-white/15 bg-black/30 px-4 text-sm font-bold text-[#f7efe6] disabled:opacity-40 sm:min-h-14 sm:px-5 sm:text-base"
             >
-              <p className="text-2xl font-bold text-[#f7efe6]">{playlist.name}</p>
-              <p className="mt-2 text-[#e8d5c4]">Approved playlist</p>
+              {playlist.name}
             </button>
           ))}
-
-        {houseScenes.map((scene) => (
-          <SceneButton
-            key={scene.id}
-            scene={scene}
-            pending={pending}
-            onPick={() =>
-              setConfirm({
-                label: scene.title,
-                payload: { sceneId: scene.id },
-              })
-            }
-          />
-        ))}
-      </div>
-
-      <section className="mt-8 space-y-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#f7efe6]">Artists</h2>
-          <p className="mt-1 text-[#e8d5c4]/90">
-            {artistScenes.length
-              ? `${artistScenes.length} artist graphics ready. Search or jump by letter.`
-              : "No artist graphics on the wall yet."}
+          <p className="ml-auto hidden text-sm text-[#e8d5c4]/80 lg:block">
+            {catalog.length} scenes · {SERVER_STATION_SCENE_PAGE_SIZE} per page
           </p>
         </div>
 
-        {artistScenes.length ? (
-          <>
-            <ServerStationField label="Find an artist">
-              <input
-                className={serverStationInputClass}
-                value={artistQuery}
-                onChange={(event) => {
-                  setArtistQuery(event.target.value);
-                  if (event.target.value.trim()) setArtistLetter(null);
-                }}
-                placeholder="Start typing a name"
-                autoCapitalize="words"
-                autoCorrect="off"
-              />
-            </ServerStationField>
-
-            <div className="flex flex-wrap gap-2">
-              {LETTERS.map((letter) => {
-                const enabled = availableLetters.has(letter);
-                return (
-                  <button
-                    key={letter}
-                    type="button"
-                    disabled={!enabled}
-                    onClick={() => {
-                      setArtistLetter((current) => (current === letter ? null : letter));
-                      setArtistQuery("");
-                    }}
-                    className={cn(
-                      "min-h-12 min-w-12 rounded-xl px-3 text-base font-bold",
-                      artistLetter === letter
-                        ? "bg-[#d36b4a] text-white"
-                        : enabled
-                          ? "border border-white/15 bg-white/5 text-[#f7efe6]"
-                          : "border border-white/5 bg-black/10 text-white/25",
-                    )}
-                  >
-                    {letter}
-                  </button>
-                );
-              })}
-            </div>
-
-            {showArtistResults ? (
-              filteredArtists.length ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {filteredArtists.map((scene) => (
-                    <SceneButton
-                      key={scene.id}
-                      scene={scene}
-                      pending={pending}
-                      onPick={() =>
-                        setConfirm({
-                          label: scene.title,
-                          payload: { sceneId: scene.id },
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-2xl border border-white/10 bg-black/20 p-5 text-[#e8d5c4]">
-                  No artists match that search.
-                </p>
-              )
-            ) : (
-              <p className="rounded-2xl border border-white/10 bg-black/20 p-5 text-[#e8d5c4]">
-                Type a name or tap a letter to pull up artists without scrolling the full list.
-              </p>
-            )}
-          </>
+        {!wall.connected && wall.offlineReason ? (
+          <p className="shrink-0 truncate rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-50">
+            {wall.offlineReason}
+          </p>
         ) : null}
-      </section>
+        {message ? (
+          <p className="shrink-0 truncate rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-50">
+            {message}
+          </p>
+        ) : null}
 
-      {!houseScenes.length && !artistScenes.length ? (
-        <p className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5 text-[#e8d5c4]">
-          No scenes are available yet. Artist graphics appear automatically; ask an admin to approve house
-          scenes in Settings → Server Station.
-        </p>
-      ) : null}
+        {catalog.length ? (
+          <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-5 gap-2 sm:grid-cols-5 sm:grid-rows-4 sm:gap-2.5">
+            {paged.items.map((scene, index) => (
+              <button
+                key={scene.id}
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  setConfirm({
+                    label: scene.title,
+                    payload: { sceneId: scene.id },
+                  })
+                }
+                className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40"
+              >
+                <div className="min-h-0 flex-1 bg-black/40">
+                  <ScenePreview scene={scene} eager={index < 8} />
+                </div>
+                <div className="shrink-0 border-t border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
+                  <p className="line-clamp-2 text-xs font-bold leading-tight text-[#f7efe6] sm:text-sm">
+                    {scene.title}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-white/10 bg-black/20 p-6 text-center text-[#e8d5c4]">
+            No scenes are available yet. Artist graphics appear automatically; ask an admin to approve house
+            scenes in Settings → Server Station.
+          </div>
+        )}
+
+        <div className="flex shrink-0 items-center justify-between gap-3 pt-1">
+          <button
+            type="button"
+            disabled={!paged.hasPrev || pending}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className={cn(
+              "inline-flex min-h-14 min-w-[8.5rem] items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold",
+              paged.hasPrev
+                ? "border-white/20 bg-white/10 text-[#f7efe6]"
+                : "border-white/5 bg-black/20 text-white/30",
+            )}
+          >
+            <ChevronLeftIcon className="size-5" aria-hidden />
+            Prev
+          </button>
+          <p className="text-center text-sm font-semibold text-[#e8d5c4] sm:text-base">
+            Page {paged.page} of {paged.pageCount}
+          </p>
+          <button
+            type="button"
+            disabled={!paged.hasNext || pending}
+            onClick={() => setPage((current) => current + 1)}
+            className={cn(
+              "inline-flex min-h-14 min-w-[8.5rem] items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold",
+              paged.hasNext
+                ? "border-white/20 bg-white/10 text-[#f7efe6]"
+                : "border-white/5 bg-black/20 text-white/30",
+            )}
+          >
+            Next
+            <ChevronRightIcon className="size-5" aria-hidden />
+          </button>
+        </div>
+      </div>
 
       {confirm ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center">

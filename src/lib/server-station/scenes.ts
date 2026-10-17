@@ -54,23 +54,27 @@ export function isServerStationActivatableScene(scene: {
   return scene.server_approved;
 }
 
-export function filterServerStationScenes(
-  scenes: ServerStationSceneCard[],
-  input: { query?: string; letter?: string | null },
-) {
-  const query = input.query?.trim().toLowerCase() ?? "";
-  const letter = input.letter?.trim().toUpperCase() || null;
+/** POS-style wall grid: 20 preview tiles per screen, no scrolling. */
+export const SERVER_STATION_SCENE_PAGE_SIZE = 20;
 
-  return scenes.filter((scene) => {
-    const title = scene.title.trim();
-    if (letter) {
-      const first = title.charAt(0).toUpperCase();
-      const matchesLetter = letter === "#" ? !/^[A-Z]/i.test(first) : first === letter;
-      if (!matchesLetter) return false;
-    }
-    if (query && !title.toLowerCase().includes(query)) return false;
-    return true;
-  });
+export function paginateServerStationScenes<T>(
+  scenes: T[],
+  page: number,
+  pageSize = SERVER_STATION_SCENE_PAGE_SIZE,
+) {
+  const total = scenes.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const start = (safePage - 1) * pageSize;
+  return {
+    page: safePage,
+    pageCount,
+    pageSize,
+    total,
+    items: scenes.slice(start, start + pageSize),
+    hasPrev: safePage > 1,
+    hasNext: safePage < pageCount,
+  };
 }
 
 function toSceneCard(scene: {

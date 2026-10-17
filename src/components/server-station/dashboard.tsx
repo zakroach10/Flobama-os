@@ -28,7 +28,7 @@ export function ServerStationDashboard({
         <ServerStationTile
           href="/server/wall"
           title="LED Wall Controls"
-          description="Switch artist graphics, approved house scenes, and normal rotation."
+          description="POS-style wall picker — 20 preview tiles per page, no scrolling."
           accent="warm"
         />
         <ServerStationTile
