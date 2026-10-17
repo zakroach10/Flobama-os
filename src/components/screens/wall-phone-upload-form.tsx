@@ -136,8 +136,7 @@ export function WallPhoneUploadForm({
           key={fileKey}
           id="wall-phone-file"
           type="file"
-          accept="video/mp4,image/png,.mp4,.png,image/*"
-          capture="environment"
+          accept="video/mp4,image/png,.mp4,.png"
           className="block w-full text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-primary-foreground"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
