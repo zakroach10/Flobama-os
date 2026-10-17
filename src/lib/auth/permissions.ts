@@ -77,6 +77,18 @@ export function canConfigureLedWall(role: StaffRole): boolean {
   return role === "admin";
 }
 
+/** Upload MP4/PNG house media scenes from Screens or the FloBama Screens wall console. */
+export function canUploadLedWallMedia(
+  role: StaffRole,
+  email?: string | null,
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
+): boolean {
+  return (
+    canConfigureLedWall(role) ||
+    canManageScreensControls(role, email, options)
+  );
+}
+
 export function canOperateCameras(role: StaffRole): boolean {
   return role === "admin" || role === "manager";
 }
@@ -143,6 +155,19 @@ export function authorizeLedWallConfigure(role: StaffRole | null): AuthzDecision
   if (!access.allowed) return access;
   if (!canConfigureLedWall(role!)) {
     return { allowed: false, reason: "Only admins can configure LED wall scenes." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeLedWallMediaUpload(
+  role: StaffRole | null,
+  email?: string | null,
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
+): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canUploadLedWallMedia(role!, email, options)) {
+    return { allowed: false, reason: "Your role cannot upload LED wall media scenes." };
   }
   return { allowed: true };
 }

@@ -3,7 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
-import { authorizeLedWallActivate, authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import {
+  authorizeLedWallActivate,
+  authorizeLedWallConfigure,
+  authorizeLedWallMediaUpload,
+} from "@/lib/auth/permissions";
+import { getPublicAppUrl } from "@/lib/env";
+import { joinPublicUrl } from "@/lib/public/urls";
+import {
+  canIssueWallLedUploadTokens,
+  issueWallLedUploadToken,
+  WALL_LED_UPLOAD_TTL_SECONDS,
+} from "@/lib/screens/wall-upload-token";
 import {
   LED_TRIVIA_SCENE_ID,
   LED_WALL_SQL,
@@ -25,7 +36,13 @@ import {
   updateLedWallSceneSchema,
 } from "@/lib/validation/schemas";
 
-export type LedWallActionResult = { ok: boolean; message: string; token?: string };
+export type LedWallActionResult = {
+  ok: boolean;
+  message: string;
+  token?: string;
+  uploadUrl?: string;
+  expiresAt?: string;
+};
 
 function fieldMessage(error: z.ZodError) {
   return error.issues[0]?.message ?? "Check the highlighted fields.";
@@ -39,13 +56,21 @@ function ledSqlMessage(message: string) {
   return message;
 }
 
-async function staffGate(configure: boolean) {
+async function staffGate(mode: "activate" | "configure" | "media-upload" = "activate") {
   const context = await getStaffContext();
   if (context.status === "unconfigured") return { ok: false as const, message: "Supabase is not configured." };
   if (context.status === "unauthenticated") return { ok: false as const, message: "Sign in required." };
   if (context.status === "denied") return { ok: false as const, message: "You do not have staff access." };
   if (context.status === "error") return { ok: false as const, message: context.message };
-  const allowed = configure ? authorizeLedWallConfigure(context.role) : authorizeLedWallActivate(context.role);
+  const allowed =
+    mode === "configure"
+      ? authorizeLedWallConfigure(context.role)
+      : mode === "media-upload"
+        ? authorizeLedWallMediaUpload(context.role, context.email, {
+            userId: context.userId,
+            wallOpsUserId: context.venue.wall_ops_user_id,
+          })
+        : authorizeLedWallActivate(context.role);
   if (!allowed.allowed) return { ok: false as const, message: allowed.reason };
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { ok: false as const, message: "Supabase is not configured." };
@@ -72,7 +97,7 @@ async function nextSortOrder(supabase: Awaited<ReturnType<typeof createServerSup
 }
 
 export async function activateLedWallSceneAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(false);
+  const gate = await staffGate("activate");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = activateLedWallSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -150,7 +175,7 @@ export async function activateLedWallSceneAction(input: unknown): Promise<LedWal
 }
 
 export async function ensureLedTriviaSceneAction(): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
 
   const { data: existing, error: existingError } = await gate.supabase
@@ -177,7 +202,7 @@ export async function ensureLedTriviaSceneAction(): Promise<LedWallActionResult>
 }
 
 export async function createLedObsSceneAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = createLedObsSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -196,7 +221,7 @@ export async function createLedObsSceneAction(input: unknown): Promise<LedWallAc
 }
 
 export async function createLedMediaSceneAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("media-upload");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = createLedMediaSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -232,7 +257,7 @@ export async function createLedMediaSceneAction(input: unknown): Promise<LedWall
 }
 
 export async function updateLedWallSceneAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = updateLedWallSceneSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -251,7 +276,7 @@ export async function updateLedWallSceneAction(input: unknown): Promise<LedWallA
 }
 
 export async function reorderLedWallScenesAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = reorderLedWallScenesSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -269,7 +294,7 @@ export async function reorderLedWallScenesAction(input: unknown): Promise<LedWal
 }
 
 export async function deleteLedWallSceneAction(id: string): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
 
   const { data: scene, error: sceneError } = await gate.supabase
@@ -291,7 +316,7 @@ export async function deleteLedWallSceneAction(id: string): Promise<LedWallActio
 }
 
 export async function saveLedWallMediaSceneAction(input: unknown): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = ledWallMediaSceneNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
@@ -309,7 +334,7 @@ export async function saveLedWallMediaSceneAction(input: unknown): Promise<LedWa
 }
 
 export async function issueLedWallAgentTokenAction(): Promise<LedWallActionResult> {
-  const gate = await staffGate(true);
+  const gate = await staffGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -339,5 +364,28 @@ export async function issueLedWallAgentTokenAction(): Promise<LedWallActionResul
     ok: true,
     token,
     message: "Booth token created. Copy it into the client config now. It will not be shown again.",
+  };
+}
+
+/** Short-lived phone upload link for FloBama Screens wall operators. */
+export async function issueWallLedUploadLinkAction(): Promise<LedWallActionResult> {
+  const gate = await staffGate("media-upload");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  if (!canIssueWallLedUploadTokens()) {
+    return {
+      ok: false,
+      message: "Set CRON_SECRET or SUPABASE_SERVICE_ROLE_KEY so phone upload links can be signed.",
+    };
+  }
+  const token = issueWallLedUploadToken(gate.context.venue.id);
+  if (!token) return { ok: false, message: "Could not create an upload link." };
+  const expiresAt = new Date(Date.now() + WALL_LED_UPLOAD_TTL_SECONDS * 1000).toISOString();
+  const uploadUrl = joinPublicUrl(getPublicAppUrl(), `/wall/upload?t=${encodeURIComponent(token)}`);
+  return {
+    ok: true,
+    message: "Phone upload link ready. It expires in 15 minutes.",
+    token,
+    uploadUrl,
+    expiresAt,
   };
 }

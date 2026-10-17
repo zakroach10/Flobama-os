@@ -15,22 +15,19 @@ import {
 import { activateDefaultAdRollAction, activateArtistLedAction } from "@/actions/artist-led";
 import { activateLedWallSceneAction } from "@/actions/led-wall";
 import { activateLedPlaylistAction } from "@/actions/led-playlists";
-import { clearScreenTakeoverAction, startScreenTakeoverAction } from "@/actions/screens";
 import { refreshWallDisplaysAction } from "@/actions/display-signals";
 import { signOutWallOpsAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { WallOpsInstallCard } from "@/components/pwa/wall-ops-install-card";
+import { WallOpsSceneUpload } from "@/components/screens/wall-ops-scene-upload";
 import { Button } from "@/components/ui/button";
 import { useWallOpsSync } from "@/hooks/use-wall-ops-sync";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import type { ArtistLedConfig, TodayLedListing } from "@/lib/queries/artist-led";
 import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wall";
 import type { StaffLedPlaylist } from "@/lib/screens/led-playlists";
-import type { StaffScreenAd } from "@/lib/screens/playlist";
-import type { StaffTakeover } from "@/lib/screens/takeover";
 import { houseLedScenes } from "@/lib/screens/artist-led";
 import { describeAgentLink, isAgentStale, ledSceneDetail } from "@/lib/screens/led-wall";
-import { formatTakeoverUntil, takeoverRemainingLabel } from "@/lib/screens/takeover";
 import {
   readWallOpsStation,
   WALL_OPS_STATION_LABELS,
@@ -39,7 +36,6 @@ import {
   type WallOpsStation,
 } from "@/lib/screens/wall-ops-station";
 import { formatVenueDateTime } from "@/lib/timezone";
-import { SCREEN_TAKEOVER_PRESETS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 function StatusDot({
@@ -74,13 +70,9 @@ export function WallOpsControlCenter({
   listings,
   artistConfigs,
   agent,
-  ads,
-  takeover,
-  takeoverMissing,
   refreshMissing,
   lastRefreshAt,
   timeZone,
-  canControlVertical,
   venueId,
   supabaseEnv,
 }: {
@@ -92,13 +84,9 @@ export function WallOpsControlCenter({
   listings: TodayLedListing[];
   artistConfigs: ArtistLedConfig[];
   agent: LedWallAgentSnapshot;
-  ads: StaffScreenAd[];
-  takeover: StaffTakeover | null;
-  takeoverMissing: boolean;
   refreshMissing: boolean;
   lastRefreshAt: string | null;
   timeZone: string;
-  canControlVertical: boolean;
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
@@ -109,8 +97,6 @@ export function WallOpsControlCenter({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [station, setStation] = useState<WallOpsStation>(readWallOpsStation);
   const [, startTransition] = useTransition();
-  const [takeoverAdId, setTakeoverAdId] = useState("");
-  const selectedTakeoverAdId = takeoverAdId || takeover?.adId || ads[0]?.id || "";
   const { linkState, lastSyncedAt, stale } = useWallOpsSync({ venueId, supabaseEnv });
 
   const houseScenes = useMemo(
@@ -153,7 +139,7 @@ export function WallOpsControlCenter({
   }, [listings]);
 
   const controlsDisabled = pendingKey !== null || linkState === "offline";
-  const soundBoothFirst = station === "sound-booth";
+  const uploadFirst = station === "back-office";
 
   function run(key: string, action: () => Promise<{ ok: boolean; message: string }>, opts?: { confirm?: string }) {
     if (opts?.confirm && typeof window !== "undefined" && !window.confirm(opts.confirm)) return;
@@ -194,7 +180,7 @@ export function WallOpsControlCenter({
         <p className="text-sm text-muted-foreground">Primary controls for the house system.</p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2">
         <Button
           type="button"
           size="lg"
@@ -355,113 +341,8 @@ export function WallOpsControlCenter({
     </section>
   );
 
-  const verticalSection = (
-    <section className="flex min-h-0 flex-col gap-4 rounded-2xl border border-border/70 bg-card/75 p-4 sm:p-5">
-      <div>
-        <h2 className="text-sm font-semibold tracking-[0.16em] text-muted-foreground uppercase">Vertical Displays</h2>
-        <p className="text-sm text-muted-foreground">Advertising rotation and sponsor takeovers.</p>
-      </div>
-
-      {!canControlVertical ? (
-        <p className="text-sm text-muted-foreground">This login can control the LED wall only.</p>
-      ) : takeoverMissing ? (
-        <p className="text-sm text-muted-foreground">Vertical takeover SQL is not applied yet.</p>
-      ) : (
-        <>
-          <div
-            className={cn(
-              "rounded-xl border px-4 py-3",
-              takeover ? "border-primary/50 bg-primary/10" : "border-border/80 bg-background/50",
-            )}
-          >
-            <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {takeover ? "Sponsor takeover" : "Advertising"}
-            </p>
-            {takeover ? (
-              <>
-                <p className="mt-1 text-lg font-semibold">{takeover.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {takeoverRemainingLabel(takeover.endsAt)} · {formatTakeoverUntil(takeover.endsAt, timeZone)}
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-3 w-full min-h-12 text-foreground"
-                  disabled={controlsDisabled}
-                  onClick={() =>
-                    run("clear-takeover", () => clearScreenTakeoverAction(), {
-                      confirm: "End the sponsor takeover and return TVs to the default ad rotation?",
-                    })
-                  }
-                >
-                  {pendingKey === "clear-takeover" ? "Ending…" : "End takeover"}
-                </Button>
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Default ad rotation is running. No sponsor takeover is active.
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase" htmlFor="wall-ops-ad">
-              Start takeover graphic
-            </label>
-            <select
-              id="wall-ops-ad"
-              className="h-12 min-h-12 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-              value={selectedTakeoverAdId}
-              disabled={controlsDisabled}
-              onChange={(event) => setTakeoverAdId(event.target.value)}
-            >
-              <option value="">Choose a graphic</option>
-              {ads.map((ad) => (
-                <option key={ad.id} value={ad.id}>
-                  {ad.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {SCREEN_TAKEOVER_PRESETS.filter((minutes) => minutes <= 120).map((minutes) => (
-              <Button
-                key={minutes}
-                type="button"
-                variant="secondary"
-                className="min-h-12"
-                disabled={controlsDisabled || !selectedTakeoverAdId}
-                onClick={() =>
-                  run(`takeover-${minutes}`, () =>
-                    startScreenTakeoverAction({ adId: selectedTakeoverAdId, minutes }),
-                  )
-                }
-              >
-                {pendingKey === `takeover-${minutes}` ? "Holding…" : `${minutes} min`}
-              </Button>
-            ))}
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-12 col-span-2"
-              disabled={controlsDisabled || !selectedTakeoverAdId}
-              onClick={() =>
-                run(
-                  "takeover-clear",
-                  () => startScreenTakeoverAction({ adId: selectedTakeoverAdId, minutes: null }),
-                  {
-                    confirm: "Hold this graphic on the TVs until someone clears it?",
-                  },
-                )
-              }
-            >
-              {pendingKey === "takeover-clear" ? "Holding…" : "Hold until cleared"}
-            </Button>
-          </div>
-        </>
-      )}
-    </section>
+  const uploadSection = (
+    <WallOpsSceneUpload venueId={venueId} supabaseEnv={supabaseEnv} disabled={controlsDisabled} />
   );
 
   return (
@@ -579,23 +460,16 @@ export function WallOpsControlCenter({
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 gap-4",
-          soundBoothFirst
-            ? "xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,1fr)]"
-            : "xl:grid-cols-[minmax(18rem,1fr)_minmax(0,1.65fr)]",
-        )}
-      >
-        {soundBoothFirst ? (
+      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,1fr)]">
+        {uploadFirst ? (
           <>
+            {uploadSection}
             {ledPrimary}
-            {verticalSection}
           </>
         ) : (
           <>
-            {verticalSection}
             {ledPrimary}
+            {uploadSection}
           </>
         )}
       </div>
@@ -619,12 +493,6 @@ export function WallOpsControlCenter({
             <dt className="text-xs text-muted-foreground">Last wall refresh</dt>
             <dd className="text-sm text-foreground">
               {lastRefreshAt ? new Date(lastRefreshAt).toLocaleString() : "Not requested yet"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Vertical takeover</dt>
-            <dd className="text-sm text-foreground">
-              {takeoverMissing ? "Unavailable" : takeover ? takeover.title : "Default ad rotation"}
             </dd>
           </div>
           <div>
@@ -661,8 +529,8 @@ export function WallOpsControlCenter({
           <div className="space-y-4 border-t border-border/60 px-4 py-4 sm:px-5">
             <WallOpsInstallCard />
             <p className="text-sm text-muted-foreground">
-              Station preference only changes button order on this computer. It does not change permissions.
-              Sign in once per computer; sessions refresh automatically until you log out or access is revoked.
+              Sound Booth prioritizes LED controls; Back Office prioritizes Upload. Preferences stay on this
+              computer only and do not change permissions.
             </p>
             <Button
               type="button"
