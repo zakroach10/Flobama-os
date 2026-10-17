@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
 import { HomeIcon, ArrowLeftIcon, LockIcon } from "lucide-react";
-import { lockServerStationStaffAction } from "@/actions/server-station-auth";
+import {
+  lockServerStationStaffAction,
+  refreshServerStationStaffSessionAction,
+} from "@/actions/server-station-auth";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { cn } from "@/lib/utils";
 import { wallStatusLabel, type ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
@@ -28,10 +31,11 @@ export function ServerStationShell({
   const atHome = pathname === "/server";
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
     const bump = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
         startTransition(async () => {
           await lockServerStationStaffAction();
           router.replace("/server/login?reason=idle");
@@ -39,10 +43,17 @@ export function ServerStationShell({
       }, 3 * 60_000);
     };
     bump();
+    // Keep the httpOnly staff cookie alive while the kiosk is in use.
+    // Page renders cannot write cookies in Next.js; this Server Action can.
+    void refreshServerStationStaffSessionAction();
+    heartbeat = setInterval(() => {
+      void refreshServerStationStaffSessionAction();
+    }, 60_000);
     window.addEventListener("pointerdown", bump);
     window.addEventListener("keydown", bump);
     return () => {
-      if (timer) clearTimeout(timer);
+      if (idleTimer) clearTimeout(idleTimer);
+      if (heartbeat) clearInterval(heartbeat);
       window.removeEventListener("pointerdown", bump);
       window.removeEventListener("keydown", bump);
     };
