@@ -128,6 +128,8 @@ export async function listServerApprovedScenesAction() {
       ok: false as const,
       message: gate.message,
       scenes: [],
+      artistScenes: [],
+      houseScenes: [],
       playlists: [],
       defaultPlaylistId: null,
     };
@@ -139,6 +141,8 @@ export async function listServerApprovedScenesAction() {
       ok: false as const,
       message: sqlMessage(result.error),
       scenes: [],
+      artistScenes: [],
+      houseScenes: [],
       playlists: [],
       defaultPlaylistId: null,
     };
