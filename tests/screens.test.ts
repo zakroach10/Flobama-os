@@ -8,7 +8,7 @@ import {
   toPublicPlaylist,
   type StaffScreenAd,
 } from "@/lib/screens/playlist";
-import { containScale } from "@/lib/screens/frame";
+import { containScale, fitScale } from "@/lib/screens/frame";
 import {
   displayRevision,
   formatTakeoverUntil,
@@ -402,6 +402,13 @@ describe("kiosk frame", () => {
     const scale = containScale(1920, 1080);
     expect(Number.isFinite(scale)).toBe(true);
     expect(String(scale)).not.toMatch(/px|vw|vh|dvw|dvh/);
+  });
+
+  it("shrinks a crowded live-events slide to the frame without scaling up", () => {
+    expect(fitScale(1920, 1920)).toBe(1);
+    expect(fitScale(1920, 2400)).toBeCloseTo(0.8);
+    expect(fitScale(1920, 960)).toBe(1);
+    expect(fitScale(0, 1920)).toBe(1);
   });
 });
 

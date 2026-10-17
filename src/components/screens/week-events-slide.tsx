@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { WeekLineup } from "@/components/brand/week-lineup";
-import { liveWeekDays, paginateWeekDays, type WeekSlidePayload } from "@/lib/screens/week";
+import { fitScale } from "@/lib/screens/frame";
+import { liveWeekDays, type WeekSlidePayload } from "@/lib/screens/week";
 
 export function WeekEventsSlide({
   week,
@@ -11,28 +12,47 @@ export function WeekEventsSlide({
   week: WeekSlidePayload | null;
   loading?: boolean;
 }) {
-  const crowded = (week?.eventCount ?? 0) > 12;
-  const liveDays = liveWeekDays(week?.days ?? []);
-  const pages = crowded ? paginateWeekDays(liveDays) : [liveDays];
-  const [page, setPage] = useState(0);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const lineupRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const days = liveWeekDays(week?.days ?? []);
+  const lineupKey = [
+    week?.rangeLabel ?? "",
+    loading ? "loading" : "ready",
+    ...days.map((day) => `${day.dateKey}:${day.events.map((event) => `${event.id}:${event.name}:${event.time}`).join(",")}`),
+  ].join("|");
 
-  useEffect(() => {
-    if (pages.length <= 1) return;
-    const timer = window.setInterval(() => {
-      setPage((value) => (value + 1) % pages.length);
-    }, 8000);
-    return () => window.clearInterval(timer);
-  }, [pages.length]);
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const lineup = lineupRef.current;
+    if (!frame || !lineup) return;
 
-  const current = pages[page % pages.length] ?? [];
+    const measure = () => {
+      const next = fitScale(frame.clientHeight, lineup.offsetHeight);
+      setScale((current) => (Math.abs(current - next) < 0.005 ? current : next));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    observer.observe(lineup);
+    return () => observer.disconnect();
+  }, [lineupKey]);
 
   return (
-    <WeekLineup
-      rangeLabel={week?.rangeLabel ?? (loading ? "Loading calendar" : "This week")}
-      days={current}
-      tone="dark"
-      size="kiosk"
-      pageLabel={pages.length > 1 ? `${page + 1} / ${pages.length}` : null}
-    />
+    <div ref={frameRef} className="h-full w-full overflow-hidden">
+      <div
+        ref={lineupRef}
+        className="w-full origin-top"
+        style={scale < 0.999 ? { transform: `scale(${scale})` } : undefined}
+      >
+        <WeekLineup
+          rangeLabel={week?.rangeLabel ?? (loading ? "Loading calendar" : "This week")}
+          days={days}
+          tone="dark"
+          size="kiosk"
+        />
+      </div>
+    </div>
   );
 }
