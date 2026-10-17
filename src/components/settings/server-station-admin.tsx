@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { SERVER_STATION_SQL } from "@/lib/constants";
 import type { ServerStationSettings } from "@/lib/server-station/settings";
 
-type SceneOption = { id: string; title: string; server_approved: boolean };
+type SceneOption = { id: string; title: string; server_approved: boolean; artist_id: string | null };
 type PlaylistOption = { id: string; name: string };
 type DeviceRow = { id: string; label: string; last_seen_at: string | null; revoked_at: string | null };
 type StaffPinOption = { userId: string; displayName: string; hasPin: boolean };
@@ -55,7 +55,10 @@ export function ServerStationAdminPanel({
   const [maxUploadMb, setMaxUploadMb] = useState(String(Math.round(settings.max_upload_bytes / (1024 * 1024))));
   const [businessNightEndHour, setBusinessNightEndHour] = useState(String(settings.business_night_end_hour));
   const [staffIdleSeconds, setStaffIdleSeconds] = useState(String(settings.staff_idle_seconds));
-  const [approved, setApproved] = useState(() => new Set(scenes.filter((s) => s.server_approved).map((s) => s.id)));
+  const houseScenes = useMemo(() => scenes.filter((scene) => !scene.artist_id), [scenes]);
+  const [approved, setApproved] = useState(
+    () => new Set(houseScenes.filter((s) => s.server_approved).map((s) => s.id)),
+  );
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pinUserId, setPinUserId] = useState(staffOptions[0]?.userId ?? "");
   const [pin, setPin] = useState("");
@@ -153,9 +156,13 @@ export function ServerStationAdminPanel({
       </div>
 
       <div className="space-y-3">
-        <h3 className="font-semibold">Scenes servers can activate</h3>
-        <div className="grid max-h-64 gap-2 overflow-y-auto rounded-lg border p-3 sm:grid-cols-2">
-          {scenes.map((scene) => (
+        <h3 className="font-semibold">House scenes servers can activate</h3>
+        <p className="text-sm text-muted-foreground">
+          All artist LED graphics are available on Server Station automatically. Only pick extra house /
+          OBS scenes here — no scrolling through the artist roster.
+        </p>
+        <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
+          {houseScenes.map((scene) => (
             <label key={scene.id} className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -172,7 +179,9 @@ export function ServerStationAdminPanel({
               {scene.title}
             </label>
           ))}
-          {!scenes.length ? <p className="text-sm text-muted-foreground">No LED scenes yet.</p> : null}
+          {!houseScenes.length ? (
+            <p className="text-sm text-muted-foreground">No house LED scenes yet.</p>
+          ) : null}
         </div>
       </div>
 

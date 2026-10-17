@@ -28,7 +28,7 @@ export function ServerStationDashboard({
         <ServerStationTile
           href="/server/wall"
           title="LED Wall Controls"
-          description="Change approved scenes and return to normal rotation."
+          description="Switch artist graphics, approved house scenes, and normal rotation."
           accent="warm"
         />
         <ServerStationTile
