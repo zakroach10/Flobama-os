@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import {
@@ -37,6 +37,69 @@ export function ServerStationPhoneUploadPanel({
   const [headline, setHeadline] = useState("FLOBAMA");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const localObjectUrlRef = useRef<string | null>(null);
+
+  function chooseLocalPhoto(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose a photo.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Photo must be 10 MB or smaller.");
+      return;
+    }
+    if (localObjectUrlRef.current) URL.revokeObjectURL(localObjectUrlRef.current);
+    const objectUrl = URL.createObjectURL(file);
+    localObjectUrlRef.current = objectUrl;
+    setUploadedUrl(objectUrl);
+    setUploadedPath(null);
+    setContentHash(null);
+    setQrDataUrl(null);
+    setSessionId(null);
+  }
+
+  async function publishRendered(mode: "show_now" | "add_rotation") {
+    if (!uploadedUrl) return;
+    const blob = await renderServerStationGraphicBlob({
+      kind: "message",
+      templateId,
+      headline: headline || "FLOBAMA",
+      photoUrl: uploadedUrl,
+    });
+    const supabase = createBrowserSupabaseClient(supabaseEnv);
+    if (!supabase) {
+      toast.error("Upload is not configured.");
+      return;
+    }
+    const id = crypto.randomUUID();
+    const storagePath = `${venueId}/led/server-upload-${id}.png`;
+    const file = new File([blob], `server-upload-${id}.png`, { type: "image/png" });
+    const { error } = await supabase.storage.from("screen-ads").upload(storagePath, file, {
+      contentType: "image/png",
+      upsert: false,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
+    const result = await publishServerStationGraphicAction({
+      kind: "upload",
+      title: headline || "Phone upload",
+      templateId,
+      publicUrl,
+      storagePath,
+      contentHash,
+      durationPreset: mode === "show_now" ? 15 : "tonight",
+      mode,
+      photoUrl: publicUrl,
+    });
+    setMessage(result.message);
+    if (result.ok) toast.success(result.message);
+    else toast.error(result.message);
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -57,10 +120,11 @@ export function ServerStationPhoneUploadPanel({
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="Upload from Phone">
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">Upload Picture From Phone</h1>
-        <p className="text-lg text-[#e8d5c4]/90">
-          Scan the QR code, upload on your phone, then approve the result on this kiosk before it goes on the wall.
+      <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">Upload a picture</h1>
+        <p className="text-base text-[#e8d5c4]/90 lg:text-lg">
+          On a phone, choose a photo from this device. On the kiosk, show a QR code and approve the upload here
+          before it goes on the wall.
         </p>
       </div>
 
@@ -72,8 +136,23 @@ export function ServerStationPhoneUploadPanel({
 
       {!uploadedUrl ? (
         <div className="mx-auto max-w-md space-y-5 text-center">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            className="sr-only"
+            onChange={(event) => {
+              chooseLocalPhoto(event.target.files?.[0] ?? null);
+              event.target.value = "";
+            }}
+          />
+          <ServerStationButton disabled={pending} onClick={() => fileInputRef.current?.click()} className="w-full">
+            Choose a photo
+          </ServerStationButton>
           <ServerStationButton
+            variant="secondary"
             disabled={pending}
+            className="w-full"
             onClick={() => {
               startTransition(async () => {
                 const result = await issueServerStationUploadSessionAction({ workflow: "upload" });
@@ -98,7 +177,7 @@ export function ServerStationPhoneUploadPanel({
           {qrDataUrl ? (
             <div className="rounded-[28px] border border-white/10 bg-white p-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="Phone upload QR" className="mx-auto h-72 w-72" />
+              <img src={qrDataUrl} alt="Phone upload QR" className="mx-auto h-auto w-full max-w-72" />
               <p className="mt-4 text-lg font-semibold text-[#1a1410]">
                 Scan with your phone to upload a picture.
               </p>
@@ -111,7 +190,7 @@ export function ServerStationPhoneUploadPanel({
           <div className="space-y-4">
             <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Uploaded photo</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={uploadedUrl} alt="Uploaded" className="w-full rounded-[24px] object-cover" />
+            <img src={uploadedUrl} alt="Uploaded" className="max-h-64 w-full rounded-[24px] object-contain" />
             <label className="block space-y-2">
               <span className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Headline</span>
               <input
@@ -141,43 +220,7 @@ export function ServerStationPhoneUploadPanel({
                 disabled={pending}
                 onClick={() => {
                   startTransition(async () => {
-                    const blob = await renderServerStationGraphicBlob({
-                      kind: "message",
-                      templateId,
-                      headline: headline || "FLOBAMA",
-                      photoUrl: uploadedUrl,
-                    });
-                    const supabase = createBrowserSupabaseClient(supabaseEnv);
-                    if (!supabase) {
-                      toast.error("Upload is not configured.");
-                      return;
-                    }
-                    const id = crypto.randomUUID();
-                    const storagePath = `${venueId}/led/server-upload-${id}.png`;
-                    const file = new File([blob], `server-upload-${id}.png`, { type: "image/png" });
-                    const { error } = await supabase.storage.from("screen-ads").upload(storagePath, file, {
-                      contentType: "image/png",
-                      upsert: false,
-                    });
-                    if (error) {
-                      toast.error(error.message);
-                      return;
-                    }
-                    const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
-                    const result = await publishServerStationGraphicAction({
-                      kind: "upload",
-                      title: headline || "Phone upload",
-                      templateId,
-                      publicUrl,
-                      storagePath,
-                      contentHash,
-                      durationPreset: 15,
-                      mode: "show_now",
-                      photoUrl: uploadedUrl,
-                    });
-                    setMessage(result.message);
-                    if (result.ok) toast.success(result.message);
-                    else toast.error(result.message);
+                    await publishRendered("show_now");
                   });
                 }}
               >
@@ -188,21 +231,24 @@ export function ServerStationPhoneUploadPanel({
                 disabled={pending}
                 onClick={() => {
                   startTransition(async () => {
-                    if (!uploadedPath || !uploadedUrl) return;
-                    const result = await publishServerStationGraphicAction({
-                      kind: "upload",
-                      title: headline || "Phone upload",
-                      templateId,
-                      publicUrl: uploadedUrl,
-                      storagePath: uploadedPath,
-                      contentHash,
-                      durationPreset: "tonight",
-                      mode: "add_rotation",
-                      photoUrl: uploadedUrl,
-                    });
-                    setMessage(result.message);
-                    if (result.ok) toast.success(result.message);
-                    else toast.error(result.message);
+                    if (uploadedPath && uploadedUrl) {
+                      const result = await publishServerStationGraphicAction({
+                        kind: "upload",
+                        title: headline || "Phone upload",
+                        templateId,
+                        publicUrl: uploadedUrl,
+                        storagePath: uploadedPath,
+                        contentHash,
+                        durationPreset: "tonight",
+                        mode: "add_rotation",
+                        photoUrl: uploadedUrl,
+                      });
+                      setMessage(result.message);
+                      if (result.ok) toast.success(result.message);
+                      else toast.error(result.message);
+                      return;
+                    }
+                    await publishRendered("add_rotation");
                   });
                 }}
               >
@@ -211,6 +257,10 @@ export function ServerStationPhoneUploadPanel({
               <ServerStationButton
                 variant="secondary"
                 onClick={() => {
+                  if (localObjectUrlRef.current) {
+                    URL.revokeObjectURL(localObjectUrlRef.current);
+                    localObjectUrlRef.current = null;
+                  }
                   setUploadedUrl(null);
                   setUploadedPath(null);
                   setQrDataUrl(null);

@@ -288,7 +288,7 @@ export function ServerStationGraphicBuilder({
     return (
       <ServerStationShell actorName={actorName} wall={wall} title="Food promos" layout="pos">
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&>*]:shrink-0 lg:flex-wrap lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => setCategory("food_special")}
@@ -371,7 +371,7 @@ export function ServerStationGraphicBuilder({
                 </button>
               </div>
             </div>
-            <div className="order-1 flex min-h-0 min-w-0 flex-col gap-2 lg:order-2">
+            <div className="order-1 flex min-h-0 min-w-0 flex-col gap-2 max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#14110f]/95 max-lg:pb-2 max-lg:backdrop-blur-md lg:order-2">
               <p className="shrink-0 text-xs font-semibold tracking-[0.14em] text-[#e8d5c4] uppercase">Wall preview</p>
               <div className="aspect-video w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black">
                 {previewUrl ? (
@@ -420,9 +420,9 @@ export function ServerStationGraphicBuilder({
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title={title}>
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">{title}</h1>
-        <p className="text-lg text-[#e8d5c4]/90">
+      <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">{title}</h1>
+        <p className="text-base text-[#e8d5c4]/90 lg:text-lg">
           Fill in the basics, check the preview, then put it on the wall.
         </p>
       </div>
@@ -439,7 +439,7 @@ export function ServerStationGraphicBuilder({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-5">
+        <div className="order-2 space-y-5 lg:order-1">
           {mode === "special" ? (
             <div className="flex flex-wrap gap-2">
               {(
@@ -661,7 +661,7 @@ export function ServerStationGraphicBuilder({
           </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="order-1 space-y-3 lg:order-2">
           <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Preview</p>
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-black/40">
             {previewUrl ? (

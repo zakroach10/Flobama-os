@@ -6,6 +6,7 @@ import {
   ArrowLeftIcon,
   CakeIcon,
   CalendarDaysIcon,
+  ClapperboardIcon,
   HomeIcon,
   LayoutGridIcon,
   LockIcon,
@@ -34,6 +35,14 @@ const STATION_MENUS: Array<{ href: string; label: string; icon: LucideIcon; exac
   { href: "/server/birthday", label: "Celebrate", icon: CakeIcon },
   { href: "/server/message", label: "Message", icon: MessageSquareTextIcon },
   { href: "/server/upload", label: "Upload", icon: SmartphoneIcon },
+];
+
+const PHONE_TABS: Array<{ href: string; label: string; icon: LucideIcon; exact?: boolean }> = [
+  { href: "/server", label: "Home", icon: LayoutGridIcon, exact: true },
+  { href: "/server/specials", label: "Specials", icon: UtensilsCrossedIcon },
+  { href: "/server/wall", label: "Wall", icon: MonitorPlayIcon },
+  { href: "/server/events", label: "Tonight", icon: CalendarDaysIcon },
+  { href: "/server/active", label: "Rotation", icon: ClapperboardIcon },
 ];
 
 function menuIsActive(pathname: string, href: string, exact?: boolean) {
@@ -117,20 +126,29 @@ export function ServerStationShell({
           "relative",
         )}
       >
-        <div className="mx-auto flex w-full min-h-14 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
+        <div className="mx-auto flex w-full min-h-12 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
           {showBack && !atHome ? (
             <StationLink
               href="/server"
-              className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-base font-semibold sm:min-h-16 sm:min-w-16"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-base font-semibold sm:min-h-16 sm:min-w-16"
             >
-              <ArrowLeftIcon className="size-6" aria-hidden />
+              <ArrowLeftIcon className="size-5 sm:size-6" aria-hidden />
               <span className="sr-only">Back</span>
             </StationLink>
           ) : null}
           <div className="min-w-0 flex-1">
-            <FlobamaLogo className="h-7 w-auto max-w-[130px] brightness-110 sm:h-8 sm:max-w-[150px]" priority />
+            <FlobamaLogo className="h-6 w-auto max-w-[110px] brightness-110 sm:h-8 sm:max-w-[150px]" priority />
             <p className="truncate text-[10px] font-semibold tracking-[0.18em] text-[#e8d5c4] uppercase sm:text-xs">
               {title || "Server Station"}
+            </p>
+            <p
+              className={cn(
+                "truncate text-[11px] font-semibold sm:hidden",
+                liveWall.connected ? "text-emerald-300" : "text-amber-300",
+              )}
+            >
+              {liveWall.connected ? "Wall online" : "Wall offline"}
+              {liveWall.currentlyPlaying ? ` · ${liveWall.currentlyPlaying}` : ""}
             </p>
           </div>
           <div className="hidden text-right sm:block">
@@ -147,7 +165,7 @@ export function ServerStationShell({
           </div>
           <StationLink
             href="/server"
-            className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
+            className="hidden min-h-16 min-w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/5 lg:inline-flex"
             ariaLabel="Home"
           >
             <HomeIcon className="size-6" />
@@ -161,14 +179,14 @@ export function ServerStationShell({
                 router.replace("/server/login");
               });
             }}
-            className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
             aria-label="Lock"
           >
             <LockIcon className="size-6" />
           </button>
         </div>
       </header>
-      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:px-4">
+      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pt-3 lg:px-4 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <nav
           aria-label="Server Station"
           className="hidden min-h-0 w-[5.75rem] shrink-0 flex-col gap-2 overflow-y-auto lg:flex"
@@ -194,44 +212,43 @@ export function ServerStationShell({
             );
           })}
         </nav>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:contents">
-          <nav aria-label="Server Station" className="flex shrink-0 gap-2 overflow-x-auto lg:hidden">
-            {STATION_MENUS.map((item) => {
-              const active = menuIsActive(path, item.href, item.exact);
-              const Icon = item.icon;
-              return (
-                <StationLink
-                  key={item.href}
-                  href={item.href}
-                  ariaCurrent={active ? "page" : undefined}
-                  className={cn(
-                    "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-2xl border px-3 text-sm font-semibold",
-                    active
-                      ? "border-[#d36b4a]/60 bg-[#d36b4a]/25 text-[#f7efe6]"
-                      : "border-white/10 bg-white/5 text-[#e8d5c4]",
-                  )}
-                >
-                  <Icon className="size-5" aria-hidden />
-                  {item.label}
-                </StationLink>
-              );
-            })}
-          </nav>
-          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:contents">
-            <aside className="order-1 h-[38vh] min-h-0 shrink-0 lg:order-2 lg:h-full lg:w-[22.5rem]">
-              <ServerStationPosRail />
-            </aside>
-            <main
-              className={cn(
-                "order-2 min-h-0 min-w-0 flex-1 lg:order-1",
-                pos ? "flex flex-col overflow-hidden" : "overflow-y-auto",
-              )}
-            >
-              {children}
-            </main>
-          </div>
-        </div>
+        <main
+          className={cn(
+            "min-h-0 min-w-0 flex-1 overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0",
+            pos && "lg:flex lg:flex-col lg:overflow-hidden",
+          )}
+        >
+          {children}
+        </main>
+        <aside className="hidden h-full w-[22.5rem] shrink-0 lg:block">
+          <ServerStationPosRail />
+        </aside>
       </div>
+      <nav
+        aria-label="Server Station"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#14110f]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {PHONE_TABS.map((item) => {
+            const active = menuIsActive(path, item.href, item.exact);
+            const Icon = item.icon;
+            return (
+              <StationLink
+                key={item.href}
+                href={item.href}
+                ariaCurrent={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold",
+                  active ? "text-[#f7efe6]" : "text-[#e8d5c4]/80",
+                )}
+              >
+                <Icon className={cn("size-5", active && "text-[#d36b4a]")} aria-hidden />
+                {item.label}
+              </StationLink>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
@@ -260,16 +277,16 @@ export function ServerStationTile({
     <StationLink
       href={href}
       className={cn(
-        "flex min-h-[132px] flex-col justify-between rounded-[28px] border bg-gradient-to-br p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition active:scale-[0.98]",
+        "flex min-h-[7.5rem] flex-col justify-between rounded-2xl border bg-gradient-to-br p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition active:scale-[0.98] lg:min-h-[132px] lg:rounded-[28px] lg:p-5",
         accents[accent],
       )}
     >
-      <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-black/30 text-[#f7efe6]">
-        <Icon className="size-7" aria-hidden />
+      <span className="inline-flex size-9 items-center justify-center rounded-xl bg-black/30 text-[#f7efe6] lg:size-12 lg:rounded-2xl">
+        <Icon className="size-5 lg:size-7" aria-hidden />
       </span>
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-[#f7efe6]">{title}</h2>
-        <p className="mt-1 text-sm text-[#e8d5c4]/90">{description}</p>
+        <h2 className="text-base font-bold tracking-tight text-[#f7efe6] lg:text-2xl">{title}</h2>
+        <p className="mt-1 line-clamp-2 text-xs text-[#e8d5c4]/90 lg:text-sm">{description}</p>
       </div>
     </StationLink>
   );

@@ -238,7 +238,7 @@ export function ServerStationWallControls({
         ) : null}
 
         {catalog.length ? (
-          <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-5 gap-2 sm:grid-cols-5 sm:grid-rows-4 sm:gap-2.5">
+          <div className="grid grid-cols-2 gap-2 max-lg:auto-rows-[9.75rem] sm:max-lg:grid-cols-3 lg:min-h-0 lg:flex-1 lg:grid-cols-4 lg:grid-rows-5 lg:gap-2.5 xl:grid-cols-5 xl:grid-rows-4">
             {paged.items.map((scene) => (
               <button
                 key={`${paged.page}-${scene.id}`}
@@ -276,7 +276,7 @@ export function ServerStationWallControls({
             disabled={!paged.hasPrev || pending}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
             className={cn(
-              "inline-flex min-h-14 min-w-[8.5rem] items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold",
+              "inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-bold lg:min-h-14 lg:min-w-[8.5rem] lg:flex-none lg:px-4 lg:text-base",
               paged.hasPrev
                 ? "border-white/20 bg-white/10 text-[#f7efe6]"
                 : "border-white/5 bg-black/20 text-white/30",
@@ -293,7 +293,7 @@ export function ServerStationWallControls({
             disabled={!paged.hasNext || pending}
             onClick={() => setPage((current) => current + 1)}
             className={cn(
-              "inline-flex min-h-14 min-w-[8.5rem] items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold",
+              "inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-bold lg:min-h-14 lg:min-w-[8.5rem] lg:flex-none lg:px-4 lg:text-base",
               paged.hasNext
                 ? "border-white/20 bg-white/10 text-[#f7efe6]"
                 : "border-white/5 bg-black/20 text-white/30",

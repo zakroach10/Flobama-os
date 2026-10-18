@@ -20,10 +20,10 @@ export function ServerStationDashboard({
 }) {
   return (
     <ServerStationShell actorName={actorName} wall={wall} showBack={false} title="Server Station">
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold tracking-tight text-[#f7efe6]">What do you need?</h1>
+      <div className="mb-3 lg:mb-4">
+        <h1 className="text-2xl font-bold tracking-tight text-[#f7efe6] lg:text-3xl">What do you need?</h1>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 lg:gap-3">
         <ServerStationTile
           href="/server/events"
           title="Explore Events"
