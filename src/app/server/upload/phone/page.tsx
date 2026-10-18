@@ -34,7 +34,7 @@ export default async function ServerStationPhoneUploadPage({
         <FlobamaLogo className="h-8 w-auto max-w-[150px] brightness-110" priority />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Upload a picture</h1>
         <p className="mt-2 text-sm text-[#e8d5c4]/90">
-          No staff login needed on this phone. After upload, approve the result on the Server Station.
+          No staff login needed on this phone. Choose a picture from your camera roll or files, then approve it on the Server Station.
         </p>
         <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-4">
           {verified.ok ? (

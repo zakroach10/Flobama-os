@@ -115,13 +115,16 @@ export function ServerStationPhoneUploadForm({
     >
       <label className="block space-y-2">
         <span className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Photo or short video</span>
+        <p className="text-sm text-[#e8d5c4]/90">
+          Pick from your camera roll or files. You can still take a new photo from that menu.
+        </p>
         <input
           className={serverStationInputClass}
           type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,capture=camera"
-          capture="environment"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.webm"
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
+        {file ? <p className="text-sm text-[#f7efe6]">{file.name}</p> : null}
       </label>
       {error ? <p className="rounded-2xl border border-amber-400/40 bg-amber-500/10 p-3 text-amber-50">{error}</p> : null}
       {message ? (
