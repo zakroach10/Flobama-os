@@ -29,8 +29,8 @@ export default async function ServerStationPhoneUploadPage({
   const supabaseEnv = getPublicSupabaseEnv();
 
   return (
-    <div className="dark min-h-dvh bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_55%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground">
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 py-8">
+    <div className="dark h-full overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_55%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground">
+      <main className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 py-8">
         <FlobamaLogo className="h-8 w-auto max-w-[150px] brightness-110" priority />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Upload a picture</h1>
         <p className="mt-2 text-sm text-[#e8d5c4]/90">
