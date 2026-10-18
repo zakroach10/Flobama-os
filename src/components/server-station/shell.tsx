@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowLeftIcon,
   CakeIcon,
@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ServerStationPosRail } from "@/components/server-station/pos-rail";
+import { getServerStationDashboardAction } from "@/actions/server-station";
 import {
   lockServerStationStaffAction,
   refreshServerStationStaffSessionAction,
@@ -59,6 +60,10 @@ export function ServerStationShell({
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [liveWall, setLiveWall] = useState(wall);
+  useEffect(() => {
+    setLiveWall(wall);
+  }, [wall]);
   const atHome = pathname === "/server";
   const pos = layout === "pos";
 
@@ -83,9 +88,15 @@ export function ServerStationShell({
     }, 60_000);
     window.addEventListener("pointerdown", bump);
     window.addEventListener("keydown", bump);
+    const wallPoll = window.setInterval(() => {
+      void getServerStationDashboardAction().then((result) => {
+        if (result.ok) setLiveWall(result.wall);
+      });
+    }, 10_000);
     return () => {
       if (idleTimer) clearTimeout(idleTimer);
       if (heartbeat) clearInterval(heartbeat);
+      window.clearInterval(wallPoll);
       window.removeEventListener("pointerdown", bump);
       window.removeEventListener("keydown", bump);
     };
@@ -125,11 +136,11 @@ export function ServerStationShell({
             <p
               className={cn(
                 "text-xs font-semibold",
-                wall.connected ? "text-emerald-300" : "text-amber-300",
+                liveWall.connected ? "text-emerald-300" : "text-amber-300",
               )}
             >
-              {wallStatusLabel(wall)}
-              {wall.currentlyPlaying ? ` · ${wall.currentlyPlaying}` : null}
+              {wallStatusLabel(liveWall)}
+              {liveWall.currentlyPlaying ? ` · ${liveWall.currentlyPlaying}` : null}
             </p>
           </div>
           <Link

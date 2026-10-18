@@ -60,7 +60,7 @@ function NavLinks({
         const active = !external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
         const Icon = MENU_ICONS[item.id];
         const className = cn(
-          "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
+          "flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors",
           active
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
@@ -94,10 +94,10 @@ function NavLinks({
 
 function Brand({ homeHref }: { homeHref: string }) {
   return (
-    <div className="px-3 py-4">
+    <div className="px-3 py-3">
       <Link href={homeHref} className="block rounded-md focus-visible:outline-2">
-        <FlobamaLogo className="w-[168px]" />
-        <p className="mt-2 text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/70 uppercase">Staff OS</p>
+        <FlobamaLogo className="w-[148px]" />
+        <p className="mt-1 text-[11px] font-semibold tracking-[0.18em] text-sidebar-foreground/70 uppercase">Staff OS</p>
       </Link>
     </div>
   );
@@ -128,14 +128,14 @@ function AccountFooter({
   userLabel: string;
 }) {
   return (
-    <div className="border-t border-sidebar-border px-4 py-4 text-xs text-sidebar-foreground/70">
+    <div className="border-t border-sidebar-border px-3 py-3 text-xs text-sidebar-foreground/70">
       <p className="truncate font-medium text-sidebar-foreground">{venueName}</p>
-      <p className="mt-1 truncate">{userLabel}</p>
+      <p className="truncate">{userLabel}</p>
       <p className="truncate">{roleLabel}</p>
-      <form action={signOutAction} className="mt-3">
+      <form action={signOutAction} className="mt-2">
         <button
           type="submit"
-          className="flex min-h-11 w-full items-center justify-center rounded-lg border border-sidebar-border px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
+          className="flex min-h-9 w-full items-center justify-center rounded-lg border border-sidebar-border px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/70"
         >
           Log out
         </button>
@@ -287,16 +287,16 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-full bg-background">
-      <aside className="hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
+      <aside className="hidden w-56 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
         <Brand homeHref={homeHref} />
-        <div className="flex-1 px-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2">
           <NavLinks menus={menus} />
         </div>
         <AccountFooter venueName={venueName} roleLabel={roleLabel} userLabel={userLabel} />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b bg-card/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-sm md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
@@ -324,7 +324,7 @@ export function AppShell({
             </p>
           </div>
         </header>
-        <div className="min-w-0 flex-1 overflow-x-hidden px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6 lg:px-8">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-5">
           {children}
         </div>
       </div>

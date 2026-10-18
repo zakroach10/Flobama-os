@@ -27,6 +27,8 @@ import { WallOpsControlCenter } from "@/components/screens/wall-ops-control-cent
 import { DisplayDevicesPanel } from "@/components/screens/display-devices-panel";
 import { ErrorState } from "@/components/states";
 import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
+import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
+import { isAgentStale } from "@/lib/screens/led-wall";
 
 export const dynamic = "force-dynamic";
 
@@ -90,9 +92,7 @@ export default async function ScreensPage({
     getStaffDisplayReloadSignal(supabase, context.venue.id),
     listTodayLedListings(supabase, context.venue.id, context.venue.timezone),
     listArtistLedConfigs(supabase, context.venue.id),
-    canConfigure
-      ? listStaffDisplayDevices(supabase, context.venue.id)
-      : Promise.resolve({ devices: [], missingTable: false, error: null }),
+    listStaffDisplayDevices(supabase, context.venue.id),
   ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes.missingTable) {
@@ -161,6 +161,10 @@ export default async function ScreensPage({
   const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
   const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
+  const runner = describeLedRunnerLink(freshestLedRunner(displayDevicesRes.devices), {
+    fresh: Boolean(agentRes.agent.lastSeenAt) && !isAgentStale(agentRes.agent.lastSeenAt),
+    programScene: agentRes.agent.programScene,
+  });
 
   if (wallOps) {
     return (
@@ -173,6 +177,7 @@ export default async function ScreensPage({
         listings={todayLedRes.listings}
         artistConfigs={artistLedRes.configs}
         agent={agentRes.agent}
+        runner={runner}
         refreshMissing={displaySignalRes.missingTable}
         lastRefreshAt={displaySignalRes.signal?.reloadRequestedAt ?? null}
         timeZone={context.venue.timezone}

@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,13 +9,13 @@ import { syncManifestAssets } from "./lib/downloader.mjs";
 import { startHttpServer } from "./lib/http-server.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 import {
+  COMMAND_FILE,
   DEFAULT_CACHE_ROOT,
   LOG_DIR,
   SUPPORT_DIR,
   VERSION,
   expandHome,
 } from "./lib/paths.mjs";
-import { unlink } from "node:fs/promises";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -315,8 +315,52 @@ async function main() {
     }
   }
 
+  async function readObsBounded() {
+    let timer;
+    const timeout = new Promise((resolve) => {
+      timer = setTimeout(() => {
+        resolve({
+          connected: Boolean(runtime.obsConnected),
+          programScene: runtime.programScene,
+          scenes: [],
+        });
+      }, 1500);
+    });
+    try {
+      return await Promise.race([readObs(), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function applyLocalCommand() {
+    let raw = "";
+    try {
+      raw = (await readFile(COMMAND_FILE, "utf8")).trim();
+      await unlink(COMMAND_FILE);
+    } catch {
+      return;
+    }
+    if (raw === "reload-wall") {
+      runtime.reloadNonce = (Number(runtime.reloadNonce) || 1) + 1;
+      if (runtime.manifest) runtime.manifest.reloadNonce = runtime.reloadNonce;
+      await setMeta(db, "reloadNonce", runtime.reloadNonce);
+      await log(`Menu bar reload — wall reload nonce → ${runtime.reloadNonce}`);
+    }
+    if (raw === "reconnect") {
+      runtime.connected = false;
+      obsConnected = false;
+      try {
+        await obs.disconnect();
+      } catch {
+        /* already closed */
+      }
+      await log("Menu bar reconnect — checking FloBama and OBS again.");
+    }
+  }
+
   async function heartbeat() {
-    const snapshot = await readObs();
+    const snapshot = await readObsBounded();
     runtime.obsConnected = snapshot.connected;
     runtime.programScene = snapshot.programScene;
 
@@ -411,10 +455,11 @@ async function main() {
   await log(`FloBama Local Runner ${VERSION}`);
   await log(`Cache root: ${config.cacheRoot}`);
   await log(`Wall URL: http://${config.bindHost}:${config.bindPort}/wall`);
-  await maybeSyncMedia();
+  void maybeSyncMedia();
 
   while (true) {
     try {
+      await applyLocalCommand();
       await heartbeat();
       state.lastError = null;
     } catch (error) {

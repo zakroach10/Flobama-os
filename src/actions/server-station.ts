@@ -618,12 +618,12 @@ export async function listActiveServerStationItemsAction() {
   if (!gate.ok) return { ok: false as const, message: gate.message, items: [] };
 
   const db = contentDb(gate);
-  const [{ data, error }, overrideRes] = await Promise.all([
+  const itemSelect =
+    "id, kind, title, subtitle, status, thumbnail_url, created_by_name, ends_at, show_now, created_at, playlist_item_id, scene_id";
+  const [{ data, error }, overrideRes, stuckRes] = await Promise.all([
     db
       .from("led_server_items")
-      .select(
-        "id, kind, title, subtitle, status, thumbnail_url, created_by_name, ends_at, show_now, created_at, playlist_item_id, scene_id",
-      )
+      .select(itemSelect)
       .eq("venue_id", gate.venueId)
       .in("status", ["active", "queued", "pending_approval"])
       .order("created_at", { ascending: false })
@@ -633,11 +633,51 @@ export async function listActiveServerStationItemsAction() {
       .select("server_item_id, scene_id, starts_at, ends_at")
       .eq("venue_id", gate.venueId)
       .maybeSingle(),
+    db
+      .from("led_server_items")
+      .select(itemSelect)
+      .eq("venue_id", gate.venueId)
+      .in("status", ["expired", "removed"])
+      .order("created_at", { ascending: false })
+      .limit(16),
   ]);
 
   if (error) return { ok: false as const, message: sqlMessage(error.message), items: [] };
-  const override = overrideRes.data;
-  const items = (data ?? []).map((item) => ({
+  let override = overrideRes.data;
+  if (overrideRes.error && /starts_at|resume_playlist_item_id/i.test(overrideRes.error.message)) {
+    const basic = await db
+      .from("led_wall_overrides")
+      .select("server_item_id, scene_id, ends_at")
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    if (basic.error) return { ok: false as const, message: sqlMessage(basic.error.message), items: [] };
+    override = basic.data ? { ...basic.data, starts_at: new Date(0).toISOString() } : null;
+  } else if (overrideRes.error) {
+    return { ok: false as const, message: sqlMessage(overrideRes.error.message), items: [] };
+  }
+
+  const listed = new Map((data ?? []).map((item) => [item.id, item]));
+  const stuckCandidates = (stuckRes.data ?? []).filter((item) => item.scene_id && !listed.has(item.id));
+  const stuckSceneIds = [...new Set(stuckCandidates.map((item) => item.scene_id).filter((id): id is string => Boolean(id)))];
+  const liveScenes = new Set<string>();
+  if (override?.scene_id) liveScenes.add(override.scene_id);
+  if (stuckSceneIds.length > 0) {
+    const { data: liveRows } = await db
+      .from("led_wall_playlist_items")
+      .select("scene_id")
+      .eq("venue_id", gate.venueId)
+      .eq("enabled", true)
+      .is("archived_at", null)
+      .in("scene_id", stuckSceneIds);
+    for (const row of liveRows ?? []) {
+      if (row.scene_id) liveScenes.add(row.scene_id);
+    }
+  }
+  for (const item of stuckCandidates) {
+    if (item.scene_id && liveScenes.has(item.scene_id)) listed.set(item.id, item);
+  }
+
+  const items = [...listed.values()].map((item) => ({
     ...item,
     override_starts_at:
       override &&
@@ -664,47 +704,108 @@ export async function removeServerStationItemAction(input: unknown): Promise<Ser
     .maybeSingle();
   if (!item) return { ok: false, message: "That item is gone." };
 
-  if (item.playlist_item_id) {
-    const { data: membership } = await db
+  const nowIso = new Date().toISOString();
+  const venueId = gate.venueId;
+  const playlistIds = new Set<string>();
+  const beforeByPlaylist = new Map<string, Awaited<ReturnType<typeof loadAdRollItems>>["items"]>();
+
+  async function retirePlaylistItem(playlistItemId: string) {
+    const { data: membership, error: membershipError } = await db
       .from("led_wall_playlist_items")
       .select("playlist_id")
-      .eq("id", item.playlist_item_id)
-      .eq("venue_id", gate.venueId)
+      .eq("id", playlistItemId)
+      .eq("venue_id", venueId)
       .maybeSingle();
-    const before = membership?.playlist_id
-      ? (await loadAdRollItems(db, gate.venueId, membership.playlist_id)).items
-      : [];
-    await db
-      .from("led_wall_playlist_items")
-      .update({ enabled: false, archived_at: new Date().toISOString() })
-      .eq("id", item.playlist_item_id)
-      .eq("venue_id", gate.venueId);
-    if (membership?.playlist_id) {
-      await rebaseLiveAdRoll(db, gate.venueId, membership.playlist_id, before);
+    if (membershipError) return membershipError.message;
+    const playlistId = membership?.playlist_id;
+    if (playlistId && !beforeByPlaylist.has(playlistId)) {
+      beforeByPlaylist.set(playlistId, (await loadAdRollItems(db, venueId, playlistId)).items);
+      playlistIds.add(playlistId);
     }
+    const { error: disableError } = await db
+      .from("led_wall_playlist_items")
+      .update({ enabled: false, archived_at: nowIso })
+      .eq("id", playlistItemId)
+      .eq("venue_id", venueId);
+    return disableError?.message ?? null;
   }
 
-  const { data: override } = await db
+  if (item.playlist_item_id) {
+    const disableError = await retirePlaylistItem(item.playlist_item_id);
+    if (disableError) return { ok: false, message: sqlMessage(disableError) };
+  }
+  if (item.scene_id) {
+    const { data: siblings, error: siblingError } = await db
+      .from("led_wall_playlist_items")
+      .select("id")
+      .eq("venue_id", gate.venueId)
+      .eq("scene_id", item.scene_id)
+      .eq("enabled", true);
+    if (siblingError) return { ok: false, message: sqlMessage(siblingError.message) };
+    for (const sibling of siblings ?? []) {
+      const disableError = await retirePlaylistItem(sibling.id);
+      if (disableError) return { ok: false, message: sqlMessage(disableError) };
+    }
+  }
+  for (const playlistId of playlistIds) {
+    await rebaseLiveAdRoll(db, gate.venueId, playlistId, beforeByPlaylist.get(playlistId) ?? []);
+  }
+
+  const overrideSelect = await db
     .from("led_wall_overrides")
     .select(
       "scene_id, starts_at, previous_playlist_id, previous_scene_id, previous_activation_source, resume_playlist_item_id",
     )
     .eq("venue_id", gate.venueId)
     .maybeSingle();
-  if (override?.scene_id && override.scene_id === item.scene_id) {
-    const stillWaiting = Date.parse(override.starts_at) > Date.now();
-    await db.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
-    // A slide that has not started yet never took the wall, so leave the ad roll clock alone.
+  let override = overrideSelect.data;
+  if (overrideSelect.error && /starts_at|resume_playlist_item_id/i.test(overrideSelect.error.message)) {
+    const basic = await db
+      .from("led_wall_overrides")
+      .select("scene_id, previous_playlist_id, previous_scene_id, previous_activation_source")
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    if (basic.error) return { ok: false, message: sqlMessage(basic.error.message) };
+    override = basic.data
+      ? { ...basic.data, starts_at: new Date(0).toISOString(), resume_playlist_item_id: null }
+      : null;
+  } else if (overrideSelect.error) {
+    return { ok: false, message: sqlMessage(overrideSelect.error.message) };
+  }
+
+  const { data: runtime } = await db
+    .from("led_wall_runtime")
+    .select("active_scene_id, activation_source")
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  const showingThisScene =
+    Boolean(item.scene_id) &&
+    runtime?.active_scene_id === item.scene_id &&
+    runtime?.activation_source === "server_override";
+  if ((override?.scene_id && override.scene_id === item.scene_id) || showingThisScene) {
+    const stillWaiting = override?.starts_at ? Date.parse(override.starts_at) > Date.now() : false;
+    const { error: clearError } = await db.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+    if (clearError) return { ok: false, message: sqlMessage(clearError.message) };
     if (!stillWaiting) {
-      await restoreAdRollAfterOverride(db, gate.venueId, override);
+      await restoreAdRollAfterOverride(
+        db,
+        gate.venueId,
+        override ?? {
+          previous_playlist_id: null,
+          previous_scene_id: null,
+          previous_activation_source: null,
+          resume_playlist_item_id: null,
+        },
+      );
     }
   }
 
-  await db
+  const { error: removedError } = await db
     .from("led_server_items")
     .update({ status: "removed" })
     .eq("id", item.id)
     .eq("venue_id", gate.venueId);
+  if (removedError) return { ok: false, message: sqlMessage(removedError.message) };
 
   await writeServerStationAudit(db, {
     venueId: gate.venueId,

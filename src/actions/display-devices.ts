@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getStaffContext } from "@/lib/auth/staff";
-import { authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import { authorizeDisplaySafeRefresh, authorizeLedWallConfigure } from "@/lib/auth/permissions";
+import { describeLedRunnerLink, freshestLedRunner, type LedRunnerLink } from "@/lib/display-devices/types";
+import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
+import { getLedWallAgentStatus } from "@/lib/queries/led-wall";
+import { isAgentStale } from "@/lib/screens/led-wall";
 import {
   createDisplayPairingCode,
   hashDisplaySecret,
@@ -38,13 +42,19 @@ function displaySqlMessage(message: string) {
   return message;
 }
 
-async function staffGate() {
+async function staffGate(mode: "configure" | "refresh" = "configure") {
   const context = await getStaffContext();
   if (context.status === "unconfigured") return { ok: false as const, message: "Supabase is not configured." };
   if (context.status === "unauthenticated") return { ok: false as const, message: "Sign in required." };
   if (context.status === "denied") return { ok: false as const, message: "You do not have staff access." };
   if (context.status === "error") return { ok: false as const, message: context.message };
-  const allowed = authorizeLedWallConfigure(context.role);
+  const allowed =
+    mode === "refresh"
+      ? authorizeDisplaySafeRefresh(context.role, context.email, {
+          userId: context.userId,
+          wallOpsUserId: context.venue.wall_ops_user_id,
+        })
+      : authorizeLedWallConfigure(context.role);
   if (!allowed.allowed) return { ok: false as const, message: allowed.reason };
   const supabase = await createServerSupabaseClient();
   if (!supabase) return { ok: false as const, message: "Supabase is not configured." };
@@ -53,6 +63,22 @@ async function staffGate() {
 
 function revalidateScreens() {
   revalidatePath("/screens");
+  revalidatePath("/dashboard");
+}
+
+export async function getLedRunnerLinkAction(): Promise<LedRunnerLink | null> {
+  const context = await getStaffContext();
+  if (context.status !== "ok") return null;
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) return null;
+  const [devicesRes, agentRes] = await Promise.all([
+    listStaffDisplayDevices(supabase, context.venue.id),
+    getLedWallAgentStatus(supabase, context.venue.id),
+  ]);
+  return describeLedRunnerLink(freshestLedRunner(devicesRes.devices), {
+    fresh: Boolean(agentRes.agent.lastSeenAt) && !isAgentStale(agentRes.agent.lastSeenAt),
+    programScene: agentRes.agent.programScene,
+  });
 }
 
 export async function createDisplayPairingCodeAction(input: unknown): Promise<DisplayDeviceActionResult> {
@@ -118,7 +144,7 @@ export async function revokeDisplayDeviceAction(input: unknown): Promise<Display
 }
 
 export async function requestDisplaySafeRefreshAction(input: unknown): Promise<DisplayDeviceActionResult> {
-  const gate = await staffGate();
+  const gate = await staffGate("refresh");
   if (!gate.ok) return { ok: false, message: gate.message };
   const parsed = requestDisplaySafeRefreshSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };

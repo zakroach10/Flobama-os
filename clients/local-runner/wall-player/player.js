@@ -99,6 +99,7 @@ let trivia = null;
 let audience = null;
 /** Tracks url readiness so we re-render when cache finishes under the same revision. */
 let playlistReadyKey = "";
+let heldMedia = null;
 
 function playlistSignature(items) {
   return (items || [])
@@ -117,7 +118,26 @@ function clearStage() {
 }
 
 function renderBlack() {
+  renderHoldCard();
+}
+
+function chooseVisibleItem(items, index, held) {
+  const current = items?.[index] ?? items?.[0] ?? null;
+  if (current?.url) return current;
+  const ready = (items || []).find((item) => item?.url);
+  if (ready) return ready;
+  if (held?.url) return held;
+  return null;
+}
+
+function renderHoldCard() {
   clearStage();
+  const card = document.createElement("div");
+  card.dataset.hold = "1";
+  card.style.cssText =
+    "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#3a241c 0%,#100e0c 70%);color:#f7efe6;font:700 4rem system-ui,sans-serif;letter-spacing:0.14em";
+  card.textContent = "FLOBAMA";
+  stage.appendChild(card);
 }
 
 function renderMedia(item, { loop = true } = {}) {
@@ -145,16 +165,14 @@ function renderMedia(item, { loop = true } = {}) {
 }
 
 function renderPlaylist() {
-  if (!playlist.length) {
-    renderBlack();
+  const visible = chooseVisibleItem(playlist, index, heldMedia);
+  if (!visible?.url) {
+    if (stage.querySelector("[data-hold]")) return;
+    renderHoldCard();
     return;
   }
-  const current = playlist[index] ?? playlist[0];
-  if (!current || current.kind === "obs" || !current.url) {
-    renderBlack();
-    return;
-  }
-  renderMedia(current, { loop: playlist.length === 1 });
+  heldMedia = visible;
+  renderMedia(visible, { loop: playlist.length <= 1 });
 }
 
 function render() {
@@ -167,12 +185,14 @@ function render() {
     renderPlaylist();
     return;
   }
-  const active = playlist.find((item) => item.url) || null;
-  if (active) {
+  const active = chooseVisibleItem(playlist, 0, heldMedia);
+  if (active?.url) {
+    heldMedia = active;
     renderMedia(active, { loop: true });
     return;
   }
-  renderBlack();
+  if (stage.querySelector("[data-hold]")) return;
+  renderHoldCard();
 }
 
 async function refreshOverlays() {
@@ -209,7 +229,7 @@ async function refresh() {
     const nextStartedAt = data.startedAt || null;
 
     const nextReadyKey = playlistSignature(nextPlaylist);
-    const visibleBefore = mode === "playlist" ? playlist[index] : null;
+    const visibleBefore = chooseVisibleItem(playlist, mode === "playlist" ? index : 0, heldMedia);
     const resolvedStartedAt =
       nextMode === "playlist" && mode === "playlist"
         ? resolveLedPlaylistStartedAt(playlist, startedAt, nextPlaylist, nextStartedAt)
@@ -229,7 +249,8 @@ async function refresh() {
       index = 0;
     }
 
-    const visibleAfter = mode === "playlist" ? playlist[index] : null;
+    const visibleAfter = chooseVisibleItem(playlist, mode === "playlist" ? index : 0, heldMedia);
+    if (visibleAfter?.url) heldMedia = visibleAfter;
     const sameFrame =
       visibleBefore &&
       visibleAfter &&

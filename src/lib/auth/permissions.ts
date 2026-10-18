@@ -234,6 +234,20 @@ export function authorizeLedWallMediaUpload(
   return { allowed: true };
 }
 
+/** Push update reloads the paired local runner. Wall ops and programming staff can send it. */
+export function authorizeDisplaySafeRefresh(
+  role: StaffRole | null,
+  email?: string | null,
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
+): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canManageScreensControls(role!, email, options)) {
+    return { allowed: false, reason: "Your role cannot push an update to the local runner." };
+  }
+  return { allowed: true };
+}
+
 export function authorizeCameraView(role: StaffRole | null): AuthzDecision {
   return requireRole(role);
 }

@@ -34,6 +34,23 @@ export async function POST(request: Request) {
     .eq("id", auth.device.id);
   if (deviceError) return NextResponse.json({ error: "Could not update device." }, { status: 500 });
 
+  if (auth.device.kind === "led_runner") {
+    const scenes = parsed.data.obs?.scenes ?? [];
+    const { error: agentMirrorError } = await auth.admin.from("led_wall_agent_status").upsert(
+      {
+        venue_id: auth.device.venue_id,
+        last_seen_at: now,
+        obs_connected: parsed.data.obs?.connected ?? false,
+        program_scene: parsed.data.obs?.programScene ?? null,
+        obs_scenes: scenes,
+      },
+      { onConflict: "venue_id" },
+    );
+    if (agentMirrorError) {
+      console.error("local runner agent status mirror failed", agentMirrorError.message);
+    }
+  }
+
   const { data: priorStatus } = await auth.admin
     .from("display_device_status")
     .select("safe_refresh_requested_at")
