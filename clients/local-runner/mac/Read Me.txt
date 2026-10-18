@@ -1,4 +1,4 @@
-FloBama Local Runner 1.0.6
+FloBama Local Runner 1.0.7
 
 Caches LED wall media on this Mac and serves the OBS Browser Source from localhost
 so playback does not stream from Supabase.
@@ -11,7 +11,9 @@ Install
 5. In OBS, set the media Browser Source URL to:
    http://127.0.0.1:4173/wall
 
-Leave this app running (menu bar status “Flo”). After reboot, reopen the app or install
+Leave this app running (menu bar status “Flo”). Reconnect and Reload wall are in that menu.
+While a new band file downloads, the wall keeps the last picture or shows FLOBAMA instead of going black.
+After reboot, reopen the app or install
 the LaunchAgent from the project macos/ folder on a developer machine.
 
 If macOS says the app cannot be opened, right-click → Open.
