@@ -963,6 +963,8 @@ export type Database = {
           previous_scene_id: string | null;
           previous_playlist_id: string | null;
           previous_activation_source: string | null;
+          resume_playlist_item_id: string | null;
+          starts_at: string;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -972,18 +974,22 @@ export type Database = {
           scene_id: string;
           server_item_id?: string | null;
           ends_at: string;
+          starts_at?: string;
           previous_scene_id?: string | null;
           previous_playlist_id?: string | null;
           previous_activation_source?: string | null;
+          resume_playlist_item_id?: string | null;
           created_by?: string | null;
         };
         Update: {
           scene_id?: string;
           server_item_id?: string | null;
           ends_at?: string;
+          starts_at?: string;
           previous_scene_id?: string | null;
           previous_playlist_id?: string | null;
           previous_activation_source?: string | null;
+          resume_playlist_item_id?: string | null;
         };
         Relationships: [];
       };
@@ -1183,6 +1189,7 @@ export type Database = {
           public_url: string | null;
           obs_scene_name: string | null;
           duration_seconds: number;
+          starts_at: string;
         };
         Relationships: [];
       };

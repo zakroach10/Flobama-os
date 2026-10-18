@@ -1,5 +1,6 @@
 /* FloBama local wall player — media from localhost cache; overlays from FloBama APIs. */
 
+// Keep in sync with resolveLedPlaylistStartedAt in src/lib/screens/led-playlists.ts.
 function ledPlaylistIndexAt(items, startedAt, now = Date.now()) {
   if (!items.length) return 0;
   const startMs = startedAt ? Date.parse(startedAt) : now;
@@ -12,6 +13,77 @@ function ledPlaylistIndexAt(items, startedAt, now = Date.now()) {
     if (elapsed < 0) return index;
   }
   return 0;
+}
+
+function ledPlaylistPosition(items, startedAt, now = Date.now()) {
+  if (!items.length) return { index: 0, elapsedSeconds: 0, remainingSeconds: 0 };
+  const index = ledPlaylistIndexAt(items, startedAt, now);
+  const startMs = startedAt ? Date.parse(startedAt) : now;
+  const cycleSeconds = items.reduce((sum, item) => sum + Math.max(1, item.durationSeconds || 1), 0);
+  let elapsed = 0;
+  if (cycleSeconds > 0 && Number.isFinite(startMs)) {
+    elapsed = Math.max(0, (now - startMs) / 1000) % cycleSeconds;
+  }
+  for (let cursor = 0; cursor < index; cursor += 1) {
+    elapsed -= Math.max(1, items[cursor].durationSeconds || 1);
+  }
+  const duration = Math.max(1, items[index]?.durationSeconds || 1);
+  const elapsedSeconds = Math.min(duration, Math.max(0, elapsed));
+  return { index, elapsedSeconds, remainingSeconds: Math.max(0, duration - elapsedSeconds) };
+}
+
+function rebaseLedPlaylistStartedAt(items, index, elapsedSeconds, now = Date.now()) {
+  if (!items.length) return new Date(now).toISOString();
+  const safeIndex = ((index % items.length) + items.length) % items.length;
+  let prefix = 0;
+  for (let cursor = 0; cursor < safeIndex; cursor += 1) {
+    prefix += Math.max(1, items[cursor].durationSeconds || 1);
+  }
+  const duration = Math.max(1, items[safeIndex].durationSeconds || 1);
+  const elapsed = Math.min(Math.max(0, elapsedSeconds), Math.max(0, duration - 0.05));
+  return new Date(now - (prefix + elapsed) * 1000).toISOString();
+}
+
+function membershipEqual(left, right) {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (item, index) => item.id === right[index]?.id && (item.durationSeconds || 1) === (right[index]?.durationSeconds || 1),
+  );
+}
+
+function preserveLedPlaylistStartedAt(previous, previousStartedAt, next, now = Date.now()) {
+  if (!previous.length || !next.length) return null;
+  const position = ledPlaylistPosition(previous, previousStartedAt, now);
+  const currentId = previous[position.index]?.id;
+  if (!currentId) return null;
+  const nextIndex = next.findIndex((item) => item.id === currentId);
+  if (nextIndex < 0) return null;
+  return rebaseLedPlaylistStartedAt(next, nextIndex, position.elapsedSeconds, now);
+}
+
+function isFreshPlaylistStart(startedAt, now) {
+  const startedMs = Date.parse(startedAt);
+  if (!Number.isFinite(startedMs)) return false;
+  const age = now - startedMs;
+  return age >= -2000 && age < 5000;
+}
+
+function resolveLedPlaylistStartedAt(previous, previousStartedAt, next, nextStartedAt, now = Date.now()) {
+  if (!next.length) return nextStartedAt;
+  if (!previous.length || !previousStartedAt) return nextStartedAt;
+  if (nextStartedAt && nextStartedAt !== previousStartedAt && isFreshPlaylistStart(nextStartedAt, now)) {
+    return nextStartedAt;
+  }
+  if (membershipEqual(previous, next)) {
+    const local = ledPlaylistPosition(previous, previousStartedAt, now);
+    const localId = previous[local.index]?.id;
+    const serverIndex = nextStartedAt ? ledPlaylistIndexAt(next, nextStartedAt, now) : local.index;
+    const serverId = next[serverIndex]?.id;
+    if (localId && serverId && localId !== serverId && local.remainingSeconds > 0.25) return previousStartedAt;
+    if (localId && localId === serverId) return previousStartedAt;
+    return nextStartedAt || previousStartedAt;
+  }
+  return preserveLedPlaylistStartedAt(previous, previousStartedAt, next, now) || nextStartedAt;
 }
 
 const stage = document.getElementById("stage");
@@ -137,27 +209,34 @@ async function refresh() {
     const nextStartedAt = data.startedAt || null;
 
     const nextReadyKey = playlistSignature(nextPlaylist);
-    if (nextRevision !== revision || nextMode !== mode) {
-      revision = nextRevision;
-      mode = nextMode;
-      playlist = nextPlaylist;
-      startedAt = nextStartedAt;
-      playlistReadyKey = nextReadyKey;
-      index = nextMode === "playlist" ? ledPlaylistIndexAt(playlist, startedAt) : 0;
-      render();
-    } else if (nextReadyKey !== playlistReadyKey) {
-      // Same revision, but local cache URLs flipped null → /media/... (or mediaKind filled in).
-      playlist = nextPlaylist;
-      startedAt = nextStartedAt;
-      playlistReadyKey = nextReadyKey;
-      if (nextMode === "playlist") {
-        index = ledPlaylistIndexAt(playlist, startedAt);
-      }
-      render();
+    const visibleBefore = mode === "playlist" ? playlist[index] : null;
+    const resolvedStartedAt =
+      nextMode === "playlist" && mode === "playlist"
+        ? resolveLedPlaylistStartedAt(playlist, startedAt, nextPlaylist, nextStartedAt)
+        : nextStartedAt;
+    const clockChanged = startedAt !== resolvedStartedAt;
+    const revisionChanged = nextRevision !== revision || nextMode !== mode;
+    const readyChanged = nextReadyKey !== playlistReadyKey;
+
+    revision = nextRevision;
+    mode = nextMode;
+    playlist = nextPlaylist;
+    startedAt = nextMode === "playlist" ? resolvedStartedAt : nextStartedAt;
+    playlistReadyKey = nextReadyKey;
+    if (nextMode === "playlist") {
+      index = ledPlaylistIndexAt(playlist, startedAt);
     } else {
-      // Keep playlist/startedAt fresh without remounting media every poll.
-      playlist = nextPlaylist;
-      startedAt = nextStartedAt;
+      index = 0;
+    }
+
+    const visibleAfter = mode === "playlist" ? playlist[index] : null;
+    const sameFrame =
+      visibleBefore &&
+      visibleAfter &&
+      visibleBefore.id === visibleAfter.id &&
+      visibleBefore.url === visibleAfter.url;
+    if ((revisionChanged || readyChanged || clockChanged) && !sameFrame) {
+      render();
     }
     await refreshOverlays();
   } catch {

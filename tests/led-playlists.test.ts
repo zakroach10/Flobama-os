@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  cursorAfterPlaylistEdit,
   holdMsForLedPlaylistItem,
+  insertionAfterCurrentAd,
   isMissingLedPlaylistRelation,
   ledPlaylistIndexAt,
+  ledPlaylistPosition,
   ledPlaylistsEqual,
   nextLedPlaylistIndex,
   nextLedPlaylistMediaItem,
+  preserveLedPlaylistStartedAt,
+  resolveLedPlaylistStartedAt,
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 
@@ -88,5 +93,73 @@ describe("LED wall playlists", () => {
     expect(nextLedPlaylistMediaItem(items, 2)?.id).toBe("a");
     expect(nextLedPlaylistMediaItem([imageA], 0)).toBeNull();
     expect(nextLedPlaylistMediaItem([imageA, obs], 0)).toBeNull();
+  });
+
+  it("keeps the current ad when a slide is added after the roll has looped", () => {
+    const startedAt = "2026-09-29T16:00:00.000Z";
+    const before = [
+      { id: "a", durationSeconds: 10 },
+      { id: "b", durationSeconds: 10 },
+      { id: "c", durationSeconds: 20 },
+    ];
+    const now = Date.parse(startedAt) + 7210 * 1000;
+    expect(ledPlaylistIndexAt(before, startedAt, now)).toBe(1);
+    expect(ledPlaylistPosition(before, startedAt, now).elapsedSeconds).toBe(0);
+
+    const after = [...before, { id: "d", durationSeconds: 15 }];
+    // The longer cycle maps the same clock onto a different ad.
+    expect(ledPlaylistIndexAt(after, startedAt, now)).not.toBe(1);
+
+    const preserved = preserveLedPlaylistStartedAt(before, startedAt, after, now);
+    expect(preserved).toBeTruthy();
+    expect(ledPlaylistIndexAt(after, preserved, now)).toBe(1);
+    expect(after[ledPlaylistIndexAt(after, preserved, now)]?.id).toBe("b");
+    expect(ledPlaylistPosition(after, preserved, now).remainingSeconds).toBeGreaterThan(9);
+
+    const resolved = resolveLedPlaylistStartedAt(before, startedAt, after, startedAt, now);
+    expect(after[ledPlaylistIndexAt(after, resolved, now)]?.id).toBe("b");
+  });
+
+  it("starts the following ad from the beginning when the on-screen slide is removed", () => {
+    const startedAt = "2026-09-29T16:00:00.000Z";
+    const before = [
+      { id: "a", durationSeconds: 10 },
+      { id: "b", durationSeconds: 10 },
+      { id: "c", durationSeconds: 10 },
+    ];
+    const now = Date.parse(startedAt) + 12_000;
+    expect(before[ledPlaylistIndexAt(before, startedAt, now)]?.id).toBe("b");
+    const after = [before[0], before[2]];
+    const nextClock = cursorAfterPlaylistEdit(before, startedAt, after, now);
+    expect(nextClock).toBeTruthy();
+    expect(after[ledPlaylistIndexAt(after, nextClock, now)]?.id).toBe("c");
+    expect(ledPlaylistPosition(after, nextClock, now).elapsedSeconds).toBeLessThan(0.1);
+  });
+
+  it("still honors a fresh playlist activation", () => {
+    const previous = [{ id: "a", durationSeconds: 10 }];
+    const now = Date.parse("2026-10-18T18:00:00.000Z");
+    const fresh = new Date(now).toISOString();
+    const resolved = resolveLedPlaylistStartedAt(previous, "2026-10-18T12:00:00.000Z", previous, fresh, now);
+    expect(resolved).toBe(fresh);
+  });
+
+  it("slots a new server slide immediately after the ad on screen", () => {
+    const startedAt = "2026-09-29T16:00:00.000Z";
+    const items = [
+      { id: "a", sortOrder: 0, durationSeconds: 10 },
+      { id: "b", sortOrder: 1, durationSeconds: 10 },
+      { id: "c", sortOrder: 2, durationSeconds: 10 },
+    ];
+    const now = Date.parse(startedAt) + 12_000;
+    expect(insertionAfterCurrentAd(items, startedAt, now)).toEqual({
+      sortOrder: 2,
+      shiftAfterSortOrder: 1,
+    });
+    const onLast = Date.parse(startedAt) + 25_000;
+    expect(insertionAfterCurrentAd(items, startedAt, onLast)).toEqual({
+      sortOrder: 3,
+      shiftAfterSortOrder: null,
+    });
   });
 });

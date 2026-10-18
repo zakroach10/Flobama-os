@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -223,6 +224,11 @@ export function ServerStationPhoneUploadPanel({
             <p className="mb-2 text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Approve before publishing</p>
             <p className="text-[#e8d5c4]">
               Nothing goes on the LED wall until you tap Show Now or Add to Rotation on this kiosk.
+              The ad already playing finishes first.{" "}
+              <Link href="/server/active" className="font-semibold underline">
+                Your rotation
+              </Link>{" "}
+              is where you take a slide down.
             </p>
           </div>
         </div>
