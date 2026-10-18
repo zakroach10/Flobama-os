@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -24,6 +23,7 @@ import {
 } from "@/actions/server-station-auth";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { cn } from "@/lib/utils";
+import { StationLink, useStationNav } from "@/components/server-station/station-nav";
 import { wallStatusLabel, type ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 
 const STATION_MENUS: Array<{ href: string; label: string; icon: LucideIcon; exact?: boolean }> = [
@@ -58,13 +58,15 @@ export function ServerStationShell({
   layout?: "scroll" | "pos";
 }) {
   const pathname = usePathname();
+  const nav = useStationNav();
+  const path = nav?.path ?? pathname;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [liveWall, setLiveWall] = useState(wall);
   useEffect(() => {
     setLiveWall(wall);
   }, [wall]);
-  const atHome = pathname === "/server";
+  const atHome = path === "/server";
   const pos = layout === "pos";
 
   useEffect(() => {
@@ -115,15 +117,15 @@ export function ServerStationShell({
           "relative",
         )}
       >
-        <div className="mx-auto flex max-w-[1600px] min-h-14 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
+        <div className="mx-auto flex w-full min-h-14 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
           {showBack && !atHome ? (
-            <Link
+            <StationLink
               href="/server"
               className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 text-base font-semibold sm:min-h-16 sm:min-w-16"
             >
               <ArrowLeftIcon className="size-6" aria-hidden />
               <span className="sr-only">Back</span>
-            </Link>
+            </StationLink>
           ) : null}
           <div className="min-w-0 flex-1">
             <FlobamaLogo className="h-7 w-auto max-w-[130px] brightness-110 sm:h-8 sm:max-w-[150px]" priority />
@@ -143,13 +145,13 @@ export function ServerStationShell({
               {liveWall.currentlyPlaying ? ` · ${liveWall.currentlyPlaying}` : null}
             </p>
           </div>
-          <Link
+          <StationLink
             href="/server"
             className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5 sm:min-h-16 sm:min-w-16"
-            aria-label="Home"
+            ariaLabel="Home"
           >
             <HomeIcon className="size-6" />
-          </Link>
+          </StationLink>
           <button
             type="button"
             disabled={pending}
@@ -166,19 +168,19 @@ export function ServerStationShell({
           </button>
         </div>
       </header>
-      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:px-4">
+      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:px-4">
         <nav
           aria-label="Server Station"
           className="hidden min-h-0 w-[5.75rem] shrink-0 flex-col gap-2 overflow-y-auto lg:flex"
         >
           {STATION_MENUS.map((item) => {
-            const active = menuIsActive(pathname, item.href, item.exact);
+            const active = menuIsActive(path, item.href, item.exact);
             const Icon = item.icon;
             return (
-              <Link
+              <StationLink
                 key={item.href}
                 href={item.href}
-                aria-current={active ? "page" : undefined}
+                ariaCurrent={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-2xl border px-1 text-center text-[11px] font-semibold",
                   active
@@ -188,20 +190,20 @@ export function ServerStationShell({
               >
                 <Icon className="size-6" aria-hidden />
                 {item.label}
-              </Link>
+              </StationLink>
             );
           })}
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:contents">
           <nav aria-label="Server Station" className="flex shrink-0 gap-2 overflow-x-auto lg:hidden">
             {STATION_MENUS.map((item) => {
-              const active = menuIsActive(pathname, item.href, item.exact);
+              const active = menuIsActive(path, item.href, item.exact);
               const Icon = item.icon;
               return (
-                <Link
+                <StationLink
                   key={item.href}
                   href={item.href}
-                  aria-current={active ? "page" : undefined}
+                  ariaCurrent={active ? "page" : undefined}
                   className={cn(
                     "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-2xl border px-3 text-sm font-semibold",
                     active
@@ -211,7 +213,7 @@ export function ServerStationShell({
                 >
                   <Icon className="size-5" aria-hidden />
                   {item.label}
-                </Link>
+                </StationLink>
               );
             })}
           </nav>
@@ -255,7 +257,7 @@ export function ServerStationTile({
   } as const;
 
   return (
-    <Link
+    <StationLink
       href={href}
       className={cn(
         "flex min-h-[132px] flex-col justify-between rounded-[28px] border bg-gradient-to-br p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition active:scale-[0.98]",
@@ -269,7 +271,7 @@ export function ServerStationTile({
         <h2 className="text-2xl font-bold tracking-tight text-[#f7efe6]">{title}</h2>
         <p className="mt-1 text-sm text-[#e8d5c4]/90">{description}</p>
       </div>
-    </Link>
+    </StationLink>
   );
 }
 

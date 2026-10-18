@@ -2,6 +2,7 @@ import {
   SERVER_STATION_GRAPHIC_HEIGHT,
   SERVER_STATION_GRAPHIC_WIDTH,
 } from "@/lib/constants";
+import { foodPresetCanvasUrl } from "@/lib/server-station/food-presets";
 import {
   buildServerStationGraphicModel,
   type ServerStationGraphicKind,
@@ -60,7 +61,7 @@ export async function renderServerStationGraphicBlob(input: ServerStationGraphic
 
   if (input.photoUrl) {
     try {
-      const image = await loadImage(input.photoUrl);
+      const image = await loadImage(foodPresetCanvasUrl(input.photoUrl));
       const size = 420;
       const x = canvas.width - size - 120;
       const y = (canvas.height - size) / 2;

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerStationGate } from "@/lib/server-station/context";
+import { listServerApprovedScenes } from "@/lib/server-station/scenes";
 import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
 import {
   SERVER_STATION_HOME_PATH,
@@ -24,6 +25,30 @@ export async function loadServerStationPage() {
   return {
     gate,
     wall,
+    supabaseEnv: getPublicSupabaseEnv(),
+    home: SERVER_STATION_HOME_PATH,
+  };
+}
+
+/** One load for the kiosk shell. Child menus must not repeat this on every tap. */
+export async function loadServerStationShell() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) {
+    const jar = await cookies();
+    const staffCookie = jar.get(SERVER_STATION_STAFF_COOKIE)?.value;
+    const staffSession = verifyServerStationStaffCookie(staffCookie);
+    if (!staffSession.ok) redirect(SERVER_STATION_LOGIN_PATH);
+    redirect(`${SERVER_STATION_LOGIN_PATH}?reason=denied`);
+  }
+
+  const [wall, approved] = await Promise.all([
+    getServerStationWallStatus(gate.writeClient, gate.venueId),
+    listServerApprovedScenes(gate.writeClient, gate.venueId),
+  ]);
+  return {
+    gate,
+    wall,
+    approved,
     supabaseEnv: getPublicSupabaseEnv(),
     home: SERVER_STATION_HOME_PATH,
   };
