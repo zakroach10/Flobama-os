@@ -288,7 +288,7 @@ export function ServerStationGraphicBuilder({
     return (
       <ServerStationShell actorName={actorName} wall={wall} title="Food promos" layout="pos">
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&>*]:shrink-0 lg:flex-wrap lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => setCategory("food_special")}
@@ -327,85 +327,91 @@ export function ServerStationGraphicBuilder({
             <p className={cn("shrink-0 text-sm", resultOk ? "text-emerald-200" : "text-amber-100")}>{resultMessage}</p>
           ) : null}
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="grid min-h-0 auto-rows-fr grid-cols-2 gap-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-4">
-              {foodPresets.slice(presetPage * 15, presetPage * 15 + 15).map((preset) => {
-                const selected = preset.id === selectedPresetId;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => applyFoodPreset(preset)}
-                    className={cn(
-                      "flex min-h-0 flex-col overflow-hidden rounded-2xl border text-left",
-                      selected ? "border-[#d36b4a] ring-2 ring-[#d36b4a]" : "border-white/10",
-                    )}
-                  >
-                    <span className="relative min-h-16 flex-1 bg-black/40">
-                      {preset.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={preset.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 px-2 py-1.5">
-                      <span className="block truncate text-sm font-bold text-[#f7efe6]">{preset.food}</span>
-                      <span className="block truncate text-xs text-[#e8d5c4]">{formatFoodPrice(preset.price)}</span>
-                    </span>
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => {
-                  setFoodComposer("custom");
-                  setSelectedPresetId(null);
-                  setHeadline("");
-                  setPrice("");
-                  setSubtitle("");
-                  clearPhoto();
-                }}
-                className="flex min-h-24 flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 px-3 text-center text-sm font-semibold text-[#f7efe6]"
-              >
-                Add your own
-              </button>
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,46%)]">
+            <div className="order-2 min-h-0 min-w-0 overflow-y-auto lg:order-1">
+              <div className="grid content-start grid-cols-2 gap-2 sm:grid-cols-3">
+                {foodPresets.slice(presetPage * 15, presetPage * 15 + 15).map((preset) => {
+                  const selected = preset.id === selectedPresetId;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyFoodPreset(preset)}
+                      className={cn(
+                        "flex h-[6.75rem] flex-col overflow-hidden rounded-2xl border text-left",
+                        selected ? "border-[#d36b4a] ring-2 ring-[#d36b4a]" : "border-white/10",
+                      )}
+                    >
+                      <span className="relative h-14 shrink-0 bg-black/40">
+                        {preset.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={preset.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 px-2 py-1">
+                        <span className="block truncate text-sm font-bold text-[#f7efe6]">{preset.food}</span>
+                        <span className="block truncate text-xs text-[#e8d5c4]">{formatFoodPrice(preset.price)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFoodComposer("custom");
+                    setSelectedPresetId(null);
+                    setHeadline("");
+                    setPrice("");
+                    setSubtitle("");
+                    clearPhoto();
+                  }}
+                  className="flex h-[6.75rem] flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 px-3 text-center text-sm font-semibold text-[#f7efe6]"
+                >
+                  Add your own
+                </button>
+              </div>
             </div>
-            <div className="hidden min-h-0 flex-col lg:flex">
-              <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+            <div className="order-1 flex min-h-0 min-w-0 flex-col gap-2 max-lg:sticky max-lg:top-0 max-lg:z-20 max-lg:bg-[#14110f]/95 max-lg:pb-2 max-lg:backdrop-blur-md lg:order-2">
+              <p className="shrink-0 text-xs font-semibold tracking-[0.14em] text-[#e8d5c4] uppercase">Wall preview</p>
+              <div className="aspect-video w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black">
                 {previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt="Wall preview" className="h-full w-full object-cover" />
+                  <img src={previewUrl} alt="Wall preview" className="h-full w-full object-contain" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-[#e8d5c4]">Building preview…</div>
                 )}
               </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <ServerStationButton disabled={pending} onClick={() => void uploadGraphicAndPublish("show_now")}>
+                  Show now
+                </ServerStationButton>
+                <ServerStationButton
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => void uploadGraphicAndPublish("add_rotation")}
+                >
+                  Add to rotation
+                </ServerStationButton>
+                {foodPresets.length > 15 ? (
+                  <>
+                    <ServerStationButton
+                      variant="secondary"
+                      disabled={presetPage === 0}
+                      onClick={() => setPresetPage((page) => Math.max(0, page - 1))}
+                    >
+                      Prev
+                    </ServerStationButton>
+                    <ServerStationButton
+                      variant="secondary"
+                      disabled={(presetPage + 1) * 15 >= foodPresets.length}
+                      onClick={() => setPresetPage((page) => page + 1)}
+                    >
+                      Next
+                    </ServerStationButton>
+                  </>
+                ) : null}
+              </div>
             </div>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap justify-end gap-2">
-            <ServerStationButton disabled={pending} onClick={() => void uploadGraphicAndPublish("show_now")}>
-              Show now
-            </ServerStationButton>
-            <ServerStationButton variant="secondary" disabled={pending} onClick={() => void uploadGraphicAndPublish("add_rotation")}>
-              Add to rotation
-            </ServerStationButton>
-            {foodPresets.length > 15 ? (
-              <>
-                <ServerStationButton
-                  variant="secondary"
-                  disabled={presetPage === 0}
-                  onClick={() => setPresetPage((page) => Math.max(0, page - 1))}
-                >
-                  Prev
-                </ServerStationButton>
-                <ServerStationButton
-                  variant="secondary"
-                  disabled={(presetPage + 1) * 15 >= foodPresets.length}
-                  onClick={() => setPresetPage((page) => page + 1)}
-                >
-                  Next
-                </ServerStationButton>
-              </>
-            ) : null}
           </div>
         </div>
       </ServerStationShell>
@@ -414,9 +420,9 @@ export function ServerStationGraphicBuilder({
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title={title}>
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">{title}</h1>
-        <p className="text-lg text-[#e8d5c4]/90">
+      <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">{title}</h1>
+        <p className="text-base text-[#e8d5c4]/90 lg:text-lg">
           Fill in the basics, check the preview, then put it on the wall.
         </p>
       </div>
@@ -433,7 +439,7 @@ export function ServerStationGraphicBuilder({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-5">
+        <div className="order-2 space-y-5 lg:order-1">
           {mode === "special" ? (
             <div className="flex flex-wrap gap-2">
               {(
@@ -655,12 +661,12 @@ export function ServerStationGraphicBuilder({
           </p>
         </div>
 
-        <div className="space-y-3">
+        <div className="order-1 space-y-3 lg:order-2">
           <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Preview</p>
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-black/40">
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="Wall preview" className="aspect-video w-full object-cover" />
+              <img src={previewUrl} alt="Wall preview" className="aspect-video w-full object-contain" />
             ) : (
               <div className="flex aspect-video items-center justify-center text-[#e8d5c4]">Building preview…</div>
             )}

@@ -55,12 +55,12 @@ export function ServerStationEventsExplorer({
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="Explore Events">
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">What’s happening?</h1>
-        <p className="text-lg text-[#e8d5c4]/90">Tap an event to read the details to a guest.</p>
+      <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">What’s happening?</h1>
+        <p className="text-base text-[#e8d5c4]/90 lg:text-lg">Tap an event to read the details to a guest.</p>
       </div>
 
-      <div className="mb-4 flex flex-wrap justify-end gap-2">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] lg:flex-wrap lg:justify-end lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
         {BUCKETS.map((item) => {
           const Icon = item.icon;
           return (
@@ -69,7 +69,7 @@ export function ServerStationEventsExplorer({
               type="button"
               onClick={() => setBucket(item.id)}
               className={cn(
-                "inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 text-base font-semibold",
+                "inline-flex min-h-12 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-semibold lg:min-h-14 lg:px-5 lg:text-base",
                 bucket === item.id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5 text-[#f7efe6]",
               )}
             >

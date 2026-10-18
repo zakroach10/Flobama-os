@@ -57,9 +57,9 @@ export function ServerStationActiveItems({
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="Your Rotation">
-      <div className="mb-5 space-y-2">
-        <h1 className="text-3xl font-bold text-[#f7efe6]">Your rotation</h1>
-        <p className="text-lg text-[#e8d5c4]/90">
+      <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">Your rotation</h1>
+        <p className="text-base text-[#e8d5c4]/90 lg:text-lg">
           Messages, deals, and celebrations added from this station. House ads stay in the roll. Taking one
           down does not cut off the ad that is already playing.
         </p>
