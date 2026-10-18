@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { CakeIcon, HeartIcon, PartyPopperIcon, SparklesIcon, UtensilsCrossedIcon, WineIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   issueServerStationUploadSessionAction,
@@ -259,19 +260,20 @@ export function ServerStationGraphicBuilder({
             <div className="flex flex-wrap gap-2">
               {(
                 [
-                  ["drink_special", "Drink Special"],
-                  ["food_special", "Food Special"],
+                  ["drink_special", "Drink Special", WineIcon],
+                  ["food_special", "Food Special", UtensilsCrossedIcon],
                 ] as const
-              ).map(([id, label]) => (
+              ).map(([id, label, Icon]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setCategory(id)}
                   className={cn(
-                    "min-h-14 rounded-2xl px-5 text-base font-semibold",
+                    "inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 text-base font-semibold",
                     category === id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5",
                   )}
                 >
+                  <Icon className="size-5" aria-hidden />
                   {label}
                 </button>
               ))}
@@ -282,21 +284,22 @@ export function ServerStationGraphicBuilder({
             <div className="flex flex-wrap gap-2">
               {(
                 [
-                  ["birthday", "Happy Birthday"],
-                  ["anniversary", "Happy Anniversary"],
-                  ["congratulations", "Congratulations"],
-                  ["celebration", "Custom Celebration"],
+                  ["birthday", "Happy Birthday", CakeIcon],
+                  ["anniversary", "Happy Anniversary", HeartIcon],
+                  ["congratulations", "Congratulations", PartyPopperIcon],
+                  ["celebration", "Custom Celebration", SparklesIcon],
                 ] as const
-              ).map(([id, label]) => (
+              ).map(([id, label, Icon]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setCelebration(id)}
                   className={cn(
-                    "min-h-14 rounded-2xl px-5 text-base font-semibold",
+                    "inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 text-base font-semibold",
                     celebration === id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5",
                   )}
                 >
+                  <Icon className="size-5" aria-hidden />
                   {label}
                 </button>
               ))}
@@ -384,7 +387,7 @@ export function ServerStationGraphicBuilder({
                 onChooseLocalPhoto(event.target.files?.[0] ?? null);
               }}
             />
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap justify-end gap-3">
               <ServerStationButton
                 variant="secondary"
                 disabled={pending}
@@ -442,7 +445,7 @@ export function ServerStationGraphicBuilder({
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
             <ServerStationButton disabled={pending} onClick={() => void uploadGraphicAndPublish("show_now")}>
               Show Now
             </ServerStationButton>

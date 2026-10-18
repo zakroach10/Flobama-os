@@ -3,7 +3,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
-import { HomeIcon, ArrowLeftIcon, LockIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  CakeIcon,
+  CalendarDaysIcon,
+  HomeIcon,
+  LayoutGridIcon,
+  LockIcon,
+  MessageSquareTextIcon,
+  MonitorPlayIcon,
+  SmartphoneIcon,
+  UtensilsCrossedIcon,
+  type LucideIcon,
+} from "lucide-react";
+import { ServerStationPosRail } from "@/components/server-station/pos-rail";
 import {
   lockServerStationStaffAction,
   refreshServerStationStaffSessionAction,
@@ -11,6 +24,21 @@ import {
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { cn } from "@/lib/utils";
 import { wallStatusLabel, type ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
+
+const STATION_MENUS: Array<{ href: string; label: string; icon: LucideIcon; exact?: boolean }> = [
+  { href: "/server", label: "Home", icon: LayoutGridIcon, exact: true },
+  { href: "/server/events", label: "Events", icon: CalendarDaysIcon },
+  { href: "/server/wall", label: "Wall", icon: MonitorPlayIcon },
+  { href: "/server/specials", label: "Specials", icon: UtensilsCrossedIcon },
+  { href: "/server/birthday", label: "Celebrate", icon: CakeIcon },
+  { href: "/server/message", label: "Message", icon: MessageSquareTextIcon },
+  { href: "/server/upload", label: "Upload", icon: SmartphoneIcon },
+];
+
+function menuIsActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function ServerStationShell({
   children,
@@ -67,13 +95,13 @@ export function ServerStationShell({
     <div
       className={cn(
         "dark bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_50%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground",
-        pos ? "flex h-dvh max-h-dvh flex-col overflow-hidden" : "min-h-full",
+        "flex h-dvh max-h-dvh flex-col overflow-hidden",
       )}
     >
       <header
         className={cn(
           "z-40 shrink-0 border-b border-white/10 bg-black/40 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4",
-          pos ? "relative" : "sticky top-0",
+          "relative",
         )}
       >
         <div className="mx-auto flex max-w-[1600px] min-h-14 items-center gap-2 py-2 sm:min-h-16 sm:gap-3 sm:py-3">
@@ -126,33 +154,71 @@ export function ServerStationShell({
             <LockIcon className="size-6" />
           </button>
         </div>
-        {!pos ? (
-          <div className="mx-auto max-w-6xl pb-3 sm:hidden">
-            <p
+      </header>
+      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 gap-3 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 lg:px-4">
+        <nav
+          aria-label="Server Station"
+          className="hidden min-h-0 w-[5.75rem] shrink-0 flex-col gap-2 overflow-y-auto lg:flex"
+        >
+          {STATION_MENUS.map((item) => {
+            const active = menuIsActive(pathname, item.href, item.exact);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-2xl border px-1 text-center text-[11px] font-semibold",
+                  active
+                    ? "border-[#d36b4a]/60 bg-[#d36b4a]/25 text-[#f7efe6]"
+                    : "border-white/10 bg-white/5 text-[#e8d5c4]",
+                )}
+              >
+                <Icon className="size-6" aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:contents">
+          <nav aria-label="Server Station" className="flex shrink-0 gap-2 overflow-x-auto lg:hidden">
+            {STATION_MENUS.map((item) => {
+              const active = menuIsActive(pathname, item.href, item.exact);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-14 shrink-0 items-center gap-2 rounded-2xl border px-3 text-sm font-semibold",
+                    active
+                      ? "border-[#d36b4a]/60 bg-[#d36b4a]/25 text-[#f7efe6]"
+                      : "border-white/10 bg-white/5 text-[#e8d5c4]",
+                  )}
+                >
+                  <Icon className="size-5" aria-hidden />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:contents">
+            <aside className="order-1 h-[38vh] min-h-0 shrink-0 lg:order-2 lg:h-full lg:w-[22.5rem]">
+              <ServerStationPosRail />
+            </aside>
+            <main
               className={cn(
-                "text-sm font-semibold",
-                wall.connected ? "text-emerald-300" : "text-amber-300",
+                "order-2 min-h-0 min-w-0 flex-1 lg:order-1",
+                pos ? "flex flex-col overflow-hidden" : "overflow-y-auto",
               )}
             >
-              {wallStatusLabel(wall)}
-              {wall.currentlyPlaying ? ` · Currently Playing: ${wall.currentlyPlaying}` : null}
-            </p>
-            {!wall.connected && wall.offlineReason ? (
-              <p className="mt-1 text-sm text-amber-100/90">{wall.offlineReason}</p>
-            ) : null}
+              {children}
+            </main>
           </div>
-        ) : null}
-      </header>
-      <main
-        className={cn(
-          "mx-auto w-full",
-          pos
-            ? "flex min-h-0 max-w-[1600px] flex-1 flex-col overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 sm:px-4"
-            : "max-w-6xl px-4 py-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6",
-        )}
-      >
-        {children}
-      </main>
+        </div>
+      </div>
     </div>
   );
 }
@@ -161,11 +227,13 @@ export function ServerStationTile({
   href,
   title,
   description,
+  icon: Icon,
   accent = "warm",
 }: {
   href: string;
   title: string;
   description: string;
+  icon: LucideIcon;
   accent?: "warm" | "cool" | "gold" | "rose";
 }) {
   const accents = {
@@ -179,12 +247,17 @@ export function ServerStationTile({
     <Link
       href={href}
       className={cn(
-        "flex min-h-[148px] flex-col justify-end rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition active:scale-[0.98]",
+        "flex min-h-[132px] flex-col justify-between rounded-[28px] border bg-gradient-to-br p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition active:scale-[0.98]",
         accents[accent],
       )}
     >
-      <h2 className="text-2xl font-bold tracking-tight text-[#f7efe6] sm:text-3xl">{title}</h2>
-      <p className="mt-2 text-base text-[#e8d5c4]/90">{description}</p>
+      <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-black/30 text-[#f7efe6]">
+        <Icon className="size-7" aria-hidden />
+      </span>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-[#f7efe6]">{title}</h2>
+        <p className="mt-1 text-sm text-[#e8d5c4]/90">{description}</p>
+      </div>
     </Link>
   );
 }

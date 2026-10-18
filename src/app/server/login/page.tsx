@@ -53,7 +53,7 @@ export default async function ServerStationLoginPage({
     }
   }
 
-  let staffOptions: Array<{ userId: string; displayName: string }> = [];
+  const people: Array<{ id: string; displayName: string; kind: "staff" | "operator" }> = [];
   if (admin) {
     const { data: pins } = await admin
       .from("server_station_pins")
@@ -75,16 +75,33 @@ export default async function ServerStationLoginPage({
         .from("profiles")
         .select("id, display_name")
         .in("id", [...allowed]);
-      staffOptions = (profiles ?? [])
-        .map((profile) => ({
-          userId: profile.id,
+      for (const profile of profiles ?? []) {
+        people.push({
+          id: profile.id,
           displayName: profile.display_name || "Server",
-        }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+          kind: "staff",
+        });
+      }
     }
+
+    const { data: operators, error: operatorError } = await admin
+      .from("server_station_operators")
+      .select("id, display_name")
+      .eq("venue_id", venueId)
+      .is("archived_at", null);
+    if (!operatorError) {
+      for (const operator of operators ?? []) {
+        people.push({
+          id: operator.id,
+          displayName: operator.display_name,
+          kind: "operator",
+        });
+      }
+    }
+    people.sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
   return (
-    <ServerStationLoginClient paired={paired} staffOptions={staffOptions} reason={params.reason} />
+    <ServerStationLoginClient paired={paired} people={people} reason={params.reason} />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { CalendarDaysIcon, CalendarRangeIcon, MoonIcon, SearchIcon, SunIcon } from "lucide-react";
 import { listServerStationEventsAction } from "@/actions/server-station";
 import {
   ServerStationButton,
@@ -13,11 +14,11 @@ import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-s
 import { cn } from "@/lib/utils";
 
 const BUCKETS = [
-  { id: "tonight", label: "Tonight" },
-  { id: "tomorrow", label: "Tomorrow" },
-  { id: "weekend", label: "This Weekend" },
-  { id: "upcoming", label: "Upcoming" },
-  { id: "search", label: "Search" },
+  { id: "tonight", label: "Tonight", icon: MoonIcon },
+  { id: "tomorrow", label: "Tomorrow", icon: SunIcon },
+  { id: "weekend", label: "This Weekend", icon: CalendarRangeIcon },
+  { id: "upcoming", label: "Upcoming", icon: CalendarDaysIcon },
+  { id: "search", label: "Search", icon: SearchIcon },
 ] as const;
 
 export function ServerStationEventsExplorer({
@@ -59,20 +60,24 @@ export function ServerStationEventsExplorer({
         <p className="text-lg text-[#e8d5c4]/90">Tap an event to read the details to a guest.</p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {BUCKETS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setBucket(item.id)}
-            className={cn(
-              "min-h-14 rounded-2xl px-5 text-base font-semibold",
-              bucket === item.id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5 text-[#f7efe6]",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
+        {BUCKETS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setBucket(item.id)}
+              className={cn(
+                "inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 text-base font-semibold",
+                bucket === item.id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5 text-[#f7efe6]",
+              )}
+            >
+              <Icon className="size-5" aria-hidden />
+              {item.label}
+            </button>
+          );
+        })}
       </div>
 
       {bucket === "search" ? (
@@ -151,7 +156,7 @@ export function ServerStationEventsExplorer({
               {selected.ticketUrl ? (
                 <p className="break-all text-base text-sky-200">Tickets: {selected.ticketUrl}</p>
               ) : null}
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-wrap justify-end gap-3 pt-2">
                 <ServerStationButton
                   onClick={async () => {
                     await navigator.clipboard.writeText(selected.publicLink);

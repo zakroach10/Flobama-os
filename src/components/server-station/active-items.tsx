@@ -8,6 +8,7 @@ import {
   removeServerStationItemAction,
 } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
+import { serverStationKindLabel, serverStationPlacement } from "@/lib/server-station/item-labels";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 
 type Item = {
@@ -23,26 +24,6 @@ type Item = {
   playlist_item_id: string | null;
   override_starts_at: string | null;
 };
-
-const KIND_LABEL: Record<string, string> = {
-  food_special: "Food deal",
-  drink_special: "Drink deal",
-  birthday: "Celebration",
-  celebration: "Celebration",
-  message: "Message",
-  upload: "Photo",
-};
-
-function placement(item: Item) {
-  if (item.status === "pending_approval") return "Needs manager approval";
-  if (item.status === "queued") return "Waiting — the show is protected";
-  if (item.override_starts_at && Date.parse(item.override_starts_at) > Date.now()) {
-    return "Plays after the current ad";
-  }
-  if (item.show_now) return "Showing on the wall now";
-  if (item.playlist_item_id) return "In the rotation";
-  return "On the wall";
-}
 
 export function ServerStationActiveItems({
   actorName,
@@ -91,7 +72,7 @@ export function ServerStationActiveItems({
           </p>
         ) : null}
         {items.map((item) => {
-          const kindLabel = KIND_LABEL[item.kind] ?? "Slide";
+          const kindLabel = serverStationKindLabel(item.kind);
           const confirming = confirmId === item.id;
           return (
             <div
@@ -109,13 +90,13 @@ export function ServerStationActiveItems({
                 <p className="text-xl font-bold text-[#f7efe6]">{item.title}</p>
                 {item.subtitle ? <p className="text-sm text-[#e8d5c4]">{item.subtitle}</p> : null}
                 <p className="text-sm text-[#e8d5c4]">
-                  {item.created_by_name || "Staff"} · {placement(item)}
+                  {item.created_by_name || "Staff"} · {serverStationPlacement(item)}
                 </p>
                 <p className="text-sm text-[#e8d5c4]/80">
                   Expires {new Date(item.ends_at).toLocaleString()}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-end gap-2 sm:ml-auto">
                 {item.status === "pending_approval" ? null : (
                 <ServerStationButton
                   variant="secondary"

@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/server-station";
 import {
   SERVER_STATION_DEVICE_COOKIE as DEVICE_COOKIE_NAME,
+  SERVER_STATION_OPERATORS_SQL,
   SERVER_STATION_SQL,
   SERVER_STATION_STAFF_COOKIE as STAFF_COOKIE_NAME,
   type StaffRole,
@@ -25,7 +26,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 
 export type ServerStationActor = {
-  userId: string;
+  /** Null for name-and-PIN operators. Their id is not an auth user, so it must not be stored in created_by. */
+  userId: string | null;
   displayName: string;
   role: StaffRole;
   deviceId: string | null;
@@ -127,32 +129,61 @@ export async function getServerStationGate(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, message: "Server Station is not configured." };
 
-  const { data: membership, error: membershipError } = await admin
-    .from("venue_memberships")
-    .select("role")
-    .eq("venue_id", device.venue_id)
-    .eq("user_id", verified.session.userId)
-    .maybeSingle();
+  let role: StaffRole;
+  let actorUserId: string | null = verified.session.userId;
+  let displayName = verified.session.displayName;
 
-  if (membershipError) {
-    return {
-      ok: false,
-      message: isMissingServerStationRelation(membershipError.message)
-        ? `Apply ${SERVER_STATION_SQL} in Supabase, then try again.`
-        : membershipError.message,
-      missingTable: isMissingServerStationRelation(membershipError.message),
-    };
-  }
-  if (!membership || !canAccessServerStation(membership.role)) {
-    return { ok: false, message: "That staff PIN is not allowed on Server Station." };
+  if (verified.session.operatorId) {
+    const { data: operator, error: operatorError } = await admin
+      .from("server_station_operators")
+      .select("id, display_name, archived_at")
+      .eq("id", verified.session.operatorId)
+      .eq("venue_id", device.venue_id)
+      .maybeSingle();
+    if (operatorError) {
+      return {
+        ok: false,
+        message: isMissingServerStationRelation(operatorError.message)
+          ? `Apply ${SERVER_STATION_OPERATORS_SQL} in Supabase, then try again.`
+          : operatorError.message,
+        missingTable: isMissingServerStationRelation(operatorError.message),
+      };
+    }
+    if (!operator || operator.archived_at) {
+      return { ok: false, message: "That kiosk login is no longer active." };
+    }
+    role = "server";
+    actorUserId = null;
+    displayName = operator.display_name;
+  } else {
+    const { data: membership, error: membershipError } = await admin
+      .from("venue_memberships")
+      .select("role")
+      .eq("venue_id", device.venue_id)
+      .eq("user_id", verified.session.userId)
+      .maybeSingle();
+
+    if (membershipError) {
+      return {
+        ok: false,
+        message: isMissingServerStationRelation(membershipError.message)
+          ? `Apply ${SERVER_STATION_SQL} in Supabase, then try again.`
+          : membershipError.message,
+        missingTable: isMissingServerStationRelation(membershipError.message),
+      };
+    }
+    if (!membership || !canAccessServerStation(membership.role)) {
+      return { ok: false, message: "That staff PIN is not allowed on Server Station." };
+    }
+    role = membership.role;
   }
 
   const allowed =
     mode === "configure"
-      ? authorizeServerStationConfigure(membership.role)
+      ? authorizeServerStationConfigure(role)
       : mode === "content"
-        ? authorizeServerStationContent(membership.role)
-        : authorizeServerStation(membership.role);
+        ? authorizeServerStationContent(role)
+        : authorizeServerStation(role);
   if (!allowed.allowed) return { ok: false, message: allowed.reason };
 
   const { settings } = await getServerStationSettings(admin, device.venue_id);
@@ -188,9 +219,9 @@ export async function getServerStationGate(
     venueId: device.venue_id,
     timeZone: venue?.timezone || "America/Chicago",
     actor: {
-      userId: verified.session.userId,
-      displayName: verified.session.displayName,
-      role: membership.role,
+      userId: actorUserId,
+      displayName,
+      role,
       deviceId: device.id,
     },
     supabase: admin,

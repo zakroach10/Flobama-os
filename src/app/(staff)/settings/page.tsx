@@ -60,6 +60,12 @@ export default async function SettingsPage() {
     .from("server_station_pins")
     .select("user_id")
     .eq("venue_id", context.venue.id);
+  const operatorsRes = await supabase
+    .from("server_station_operators")
+    .select("id, display_name")
+    .eq("venue_id", context.venue.id)
+    .is("archived_at", null)
+    .order("display_name", { ascending: true });
   const auditRes = await supabase
     .from("server_station_audit_log")
     .select("id, actor_name, action, created_at")
@@ -98,6 +104,13 @@ export default async function SettingsPage() {
         playlists={playlistsRes.data ?? []}
         devices={devicesRes.data ?? []}
         staffOptions={staffPinOptions}
+        operators={(operatorsRes.data ?? []).map((row) => ({
+          id: row.id,
+          displayName: row.display_name,
+        }))}
+        operatorsMissing={Boolean(
+          operatorsRes.error && isMissingServerStationRelation(operatorsRes.error.message),
+        )}
         audit={auditRes.data ?? []}
         missingTable={serverStationTableMissing}
         canManage={canConfigureServerStation(context.role)}

@@ -176,7 +176,10 @@ export function ServerStationWallControls({
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="LED Wall Controls" layout="pos">
       <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <p className="mr-auto hidden text-sm text-[#e8d5c4]/80 lg:block">
+            {catalog.length} scenes · {SERVER_STATION_SCENE_PAGE_SIZE} per page
+          </p>
           <button
             type="button"
             disabled={pending || !defaultPlaylistId}
@@ -221,9 +224,6 @@ export function ServerStationWallControls({
               {playlist.name}
             </button>
           ))}
-          <p className="ml-auto hidden text-sm text-[#e8d5c4]/80 lg:block">
-            {catalog.length} scenes · {SERVER_STATION_SCENE_PAGE_SIZE} per page
-          </p>
         </div>
 
         {!wall.connected && wall.offlineReason ? (
@@ -310,7 +310,7 @@ export function ServerStationWallControls({
           <div className="w-full max-w-lg rounded-[28px] border border-white/15 bg-[#1a1613] p-6">
             <h2 className="text-2xl font-bold text-[#f7efe6]">Switch LED wall to {confirm.label}?</h2>
             <p className="mt-2 text-[#e8d5c4]">This updates the live wall once the command is accepted.</p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <ServerStationButton variant="secondary" onClick={() => setConfirm(null)}>
                 Cancel
               </ServerStationButton>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   claimServerStationPairingCodeAction,
@@ -12,24 +13,25 @@ import { ServerStationInstallCard } from "@/components/pwa/server-station-instal
 import { ServerStationButton, serverStationInputClass } from "@/components/server-station/shell";
 import { cn } from "@/lib/utils";
 
-type StaffOption = {
-  userId: string;
+type LoginPerson = {
+  id: string;
   displayName: string;
+  kind: "staff" | "operator";
 };
 
 export function ServerStationLoginClient({
   paired,
-  staffOptions,
+  people,
   reason,
 }: {
   paired: boolean;
-  staffOptions: StaffOption[];
+  people: LoginPerson[];
   reason?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"pair" | "pick" | "pin">(paired ? "pick" : "pair");
   const [code, setCode] = useState("");
-  const [selected, setSelected] = useState<StaffOption | null>(null);
+  const [selected, setSelected] = useState<LoginPerson | null>(null);
   const [pin, setPin] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -87,23 +89,24 @@ export function ServerStationLoginClient({
             <h1 className="text-3xl font-bold text-[#f7efe6]">Who’s using the station?</h1>
             <p className="text-lg text-[#e8d5c4]">Tap your name, then enter your PIN.</p>
             <div className="grid gap-3">
-              {staffOptions.map((person) => (
+              {people.map((person) => (
                 <button
-                  key={person.userId}
+                  key={`${person.kind}:${person.id}`}
                   type="button"
                   onClick={() => {
                     setSelected(person);
                     setPin("");
                     setStep("pin");
                   }}
-                  className="min-h-16 rounded-2xl border border-white/15 bg-white/5 px-5 text-left text-xl font-semibold text-[#f7efe6]"
+                  className="flex min-h-16 items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-5 text-left text-xl font-semibold text-[#f7efe6]"
                 >
+                  <UserRoundIcon className="size-6 shrink-0 text-[#e8d5c4]" aria-hidden />
                   {person.displayName}
                 </button>
               ))}
-              {!staffOptions.length ? (
+              {!people.length ? (
                 <p className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-amber-50">
-                  No Server Station staff with PINs yet. Ask an admin to create Server accounts and set PINs.
+                  No kiosk logins yet. Ask an admin to add a name and PIN under Settings → Server Station.
                 </p>
               ) : null}
             </div>
@@ -150,10 +153,11 @@ export function ServerStationLoginClient({
                     }
                     if (key === "Go") {
                       startTransition(async () => {
-                        const result = await verifyServerStationPinAction({
-                          userId: selected.userId,
-                          pin,
-                        });
+                        const result = await verifyServerStationPinAction(
+                          selected.kind === "operator"
+                            ? { operatorId: selected.id, pin }
+                            : { userId: selected.id, pin },
+                        );
                         if (!result.ok) {
                           toast.error(result.message);
                           setPin("");

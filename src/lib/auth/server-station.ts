@@ -72,7 +72,10 @@ export function pinLockUntil(failedAttempts: number, now = Date.now()) {
 
 export type ServerStationStaffSession = {
   venueId: string;
+  /** Auth user id for staff PINs. For name-and-PIN operators this is the operator id so older cookie checks still pass. */
   userId: string;
+  /** Set when this session is a kiosk operator (name + PIN, no staff account). */
+  operatorId?: string | null;
   deviceId: string | null;
   displayName: string;
   exp: number;
@@ -126,6 +129,9 @@ export function verifyServerStationStaffCookie(
     if (!parsed?.venueId || !parsed?.userId || !Number.isFinite(parsed.exp)) {
       return { ok: false, message: "Staff session is invalid." };
     }
+    if (parsed.operatorId && parsed.operatorId !== parsed.userId) {
+      return { ok: false, message: "Staff session is invalid." };
+    }
     if (parsed.exp * 1000 <= now) {
       return { ok: false, message: "Staff session expired. Enter your PIN again." };
     }
@@ -144,6 +150,7 @@ export function refreshServerStationStaffCookie(
     {
       venueId: session.venueId,
       userId: session.userId,
+      operatorId: session.operatorId ?? null,
       deviceId: session.deviceId,
       displayName: session.displayName,
     },

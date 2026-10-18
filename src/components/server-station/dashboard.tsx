@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  CakeIcon,
+  CalendarDaysIcon,
+  MessageSquareTextIcon,
+  MonitorPlayIcon,
+  SmartphoneIcon,
+  UtensilsCrossedIcon,
+} from "lucide-react";
 import { ServerStationShell, ServerStationTile } from "@/components/server-station/shell";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 
@@ -12,54 +20,51 @@ export function ServerStationDashboard({
 }) {
   return (
     <ServerStationShell actorName={actorName} wall={wall} showBack={false} title="Server Station">
-      <div className="mb-6 space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-[#f7efe6] sm:text-4xl">What do you need?</h1>
-        <p className="max-w-2xl text-lg text-[#e8d5c4]/90">
-          Big buttons for the floor. Tap one to help a guest or update the LED wall.
-        </p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-[#f7efe6]">What do you need?</h1>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <ServerStationTile
           href="/server/events"
           title="Explore Events"
-          description="View schedules and answer guest questions."
+          description="Schedules and guest questions."
+          icon={CalendarDaysIcon}
           accent="cool"
         />
         <ServerStationTile
           href="/server/wall"
-          title="LED Wall Controls"
-          description="POS-style wall picker — 20 preview tiles per page, no scrolling."
+          title="LED Wall"
+          description="Pick a scene for the wall."
+          icon={MonitorPlayIcon}
           accent="warm"
         />
         <ServerStationTile
           href="/server/specials"
-          title="Food & Drink Specials"
-          description="Create promotional slides for the wall."
+          title="Food & Drink"
+          description="Promotional slides for the wall."
+          icon={UtensilsCrossedIcon}
           accent="gold"
         />
         <ServerStationTile
           href="/server/birthday"
-          title="Birthday Screen"
-          description="Celebrate birthdays, anniversaries, and other occasions."
+          title="Celebration"
+          description="Birthdays, anniversaries, and more."
+          icon={CakeIcon}
           accent="rose"
         />
         <ServerStationTile
           href="/server/message"
           title="Custom Message"
-          description="Create a short announcement for the LED wall."
+          description="A short announcement for the wall."
+          icon={MessageSquareTextIcon}
           accent="cool"
         />
         <ServerStationTile
           href="/server/upload"
-          title="Upload from Phone"
-          description="Show a QR code to upload a picture from a phone."
+          title="Phone Upload"
+          description="Show a QR code for a guest photo."
+          icon={SmartphoneIcon}
           accent="warm"
-        />
-        <ServerStationTile
-          href="/server/active"
-          title="Your Rotation"
-          description="See deals, messages, and celebrations you added — and take them down."
-          accent="gold"
         />
       </div>
     </ServerStationShell>

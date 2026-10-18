@@ -24,6 +24,7 @@ import {
 } from "@/lib/auth/server-station";
 import {
   SERVER_STATION_DEVICE_COOKIE,
+  SERVER_STATION_OPERATORS_SQL,
   SERVER_STATION_STAFF_COOKIE,
   SERVER_STATION_PIN_MAX_ATTEMPTS,
 } from "@/lib/constants";
@@ -43,9 +44,19 @@ export type ServerStationAuthResult = {
 
 function sqlMessage(message: string) {
   if (isMissingServerStationRelation(message)) {
+    if (/server_station_operators/i.test(message)) {
+      return `Apply ${SERVER_STATION_OPERATORS_SQL} in the Supabase SQL editor, then try again.`;
+    }
     return `Apply ${SERVER_STATION_SQL} in the Supabase SQL editor, then try again.`;
   }
   return message;
+}
+
+function pinFailureMessage(failed: number) {
+  const left = Math.max(0, SERVER_STATION_PIN_MAX_ATTEMPTS - failed);
+  return left
+    ? `Incorrect PIN. ${left} tries left.`
+    : "Too many incorrect PINs. Wait a minute, then try again.";
 }
 
 async function adminGate() {
@@ -221,14 +232,103 @@ export async function clearServerStationPinAction(input: unknown): Promise<Serve
   return { ok: true, message: "PIN cleared." };
 }
 
+const operatorNameSchema = z.string().trim().min(1, "Enter a name.").max(40, "Name must be 40 characters or fewer.");
+const operatorPinSchema = z.string().regex(/^\d{4,6}$/, "PIN must be 4–6 digits.");
+
+export async function createServerStationOperatorAction(input: unknown): Promise<ServerStationAuthResult> {
+  const gate = await adminGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      displayName: operatorNameSchema,
+      pin: operatorPinSchema,
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Enter a name and PIN." };
+
+  const displayName = parsed.data.displayName.replace(/\s+/g, " ");
+  const salt = createServerStationPinSalt();
+  const pinHash = hashServerStationPin(parsed.data.pin, salt);
+  const { error } = await gate.supabase.from("server_station_operators").insert({
+    venue_id: gate.context.venue.id,
+    display_name: displayName,
+    pin_hash: pinHash,
+    pin_salt: salt,
+    created_by: gate.context.userId,
+  });
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, message: "That name already has a kiosk login. Pick a different name or update the existing PIN." };
+    }
+    return { ok: false, message: sqlMessage(error.message) };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/server/login");
+  return { ok: true, message: `${displayName} can sign in on the kiosk with that PIN.` };
+}
+
+export async function updateServerStationOperatorPinAction(input: unknown): Promise<ServerStationAuthResult> {
+  const gate = await adminGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      operatorId: z.string().uuid(),
+      pin: operatorPinSchema,
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Enter a new PIN." };
+
+  const salt = createServerStationPinSalt();
+  const pinHash = hashServerStationPin(parsed.data.pin, salt);
+  const { data, error } = await gate.supabase
+    .from("server_station_operators")
+    .update({
+      pin_hash: pinHash,
+      pin_salt: salt,
+      failed_attempts: 0,
+      locked_until: null,
+    })
+    .eq("id", parsed.data.operatorId)
+    .eq("venue_id", gate.context.venue.id)
+    .is("archived_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+  if (!data) return { ok: false, message: "That kiosk login is no longer active." };
+  revalidatePath("/settings");
+  return { ok: true, message: "PIN updated." };
+}
+
+export async function archiveServerStationOperatorAction(input: unknown): Promise<ServerStationAuthResult> {
+  const gate = await adminGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z.object({ operatorId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Choose a kiosk login to remove." };
+
+  const { error } = await gate.supabase
+    .from("server_station_operators")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", parsed.data.operatorId)
+    .eq("venue_id", gate.context.venue.id)
+    .is("archived_at", null);
+  if (error) return { ok: false, message: sqlMessage(error.message) };
+  revalidatePath("/settings");
+  revalidatePath("/server/login");
+  return { ok: true, message: "Kiosk login removed. That name can be used again." };
+}
+
 export async function verifyServerStationPinAction(input: unknown): Promise<ServerStationAuthResult> {
   const parsed = z
     .object({
-      userId: z.string().uuid(),
+      userId: z.string().uuid().optional(),
+      operatorId: z.string().uuid().optional(),
       pin: z.string().regex(/^\d{4,6}$/, "PIN must be 4–6 digits."),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "Enter your 4–6 digit PIN." };
+  if (Boolean(parsed.data.userId) === Boolean(parsed.data.operatorId)) {
+    return { ok: false, message: "Choose who is signing in." };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, message: "Server Station is not configured." };
@@ -258,11 +358,72 @@ export async function verifyServerStationPinAction(input: unknown): Promise<Serv
     }
   }
 
+  if (parsed.data.operatorId) {
+    const operatorId = parsed.data.operatorId;
+    const { data: operator, error } = await admin
+      .from("server_station_operators")
+      .select("id, display_name, pin_hash, pin_salt, failed_attempts, locked_until, archived_at")
+      .eq("venue_id", venueId)
+      .eq("id", operatorId)
+      .maybeSingle();
+    if (error) return { ok: false, message: sqlMessage(error.message) };
+    if (!operator || operator.archived_at) {
+      return { ok: false, message: "That kiosk login is no longer active. Ask an admin." };
+    }
+    if (operator.locked_until && Date.parse(operator.locked_until) > Date.now()) {
+      return { ok: false, message: "Too many tries. Wait a minute, then try again." };
+    }
+    const ok = verifyServerStationPin(parsed.data.pin, operator.pin_salt, operator.pin_hash);
+    if (!ok) {
+      const failed = (operator.failed_attempts ?? 0) + 1;
+      await admin
+        .from("server_station_operators")
+        .update({
+          failed_attempts: failed,
+          locked_until: pinLockUntil(failed),
+        })
+        .eq("venue_id", venueId)
+        .eq("id", operatorId);
+      return { ok: false, message: pinFailureMessage(failed) };
+    }
+    await admin
+      .from("server_station_operators")
+      .update({ failed_attempts: 0, locked_until: null })
+      .eq("venue_id", venueId)
+      .eq("id", operatorId);
+
+    const { settings } = await getServerStationSettings(admin, venueId);
+    const cookie = issueServerStationStaffCookie(
+      {
+        venueId,
+        userId: operator.id,
+        operatorId: operator.id,
+        deviceId,
+        displayName: operator.display_name,
+      },
+      settings.staff_idle_seconds,
+    );
+    if (!cookie) return { ok: false, message: "Could not start the staff session." };
+    jar.set(SERVER_STATION_STAFF_COOKIE, cookie, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: settings.staff_idle_seconds,
+      secure: process.env.NODE_ENV === "production",
+    });
+    return {
+      ok: true,
+      message: `Welcome, ${operator.display_name}.`,
+      redirectTo: SERVER_STATION_HOME_PATH,
+    };
+  }
+
+  const userId = parsed.data.userId!;
   const { data: pinRow, error } = await admin
     .from("server_station_pins")
     .select("pin_hash, pin_salt, failed_attempts, locked_until")
     .eq("venue_id", venueId)
-    .eq("user_id", parsed.data.userId)
+    .eq("user_id", userId)
     .maybeSingle();
   if (error) return { ok: false, message: sqlMessage(error.message) };
   if (!pinRow) return { ok: false, message: "No PIN is set for that person. Ask an admin." };
@@ -275,7 +436,7 @@ export async function verifyServerStationPinAction(input: unknown): Promise<Serv
     .from("venue_memberships")
     .select("role")
     .eq("venue_id", venueId)
-    .eq("user_id", parsed.data.userId)
+    .eq("user_id", userId)
     .maybeSingle();
   if (!membership || !canAccessServerStation(membership.role)) {
     return { ok: false, message: "That person cannot use Server Station." };
@@ -291,33 +452,28 @@ export async function verifyServerStationPinAction(input: unknown): Promise<Serv
         locked_until: pinLockUntil(failed),
       })
       .eq("venue_id", venueId)
-      .eq("user_id", parsed.data.userId);
-    const left = Math.max(0, SERVER_STATION_PIN_MAX_ATTEMPTS - failed);
-    return {
-      ok: false,
-      message: left
-        ? `Incorrect PIN. ${left} tries left.`
-        : "Too many incorrect PINs. Wait a minute, then try again.",
-    };
+      .eq("user_id", userId);
+    return { ok: false, message: pinFailureMessage(failed) };
   }
 
   await admin
     .from("server_station_pins")
     .update({ failed_attempts: 0, locked_until: null })
     .eq("venue_id", venueId)
-    .eq("user_id", parsed.data.userId);
+    .eq("user_id", userId);
 
   const { data: profile } = await admin
     .from("profiles")
     .select("display_name")
-    .eq("id", parsed.data.userId)
+    .eq("id", userId)
     .maybeSingle();
 
   const { settings } = await getServerStationSettings(admin, venueId);
   const cookie = issueServerStationStaffCookie(
     {
       venueId,
-      userId: parsed.data.userId,
+      userId,
+      operatorId: null,
       deviceId,
       displayName: profile?.display_name || "Server",
     },
@@ -378,6 +534,7 @@ export async function refreshServerStationStaffSessionAction(): Promise<ServerSt
     {
       venueId: verified.session.venueId,
       userId: verified.session.userId,
+      operatorId: verified.session.operatorId ?? null,
       deviceId: device.id,
       displayName: verified.session.displayName,
     },

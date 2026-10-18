@@ -134,6 +134,7 @@ export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
 
 export const SERVER_STATION_SQL_ROLE = "supabase/migrations/20261017000050_server_role.sql";
 export const SERVER_STATION_SQL = "supabase/migrations/20261017000051_server_station.sql";
+export const SERVER_STATION_OPERATORS_SQL = "supabase/migrations/20261018000053_server_station_operators.sql";
 export const SERVER_STATION_HOME_PATH = "/server";
 export const SERVER_STATION_LOGIN_PATH = "/server/login";
 export const SERVER_STATION_DEVICE_COOKIE = "flobama_server_kiosk";
