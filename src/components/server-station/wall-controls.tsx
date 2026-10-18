@@ -16,33 +16,26 @@ import { cn } from "@/lib/utils";
 
 function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
   const url = scene.preview_url;
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(url ? "loading" : "error");
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setStatus(url ? "loading" : "error");
+    setFailed(false);
   }, [url, scene.id]);
 
   if (url && scene.media_kind === "video") {
     return (
       <div className="relative h-full w-full bg-black">
-        {status === "loading" ? (
-          <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
-        ) : null}
         <video
           key={url}
           src={url}
           muted
           playsInline
           preload="metadata"
-          className={cn(
-            "absolute inset-0 h-full w-full object-contain transition-opacity duration-150",
-            status === "ready" ? "opacity-100" : "opacity-0",
-          )}
-          onLoadedData={() => setStatus("ready")}
-          onError={() => setStatus("error")}
+          className="absolute inset-0 h-full w-full object-contain"
+          onError={() => setFailed(true)}
         />
-        {status === "error" ? (
-          <div className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-[#e8d5c4]">
+        {failed ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
             Preview unavailable
           </div>
         ) : null}
@@ -53,26 +46,19 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
   if (url) {
     return (
       <div className="relative h-full w-full bg-black">
-        {status === "loading" ? (
-          <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
-        ) : null}
+        {/* Visible immediately. iOS skips onLoad when a prefetched logo is already complete. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           key={url}
           src={url}
           alt=""
-          className={cn(
-            "absolute inset-0 h-full w-full object-contain p-1 transition-opacity duration-150",
-            status === "ready" ? "opacity-100" : "opacity-0",
-          )}
+          className="absolute inset-0 h-full w-full object-contain p-1"
           loading="eager"
           decoding="async"
-          fetchPriority="high"
-          onLoad={() => setStatus("ready")}
-          onError={() => setStatus("error")}
+          onError={() => setFailed(true)}
         />
-        {status === "error" ? (
-          <div className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-[#e8d5c4]">
+        {failed ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
             Preview unavailable
           </div>
         ) : null}
@@ -250,9 +236,9 @@ export function ServerStationWallControls({
                     payload: { sceneId: scene.id },
                   })
                 }
-                className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40"
+                className="flex h-[9.75rem] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40 lg:h-full lg:min-h-0"
               >
-                <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+                <div className="relative h-[6.5rem] w-full shrink-0 overflow-hidden bg-black lg:h-auto lg:min-h-0 lg:flex-1">
                   <ScenePreview scene={scene} />
                 </div>
                 <div className="shrink-0 border-t border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
