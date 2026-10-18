@@ -37,7 +37,8 @@ describe("display device status helpers", () => {
     const now = Date.parse("2026-10-13T02:00:00.000Z");
     expect(isDisplayDeviceStale(null, now)).toBe(true);
     expect(isDisplayDeviceStale("2026-10-13T01:59:30.000Z", now)).toBe(false);
-    expect(isDisplayDeviceStale("2026-10-13T01:58:00.000Z", now)).toBe(true);
+    expect(isDisplayDeviceStale("2026-10-13T01:58:00.000Z", now)).toBe(false);
+    expect(isDisplayDeviceStale("2026-10-13T01:56:00.000Z", now)).toBe(true);
   });
 
   it("validates sha256 hex", () => {

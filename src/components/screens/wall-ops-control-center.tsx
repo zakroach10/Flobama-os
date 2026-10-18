@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
 import { activateDefaultAdRollAction, activateArtistLedAction } from "@/actions/artist-led";
 import { activateLedWallSceneAction } from "@/actions/led-wall";
 import { activateLedPlaylistAction } from "@/actions/led-playlists";
+import { getLedRunnerLinkAction, requestDisplaySafeRefreshAction } from "@/actions/display-devices";
 import { refreshWallDisplaysAction } from "@/actions/display-signals";
 import { signOutWallOpsAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
@@ -68,6 +69,7 @@ export function WallOpsControlCenter({
   listings,
   artistConfigs,
   agent,
+  runner,
   refreshMissing,
   lastRefreshAt,
   timeZone,
@@ -82,6 +84,7 @@ export function WallOpsControlCenter({
   listings: TodayLedListing[];
   artistConfigs: ArtistLedConfig[];
   agent: LedWallAgentSnapshot;
+  runner: { online: boolean; label: string; deviceId: string | null };
   refreshMissing: boolean;
   lastRefreshAt: string | null;
   timeZone: string;
@@ -93,7 +96,21 @@ export function WallOpsControlCenter({
   const [lastCommandError, setLastCommandError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [station, setStation] = useState<WallOpsStation>(readWallOpsStation);
+  const [liveRunner, setLiveRunner] = useState(runner);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLiveRunner(runner);
+  }, [runner]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void getLedRunnerLinkAction().then((next) => {
+        if (next) setLiveRunner(next);
+      });
+    }, 8_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const { linkState, lastSyncedAt, stale } = useWallOpsSync({ venueId, supabaseEnv });
 
   const houseScenes = useMemo(
@@ -104,7 +121,8 @@ export function WallOpsControlCenter({
   const activeScene = scenes.find((scene) => scene.id === activeSceneId) ?? null;
   const activePlaylist = playlists.find((playlist) => playlist.id === activePlaylistId) ?? null;
   const nowPlaying = activePlaylist?.name ?? activeScene?.title ?? "Nothing selected";
-  const agentOnline = Boolean(agent.lastSeenAt) && !isAgentStale(agent.lastSeenAt);
+  const agentOnline = liveRunner.online || (Boolean(agent.lastSeenAt) && !isAgentStale(agent.lastSeenAt));
+  const wallLabel = liveRunner.deviceId ? liveRunner.label : agentOnline ? "Booth connected" : "Local runner offline";
   const todayArtists = useMemo(() => {
     const rows: Array<{
       key: string;
@@ -360,10 +378,34 @@ export function WallOpsControlCenter({
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               <StatusDot tone={linkTone} label={linkLabel} />
-              <StatusDot
-                tone={agentOnline ? (agent.obsConnected ? "ok" : "warn") : "bad"}
-                label={agentOnline ? (agent.obsConnected ? "Agent ok" : "OBS down") : "Agent offline"}
-              />
+              <StatusDot tone={agentOnline ? "ok" : "bad"} label={wallLabel} />
+              {liveRunner.deviceId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-foreground"
+                  disabled={pendingKey !== null}
+                  onClick={() => {
+                    const deviceId = liveRunner.deviceId;
+                    if (!deviceId) return;
+                    setPendingKey("push");
+                    startTransition(async () => {
+                      const result = await requestDisplaySafeRefreshAction({ deviceId });
+                      setPendingKey(null);
+                      if (!result.ok) {
+                        setLastCommandError(result.message);
+                        toast.error(result.message);
+                        return;
+                      }
+                      setLastCommandError(null);
+                      toast.success(result.message);
+                    });
+                  }}
+                >
+                  {pendingKey === "push" ? "Pushing…" : "Push update"}
+                </Button>
+              ) : null}
               {lastSyncedAt ? (
                 <span className="text-[11px] text-muted-foreground">
                   Synced {new Date(lastSyncedAt).toLocaleTimeString()}

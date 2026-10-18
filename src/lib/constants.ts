@@ -90,7 +90,7 @@ export const LOCAL_RUNNER_VERSION = "1.0.6";
 export const LOCAL_RUNNER_DMG_FILENAME = `FloBama-Local-Runner-${LOCAL_RUNNER_VERSION}.dmg`;
 export const LOCAL_RUNNER_DMG_HREF = `/downloads/${LOCAL_RUNNER_DMG_FILENAME}`;
 export const LED_DISPLAY_POLL_MS = 1000;
-export const LED_AGENT_STALE_MS = 15_000;
+export const LED_AGENT_STALE_MS = 45_000;
 
 export const TRIVIA_SQL = "supabase/migrations/20260929000012_trivia.sql";
 export const TRIVIA_PLAYER_COOKIE = "flobama_trivia_player";

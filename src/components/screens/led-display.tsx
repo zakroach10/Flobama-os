@@ -178,14 +178,14 @@ export function LedDisplay({
   // Audience lobby (session live, nothing on wall) only when LED is not running an ad-roll playlist.
   if (audience) return <AudienceWall initial={audience} />;
 
-  if (!media) return <div className="h-full w-full bg-black" />;
+  if (!media) return <LedHoldCard />;
 
   if (media.mediaKind === "video") {
     return (
       <video
         key={media.id}
         src={media.url}
-        className="h-full w-full bg-black object-contain"
+        className="h-full w-full bg-[#100e0c] object-contain"
         autoPlay
         muted
         loop
@@ -197,25 +197,32 @@ export function LedDisplay({
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img key={media.id} src={media.url} alt="" className="h-full w-full bg-black object-contain" />
+    <img key={media.id} src={media.url} alt="" className="h-full w-full bg-[#100e0c] object-contain" />
+  );
+}
+
+function LedHoldCard() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(ellipse_at_top,#3a241c_0%,#100e0c_70%)] text-5xl font-bold tracking-[0.14em] text-[#f7efe6]">
+      FLOBAMA
+    </div>
   );
 }
 
 function LedPlaylistStage({ playlist, index }: { playlist: PublicLedPlaylistItem[]; index: number }) {
   const current = playlist[index] ?? playlist[0];
-  if (!current) return <div className="h-full w-full bg-black" />;
-
-  const warm = nextLedPlaylistMediaItem(playlist, index);
+  const warm = current ? nextLedPlaylistMediaItem(playlist, index) : null;
   const surfaces: PublicLedPlaylistItem[] = [];
-  if (current.kind === "media" && current.url && current.mediaKind) {
+  if (current?.kind === "media" && current.url && current.mediaKind) {
     surfaces.push(current);
   }
-  if (warm && warm.id !== current.id) {
+  if (warm && current && warm.id !== current.id) {
     surfaces.push(warm);
   }
+  if (!current || surfaces.length === 0) return <LedHoldCard />;
 
   return (
-    <div className="relative h-full w-full bg-black">
+    <div className="relative h-full w-full bg-[#100e0c]">
       {surfaces.map((item) => (
         <LedMediaSurface
           key={item.id}
@@ -264,8 +271,8 @@ function LedMediaSurface({
   if (item.kind !== "media" || !item.url) return null;
 
   const className = active
-    ? "absolute inset-0 z-10 h-full w-full bg-black object-contain opacity-100"
-    : "pointer-events-none absolute inset-0 z-0 h-full w-full bg-black object-contain opacity-0";
+    ? "absolute inset-0 z-10 h-full w-full bg-[#100e0c] object-contain opacity-100"
+    : "pointer-events-none absolute inset-0 z-0 h-full w-full bg-[#100e0c] object-contain opacity-0";
 
   if (item.mediaKind === "video") {
     return (

@@ -65,11 +65,11 @@ export async function getServerStationWallStatus(client: Client, venueId: string
   const runnerConnected = Boolean(onlineRunner);
 
   const connected = agentConnected || runnerConnected;
-  const link = runnerConnected && !agentConnected ? "local_runner" : agentConnected ? "agent" : null;
+  const link = runnerConnected ? "local_runner" : agentConnected ? "agent" : null;
 
   const offlineReason = connected
     ? null
-    : "The wall has not checked in recently. You can still change scenes — they will play when the local runner or booth computer reconnects.";
+    : "Local runner has not checked in. Scene changes still save and play when it reconnects.";
 
   const override = overrideRes.data;
   if (override?.title) {

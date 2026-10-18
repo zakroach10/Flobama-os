@@ -6,6 +6,7 @@ export const DEFAULT_CACHE_ROOT = "/Users/Shared/FloBamaOS/media";
 export const SUPPORT_DIR = join(homedir(), "Library", "Application Support", "FloBama Local Runner");
 export const LOG_DIR = join(homedir(), "Library", "Logs", "FloBamaLocalRunner");
 export const STATUS_FILE = join(SUPPORT_DIR, "status.json");
+export const COMMAND_FILE = join(SUPPORT_DIR, "command.txt");
 
 export function expandHome(path) {
   if (!path) return path;

@@ -18,6 +18,7 @@ export function serverStationPlacement(item: {
   override_starts_at: string | null;
 }) {
   if (item.status === "pending_approval") return "Needs manager approval";
+  if (item.status === "expired" || item.status === "removed") return "Still on the wall — remove it";
   if (item.status === "queued") return "Waiting — the show is protected";
   if (item.override_starts_at && Date.parse(item.override_starts_at) > Date.now()) {
     return "Plays after the current ad";

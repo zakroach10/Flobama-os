@@ -7,8 +7,7 @@ import type { PublicSupabaseEnv } from "@/lib/env";
 
 export type WallOpsLinkState = "connected" | "reconnecting" | "offline";
 
-const POLL_MS = 12_000;
-const RECONNECT_POLL_MS = 5_000;
+const POLL_MS = 20_000;
 
 function initialLinkState(): WallOpsLinkState {
   if (typeof navigator === "undefined") return "connected";
@@ -79,11 +78,6 @@ export function useWallOpsSync(input: {
         )
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "led_wall_agent_status", filter: `venue_id=eq.${input.venueId}` },
-          () => scheduleRefresh(),
-        )
-        .on(
-          "postgres_changes",
           { event: "*", schema: "public", table: "screen_takeovers", filter: `venue_id=eq.${input.venueId}` },
           () => scheduleRefresh(),
         )
@@ -105,10 +99,8 @@ export function useWallOpsSync(input: {
         });
     }
 
-    // First sync after mount (async — avoids setState-during-effect lint).
     const bootId = setTimeout(() => {
       markSynced();
-      scheduleRefresh();
     }, 0);
 
     function poll() {
@@ -118,23 +110,17 @@ export function useWallOpsSync(input: {
         setStale(true);
         return;
       }
-      if (!realtimeOk) setLinkState("reconnecting");
-      scheduleRefresh();
       if (realtimeOk && navigator.onLine) setLinkState("connected");
+      else if (navigator.onLine) setLinkState("reconnecting");
     }
 
-    pollId = setInterval(poll, RECONNECT_POLL_MS);
-    const tuneId = setTimeout(() => {
-      if (pollId) clearInterval(pollId);
-      pollId = setInterval(poll, realtimeOk ? POLL_MS : RECONNECT_POLL_MS);
-    }, 2_000);
+    pollId = setInterval(poll, POLL_MS);
 
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       if (pollId) clearInterval(pollId);
-      clearTimeout(tuneId);
       clearTimeout(bootId);
       if (channel && supabase) void supabase.removeChannel(channel);
     };
