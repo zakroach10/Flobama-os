@@ -26,6 +26,13 @@ import {
   listServerApprovedScenes,
 } from "@/lib/server-station/scenes";
 import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
+import {
+  insertServerSlideAfterCurrentAd,
+  loadAdRollItems,
+  readAdRollHold,
+  rebaseLiveAdRoll,
+  restoreAdRollAfterOverride,
+} from "@/lib/server-station/ad-roll";
 import { isMissingServerStationRelation, SERVER_STATION_SQL } from "@/lib/auth/server-station";
 import { SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -50,6 +57,13 @@ function sqlMessage(message: string) {
     return `Apply ${SERVER_STATION_SQL} in the Supabase SQL editor, then try again.`;
   }
   return message;
+}
+
+function contentDb(gate: ServerStationGateOk) {
+  // Kiosk already uses the service role. Staff sessions (server/manager) cannot
+  // insert LED scenes under admin-only RLS, so content writes use the same client
+  // after the gate has authorized them.
+  return createServiceRoleClient() ?? gate.writeClient;
 }
 
 function revalidateServerStation() {
@@ -356,6 +370,7 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
     businessNightEndHour: settings.business_night_end_hour,
   });
 
+  const db = contentDb(gate);
   const sceneId = crypto.randomUUID();
   const title =
     data.kind === "birthday"
@@ -364,7 +379,7 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
         ? `${(data.celebrationType || "celebration").replace(/^\w/, (c) => c.toUpperCase())} ${data.title}`
         : data.title;
 
-  const { error: sceneError } = await gate.writeClient.from("led_wall_scenes").insert({
+  const { error: sceneError } = await db.from("led_wall_scenes").insert({
     id: sceneId,
     venue_id: gate.venueId,
     title: title.slice(0, 120),
@@ -372,14 +387,14 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
     media_kind: "image",
     storage_path: data.storagePath,
     public_url: data.publicUrl,
-      sort_order: await nextSceneSortOrder(gate.writeClient, gate.venueId),
+    sort_order: await nextSceneSortOrder(db, gate.venueId),
     enabled: true,
     server_approved: false,
   });
   if (sceneError) return { ok: false, message: sqlMessage(sceneError.message) };
 
   if (data.contentHash) {
-    await gate.writeClient.from("media_content_hashes").upsert(
+    await db.from("media_content_hashes").upsert(
       {
         venue_id: gate.venueId,
         asset_kind: "led_scene",
@@ -397,9 +412,11 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
   let status: "active" | "queued" | "pending_approval" = needsApproval ? "pending_approval" : "active";
   let playlistItemId: string | null = null;
   let queued = false;
+  let playsAfterCurrentAd = false;
+  let campaignEnds = endsAt;
 
   if (needsApproval) {
-    const { data: item, error: itemError } = await gate.writeClient
+    const { data: item, error: itemError } = await db
       .from("led_server_items")
       .insert({
         venue_id: gate.venueId,
@@ -422,7 +439,7 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
       .select("id")
       .single();
     if (itemError) return { ok: false, message: sqlMessage(itemError.message) };
-    await writeServerStationAudit(gate.writeClient, {
+    await writeServerStationAudit(db, {
       venueId: gate.venueId,
       actor: gate.actor,
       action: "content_pending_approval",
@@ -437,61 +454,71 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
   }
 
   if (data.mode === "show_now") {
-    const protection = await getLedWallProtection(gate.writeClient, gate.venueId);
+    const protection = await getLedWallProtection(db, gate.venueId);
     if (protection.protected) {
       queued = true;
       status = "queued";
     } else {
-      const { data: runtime } = await gate.writeClient
+      const hold = await readAdRollHold(db, gate.venueId);
+      const playMs =
+        (typeof data.durationPreset === "number"
+          ? data.durationPreset
+          : settings.default_override_minutes) * 60_000;
+      const startsAt = hold?.startsAt ?? new Date().toISOString();
+      let overrideEnds =
+        data.durationPreset === "tonight" ? endsAt : new Date(Date.parse(startsAt) + playMs).toISOString();
+      if (Date.parse(overrideEnds) <= Date.parse(startsAt)) {
+        overrideEnds = new Date(Date.parse(startsAt) + playMs).toISOString();
+      }
+      if (data.durationPreset !== "tonight") campaignEnds = overrideEnds;
+      playsAfterCurrentAd = Boolean(hold);
+
+      const { data: runtime } = await db
         .from("led_wall_runtime")
         .select("active_scene_id, active_playlist_id, activation_source")
         .eq("venue_id", gate.venueId)
         .maybeSingle();
 
-      const overrideEnds =
-        data.durationPreset === "tonight"
-          ? endsAt
-          : new Date(
-              Date.now() +
-                (typeof data.durationPreset === "number"
-                  ? data.durationPreset
-                  : settings.default_override_minutes) *
-                  60_000,
-            ).toISOString();
-
       // Single-row upsert prevents concurrent staff from stacking conflicting overrides.
-      const { error: overrideError } = await gate.writeClient.from("led_wall_overrides").upsert(
+      // starts_at in the future keeps the public view on the ad roll until that ad ends.
+      const { error: overrideError } = await db.from("led_wall_overrides").upsert(
         {
           venue_id: gate.venueId,
           scene_id: sceneId,
+          starts_at: startsAt,
           ends_at: overrideEnds,
-          previous_scene_id: runtime?.active_scene_id ?? null,
-          previous_playlist_id: runtime?.active_playlist_id ?? null,
-          previous_activation_source: runtime?.activation_source ?? null,
+          previous_scene_id: hold?.previousSceneId ?? runtime?.active_scene_id ?? null,
+          previous_playlist_id: hold?.playlistId ?? runtime?.active_playlist_id ?? null,
+          previous_activation_source: hold?.previousActivationSource ?? runtime?.activation_source ?? null,
+          resume_playlist_item_id: hold?.resumePlaylistItemId ?? null,
           created_by: gate.actor.userId,
         },
         { onConflict: "venue_id" },
       );
       if (overrideError) return { ok: false, message: sqlMessage(overrideError.message) };
 
-      const { error: runtimeError } = await gate.writeClient.from("led_wall_runtime").upsert(
-        {
-          venue_id: gate.venueId,
-          active_scene_id: sceneId,
-          active_playlist_id: null,
-          activation_source: "server_override",
-          auto_event_id: null,
-          auto_artist_id: null,
-        },
-        { onConflict: "venue_id" },
-      );
-      if (runtimeError) return { ok: false, message: sqlMessage(runtimeError.message) };
+      // Leave the ad roll running until starts_at. Switching runtime now resets activated_at
+      // and cuts the current ad. Maintenance promotes the override once it is actually due.
+      if (!hold) {
+        const { error: runtimeError } = await db.from("led_wall_runtime").upsert(
+          {
+            venue_id: gate.venueId,
+            active_scene_id: sceneId,
+            active_playlist_id: null,
+            activation_source: "server_override",
+            auto_event_id: null,
+            auto_artist_id: null,
+          },
+          { onConflict: "venue_id" },
+        );
+        if (runtimeError) return { ok: false, message: sqlMessage(runtimeError.message) };
+      }
     }
   }
 
   if (data.mode === "add_rotation" || queued) {
     const playlistId = await resolveTemporaryPlaylistId(
-      gate.writeClient,
+      db,
       gate.venueId,
       settings.temporary_playlist_id,
     );
@@ -502,30 +529,19 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
       };
     }
 
-    const { count } = await gate.writeClient
-      .from("led_wall_playlist_items")
-      .select("id", { count: "exact", head: true })
-      .eq("playlist_id", playlistId)
-      .eq("venue_id", gate.venueId);
-
-    const { data: itemRow, error: itemInsertError } = await gate.writeClient
-      .from("led_wall_playlist_items")
-      .insert({
-        playlist_id: playlistId,
-        venue_id: gate.venueId,
-        scene_id: sceneId,
-        duration_seconds: settings.default_slide_seconds,
-        sort_order: count ?? 0,
-        enabled: true,
-      })
-      .select("id")
-      .single();
-    if (itemInsertError) return { ok: false, message: sqlMessage(itemInsertError.message) };
-    playlistItemId = itemRow.id;
+    const inserted = await insertServerSlideAfterCurrentAd(db, {
+      venueId: gate.venueId,
+      playlistId,
+      sceneId,
+      durationSeconds: settings.default_slide_seconds,
+    });
+    if (!inserted.ok) return { ok: false, message: sqlMessage(inserted.message) };
+    playlistItemId = inserted.playlistItemId;
+    playsAfterCurrentAd = playsAfterCurrentAd || inserted.playsAfterCurrentAd;
     status = queued ? "queued" : "active";
   }
 
-  const { data: item, error: itemError } = await gate.writeClient
+  const { data: item, error: itemError } = await db
     .from("led_server_items")
     .insert({
       venue_id: gate.venueId,
@@ -543,7 +559,7 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
       created_by: gate.actor.userId,
       created_by_name: gate.actor.displayName,
       device_id: gate.actor.deviceId,
-      ends_at: endsAt,
+      ends_at: campaignEnds,
       show_now: data.mode === "show_now" && !queued,
     })
     .select("id")
@@ -551,13 +567,13 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
   if (itemError) return { ok: false, message: sqlMessage(itemError.message) };
 
   if (data.mode === "show_now" && !queued) {
-    await gate.writeClient
+    await db
       .from("led_wall_overrides")
       .update({ server_item_id: item.id })
       .eq("venue_id", gate.venueId);
   }
 
-  await writeServerStationAudit(gate.writeClient, {
+  await writeServerStationAudit(db, {
     venueId: gate.venueId,
     actor: gate.actor,
     action: queued ? "content_queued" : data.mode === "show_now" ? "content_show_now" : "content_rotation",
@@ -578,16 +594,21 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
       itemId: item.id,
     };
   }
+  const durationLabel = durationPresetLabel(data.durationPreset as ServerStationDurationPreset);
   if (data.mode === "show_now") {
     return {
       ok: true,
-      message: `Showing on the LED wall now (${durationPresetLabel(data.durationPreset as ServerStationDurationPreset)}).`,
+      message: playsAfterCurrentAd
+        ? `The current ad will finish, then this goes on the wall (${durationLabel}).`
+        : `Showing on the LED wall now (${durationLabel}).`,
       itemId: item.id,
     };
   }
   return {
     ok: true,
-    message: `Added to the LED rotation until ${durationPresetLabel(data.durationPreset as ServerStationDurationPreset).toLowerCase()}.`,
+    message: playsAfterCurrentAd
+      ? `Added next in the rotation. The current ad will finish first. It stays up until ${durationLabel.toLowerCase()}.`
+      : `Added to the LED rotation until ${durationLabel.toLowerCase()}.`,
     itemId: item.id,
   };
 }
@@ -596,18 +617,36 @@ export async function listActiveServerStationItemsAction() {
   const gate = await getServerStationGate("access");
   if (!gate.ok) return { ok: false as const, message: gate.message, items: [] };
 
-  const { data, error } = await gate.writeClient
-    .from("led_server_items")
-    .select(
-      "id, kind, title, subtitle, status, thumbnail_url, created_by_name, ends_at, show_now, created_at",
-    )
-    .eq("venue_id", gate.venueId)
-    .in("status", ["active", "queued", "pending_approval"])
-    .order("created_at", { ascending: false })
-    .limit(40);
+  const db = contentDb(gate);
+  const [{ data, error }, overrideRes] = await Promise.all([
+    db
+      .from("led_server_items")
+      .select(
+        "id, kind, title, subtitle, status, thumbnail_url, created_by_name, ends_at, show_now, created_at, playlist_item_id, scene_id",
+      )
+      .eq("venue_id", gate.venueId)
+      .in("status", ["active", "queued", "pending_approval"])
+      .order("created_at", { ascending: false })
+      .limit(40),
+    db
+      .from("led_wall_overrides")
+      .select("server_item_id, scene_id, starts_at, ends_at")
+      .eq("venue_id", gate.venueId)
+      .maybeSingle(),
+  ]);
 
   if (error) return { ok: false as const, message: sqlMessage(error.message), items: [] };
-  return { ok: true as const, items: data ?? [] };
+  const override = overrideRes.data;
+  const items = (data ?? []).map((item) => ({
+    ...item,
+    override_starts_at:
+      override &&
+      item.show_now &&
+      (override.server_item_id === item.id || override.scene_id === item.scene_id)
+        ? override.starts_at
+        : null,
+  }));
+  return { ok: true as const, items };
 }
 
 export async function removeServerStationItemAction(input: unknown): Promise<ServerStationActionResult> {
@@ -616,66 +655,65 @@ export async function removeServerStationItemAction(input: unknown): Promise<Ser
   const parsed = z.object({ itemId: z.string().uuid() }).safeParse(input);
   if (!parsed.success) return { ok: false, message: "Choose an item to remove." };
 
-  const { data: item } = await gate.writeClient
+  const db = contentDb(gate);
+  const { data: item } = await db
     .from("led_server_items")
-    .select("id, playlist_item_id, scene_id, created_by, title")
+    .select("id, playlist_item_id, scene_id, created_by, title, kind")
     .eq("id", parsed.data.itemId)
     .eq("venue_id", gate.venueId)
     .maybeSingle();
   if (!item) return { ok: false, message: "That item is gone." };
-  if (gate.actor.role === "server" && item.created_by && item.created_by !== gate.actor.userId) {
-    // Servers can remove any temporary Server Station item they can see; protected ads are not in this table.
-  }
 
   if (item.playlist_item_id) {
-    await gate.writeClient
+    const { data: membership } = await db
+      .from("led_wall_playlist_items")
+      .select("playlist_id")
+      .eq("id", item.playlist_item_id)
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    const before = membership?.playlist_id
+      ? (await loadAdRollItems(db, gate.venueId, membership.playlist_id)).items
+      : [];
+    await db
       .from("led_wall_playlist_items")
       .update({ enabled: false, archived_at: new Date().toISOString() })
       .eq("id", item.playlist_item_id)
       .eq("venue_id", gate.venueId);
-  }
-
-  const { data: override } = await gate.writeClient
-    .from("led_wall_overrides")
-    .select("scene_id")
-    .eq("venue_id", gate.venueId)
-    .maybeSingle();
-  if (override?.scene_id && override.scene_id === item.scene_id) {
-    await gate.writeClient.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
-    const { data: settings } = await gate.writeClient
-      .from("led_wall_settings")
-      .select("default_playlist_id")
-      .eq("venue_id", gate.venueId)
-      .maybeSingle();
-    if (settings?.default_playlist_id) {
-      await gate.writeClient.from("led_wall_runtime").upsert(
-        {
-          venue_id: gate.venueId,
-          active_scene_id: null,
-          active_playlist_id: settings.default_playlist_id,
-          activation_source: "ad_roll",
-          auto_event_id: null,
-          auto_artist_id: null,
-        },
-        { onConflict: "venue_id" },
-      );
+    if (membership?.playlist_id) {
+      await rebaseLiveAdRoll(db, gate.venueId, membership.playlist_id, before);
     }
   }
 
-  await gate.writeClient
+  const { data: override } = await db
+    .from("led_wall_overrides")
+    .select(
+      "scene_id, starts_at, previous_playlist_id, previous_scene_id, previous_activation_source, resume_playlist_item_id",
+    )
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+  if (override?.scene_id && override.scene_id === item.scene_id) {
+    const stillWaiting = Date.parse(override.starts_at) > Date.now();
+    await db.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+    // A slide that has not started yet never took the wall, so leave the ad roll clock alone.
+    if (!stillWaiting) {
+      await restoreAdRollAfterOverride(db, gate.venueId, override);
+    }
+  }
+
+  await db
     .from("led_server_items")
     .update({ status: "removed" })
     .eq("id", item.id)
     .eq("venue_id", gate.venueId);
 
-  await writeServerStationAudit(gate.writeClient, {
+  await writeServerStationAudit(db, {
     venueId: gate.venueId,
     actor: gate.actor,
     action: "content_removed",
-    detail: { itemId: item.id, title: item.title },
+    detail: { itemId: item.id, title: item.title, kind: item.kind },
   });
   revalidateServerStation();
-  return { ok: true, message: "Removed from the LED wall." };
+  return { ok: true, message: `Removed ${item.title} from the LED wall.` };
 }
 
 export async function extendServerStationItemAction(input: unknown): Promise<ServerStationActionResult> {
@@ -689,14 +727,15 @@ export async function extendServerStationItemAction(input: unknown): Promise<Ser
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "Choose how long to extend." };
 
-  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  const db = contentDb(gate);
+  const { settings } = await getServerStationSettings(db, gate.venueId);
   const endsAt = resolveServerStationEndsAt({
     preset: parsed.data.durationPreset as ServerStationDurationPreset,
     timeZone: gate.timeZone,
     businessNightEndHour: settings.business_night_end_hour,
   });
 
-  const { data: item, error } = await gate.writeClient
+  const { data: item, error } = await db
     .from("led_server_items")
     .update({ ends_at: endsAt, status: "active" })
     .eq("id", parsed.data.itemId)
@@ -708,14 +747,26 @@ export async function extendServerStationItemAction(input: unknown): Promise<Ser
   if (!item) return { ok: false, message: "That item is not available." };
 
   if (item.playlist_item_id) {
-    await gate.writeClient
+    const { data: membership } = await db
+      .from("led_wall_playlist_items")
+      .select("playlist_id")
+      .eq("id", item.playlist_item_id)
+      .eq("venue_id", gate.venueId)
+      .maybeSingle();
+    const before = membership?.playlist_id
+      ? (await loadAdRollItems(db, gate.venueId, membership.playlist_id)).items
+      : [];
+    await db
       .from("led_wall_playlist_items")
       .update({ enabled: true, archived_at: null })
       .eq("id", item.playlist_item_id)
       .eq("venue_id", gate.venueId);
+    if (membership?.playlist_id) {
+      await rebaseLiveAdRoll(db, gate.venueId, membership.playlist_id, before);
+    }
   }
 
-  await writeServerStationAudit(gate.writeClient, {
+  await writeServerStationAudit(db, {
     venueId: gate.venueId,
     actor: gate.actor,
     action: "content_extended",
@@ -861,26 +912,20 @@ export async function cancelServerStationOverrideAction(): Promise<ServerStation
     // Servers can cancel overrides they created via remove; managers/admins cancel freely.
   }
 
-  await gate.writeClient.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
-  const { data: settings } = await gate.writeClient
-    .from("led_wall_settings")
-    .select("default_playlist_id")
+  const db = contentDb(gate);
+  const { data: override } = await db
+    .from("led_wall_overrides")
+    .select(
+      "starts_at, previous_playlist_id, previous_scene_id, previous_activation_source, resume_playlist_item_id",
+    )
     .eq("venue_id", gate.venueId)
     .maybeSingle();
-  if (settings?.default_playlist_id) {
-    await gate.writeClient.from("led_wall_runtime").upsert(
-      {
-        venue_id: gate.venueId,
-        active_scene_id: null,
-        active_playlist_id: settings.default_playlist_id,
-        activation_source: "ad_roll",
-        auto_event_id: null,
-        auto_artist_id: null,
-      },
-      { onConflict: "venue_id" },
-    );
+  const stillWaiting = override ? Date.parse(override.starts_at) > Date.now() : false;
+  await db.from("led_wall_overrides").delete().eq("venue_id", gate.venueId);
+  if (override && !stillWaiting) {
+    await restoreAdRollAfterOverride(db, gate.venueId, override);
   }
-  await writeServerStationAudit(gate.writeClient, {
+  await writeServerStationAudit(db, {
     venueId: gate.venueId,
     actor: gate.actor,
     action: "override_cancelled",
@@ -895,6 +940,8 @@ export async function runServerStationMaintenance(venueId: string) {
   if (!admin) return { overridesCleared: false, itemsExpired: 0 };
   const cleared = await clearExpiredLedOverride(admin, venueId);
   const { expireServerStationItems } = await import("@/lib/server-station/overrides");
+  const { promoteDueServerStationOverride } = await import("@/lib/server-station/overrides");
+  await promoteDueServerStationOverride(admin, venueId);
   const expired = await expireServerStationItems(admin, venueId);
   return {
     overridesCleared: Boolean(cleared.cleared),

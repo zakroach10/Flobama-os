@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { isMissingServerStationRelation } from "@/lib/auth/server-station";
+import {
+  loadAdRollItems,
+  promoteDueServerOverride,
+  rebaseLiveAdRoll,
+  restoreAdRollAfterOverride,
+} from "@/lib/server-station/ad-roll";
 
 type Client = SupabaseClient<Database>;
 
@@ -50,7 +56,9 @@ export async function getLedWallProtection(client: Client, venueId: string): Pro
 export async function clearExpiredLedOverride(client: Client, venueId: string, now = new Date()) {
   const { data: override, error } = await client
     .from("led_wall_overrides")
-    .select("venue_id, ends_at, previous_playlist_id, previous_scene_id, previous_activation_source")
+    .select(
+      "venue_id, ends_at, starts_at, previous_playlist_id, previous_scene_id, previous_activation_source, resume_playlist_item_id",
+    )
     .eq("venue_id", venueId)
     .maybeSingle();
 
@@ -62,41 +70,8 @@ export async function clearExpiredLedOverride(client: Client, venueId: string, n
   if (Date.parse(override.ends_at) > now.getTime()) return { cleared: false, missingTable: false };
 
   await client.from("led_wall_overrides").delete().eq("venue_id", venueId);
-
-  // Recompute: prefer default playlist / ad_roll rather than restoring a stale snapshot.
-  const { data: settings } = await client
-    .from("led_wall_settings")
-    .select("default_playlist_id")
-    .eq("venue_id", venueId)
-    .maybeSingle();
-
-  const defaultPlaylistId = settings?.default_playlist_id ?? override.previous_playlist_id ?? null;
-
-  if (defaultPlaylistId) {
-    await client.from("led_wall_runtime").upsert(
-      {
-        venue_id: venueId,
-        active_scene_id: null,
-        active_playlist_id: defaultPlaylistId,
-        activation_source: "ad_roll",
-        auto_event_id: null,
-        auto_artist_id: null,
-      },
-      { onConflict: "venue_id" },
-    );
-  } else if (override.previous_scene_id) {
-    await client.from("led_wall_runtime").upsert(
-      {
-        venue_id: venueId,
-        active_scene_id: override.previous_scene_id,
-        active_playlist_id: null,
-        activation_source: "manual",
-        auto_event_id: null,
-        auto_artist_id: null,
-      },
-      { onConflict: "venue_id" },
-    );
-  }
+  // Land on the start of the next ad. Do not resume in the middle of a slide.
+  await restoreAdRollAfterOverride(client, venueId, override, now);
 
   return { cleared: true, missingTable: false };
 }
@@ -113,6 +88,22 @@ export async function expireServerStationItems(client: Client, venueId: string, 
   if (error) {
     if (isMissingServerStationRelation(error.message)) return { removed: 0, missingTable: true };
     return { removed: 0, missingTable: false, error: error.message };
+  }
+
+  const playlistIds = new Set<string>();
+  const beforeByPlaylist = new Map<string, Awaited<ReturnType<typeof loadAdRollItems>>["items"]>();
+  for (const item of expired ?? []) {
+    if (!item.playlist_item_id) continue;
+    const { data: membership } = await client
+      .from("led_wall_playlist_items")
+      .select("playlist_id")
+      .eq("id", item.playlist_item_id)
+      .eq("venue_id", venueId)
+      .maybeSingle();
+    if (!membership?.playlist_id || beforeByPlaylist.has(membership.playlist_id)) continue;
+    const loaded = await loadAdRollItems(client, venueId, membership.playlist_id);
+    beforeByPlaylist.set(membership.playlist_id, loaded.items);
+    playlistIds.add(membership.playlist_id);
   }
 
   let removed = 0;
@@ -132,5 +123,13 @@ export async function expireServerStationItems(client: Client, venueId: string, 
     removed += 1;
   }
 
+  for (const playlistId of playlistIds) {
+    await rebaseLiveAdRoll(client, venueId, playlistId, beforeByPlaylist.get(playlistId) ?? [], now);
+  }
+
   return { removed, missingTable: false };
+}
+
+export async function promoteDueServerStationOverride(client: Client, venueId: string, now = new Date()) {
+  return promoteDueServerOverride(client, venueId, now);
 }

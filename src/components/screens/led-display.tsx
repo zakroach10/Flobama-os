@@ -7,6 +7,7 @@ import {
   ledPlaylistIndexAt,
   ledPlaylistsEqual,
   nextLedPlaylistMediaItem,
+  resolveLedPlaylistStartedAt,
   type PublicLedPlaylistItem,
 } from "@/lib/screens/led-playlists";
 import type { TriviaWallState } from "@/lib/trivia/types";
@@ -61,7 +62,11 @@ export function LedDisplay({
   const reloadNonceRef = useRef(initialReloadNonce);
   const revisionRef = useRef(initialRevision);
   const modeRef = useRef(initialMode);
+  const playlistRef = useRef(initialPlaylist);
+  const startedAtRef = useRef<string | null>(initialStartedAt);
   const overlayKeyRef = useRef(overlayStateKey(initialTrivia, initialAudience));
+  playlistRef.current = playlist;
+  startedAtRef.current = startedAt;
 
   useEffect(() => {
     if (lockTriviaDemo || lockPlaylist) return;
@@ -111,26 +116,34 @@ export function LedDisplay({
         const nextMode = ledJson.mode ?? (ledJson.active ? "scene" : "idle");
         const nextPlaylist = ledJson.playlist ?? [];
         const nextStartedAt = ledJson.startedAt ?? null;
+        const resolvedStartedAt =
+          nextMode === "playlist" && modeRef.current === "playlist"
+            ? resolveLedPlaylistStartedAt(
+                playlistRef.current,
+                startedAtRef.current,
+                nextPlaylist,
+                nextStartedAt,
+              )
+            : nextStartedAt;
 
-        if (nextRevision !== revisionRef.current || nextMode !== modeRef.current) {
-          revisionRef.current = nextRevision;
-          modeRef.current = nextMode;
-          setMode(nextMode);
-          setPlaylist(nextPlaylist);
-          setStartedAt(nextStartedAt);
-          setIndex(nextMode === "playlist" ? ledPlaylistIndexAt(nextPlaylist, nextStartedAt) : 0);
-          setMedia(ledJson.active ?? null);
-          return;
-        }
+        const samePlaylist =
+          nextMode === "playlist" &&
+          modeRef.current === "playlist" &&
+          ledPlaylistsEqual(playlistRef.current, nextPlaylist) &&
+          startedAtRef.current === resolvedStartedAt &&
+          nextRevision === revisionRef.current;
 
-        if (nextMode === "playlist") {
-          setPlaylist((current) => (ledPlaylistsEqual(current, nextPlaylist) ? current : nextPlaylist));
-          setStartedAt((current) => (current === nextStartedAt ? current : nextStartedAt));
-        } else {
-          setMedia(ledJson.active ?? null);
-          setPlaylist([]);
-          setStartedAt(null);
-        }
+        if (samePlaylist) return;
+
+        revisionRef.current = nextRevision;
+        modeRef.current = nextMode;
+        setMode(nextMode);
+        setPlaylist(nextPlaylist);
+        setStartedAt(nextMode === "playlist" ? resolvedStartedAt : null);
+        setIndex(
+          nextMode === "playlist" ? ledPlaylistIndexAt(nextPlaylist, resolvedStartedAt) : 0,
+        );
+        if (nextMode !== "playlist") setMedia(ledJson.active ?? null);
       } catch {
         /* keep current frame on network errors */
       }

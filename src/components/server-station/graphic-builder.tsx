@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
@@ -58,6 +59,7 @@ export function ServerStationGraphicBuilder({
   const [uploadSessionId, setUploadSessionId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultOk, setResultOk] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const localObjectUrlRef = useRef<string | null>(null);
 
@@ -222,6 +224,7 @@ export function ServerStationGraphicBuilder({
           photoUrl,
         });
         setResultMessage(result.message);
+        setResultOk(result.ok);
         if (result.ok) toast.success(result.message);
         else toast.error(result.message);
       } catch (error) {
@@ -240,9 +243,14 @@ export function ServerStationGraphicBuilder({
       </div>
 
       {resultMessage ? (
-        <p className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-50">
-          {resultMessage}
-        </p>
+        <div className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-50">
+          <p>{resultMessage}</p>
+          {resultOk ? (
+            <Link href="/server/active" className="mt-3 inline-flex min-h-12 items-center text-base font-semibold underline">
+              See your rotation
+            </Link>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -446,6 +454,10 @@ export function ServerStationGraphicBuilder({
               Add to LED Rotation
             </ServerStationButton>
           </div>
+          <p className="text-sm text-[#e8d5c4]/80">
+            The ad already playing finishes first. Show Now starts after that ad. Add to LED Rotation puts this
+            slide next in line.
+          </p>
         </div>
 
         <div className="space-y-3">

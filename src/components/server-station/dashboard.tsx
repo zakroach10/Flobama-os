@@ -55,12 +55,10 @@ export function ServerStationDashboard({
           description="Show a QR code to upload a picture from a phone."
           accent="warm"
         />
-      </div>
-      <div className="mt-6">
         <ServerStationTile
           href="/server/active"
-          title="Active on Wall"
-          description="See and manage temporary slides you created."
+          title="Your Rotation"
+          description="See deals, messages, and celebrations you added — and take them down."
           accent="gold"
         />
       </div>

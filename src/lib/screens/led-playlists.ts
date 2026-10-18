@@ -103,6 +103,170 @@ export function ledPlaylistIndexAt(items: Array<{ durationSeconds: number }>, st
   return 0;
 }
 
+export type LedPlaylistClockItem = { id: string; durationSeconds: number };
+
+function ledPlaylistCycleSeconds(items: Array<{ durationSeconds: number }>) {
+  return items.reduce((sum, item) => sum + Math.max(1, item.durationSeconds), 0);
+}
+
+/** Where the roll is inside the current ad: index, seconds already shown, seconds left. */
+export function ledPlaylistPosition(
+  items: LedPlaylistClockItem[],
+  startedAt: string | null,
+  now = Date.now(),
+) {
+  if (items.length === 0) return { index: 0, elapsedSeconds: 0, remainingSeconds: 0 };
+  const index = ledPlaylistIndexAt(items, startedAt, now);
+  const startMs = startedAt ? Date.parse(startedAt) : now;
+  const cycleSeconds = ledPlaylistCycleSeconds(items);
+  let elapsed = 0;
+  if (cycleSeconds > 0 && Number.isFinite(startMs)) {
+    elapsed = Math.max(0, (now - startMs) / 1000) % cycleSeconds;
+  }
+  for (let cursor = 0; cursor < index; cursor += 1) {
+    elapsed -= Math.max(1, items[cursor].durationSeconds);
+  }
+  const duration = Math.max(1, items[index]?.durationSeconds ?? 1);
+  const elapsedSeconds = Math.min(duration, Math.max(0, elapsed));
+  return {
+    index,
+    elapsedSeconds,
+    remainingSeconds: Math.max(0, duration - elapsedSeconds),
+  };
+}
+
+/** startedAt that lands on `index` with `elapsedSeconds` already consumed at `now`. */
+export function rebaseLedPlaylistStartedAt(
+  items: Array<{ durationSeconds: number }>,
+  index: number,
+  elapsedSeconds: number,
+  now = Date.now(),
+) {
+  if (items.length === 0) return new Date(now).toISOString();
+  const safeIndex = ((index % items.length) + items.length) % items.length;
+  let prefix = 0;
+  for (let cursor = 0; cursor < safeIndex; cursor += 1) {
+    prefix += Math.max(1, items[cursor].durationSeconds);
+  }
+  const duration = Math.max(1, items[safeIndex].durationSeconds);
+  const elapsed = Math.min(Math.max(0, elapsedSeconds), Math.max(0, duration - 0.05));
+  return new Date(now - (prefix + elapsed) * 1000).toISOString();
+}
+
+export function ledPlaylistMembershipEqual(
+  left: LedPlaylistClockItem[],
+  right: LedPlaylistClockItem[],
+) {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (item, index) => item.id === right[index]?.id && item.durationSeconds === right[index]?.durationSeconds,
+  );
+}
+
+/**
+ * Clock for the edited roll. The ad on screen keeps its remaining time.
+ * If that ad was removed, the following ad starts from the beginning.
+ */
+export function cursorAfterPlaylistEdit(
+  previous: LedPlaylistClockItem[],
+  previousStartedAt: string | null,
+  next: LedPlaylistClockItem[],
+  now = Date.now(),
+) {
+  if (next.length === 0) return null;
+  const preserved = preserveLedPlaylistStartedAt(previous, previousStartedAt, next, now);
+  if (preserved) return preserved;
+  if (previous.length === 0) return rebaseLedPlaylistStartedAt(next, 0, 0, now);
+  const position = ledPlaylistPosition(previous, previousStartedAt, now);
+  for (let step = 1; step <= previous.length; step += 1) {
+    const candidate = previous[(position.index + step) % previous.length];
+    const nextIndex = next.findIndex((item) => item.id === candidate?.id);
+    if (nextIndex >= 0) return rebaseLedPlaylistStartedAt(next, nextIndex, 0, now);
+  }
+  return rebaseLedPlaylistStartedAt(next, 0, 0, now);
+}
+
+/**
+ * Keep the ad already on screen when slides are added or removed.
+ * Returns null when that ad is no longer in the roll.
+ */
+export function preserveLedPlaylistStartedAt(
+  previous: LedPlaylistClockItem[],
+  previousStartedAt: string | null,
+  next: LedPlaylistClockItem[],
+  now = Date.now(),
+) {
+  if (previous.length === 0 || next.length === 0) return null;
+  const position = ledPlaylistPosition(previous, previousStartedAt, now);
+  const currentId = previous[position.index]?.id;
+  if (!currentId) return null;
+  const nextIndex = next.findIndex((item) => item.id === currentId);
+  if (nextIndex < 0) return null;
+  return rebaseLedPlaylistStartedAt(next, nextIndex, position.elapsedSeconds, now);
+}
+
+function isFreshPlaylistStart(startedAt: string, now: number) {
+  const startedMs = Date.parse(startedAt);
+  if (!Number.isFinite(startedMs)) return false;
+  const age = now - startedMs;
+  return age >= -2000 && age < 5000;
+}
+
+/**
+ * Playlist polls must not jump to a different ad when a server slide joins or leaves.
+ * A brand-new activation (startedAt just set to now) still restarts the roll.
+ */
+export function resolveLedPlaylistStartedAt(
+  previous: LedPlaylistClockItem[],
+  previousStartedAt: string | null,
+  next: LedPlaylistClockItem[],
+  nextStartedAt: string | null,
+  now = Date.now(),
+) {
+  if (next.length === 0) return nextStartedAt;
+  if (previous.length === 0 || !previousStartedAt) return nextStartedAt;
+  if (
+    nextStartedAt &&
+    nextStartedAt !== previousStartedAt &&
+    isFreshPlaylistStart(nextStartedAt, now)
+  ) {
+    return nextStartedAt;
+  }
+  if (ledPlaylistMembershipEqual(previous, next)) {
+    const local = ledPlaylistPosition(previous, previousStartedAt, now);
+    const localId = previous[local.index]?.id;
+    const serverIndex = nextStartedAt ? ledPlaylistIndexAt(next, nextStartedAt, now) : local.index;
+    const serverId = next[serverIndex]?.id;
+    if (localId && serverId && localId !== serverId && local.remainingSeconds > 0.25) {
+      return previousStartedAt;
+    }
+    if (localId && localId === serverId) return previousStartedAt;
+    return nextStartedAt ?? previousStartedAt;
+  }
+  return preserveLedPlaylistStartedAt(previous, previousStartedAt, next, now) ?? nextStartedAt;
+}
+
+/** Put a new slide directly after whichever ad is on screen, so it plays next. */
+export function insertionAfterCurrentAd(
+  items: Array<{ id: string; sortOrder: number; durationSeconds: number }>,
+  startedAt: string | null,
+  now = Date.now(),
+) {
+  if (items.length === 0) return { sortOrder: 0, shiftAfterSortOrder: null as number | null };
+  const ordered = [...items].sort((left, right) => left.sortOrder - right.sortOrder);
+  const position = ledPlaylistPosition(
+    ordered.map((item) => ({ id: item.id, durationSeconds: item.durationSeconds })),
+    startedAt,
+    now,
+  );
+  const current = ordered[position.index];
+  if (!current || position.index >= ordered.length - 1) {
+    const maxSort = ordered.reduce((max, item) => Math.max(max, item.sortOrder), -1);
+    return { sortOrder: maxSort + 1, shiftAfterSortOrder: null as number | null };
+  }
+  return { sortOrder: current.sortOrder + 1, shiftAfterSortOrder: current.sortOrder };
+}
+
 export function playlistRevision(items: PublicLedPlaylistItem[], startedAt: string | null, playlistId: string | null) {
   return [
     playlistId ?? "",
