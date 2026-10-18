@@ -47,8 +47,8 @@ export function ServerStationInstallCard({ className }: { className?: string }) 
           className,
         )}
       >
-        <p className="font-medium text-[#f7efe6]">Server Station is installed on this device.</p>
-        <p className="mt-1">Open it from the home screen or dock for one-tap kiosk access.</p>
+        <p className="font-medium text-[#f7efe6]">Flobama Toolkit is installed on this device.</p>
+        <p className="mt-1">Open it from the home screen or dock for one-tap access.</p>
       </div>
     );
   }
@@ -56,9 +56,9 @@ export function ServerStationInstallCard({ className }: { className?: string }) 
   return (
     <div className={cn("space-y-3 rounded-2xl border border-white/15 bg-black/25 p-4", className)}>
       <div>
-        <p className="font-medium text-[#f7efe6]">Install Server Station</p>
+        <p className="font-medium text-[#f7efe6]">Install Flobama Toolkit</p>
         <p className="mt-1 text-sm text-[#e8d5c4]/90">
-          Install as an app so this kiosk opens full-screen without browser chrome.
+          Add it to your home screen. It opens full screen with the FloBama logo.
         </p>
       </div>
       {deferred ? (
@@ -77,7 +77,7 @@ export function ServerStationInstallCard({ className }: { className?: string }) 
       ) : (
         <ol className="list-decimal space-y-1 pl-5 text-sm text-[#e8d5c4]/90">
           <li>Chrome or Edge → open the browser menu (⋮).</li>
-          <li>Choose Install Server Station / Install app.</li>
+          <li>Choose Install Flobama Toolkit / Install app.</li>
           <li>Open the new home-screen or dock icon and sign in with your PIN.</li>
         </ol>
       )}

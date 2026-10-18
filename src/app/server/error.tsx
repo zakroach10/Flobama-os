@@ -16,7 +16,7 @@ export default function ServerStationError({
   }, [error]);
 
   return (
-    <div className="dark flex min-h-dvh flex-col items-center justify-center bg-[#14110f] px-4 text-center text-foreground">
+    <div className="dark flex h-full flex-col items-center justify-center overflow-y-auto bg-[#100e0c] px-4 text-center text-foreground">
       <FlobamaLogo className="h-10 w-auto max-w-[180px] brightness-110" />
       <h1 className="mt-8 text-3xl font-bold text-[#f7efe6]">Server Station couldn’t load</h1>
       <p className="mt-3 max-w-md text-lg text-[#e8d5c4]">

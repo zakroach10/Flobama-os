@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   ...serverStationPwaMetadata,
-  title: "Server Station · FloBama",
-  description: "Touchscreen Server Station for FloBama Music Hall floor staff.",
+  title: "Flobama Toolkit",
+  description: "Flobama Toolkit for floor staff.",
   robots: { index: false, follow: false },
 };
 
@@ -24,9 +24,9 @@ export const viewport: Viewport = {
 
 export default function ServerStationLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="fixed inset-0 overflow-hidden bg-[#100e0c] text-[#f7efe6]">
       <ServerStationPwaRegister />
       {children}
-    </>
+    </div>
   );
 }

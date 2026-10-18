@@ -32,9 +32,18 @@ export function ServerStationPwaRegister() {
       }
     }
 
+    const html = document.documentElement;
+    const body = document.body;
+    const previousHtml = html.style.backgroundColor;
+    const previousBody = body.style.backgroundColor;
+    html.style.backgroundColor = "#100e0c";
+    body.style.backgroundColor = "#100e0c";
+
     void register();
     return () => {
       cancelled = true;
+      html.style.backgroundColor = previousHtml;
+      body.style.backgroundColor = previousBody;
     };
   }, []);
 

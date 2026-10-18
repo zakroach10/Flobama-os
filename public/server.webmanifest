@@ -1,8 +1,8 @@
 {
   "id": "/server",
-  "name": "Server Station",
-  "short_name": "Server Station",
-  "description": "Touchscreen Server Station for FloBama Music Hall floor staff.",
+  "name": "Flobama Toolkit",
+  "short_name": "Flobama Toolkit",
+  "description": "FloBama Toolkit for floor staff. Food promos, the wall, and tonight's shows.",
   "start_url": "/server/login",
   "scope": "/",
   "display": "standalone",

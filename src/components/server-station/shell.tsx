@@ -117,12 +117,12 @@ export function ServerStationShell({
     <div
       className={cn(
         "dark bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_50%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground",
-        "flex h-dvh max-h-dvh flex-col overflow-hidden",
+        "absolute inset-0 flex flex-col overflow-hidden",
       )}
     >
       <header
         className={cn(
-          "z-40 shrink-0 border-b border-white/10 bg-black/40 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-4",
+          "z-40 shrink-0 bg-[#14110f] px-3 pt-[env(safe-area-inset-top)] sm:border-b sm:border-white/10 sm:bg-black/40 sm:px-4 sm:backdrop-blur-md",
           "relative",
         )}
       >
@@ -214,7 +214,7 @@ export function ServerStationShell({
         </nav>
         <main
           className={cn(
-            "min-h-0 min-w-0 flex-1 overflow-y-auto pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0",
+            "min-h-0 min-w-0 flex-1 overflow-y-auto",
             pos && "lg:flex lg:flex-col lg:overflow-hidden",
           )}
         >
@@ -226,7 +226,7 @@ export function ServerStationShell({
       </div>
       <nav
         aria-label="Server Station"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#14110f]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
+        className="shrink-0 bg-[#100e0c] pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         <div className="grid grid-cols-5">
           {PHONE_TABS.map((item) => {

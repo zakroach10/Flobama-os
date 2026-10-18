@@ -44,7 +44,7 @@ export function ServerStationLoginClient({
   }
 
   return (
-    <div className="dark flex min-h-dvh flex-col bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.18),_transparent_55%),linear-gradient(180deg,_#14110f_0%,_#1a1613_50%,_#100e0c_100%)] px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-foreground">
+    <div className="dark flex h-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.18),_transparent_55%),linear-gradient(180deg,_#14110f_0%,_#1a1613_50%,_#100e0c_100%)] px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-foreground">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center">
         <FlobamaLogo className="mx-auto h-12 w-auto max-w-[220px] brightness-110" priority />
         <p className="mt-3 text-center text-xs font-semibold tracking-[0.2em] text-[#e8d5c4] uppercase">
