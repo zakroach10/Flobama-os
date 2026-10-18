@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { StationLink } from "@/components/server-station/station-nav";
 import { useEffect, useState, useTransition } from "react";
 import { CalendarDaysIcon, ClapperboardIcon, Music2Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -153,13 +153,13 @@ export function ServerStationPosRail() {
             <h2 className="text-base font-bold text-[#f7efe6]">Playing tonight</h2>
             <p className="truncate text-xs text-[#e8d5c4]/80">Who is on the schedule</p>
           </div>
-          <Link
+          <StationLink
             href="/server/events"
             className="inline-flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-[#e8d5c4]"
           >
             <CalendarDaysIcon className="size-4" aria-hidden />
             All
-          </Link>
+          </StationLink>
         </div>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {tonightNote ? <p className="text-sm text-amber-100">{tonightNote}</p> : null}
@@ -171,7 +171,7 @@ export function ServerStationPosRail() {
           {events.map((event) => {
             const label = tonightLabel(event);
             return (
-              <Link
+              <StationLink
                 key={event.id}
                 href="/server/events"
                 className="block rounded-2xl border border-white/10 bg-black/25 px-3 py-2"
@@ -181,7 +181,7 @@ export function ServerStationPosRail() {
                   {label.extra ? `${label.extra} · ` : ""}
                   {event.startLabel}
                 </p>
-              </Link>
+              </StationLink>
             );
           })}
         </div>

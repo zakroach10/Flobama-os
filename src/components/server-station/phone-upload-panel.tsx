@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
@@ -10,6 +9,7 @@ import {
   publishServerStationGraphicAction,
 } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
+import { StationLink } from "@/components/server-station/station-nav";
 import { renderServerStationGraphicBlob } from "@/lib/server-station/graphics";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
@@ -225,9 +225,9 @@ export function ServerStationPhoneUploadPanel({
             <p className="text-[#e8d5c4]">
               Nothing goes on the LED wall until you tap Show Now or Add to Rotation on this kiosk.
               The ad already playing finishes first.{" "}
-              <Link href="/server/active" className="font-semibold underline">
+              <StationLink href="/server/active" className="font-semibold underline">
                 Your rotation
-              </Link>{" "}
+              </StationLink>{" "}
               is where you take a slide down.
             </p>
           </div>

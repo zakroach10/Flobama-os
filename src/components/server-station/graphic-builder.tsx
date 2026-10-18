@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { CakeIcon, HeartIcon, PartyPopperIcon, SparklesIcon, UtensilsCrossedIcon, WineIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -15,7 +14,15 @@ import {
   ServerStationShell,
   serverStationInputClass,
 } from "@/components/server-station/shell";
+import { StationLink } from "@/components/server-station/station-nav";
 import { renderServerStationGraphicBlob } from "@/lib/server-station/graphics";
+import {
+  BUILTIN_FOOD_PRESETS,
+  formatFoodPrice,
+  readExtraFoodPresets,
+  writeExtraFoodPresets,
+  type FoodWallPreset,
+} from "@/lib/server-station/food-presets";
 import { durationPresetLabel, type ServerStationDurationPreset } from "@/lib/server-station/expiration";
 import {
   SERVER_STATION_TEMPLATES,
@@ -44,16 +51,21 @@ export function ServerStationGraphicBuilder({
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
-  const [category, setCategory] = useState<"food_special" | "drink_special">("drink_special");
+  const [category, setCategory] = useState<"food_special" | "drink_special">("food_special");
+  const [foodComposer, setFoodComposer] = useState<"presets" | "custom">("presets");
+  const [presetPage, setPresetPage] = useState(0);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(BUILTIN_FOOD_PRESETS[0]?.id ?? null);
+  const [extraPresets, setExtraPresets] = useState<FoodWallPreset[]>([]);
   const [celebration, setCelebration] = useState<"birthday" | "anniversary" | "congratulations" | "celebration">(
     "birthday",
   );
-  const [headline, setHeadline] = useState(mode === "birthday" ? "JESSICA" : "");
-  const [subtitle, setSubtitle] = useState(mode === "special" ? "Tonight Only" : "");
-  const [price, setPrice] = useState("");
+  const openingPreset = mode === "special" ? BUILTIN_FOOD_PRESETS[0] : null;
+  const [headline, setHeadline] = useState(mode === "birthday" ? "JESSICA" : openingPreset?.food ?? "");
+  const [subtitle, setSubtitle] = useState(mode === "special" ? openingPreset?.promoMessage ?? "" : "");
+  const [price, setPrice] = useState(openingPreset ? formatFoodPrice(openingPreset.price) : "");
   const [templateId, setTemplateId] = useState<ServerStationTemplateId>(SERVER_STATION_TEMPLATES[0].id);
   const [duration, setDuration] = useState<ServerStationDurationPreset>(mode === "special" ? "tonight" : 5);
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(openingPreset?.imageUrl ?? null);
   const [localPhotoName, setLocalPhotoName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -100,10 +112,48 @@ export function ServerStationGraphicBuilder({
   }
 
   useEffect(() => {
+    setExtraPresets(readExtraFoodPresets());
     return () => {
       clearLocalPhotoObjectUrl();
     };
   }, []);
+
+  const foodPresets = useMemo(() => [...BUILTIN_FOOD_PRESETS, ...extraPresets], [extraPresets]);
+
+  function applyFoodPreset(preset: FoodWallPreset) {
+    setSelectedPresetId(preset.id);
+    setCategory("food_special");
+    setFoodComposer("presets");
+    setHeadline(preset.food);
+    setPrice(formatFoodPrice(preset.price));
+    setSubtitle(preset.promoMessage);
+    clearLocalPhotoObjectUrl();
+    setLocalPhotoName(null);
+    setPhotoUrl(preset.imageUrl || null);
+    setUploadSessionId(null);
+    setQrDataUrl(null);
+  }
+
+  function saveCustomFoodPreset() {
+    const name = headline.trim();
+    if (!name) {
+      toast.error("Enter the food name before saving it as a preset.");
+      return;
+    }
+    const preset: FoodWallPreset = {
+      id: `custom-${crypto.randomUUID()}`,
+      food: name,
+      price: price.trim().replace(/^\$/, ""),
+      promoMessage: subtitle.trim(),
+      imageUrl: photoUrl && /^https?:\/\//.test(photoUrl) ? photoUrl : "",
+      custom: true,
+    };
+    const next = writeExtraFoodPresets([preset, ...extraPresets.filter((row) => row.food !== preset.food)]);
+    setExtraPresets(next);
+    setSelectedPresetId(preset.id);
+    setFoodComposer("presets");
+    toast.success(`${name} is on the preset list.`);
+  }
 
   const kind: ServerStationGraphicKind = useMemo(() => {
     if (mode === "special") return category;
@@ -234,6 +284,134 @@ export function ServerStationGraphicBuilder({
     });
   }
 
+  if (mode === "special" && category === "food_special" && foodComposer === "presets") {
+    return (
+      <ServerStationShell actorName={actorName} wall={wall} title="Food promos" layout="pos">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCategory("food_special")}
+              className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#d36b4a] px-4 text-sm font-semibold text-white"
+            >
+              <UtensilsCrossedIcon className="size-4" aria-hidden />
+              Food
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategory("drink_special")}
+              className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 text-sm font-semibold"
+            >
+              <WineIcon className="size-4" aria-hidden />
+              Drink
+            </button>
+            <p className="min-w-0 flex-1 truncate text-sm text-[#e8d5c4]">
+              {headline ? `${headline}${price ? ` · ${price}` : ""}` : "Pick a dish"}
+            </p>
+            {DURATION_OPTIONS.map((option) => (
+              <button
+                key={String(option)}
+                type="button"
+                onClick={() => setDuration(option)}
+                className={cn(
+                  "min-h-12 rounded-2xl px-3 text-sm font-semibold",
+                  duration === option ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5",
+                )}
+              >
+                {durationPresetLabel(option)}
+              </button>
+            ))}
+          </div>
+
+          {resultMessage ? (
+            <p className={cn("shrink-0 text-sm", resultOk ? "text-emerald-200" : "text-amber-100")}>{resultMessage}</p>
+          ) : null}
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid min-h-0 auto-rows-fr grid-cols-2 gap-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-4">
+              {foodPresets.slice(presetPage * 15, presetPage * 15 + 15).map((preset) => {
+                const selected = preset.id === selectedPresetId;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyFoodPreset(preset)}
+                    className={cn(
+                      "flex min-h-0 flex-col overflow-hidden rounded-2xl border text-left",
+                      selected ? "border-[#d36b4a] ring-2 ring-[#d36b4a]" : "border-white/10",
+                    )}
+                  >
+                    <span className="relative min-h-16 flex-1 bg-black/40">
+                      {preset.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={preset.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 px-2 py-1.5">
+                      <span className="block truncate text-sm font-bold text-[#f7efe6]">{preset.food}</span>
+                      <span className="block truncate text-xs text-[#e8d5c4]">{formatFoodPrice(preset.price)}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => {
+                  setFoodComposer("custom");
+                  setSelectedPresetId(null);
+                  setHeadline("");
+                  setPrice("");
+                  setSubtitle("");
+                  clearPhoto();
+                }}
+                className="flex min-h-24 flex-col items-center justify-center rounded-2xl border border-dashed border-white/25 bg-white/5 px-3 text-center text-sm font-semibold text-[#f7efe6]"
+              >
+                Add your own
+              </button>
+            </div>
+            <div className="hidden min-h-0 flex-col lg:flex">
+              <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previewUrl} alt="Wall preview" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-[#e8d5c4]">Building preview…</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
+            <ServerStationButton disabled={pending} onClick={() => void uploadGraphicAndPublish("show_now")}>
+              Show now
+            </ServerStationButton>
+            <ServerStationButton variant="secondary" disabled={pending} onClick={() => void uploadGraphicAndPublish("add_rotation")}>
+              Add to rotation
+            </ServerStationButton>
+            {foodPresets.length > 15 ? (
+              <>
+                <ServerStationButton
+                  variant="secondary"
+                  disabled={presetPage === 0}
+                  onClick={() => setPresetPage((page) => Math.max(0, page - 1))}
+                >
+                  Prev
+                </ServerStationButton>
+                <ServerStationButton
+                  variant="secondary"
+                  disabled={(presetPage + 1) * 15 >= foodPresets.length}
+                  onClick={() => setPresetPage((page) => page + 1)}
+                >
+                  Next
+                </ServerStationButton>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </ServerStationShell>
+    );
+  }
+
   return (
     <ServerStationShell actorName={actorName} wall={wall} title={title}>
       <div className="mb-5 space-y-2">
@@ -247,9 +425,9 @@ export function ServerStationGraphicBuilder({
         <div className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-50">
           <p>{resultMessage}</p>
           {resultOk ? (
-            <Link href="/server/active" className="mt-3 inline-flex min-h-12 items-center text-base font-semibold underline">
+            <StationLink href="/server/active" className="mt-3 inline-flex min-h-12 items-center text-base font-semibold underline">
               See your rotation
-            </Link>
+            </StationLink>
           ) : null}
         </div>
       ) : null}
@@ -267,7 +445,10 @@ export function ServerStationGraphicBuilder({
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setCategory(id)}
+                  onClick={() => {
+                    setCategory(id);
+                    if (id === "food_special") setFoodComposer("presets");
+                  }}
                   className={cn(
                     "inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 text-base font-semibold",
                     category === id ? "bg-[#d36b4a] text-white" : "border border-white/15 bg-white/5",
@@ -442,6 +623,17 @@ export function ServerStationGraphicBuilder({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrDataUrl} alt="Upload QR code" className="mx-auto h-56 w-56" />
               <p className="mt-2 text-sm font-medium text-[#1a1410]">Scan with your phone to upload a picture.</p>
+            </div>
+          ) : null}
+
+          {mode === "special" && category === "food_special" ? (
+            <div className="flex flex-wrap justify-end gap-3">
+              <ServerStationButton variant="secondary" onClick={() => setFoodComposer("presets")}>
+                Back to presets
+              </ServerStationButton>
+              <ServerStationButton variant="secondary" onClick={saveCustomFoodPreset}>
+                Save to preset list
+              </ServerStationButton>
             </div>
           ) : null}
 
