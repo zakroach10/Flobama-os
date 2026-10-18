@@ -4,22 +4,26 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  archiveServerStationOperatorAction,
   clearServerStationPinAction,
+  createServerStationOperatorAction,
   createServerStationPairingCodeAction,
   revokeServerStationDeviceAction,
   setServerStationPinAction,
+  updateServerStationOperatorPinAction,
 } from "@/actions/server-station-auth";
 import { updateServerStationSettingsAction } from "@/actions/server-station";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SERVER_STATION_SQL } from "@/lib/constants";
+import { SERVER_STATION_OPERATORS_SQL, SERVER_STATION_SQL } from "@/lib/constants";
 import type { ServerStationSettings } from "@/lib/server-station/settings";
 
 type SceneOption = { id: string; title: string; server_approved: boolean; artist_id: string | null };
 type PlaylistOption = { id: string; name: string };
 type DeviceRow = { id: string; label: string; last_seen_at: string | null; revoked_at: string | null };
 type StaffPinOption = { userId: string; displayName: string; hasPin: boolean };
+type OperatorOption = { id: string; displayName: string };
 type AuditRow = { id: string; actor_name: string | null; action: string; created_at: string };
 
 export function ServerStationAdminPanel({
@@ -28,6 +32,8 @@ export function ServerStationAdminPanel({
   playlists,
   devices,
   staffOptions,
+  operators,
+  operatorsMissing,
   audit,
   missingTable,
   canManage,
@@ -37,6 +43,8 @@ export function ServerStationAdminPanel({
   playlists: PlaylistOption[];
   devices: DeviceRow[];
   staffOptions: StaffPinOption[];
+  operators: OperatorOption[];
+  operatorsMissing: boolean;
   audit: AuditRow[];
   missingTable: boolean;
   canManage: boolean;
@@ -62,6 +70,9 @@ export function ServerStationAdminPanel({
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pinUserId, setPinUserId] = useState(staffOptions[0]?.userId ?? "");
   const [pin, setPin] = useState("");
+  const [operatorName, setOperatorName] = useState("");
+  const [operatorPin, setOperatorPin] = useState("");
+  const [operatorPinDrafts, setOperatorPinDrafts] = useState<Record<string, string>>({});
 
   const approvedIds = useMemo(() => [...approved], [approved]);
 
@@ -91,7 +102,7 @@ export function ServerStationAdminPanel({
       <div>
         <h2 className="text-lg font-semibold">Server Station</h2>
         <p className="text-sm text-muted-foreground">
-          Configure the floor kiosk, approved LED scenes, temporary slide defaults, and staff PINs.
+          Configure the floor kiosk, approved LED scenes, temporary slide defaults, and who can sign in.
         </p>
       </div>
 
@@ -273,7 +284,121 @@ export function ServerStationAdminPanel({
       </div>
 
       <div className="space-y-3 border-t pt-5">
+        <h3 className="font-semibold">Kiosk logins</h3>
+        <p className="text-sm text-muted-foreground">
+          A name and a 4–6 digit PIN. These people can use the floor station without a full staff account.
+        </p>
+        {operatorsMissing ? (
+          <p className="text-sm text-muted-foreground">
+            Apply <code>{SERVER_STATION_OPERATORS_SQL}</code> in the Supabase SQL editor to turn on name-and-PIN
+            logins. Staff PINs below keep working.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-[1fr_10rem_auto]">
+              <Input
+                placeholder="Name on the kiosk"
+                value={operatorName}
+                maxLength={40}
+                onChange={(event) => setOperatorName(event.target.value)}
+              />
+              <Input
+                type="password"
+                inputMode="numeric"
+                placeholder="4–6 digit PIN"
+                value={operatorPin}
+                onChange={(event) => setOperatorPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <Button
+                disabled={pending || !operatorName.trim() || operatorPin.length < 4}
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await createServerStationOperatorAction({
+                      displayName: operatorName,
+                      pin: operatorPin,
+                    });
+                    if (!result.ok) toast.error(result.message);
+                    else {
+                      toast.success(result.message);
+                      setOperatorName("");
+                      setOperatorPin("");
+                      router.refresh();
+                    }
+                  });
+                }}
+              >
+                Add login
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {operators.map((operator) => (
+                <div key={operator.id} className="grid gap-2 rounded-lg border px-3 py-2 sm:grid-cols-[1fr_10rem_auto_auto] sm:items-center">
+                  <p className="font-medium">{operator.displayName}</p>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="New PIN"
+                    value={operatorPinDrafts[operator.id] ?? ""}
+                    onChange={(event) =>
+                      setOperatorPinDrafts((current) => ({
+                        ...current,
+                        [operator.id]: event.target.value.replace(/\D/g, "").slice(0, 6),
+                      }))
+                    }
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pending || (operatorPinDrafts[operator.id]?.length ?? 0) < 4}
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await updateServerStationOperatorPinAction({
+                          operatorId: operator.id,
+                          pin: operatorPinDrafts[operator.id] ?? "",
+                        });
+                        if (!result.ok) toast.error(result.message);
+                        else {
+                          toast.success(result.message);
+                          setOperatorPinDrafts((current) => ({ ...current, [operator.id]: "" }));
+                          router.refresh();
+                        }
+                      });
+                    }}
+                  >
+                    Update PIN
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await archiveServerStationOperatorAction({ operatorId: operator.id });
+                        if (!result.ok) toast.error(result.message);
+                        else {
+                          toast.success(result.message);
+                          router.refresh();
+                        }
+                      });
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              {!operators.length ? (
+                <p className="text-sm text-muted-foreground">No name-and-PIN logins yet.</p>
+              ) : null}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="space-y-3 border-t pt-5">
         <h3 className="font-semibold">Staff PINs</h3>
+        <p className="text-sm text-muted-foreground">
+          For people who already have an Admin, Manager, or Server account.
+        </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <select
             className="flex h-10 rounded-md border bg-background px-3 text-sm"

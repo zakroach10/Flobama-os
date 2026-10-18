@@ -900,6 +900,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      server_station_operators: {
+        Row: {
+          id: string;
+          venue_id: string;
+          display_name: string;
+          pin_hash: string;
+          pin_salt: string;
+          failed_attempts: number;
+          locked_until: string | null;
+          archived_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          display_name: string;
+          pin_hash: string;
+          pin_salt: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          archived_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          display_name?: string;
+          pin_hash?: string;
+          pin_salt?: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          archived_at?: string | null;
+        };
+        Relationships: [];
+      };
       led_server_items: {
         Row: {
           id: string;

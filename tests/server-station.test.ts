@@ -21,6 +21,7 @@ import {
   verifyServerStationPin,
   pinLockUntil,
   issueServerStationStaffCookie,
+  refreshServerStationStaffCookie,
   verifyServerStationStaffCookie,
 } from "@/lib/auth/server-station";
 import {
@@ -117,6 +118,34 @@ describe("server station PIN session", () => {
     expect(verified.ok).toBe(true);
     if (verified.ok) {
       expect(verified.session.displayName).toBe("Alex");
+    }
+    process.env.CRON_SECRET = previous;
+  });
+
+  it("keeps a name-and-PIN operator id when the kiosk cookie refreshes", () => {
+    const previous = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = "test-server-station-secret";
+    const operatorId = "33333333-3333-4333-8333-333333333333";
+    const cookie = issueServerStationStaffCookie(
+      {
+        venueId: "11111111-1111-4111-8111-111111111111",
+        userId: operatorId,
+        operatorId,
+        deviceId: "44444444-4444-4444-8444-444444444444",
+        displayName: "Sam",
+      },
+      180,
+    );
+    const verified = verifyServerStationStaffCookie(cookie!);
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) return;
+    const refreshed = refreshServerStationStaffCookie(verified.session, 180);
+    const again = verifyServerStationStaffCookie(refreshed);
+    expect(again.ok).toBe(true);
+    if (again.ok) {
+      expect(again.session.operatorId).toBe(operatorId);
+      expect(again.session.userId).toBe(operatorId);
+      expect(again.session.displayName).toBe("Sam");
     }
     process.env.CRON_SECRET = previous;
   });
