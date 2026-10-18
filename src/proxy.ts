@@ -20,6 +20,7 @@ const PUBLIC_PATHS = new Set([
   "/contact",
   "/privacy-policy",
   "/suggestions",
+  "/help",
 ]);
 
 export async function proxy(request: NextRequest) {
@@ -44,6 +45,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/server/login" ||
     pathname.startsWith("/server/upload/phone") ||
     pathname.startsWith("/auth/") ||
+    pathname.startsWith("/help") ||
     pathname.startsWith("/embed") ||
     pathname.startsWith("/overlay") ||
     pathname.startsWith("/display") ||
