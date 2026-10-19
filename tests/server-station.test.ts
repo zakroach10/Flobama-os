@@ -32,9 +32,11 @@ import {
 import { resolveServerStationEndsAt, durationPresetLabel } from "@/lib/server-station/expiration";
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
+import { ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 import {
   isServerStationActivatableScene,
   paginateServerStationScenes,
+  resolveLedSceneMediaUrl,
   resolveLedScenePreviewUrl,
   SERVER_STATION_SCENE_PAGE_SIZE,
 } from "@/lib/server-station/scenes";
@@ -291,6 +293,13 @@ describe("server station artist scene access", () => {
 });
 
 describe("server station scene previews", () => {
+  it("maps loop storage paths to sibling JPEG posters", () => {
+    expect(ledScenePosterStoragePath("venue/led/artists/band.mp4")).toBe(
+      "venue/led/artists/band.poster.jpg",
+    );
+    expect(ledScenePosterStoragePath("/venue/led/loop.MP4")).toBe("venue/led/loop.poster.jpg");
+  });
+
   it("rebuilds public storage URLs from storage_path when possible", () => {
     const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -311,6 +320,23 @@ describe("server station scene previews", () => {
       }),
     ).toBe(
       "https://project.supabase.co/storage/v1/object/public/screen-ads/led/artists/band%20logo.png",
+    );
+    expect(
+      resolveLedScenePreviewUrl({
+        public_url: "https://cdn.example/loop.mp4",
+        storage_path: "/led/artists/band loop.mp4",
+        media_kind: "video",
+      }),
+    ).toBe(
+      "https://project.supabase.co/storage/v1/object/public/screen-ads/led/artists/band%20loop.poster.jpg",
+    );
+    expect(
+      resolveLedSceneMediaUrl({
+        public_url: "https://cdn.example/loop.mp4",
+        storage_path: "/led/artists/band loop.mp4",
+      }),
+    ).toBe(
+      "https://project.supabase.co/storage/v1/object/public/screen-ads/led/artists/band%20loop.mp4",
     );
     process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
