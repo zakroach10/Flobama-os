@@ -1,6 +1,7 @@
 import { createLedMediaSceneAction } from "@/actions/led-wall";
 import type { PublicSupabaseEnv } from "@/lib/env";
 import { LED_WALL_SQL } from "@/lib/constants";
+import { extractVideoPosterBlob, ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 import { ledMediaKindForFile } from "@/lib/screens/led-wall";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
@@ -52,6 +53,18 @@ export async function uploadLedMediaFromBrowser(input: {
   });
   if (uploadError) return { ok: false as const, message: describeLedUploadFailure(uploadError.message) };
 
+  const posterPath = mediaKind === "video" ? ledScenePosterStoragePath(storagePath) : null;
+  if (posterPath) {
+    const posterBlob = await extractVideoPosterBlob(input.file);
+    if (posterBlob) {
+      await supabase.storage.from("screen-ads").upload(posterPath, posterBlob, {
+        contentType: "image/jpeg",
+        upsert: true,
+        cacheControl: "86400",
+      });
+    }
+  }
+
   const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
   const result = await createLedMediaSceneAction({
     id,
@@ -64,7 +77,8 @@ export async function uploadLedMediaFromBrowser(input: {
     mediaType: contentType,
   });
   if (!result.ok) {
-    await supabase.storage.from("screen-ads").remove([storagePath]);
+    const removePaths = posterPath ? [storagePath, posterPath] : [storagePath];
+    await supabase.storage.from("screen-ads").remove(removePaths);
     return { ok: false as const, message: describeLedUploadFailure(result.message) };
   }
   return { ok: true as const, message: result.message, id };

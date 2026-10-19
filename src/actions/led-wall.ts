@@ -309,7 +309,10 @@ export async function deleteLedWallSceneAction(id: string): Promise<LedWallActio
   const { error } = await gate.supabase.from("led_wall_scenes").delete().eq("id", scene.id).eq("venue_id", gate.context.venue.id);
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
   if (scene.storage_path) {
-    await gate.supabase.storage.from("screen-ads").remove([scene.storage_path]);
+    const { ledScenePosterStoragePath } = await import("@/lib/screens/led-poster");
+    await gate.supabase.storage
+      .from("screen-ads")
+      .remove([scene.storage_path, ledScenePosterStoragePath(scene.storage_path)]);
   }
   revalidateLedWall();
   return { ok: true, message: `${scene.title} was removed.` };

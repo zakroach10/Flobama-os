@@ -5,6 +5,7 @@ import {
   artistLedMediaKindForFile,
   MAX_ARTIST_LED_BYTES,
 } from "@/lib/screens/artist-led";
+import { extractVideoPosterBlob, ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 import {
   uploadStorageObjectWithProgress,
   type StorageUploadProgress,
@@ -64,6 +65,18 @@ export async function uploadArtistLedMediaFromBrowser(input: {
   });
   if (!uploadResult.ok) return { ok: false as const, message: uploadResult.message };
 
+  const posterPath = mediaKind === "video" ? ledScenePosterStoragePath(storagePath) : null;
+  if (posterPath) {
+    const posterBlob = await extractVideoPosterBlob(input.file);
+    if (posterBlob) {
+      await supabase.storage.from("screen-ads").upload(posterPath, posterBlob, {
+        contentType: "image/jpeg",
+        upsert: true,
+        cacheControl: "86400",
+      });
+    }
+  }
+
   input.onPhase?.("saving");
   const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
   const result = await saveArtistLedMediaAction({
@@ -74,7 +87,8 @@ export async function uploadArtistLedMediaFromBrowser(input: {
     publicUrl,
   });
   if (!result.ok) {
-    await supabase.storage.from("screen-ads").remove([storagePath]);
+    const removePaths = posterPath ? [storagePath, posterPath] : [storagePath];
+    await supabase.storage.from("screen-ads").remove(removePaths);
     return { ok: false as const, message: result.message };
   }
   return { ok: true as const, message: result.message };

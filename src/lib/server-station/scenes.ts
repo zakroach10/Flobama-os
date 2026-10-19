@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getPublicSupabaseEnv } from "@/lib/env";
 import { isMissingServerStationRelation } from "@/lib/auth/server-station";
+import { buildScreenAdsPublicUrl, ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 
 type Client = SupabaseClient<Database>;
 
@@ -10,7 +11,9 @@ export type ServerStationSceneCard = {
   title: string;
   kind: string;
   media_kind: string | null;
+  /** Actual media (PNG/MP4) for playback / loop-frame fallback. */
   public_url: string | null;
+  /** Grid still: image URL, or small JPEG poster for MP4 loops. */
   preview_url: string | null;
   obs_scene_name: string | null;
   artist_id: string | null;
@@ -22,25 +25,42 @@ export type ServerStationPlaylistCard = {
   name: string;
 };
 
-/** Build a public preview URL from storage when `public_url` was never persisted. */
-export function resolveLedScenePreviewUrl(scene: {
+/** Public URL for the scene’s real media asset (image or MP4 loop). */
+export function resolveLedSceneMediaUrl(scene: {
   public_url: string | null | undefined;
   storage_path: string | null | undefined;
 }): string | null {
   const path = scene.storage_path?.trim();
   const env = getPublicSupabaseEnv();
 
-  // Prefer a reconstructed public storage URL so previews stay consistent even when
-  // older rows have blank/stale public_url values.
   if (path && env?.url) {
-    const base = env.url.replace(/\/$/, "");
-    const cleaned = path
-      .replace(/^\//, "")
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-    return `${base}/storage/v1/object/public/screen-ads/${cleaned}`;
+    return buildScreenAdsPublicUrl(path, env.url);
   }
+
+  const direct = scene.public_url?.trim();
+  return direct || null;
+}
+
+/**
+ * Grid preview URL. MP4 loops use a sibling `.poster.jpg` so phones load a tiny
+ * still instead of the full video. Missing posters 404 once; the client then
+ * grabs a frame and can persist the poster for next time.
+ */
+export function resolveLedScenePreviewUrl(scene: {
+  public_url: string | null | undefined;
+  storage_path: string | null | undefined;
+  media_kind?: string | null | undefined;
+}): string | null {
+  const path = scene.storage_path?.trim();
+  const env = getPublicSupabaseEnv();
+  const isVideo = scene.media_kind === "video";
+
+  if (path && env?.url) {
+    const previewPath = isVideo ? ledScenePosterStoragePath(path) : path;
+    return buildScreenAdsPublicUrl(previewPath, env.url);
+  }
+
+  if (isVideo) return null;
 
   const direct = scene.public_url?.trim();
   return direct || null;
@@ -98,7 +118,7 @@ function toSceneCard(scene: {
     title: scene.title,
     kind: scene.kind,
     media_kind: scene.media_kind,
-    public_url: scene.public_url,
+    public_url: resolveLedSceneMediaUrl(scene),
     preview_url: resolveLedScenePreviewUrl(scene),
     obs_scene_name: scene.obs_scene_name,
     artist_id: scene.artist_id,

@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { activateServerStationSceneAction } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
+import {
+  cacheLedPosterUrl,
+  getCachedLedPosterUrl,
+  LED_SCENE_POSTER_JPEG_QUALITY,
+  LED_SCENE_POSTER_MAX_EDGE,
+} from "@/lib/screens/led-poster";
 import {
   paginateServerStationScenes,
   SERVER_STATION_SCENE_PAGE_SIZE,
@@ -14,25 +20,174 @@ import {
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 import { cn } from "@/lib/utils";
 
-function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
-  const url = scene.preview_url;
-  const [failed, setFailed] = useState(false);
+function persistScenePoster(sceneId: string, posterObjectUrl: string) {
+  void (async () => {
+    try {
+      const response = await fetch(posterObjectUrl);
+      const blob = await response.blob();
+      if (!blob.size || blob.type !== "image/jpeg") return;
+      const body = new FormData();
+      body.set("sceneId", sceneId);
+      body.set("poster", new File([blob], "poster.jpg", { type: "image/jpeg" }));
+      await fetch("/api/server-station/scene-poster", { method: "POST", body });
+    } catch {
+      /* best-effort; grid already shows the captured still */
+    }
+  })();
+}
+
+function blobFromVideoFrame(video: HTMLVideoElement): Promise<string | null> {
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height) return Promise.resolve(null);
+  const scale = Math.min(1, LED_SCENE_POSTER_MAX_EDGE / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.resolve(null);
+  try {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  } catch {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        resolve(URL.createObjectURL(blob));
+      },
+      "image/jpeg",
+      LED_SCENE_POSTER_JPEG_QUALITY,
+    );
+  });
+}
+
+/** Paints a loop frame and, when possible, saves a tiny JPEG poster from the same decode. */
+function LoopVideoFallback({
+  url,
+  sceneId,
+  onPoster,
+}: {
+  url: string;
+  sceneId: string;
+  onPoster?: (posterUrl: string) => void;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const onPosterRef = useRef(onPoster);
+  onPosterRef.current = onPoster;
 
   useEffect(() => {
-    setFailed(false);
-  }, [url, scene.id]);
+    const video = ref.current;
+    if (!video) return;
+    let cancelled = false;
 
-  if (url && scene.media_kind === "video") {
+    const showFrame = () => {
+      try {
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        video.currentTime = duration > 0 ? Math.min(0.05, duration * 0.01) : 0.001;
+      } catch {
+        /* ignore */
+      }
+      void video.play().then(
+        () => {
+          video.pause();
+        },
+        () => undefined,
+      );
+    };
+
+    const persistFromElement = () => {
+      void blobFromVideoFrame(video).then((poster) => {
+        if (cancelled || !poster) return;
+        cacheLedPosterUrl(url, poster);
+        onPosterRef.current?.(poster);
+        persistScenePoster(sceneId, poster);
+      });
+    };
+
+    video.addEventListener("loadeddata", showFrame, { once: true });
+    video.addEventListener("seeked", persistFromElement, { once: true });
+    showFrame();
+    return () => {
+      cancelled = true;
+    };
+  }, [sceneId, url]);
+
+  return (
+    <video
+      ref={ref}
+      key={url}
+      src={`${url}${url.includes("#") ? "" : "#t=0.001"}`}
+      muted
+      playsInline
+      preload="metadata"
+      className="absolute inset-0 h-full w-full object-contain"
+    />
+  );
+}
+
+function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
+  const isVideo = scene.media_kind === "video";
+  const posterUrl = scene.preview_url;
+  const mediaUrl = scene.public_url;
+  const cached = mediaUrl ? getCachedLedPosterUrl(mediaUrl) : null;
+  const [displayUrl, setDisplayUrl] = useState<string | null>(() => cached || posterUrl);
+  const [failed, setFailed] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
+
+  useEffect(() => {
+    const next = (mediaUrl && getCachedLedPosterUrl(mediaUrl)) || posterUrl;
+    setDisplayUrl(next);
+    setFailed(false);
+    setUseVideoFallback(false);
+  }, [posterUrl, mediaUrl, scene.id]);
+
+  function beginLoopPreview() {
+    if (!isVideo || !mediaUrl || useVideoFallback) return;
+    const hit = getCachedLedPosterUrl(mediaUrl);
+    if (hit) {
+      setDisplayUrl(hit);
+      setFailed(false);
+      setUseVideoFallback(false);
+      return;
+    }
+    setDisplayUrl(null);
+    setUseVideoFallback(true);
+    setFailed(false);
+  }
+
+  // Loops with no stored poster URL yet.
+  useEffect(() => {
+    if (!isVideo || !mediaUrl || posterUrl || displayUrl || useVideoFallback) return;
+    beginLoopPreview();
+    // beginLoopPreview closes over scene/media; intentional for this tile.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayUrl, isVideo, mediaUrl, posterUrl, scene.id, useVideoFallback]);
+
+  if (displayUrl) {
     return (
       <div className="relative h-full w-full bg-black">
-        <video
-          key={url}
-          src={url}
-          muted
-          playsInline
-          preload="metadata"
-          className="absolute inset-0 h-full w-full object-contain"
-          onError={() => setFailed(true)}
+        {/* Visible immediately. iOS skips onLoad when a prefetched logo is already complete. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={displayUrl}
+          src={displayUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-contain p-1"
+          loading="eager"
+          decoding="async"
+          onError={() => {
+            // Stored .poster.jpg missing for this loop — show a video frame, then cache a JPEG.
+            if (isVideo && mediaUrl && displayUrl === posterUrl) {
+              beginLoopPreview();
+              return;
+            }
+            setFailed(true);
+          }}
         />
         {failed ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
@@ -43,25 +198,25 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
     );
   }
 
-  if (url) {
+  if (isVideo && mediaUrl && useVideoFallback) {
     return (
       <div className="relative h-full w-full bg-black">
-        {/* Visible immediately. iOS skips onLoad when a prefetched logo is already complete. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={url}
-          src={url}
-          alt=""
-          className="absolute inset-0 h-full w-full object-contain p-1"
-          loading="eager"
-          decoding="async"
-          onError={() => setFailed(true)}
+        <LoopVideoFallback
+          url={mediaUrl}
+          sceneId={scene.id}
+          onPoster={(poster) => {
+            setDisplayUrl(poster);
+            setUseVideoFallback(false);
+          }}
         />
-        {failed ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
-            Preview unavailable
-          </div>
-        ) : null}
+      </div>
+    );
+  }
+
+  if (isVideo && mediaUrl) {
+    return (
+      <div className="relative h-full w-full bg-black">
+        <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
       </div>
     );
   }
@@ -83,7 +238,8 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
 function prefetchScenePreviews(scenes: ServerStationSceneCard[]) {
   if (typeof window === "undefined") return;
   for (const scene of scenes) {
-    if (!scene.preview_url || scene.media_kind === "video") continue;
+    // Prefer tiny poster/image URLs. Skip MP4s so the phone is not flooded.
+    if (!scene.preview_url) continue;
     const img = new window.Image();
     img.decoding = "async";
     img.src = scene.preview_url;
