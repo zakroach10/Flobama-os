@@ -24,8 +24,27 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Send a JSON body." }, { status: 400 });
   }
-  const parsed = displayDeviceHeartbeatSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Check the heartbeat payload." }, { status: 400 });
+  let parsed = displayDeviceHeartbeatSchema.safeParse(body);
+  // Ecamm snapshots can include odd runtime types; never let that drop the LED
+  // runner offline. Retry once with ecamm stripped when only that block fails.
+  if (!parsed.success && body && typeof body === "object" && "ecamm" in body) {
+    const { ecamm: _ecamm, ...withoutEcamm } = body as Record<string, unknown>;
+    const retry = displayDeviceHeartbeatSchema.safeParse(withoutEcamm);
+    if (retry.success) {
+      console.warn("display heartbeat: dropped invalid ecamm block", parsed.error.issues.slice(0, 3));
+      parsed = retry;
+    }
+  }
+  if (!parsed.success) {
+    const detail = parsed.error.issues
+      .slice(0, 4)
+      .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+      .join("; ");
+    return NextResponse.json(
+      { error: "Check the heartbeat payload.", detail },
+      { status: 400 },
+    );
+  }
 
   const now = new Date().toISOString();
   const { error: deviceError } = await auth.admin

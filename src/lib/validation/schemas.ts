@@ -609,11 +609,51 @@ export const displayDevicePairSchema = z.object({
   capabilities: z.record(z.string(), z.any()).optional(),
 });
 
+/** Coerce finite numbers (including numeric strings / floats) into non-negative ints. */
+const softNonNegInt = z.preprocess((value) => {
+  if (value == null || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return value;
+  return Math.max(0, Math.round(n));
+}, z.number().int().nonnegative().optional());
+
+const softNonNegIntNullable = z.preprocess((value) => {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return value;
+  return Math.max(0, Math.round(n));
+}, z.number().int().nonnegative().nullable().optional());
+
+/** Accept ISO timestamps with or without a trailing Z / offset. */
+const softIsoDatetime = z.preprocess((value) => {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const ms = Date.parse(trimmed);
+  if (!Number.isFinite(ms)) return value;
+  return new Date(ms).toISOString();
+}, z.string().datetime().nullable().optional());
+
+const softRecord = z.preprocess((value) => {
+  if (value == null) return undefined;
+  if (Array.isArray(value)) return undefined;
+  if (typeof value === "object") return value;
+  return undefined;
+}, z.record(z.string(), z.any()).optional());
+
+const softRecordNullable = z.preprocess((value) => {
+  if (value == null) return null;
+  if (Array.isArray(value)) return null;
+  if (typeof value === "object") return value;
+  return null;
+}, z.record(z.string(), z.any()).nullable().optional());
+
 export const displayDeviceHeartbeatSchema = z.object({
   appVersion: z.string().trim().min(1).max(40).optional(),
   manifestRevision: z.string().trim().max(500).optional().nullable(),
   currentAssetId: z.string().trim().max(120).optional().nullable(),
-  playbackState: z.string().trim().max(40).optional().nullable(),
+  playbackState: z.string().trim().max(80).optional().nullable(),
   obs: z
     .object({
       connected: z.boolean(),
@@ -623,10 +663,10 @@ export const displayDeviceHeartbeatSchema = z.object({
     .optional(),
   cache: z
     .object({
-      bytesUsed: z.number().int().nonnegative().optional(),
-      bytesLimit: z.number().int().nonnegative().optional(),
-      assetsReady: z.number().int().nonnegative().optional(),
-      assetsPending: z.number().int().nonnegative().optional(),
+      bytesUsed: softNonNegInt,
+      bytesLimit: softNonNegInt,
+      assetsReady: softNonNegInt,
+      assetsPending: softNonNegInt,
     })
     .optional(),
   downloads: z
@@ -635,8 +675,8 @@ export const displayDeviceHeartbeatSchema = z.object({
         .array(
           z.object({
             assetId: z.string().trim().min(1).max(120),
-            bytesReceived: z.number().int().nonnegative().optional(),
-            bytesTotal: z.number().int().nonnegative().optional(),
+            bytesReceived: softNonNegInt,
+            bytesTotal: softNonNegInt,
           }),
         )
         .max(20)
@@ -646,7 +686,7 @@ export const displayDeviceHeartbeatSchema = z.object({
   performance: z
     .object({
       mode: z.enum(["normal", "performance"]).optional(),
-      revision: z.number().int().nonnegative().optional(),
+      revision: softNonNegInt,
       audioMuted: z.boolean().optional(),
       audioVolume: z.number().min(0).max(1).optional(),
       nowPlaying: z
@@ -659,20 +699,23 @@ export const displayDeviceHeartbeatSchema = z.object({
           paused: z.boolean().optional(),
           status: z.string().max(40).optional().nullable(),
         })
+        .passthrough()
         .nullable()
         .optional(),
       queue: z.array(z.unknown()).max(200).optional(),
       lastError: z.string().max(500).nullable().optional(),
       recordingsRoot: z.string().max(2000).nullable().optional(),
-      lastScanAt: z.string().datetime().nullable().optional(),
-      catalogCount: z.number().int().nonnegative().optional(),
+      lastScanAt: softIsoDatetime,
+      catalogCount: softNonNegInt,
     })
+    .passthrough()
     .optional(),
+  // Keep ecamm permissive — a bad Ecamm sample must not take the LED runner offline.
   ecamm: z
     .object({
       connected: z.boolean().optional(),
-      connectionPhase: z.string().trim().max(40).optional().nullable(),
-      permission: z.string().trim().max(40).optional().nullable(),
+      connectionPhase: z.string().trim().max(80).optional().nullable(),
+      permission: z.string().trim().max(80).optional().nullable(),
       host: z.string().trim().max(200).optional().nullable(),
       hostname: z.string().trim().max(200).optional().nullable(),
       serviceName: z.string().trim().max(200).optional().nullable(),
@@ -685,28 +728,28 @@ export const displayDeviceHeartbeatSchema = z.object({
       currentSceneLabel: z.string().max(200).optional().nullable(),
       buttonLabel: z.string().max(200).optional().nullable(),
       pauseButtonLabel: z.string().max(200).optional().nullable(),
-      broadcast: z.record(z.string(), z.any()).optional().nullable(),
-      viewers: z.number().int().nonnegative().optional().nullable(),
+      broadcast: softRecordNullable,
+      viewers: softNonNegIntNullable,
       previewMode: z.boolean().optional().nullable(),
       mute: z.boolean().optional().nullable(),
       zoomInMeeting: z.boolean().optional().nullable(),
-      zoom: z.record(z.string(), z.any()).optional().nullable(),
+      zoom: softRecordNullable,
       currentMode: z.string().max(80).optional().nullable(),
       defaultCameraId: z.string().max(200).optional().nullable(),
       liveCameraKnown: z.boolean().optional(),
-      volumes: z.record(z.string(), z.any()).optional(),
-      mutes: z.record(z.string(), z.any()).optional(),
-      lists: z.record(z.string(), z.any()).optional(),
-      discovered: z.array(z.any()).max(50).optional(),
-      stateFingerprint: z.string().max(500).optional().nullable(),
-      unmappedKeys: z.array(z.any()).max(100).optional(),
-      endpointSupport: z.record(z.string(), z.any()).optional(),
-      favorites: z.record(z.string(), z.any()).optional(),
+      volumes: softRecord,
+      mutes: softRecord,
+      lists: softRecord,
+      discovered: z.array(z.any()).max(100).optional(),
+      stateFingerprint: z.string().max(2000).optional().nullable(),
+      unmappedKeys: z.array(z.any()).max(200).optional(),
+      endpointSupport: softRecord,
+      favorites: softRecord,
       allowPerBusMute: z.boolean().optional(),
     })
     .passthrough()
     .optional(),
-  diskFreeBytes: z.number().int().nonnegative().optional().nullable(),
+  diskFreeBytes: softNonNegIntNullable,
   lastError: z.string().trim().max(500).optional().nullable(),
 });
 
