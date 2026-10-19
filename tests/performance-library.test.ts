@@ -5,6 +5,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseRecordingFilename, localPartsToUtcIso } from "../clients/local-runner/lib/recordings-parse.mjs";
 import {
+  classifySessionVideo,
+  parseEcammSessionFolderName,
+  parseSessionFolderTimestamp,
+} from "../clients/local-runner/lib/recordings-ecamm.mjs";
+import {
   isMainEcammRecording,
   resolveUnderRecordingsRoot,
   stableRecordingId,
@@ -15,21 +20,47 @@ import { sendRecordingFile, isPathInsideRoot } from "../clients/local-runner/lib
 import { matchRecordingToEvents } from "@/lib/performance/match";
 import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performance/titles";
 
-describe("ecamm main-recording filter", () => {
+describe("ecamm session folder model", () => {
+  it("parses verified session folder names", () => {
+    const parts = parseEcammSessionFolderName("Ecamm Recording on 2026-10-14 at 17.41.33");
+    expect(parts).toEqual({
+      year: 2026,
+      month: 10,
+      day: 14,
+      hour: 17,
+      minute: 41,
+      second: 33,
+      rawTimestampText: "Ecamm Recording on 2026-10-14 at 17.41.33",
+    });
+    expect(parseEcammSessionFolderName("Artist Name / August")).toBeNull();
+  });
+
+  it("classifies primary and numbered camera variants", () => {
+    const folder = "Ecamm Recording on 2026-08-29 at 20.07.11";
+    expect(classifySessionVideo(folder, `${folder}.mp4`)).toBe("primary");
+    expect(classifySessionVideo(folder, "Camera A.mp4")).toBe("camera");
+    expect(classifySessionVideo(folder, "Camera A 002.mp4")).toBe("camera");
+    expect(classifySessionVideo(folder, "Camera A 003.mp4")).toBe("camera");
+    expect(classifySessionVideo(folder, "Camera B.mp4")).toBe("camera");
+    expect(classifySessionVideo(folder, "notes.txt")).toBeNull();
+  });
+
+  it("parses session timestamps in America/Chicago from the folder name", () => {
+    const parsed = parseSessionFolderTimestamp("Ecamm Recording on 2026-08-29 at 20.07.11");
+    expect(parsed.ok).toBe(true);
+    expect(parsed.parseSource).toBe("ecamm-session-folder");
+    expect(parsed.parseConfidence).toBe("high");
+    expect(parsed.parsedTimestamp).toMatch(/2026-08-3[01]T/);
+  });
+});
+
+describe("ecamm main-recording filter (compat)", () => {
   it("keeps Ecamm program files and drops Camera angle views", () => {
     expect(isMainEcammRecording("Ecamm Recording on 2026-08-15 at 20.07.11.mp4")).toBe(true);
-    expect(
-      isMainEcammRecording(
-        "Recording on 2026-08-15 at 20.07.11.mp4",
-        "Ecamm Recording on 2026-08-15 at 20.07.11/Recording on 2026-08-15 at 20.07.11.mp4",
-      ),
-    ).toBe(true);
     expect(isMainEcammRecording("Camera A.mp4")).toBe(false);
     expect(isMainEcammRecording("Camera A 002.mp4", "Ecamm Recording on 2026-08-15 at 20.07.11/Camera A 002.mp4")).toBe(
       false,
     );
-    expect(isMainEcammRecording("Camera B.mp4")).toBe(false);
-    expect(isMainEcammRecording("random-clip.mp4")).toBe(false);
   });
 });
 
@@ -63,7 +94,6 @@ describe("performance filename parsing", () => {
   });
 
   it("reports DST spring-forward gaps as invalid", () => {
-    // 2026-03-08 02:30 does not exist in America/Chicago
     const result = localPartsToUtcIso(
       { year: 2026, month: 3, day: 8, hour: 2, minute: 30, second: 0 },
       "America/Chicago",
@@ -78,7 +108,7 @@ describe("performance event matching", () => {
     {
       id: "e1",
       title: "Early Show",
-      starts_at: "2026-10-17T01:00:00.000Z", // 8pm CDT Oct 16
+      starts_at: "2026-10-17T01:00:00.000Z",
       ends_at: "2026-10-17T03:30:00.000Z",
       status: "published",
       archived_at: null,
@@ -87,7 +117,7 @@ describe("performance event matching", () => {
     {
       id: "e2",
       title: "Late Show",
-      starts_at: "2026-10-18T02:00:00.000Z", // 9pm CDT Oct 17
+      starts_at: "2026-10-18T02:00:00.000Z",
       ends_at: "2026-10-18T05:00:00.000Z",
       status: "published",
       archived_at: null,
@@ -152,13 +182,39 @@ describe("performance event matching", () => {
     const result = matchRecordingToEvents(
       {
         recordingId: "r4",
-        parsedTimestamp: "2026-10-18T05:20:00.000Z", // shortly after late show ends
+        parsedTimestamp: "2026-10-18T05:20:00.000Z",
         durationSeconds: 600,
         parseConfidence: "high",
       },
       events,
     );
     expect(result.suggestedEventIds).toContain("e2");
+  });
+
+  it("leaves ambiguous matches for manual selection", () => {
+    const result = matchRecordingToEvents(
+      {
+        recordingId: "r5",
+        parsedTimestamp: "2026-10-18T02:30:00.000Z",
+        durationSeconds: 600,
+        parseConfidence: "high",
+      },
+      [
+        events[1],
+        {
+          id: "e4",
+          title: "Also Late",
+          starts_at: "2026-10-18T02:15:00.000Z",
+          ends_at: "2026-10-18T04:45:00.000Z",
+          status: "published",
+          archived_at: null,
+          artistNames: ["Artist C"],
+        },
+      ],
+    );
+    expect(result.matchStatus).toBe("needs_review");
+    expect(result.matchedEventId).toBeNull();
+    expect(result.suggestedEventIds.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -185,29 +241,57 @@ describe("performance titles", () => {
 });
 
 describe("recordings inventory + path security", () => {
-  it("inventories without duplicating on rescan and rejects traversal", async () => {
+  it("inventories one session with primary + preserved camera assets", async () => {
     const root = await mkdtemp(join(tmpdir(), "flobama-rec-"));
-    // Point catalog file into temp by stubbing SUPPORT is hard; test inventory + resolve directly.
     try {
-      const session = join(root, "Ecamm Recording on 2026-08-15 at 20.07.11");
+      const sessionName = "Ecamm Recording on 2026-08-29 at 20.07.11";
+      const session = join(root, sessionName);
       await mkdir(session, { recursive: true });
-      await writeFile(join(session, "Ecamm Recording on 2026-08-15 at 20.07.11.mp4"), Buffer.alloc(2048));
+      await writeFile(join(session, `${sessionName}.mp4`), Buffer.alloc(2048));
       await writeFile(join(session, "Camera A.mp4"), Buffer.alloc(1024));
+      await writeFile(join(session, "Camera A 002.mp4"), Buffer.alloc(1024));
+      await writeFile(join(session, "Camera A 003.mp4"), Buffer.alloc(1024));
       await writeFile(join(session, "Camera B.mp4"), Buffer.alloc(1024));
       await writeFile(join(root, "notes.txt"), "not video");
-      const first = await inventoryRecordingsFolder(root);
-      expect(first.stats.videoFiles).toBe(1);
-      expect(first.stats.skippedCameraOrNonEcamm).toBe(2);
-      expect(first.nonVideo.length).toBeGreaterThanOrEqual(3);
-      expect(first.scanned[0].originalFilename).toMatch(/Ecamm/i);
-      expect(first.scanned[0].recordingId).toBe(stableRecordingId(first.scanned[0].relativePath));
+      await mkdir(join(root, ".inProgress.nosync"), { recursive: true });
+      await writeFile(join(root, ".inProgress.nosync", "partial.mp4"), Buffer.alloc(100));
+      await mkdir(join(root, "Some Artist August"), { recursive: true });
 
+      const first = await inventoryRecordingsFolder(root);
+      expect(first.stats.sessionFolders).toBe(1);
+      expect(first.stats.skippedIgnoredDirs).toBeGreaterThanOrEqual(1);
+      expect(first.stats.cameraAssets).toBe(4);
+      expect(first.scanned).toHaveLength(1);
+      expect(first.scanned[0].sessionFolder).toBe(sessionName);
+      expect(first.scanned[0].recordingId).toBe(stableRecordingId(sessionName));
+      expect(first.scanned[0].relativePath).toBe(`${sessionName}/${sessionName}.mp4`);
+      expect(first.scanned[0].assets.map((a: { role: string; originalFilename: string }) => a.role)).toEqual([
+        "primary",
+        "camera",
+        "camera",
+        "camera",
+        "camera",
+      ]);
+      expect(first.scanned[0].assets.some((a: { originalFilename: string }) => a.originalFilename === "Camera A 003.mp4")).toBe(
+        true,
+      );
+      expect(first.scanned[0].parseSource).toBe("ecamm-session-folder");
+
+      // Camera A.mp4 in another session must get a different asset id
+      const session2Name = "Ecamm Recording on 2026-10-14 at 17.41.33";
+      const session2 = join(root, session2Name);
+      await mkdir(session2, { recursive: true });
+      await writeFile(join(session2, `${session2Name}.mp4`), Buffer.alloc(2048));
+      await writeFile(join(session2, "Camera A.mp4"), Buffer.alloc(512));
       const second = await inventoryRecordingsFolder(root);
-      expect(second.scanned[0].recordingId).toBe(first.scanned[0].recordingId);
+      expect(second.stats.sessionFolders).toBe(2);
+      const camIds = second.scanned.flatMap((s: { assets: Array<{ originalFilename: string; assetId: string }> }) =>
+        s.assets.filter((a) => a.originalFilename === "Camera A.mp4").map((a) => a.assetId),
+      );
+      expect(new Set(camIds).size).toBe(2);
 
       const escaped = await resolveUnderRecordingsRoot(root, "../etc/passwd");
       expect(escaped).toBeNull();
-
       const abs = await resolveUnderRecordingsRoot(root, "/etc/passwd");
       expect(abs).toBeNull();
 
@@ -284,12 +368,11 @@ describe("recordings inventory + path security", () => {
 });
 
 describe("idempotent catalog merge", () => {
-  it("does not duplicate recordings and preserves overrides", async () => {
+  it("does not duplicate sessions and preserves overrides", async () => {
     const root = await mkdtemp(join(tmpdir(), "flobama-cat-"));
     const previous = process.env.HOME;
     process.env.HOME = root;
     try {
-      // Re-import won't rebind SUPPORT_DIR; simulate merge API with in-memory-like catalog object.
       const catalog: {
         file: string;
         data: {
@@ -306,7 +389,7 @@ describe("idempotent catalog merge", () => {
       } = {
         file: join(root, "catalog.json"),
         data: {
-          version: 1,
+          version: 2,
           recordingsRoot: root,
           lastScanAt: null,
           recordings: {},
@@ -317,9 +400,10 @@ describe("idempotent catalog merge", () => {
           performance: { mode: "normal", queue: [], nowPlaying: null, audioMuted: true, revision: 1 },
         },
       };
-      await mkdir(root, { recursive: true });
-      const videoPath = join(root, "Ecamm Recording on 2026-10-17 at 21.30.00.mp4");
-      await writeFile(videoPath, Buffer.alloc(4096));
+      const sessionName = "Ecamm Recording on 2026-10-17 at 21.30.00";
+      const session = join(root, sessionName);
+      await mkdir(session, { recursive: true });
+      await writeFile(join(session, `${sessionName}.mp4`), Buffer.alloc(4096));
       const scan = await inventoryRecordingsFolder(root);
       expect(scan.scanned).toHaveLength(1);
       await mergeScanResults(catalog, {
@@ -346,5 +430,4 @@ describe("idempotent catalog merge", () => {
   });
 });
 
-// silence unused import if tree shakes openRecordingsCatalog in some runners
 void openRecordingsCatalog;

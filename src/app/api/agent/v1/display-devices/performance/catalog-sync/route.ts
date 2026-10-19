@@ -5,11 +5,33 @@ import { syncPerformanceCatalog } from "@/lib/performance/catalog-sync";
 
 export const dynamic = "force-dynamic";
 
+const assetSchema = z.object({
+  assetId: z.string().trim().min(8).max(64),
+  role: z.enum(["primary", "camera", "other"]),
+  originalFilename: z.string().trim().min(1).max(500),
+  relativePath: z.string().trim().min(1).max(2000),
+  fileSize: z.number().nonnegative().nullable().optional(),
+  availability: z
+    .enum([
+      "metadata-only",
+      "needs download",
+      "preparing",
+      "ready",
+      "unsupported",
+      "missing",
+      "error",
+    ])
+    .optional(),
+  lastError: z.string().max(500).nullable().optional(),
+});
+
 const recordingSchema = z.object({
   recordingId: z.string().trim().min(8).max(64),
   sourceDeviceId: z.string().uuid().nullable().optional(),
   originalFilename: z.string().trim().min(1).max(500),
   relativePath: z.string().trim().min(1).max(2000),
+  sessionFolder: z.string().max(500).nullable().optional(),
+  sessionRelativePath: z.string().max(2000).nullable().optional(),
   fileSize: z.number().nonnegative().nullable().optional(),
   birthtimeMs: z.number().nullable().optional(),
   mtimeMs: z.number().nullable().optional(),
@@ -38,11 +60,15 @@ const recordingSchema = z.object({
   lastError: z.string().max(1000).nullable().optional(),
   playbackCompatible: z.boolean().nullable().optional(),
   needsConversion: z.boolean().optional(),
+  cameraCount: z.number().int().nonnegative().nullable().optional(),
+  primaryAssetId: z.string().max(64).nullable().optional(),
+  assets: z.array(assetSchema).max(64).optional(),
 });
 
 const bodySchema = z.object({
   recordingsRootConfigured: z.boolean(),
   recordingsRoot: z.string().max(2000).nullable().optional(),
+  dropboxRelativeRoot: z.string().max(2000).nullable().optional(),
   lastScanAt: z.string().min(1).max(80).nullable().optional(),
   scanStats: z.record(z.string(), z.unknown()).optional(),
   nonVideoCount: z.number().int().nonnegative().optional(),
@@ -130,6 +156,7 @@ export async function POST(request: Request) {
       deviceId: auth.device.id,
       recordingsRootConfigured: parsed.data.recordingsRootConfigured,
       recordingsRoot: parsed.data.recordingsRoot,
+      dropboxRelativeRoot: parsed.data.dropboxRelativeRoot,
       lastScanAt: parsed.data.lastScanAt,
       scanStats: parsed.data.scanStats,
       nonVideoCount: parsed.data.nonVideoCount,

@@ -8,8 +8,9 @@ async function loadCatalog() {
   try {
     const raw = JSON.parse(await readFile(RECORDINGS_CATALOG_FILE, "utf8"));
     return {
-      version: 1,
+      version: 2,
       recordingsRoot: raw.recordingsRoot || null,
+      dropboxRelativeRoot: raw.dropboxRelativeRoot || null,
       lastScanAt: raw.lastScanAt || null,
       recordings: raw.recordings && typeof raw.recordings === "object" ? raw.recordings : {},
       nonVideo: Array.isArray(raw.nonVideo) ? raw.nonVideo : [],
@@ -20,8 +21,9 @@ async function loadCatalog() {
     };
   } catch {
     return {
-      version: 1,
+      version: 2,
       recordingsRoot: null,
+      dropboxRelativeRoot: null,
       lastScanAt: null,
       recordings: {},
       nonVideo: [],
@@ -83,7 +85,14 @@ export async function upsertRecording(catalog, recording) {
   return catalog.data.recordings[recording.recordingId];
 }
 
-export async function mergeScanResults(catalog, { recordingsRoot, scanned, nonVideo, stats, preserveFields = ["manualLocked", "displayTitleOverride"] }) {
+export async function mergeScanResults(catalog, {
+  recordingsRoot,
+  dropboxRelativeRoot = null,
+  scanned,
+  nonVideo,
+  stats,
+  preserveFields = ["manualLocked", "displayTitleOverride"],
+}) {
   const now = new Date().toISOString();
   const seen = new Set();
   const preserve = preserveFields;
@@ -133,6 +142,7 @@ export async function mergeScanResults(catalog, { recordingsRoot, scanned, nonVi
   }
 
   catalog.data.recordingsRoot = recordingsRoot;
+  if (dropboxRelativeRoot) catalog.data.dropboxRelativeRoot = dropboxRelativeRoot;
   catalog.data.lastScanAt = now;
   catalog.data.nonVideo = nonVideo;
   catalog.data.scanStats = stats;
@@ -184,6 +194,9 @@ export function catalogSyncPayload(catalog, deviceId) {
       sourceDeviceId,
       originalFilename: String(rec.originalFilename).slice(0, 500),
       relativePath: String(rec.relativePath).slice(0, 2000),
+      sessionFolder: rec.sessionFolder != null ? String(rec.sessionFolder).slice(0, 500) : null,
+      sessionRelativePath:
+        rec.sessionRelativePath != null ? String(rec.sessionRelativePath).slice(0, 2000) : null,
       fileSize: asFiniteNumberOrNull(rec.fileSize),
       birthtimeMs: asFiniteNumberOrNull(rec.birthtimeMs),
       mtimeMs: asFiniteNumberOrNull(rec.mtimeMs),
@@ -204,11 +217,25 @@ export function catalogSyncPayload(catalog, deviceId) {
       lastError: rec.lastError != null ? String(rec.lastError).slice(0, 1000) : null,
       playbackCompatible: typeof rec.playbackCompatible === "boolean" ? rec.playbackCompatible : null,
       needsConversion: Boolean(rec.needsConversion),
+      cameraCount: asFiniteNumberOrNull(rec.cameraCount),
+      primaryAssetId: rec.primaryAssetId != null ? String(rec.primaryAssetId).slice(0, 64) : null,
+      assets: Array.isArray(rec.assets)
+        ? rec.assets.slice(0, 64).map((asset) => ({
+            assetId: String(asset.assetId || "").slice(0, 64),
+            role: ["primary", "camera", "other"].includes(asset.role) ? asset.role : "other",
+            originalFilename: String(asset.originalFilename || "").slice(0, 500),
+            relativePath: String(asset.relativePath || "").slice(0, 2000),
+            fileSize: asFiniteNumberOrNull(asset.fileSize),
+            availability: asset.availability || "error",
+            lastError: asset.lastError != null ? String(asset.lastError).slice(0, 500) : null,
+          }))
+        : [],
     }));
 
   return {
     recordingsRootConfigured: Boolean(catalog.data.recordingsRoot),
     recordingsRoot: catalog.data.recordingsRoot || null,
+    dropboxRelativeRoot: catalog.data.dropboxRelativeRoot || null,
     lastScanAt: asIsoOrNull(catalog.data.lastScanAt),
     scanStats: catalog.data.scanStats || {},
     nonVideoCount: Array.isArray(catalog.data.nonVideo) ? catalog.data.nonVideo.length : 0,

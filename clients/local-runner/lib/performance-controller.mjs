@@ -23,14 +23,21 @@ export async function applyPerformanceCommand(runtime, command) {
         return { status: "accepted", detail: "Scan queued." };
 
       case "set_recordings_root": {
-        const { saveRecordingsSettings } = await import("./recordings-paths.mjs");
+        const { DEFAULT_DROPBOX_RELATIVE_ROOT, saveRecordingsSettings } = await import(
+          "./recordings-paths.mjs"
+        );
         const root = String(payload.recordingsRoot || "").trim();
         if (!root) return { status: "rejected", rejectReason: "recordingsRoot required." };
+        const dropboxRelativeRoot = String(
+          payload.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+        ).trim();
         await saveRecordingsSettings({
           recordingsRoot: root,
+          dropboxRelativeRoot,
           defaultTimezone: payload.timezone || "America/Chicago",
         });
         catalog.data.recordingsRoot = root;
+        catalog.data.dropboxRelativeRoot = dropboxRelativeRoot;
         await setPerformanceState(catalog, {});
         runtime.pendingScan = true;
         return { status: "completed", detail: "Recordings root saved." };

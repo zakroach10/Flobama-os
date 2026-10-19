@@ -7,11 +7,23 @@ import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performanc
 
 type Admin = SupabaseClient<Database>;
 
+export type CatalogSyncAsset = {
+  assetId: string;
+  role: "primary" | "camera" | "other";
+  originalFilename: string;
+  relativePath: string;
+  fileSize?: number | null;
+  availability?: string;
+  lastError?: string | null;
+};
+
 export type CatalogSyncRecording = {
   recordingId: string;
   sourceDeviceId?: string | null;
   originalFilename: string;
   relativePath: string;
+  sessionFolder?: string | null;
+  sessionRelativePath?: string | null;
   fileSize?: number | null;
   birthtimeMs?: number | null;
   mtimeMs?: number | null;
@@ -32,6 +44,9 @@ export type CatalogSyncRecording = {
   lastError?: string | null;
   playbackCompatible?: boolean | null;
   needsConversion?: boolean;
+  cameraCount?: number | null;
+  primaryAssetId?: string | null;
+  assets?: CatalogSyncAsset[];
 };
 
 const AVAILABILITY = new Set([
@@ -85,6 +100,7 @@ export async function syncPerformanceCatalog(
     deviceId: string;
     recordingsRootConfigured: boolean;
     recordingsRoot?: string | null;
+    dropboxRelativeRoot?: string | null;
     lastScanAt?: string | null;
     scanStats?: Record<string, unknown> | null;
     nonVideoCount?: number;
@@ -144,12 +160,29 @@ export async function syncPerformanceCatalog(
       matchedGroups.set(match.matchedEventId, group);
     }
 
+    const assets = Array.isArray(rec.assets)
+      ? rec.assets.map((asset) => ({
+          assetId: asset.assetId,
+          role: asset.role,
+          originalFilename: asset.originalFilename,
+          relativePath: asset.relativePath,
+          fileSize: asset.fileSize ?? null,
+          availability: asset.availability ? normalizeAvailability(asset.availability) : "error",
+          lastError: asset.lastError ?? null,
+        }))
+      : [];
+
     const patch = {
       venue_id: args.venueId,
       source_device_id: args.deviceId,
       recording_id: rec.recordingId,
       original_filename: rec.originalFilename,
       relative_path: rec.relativePath,
+      session_folder: rec.sessionFolder ?? null,
+      session_relative_path: rec.sessionRelativePath ?? null,
+      primary_asset_id: rec.primaryAssetId ?? null,
+      camera_count: Math.max(0, Math.trunc(Number(rec.cameraCount) || assets.filter((a) => a.role === "camera").length)),
+      assets: assets as unknown as Json,
       file_size: rec.fileSize ?? null,
       birthtime_ms: rec.birthtimeMs ?? null,
       mtime_ms: rec.mtimeMs ?? null,
@@ -234,6 +267,8 @@ export async function syncPerformanceCatalog(
       venue_id: args.venueId,
       device_id: args.deviceId,
       recordings_root: args.recordingsRoot ?? null,
+      dropbox_relative_root:
+        args.dropboxRelativeRoot ?? "/A- View 360 Brands/3- Customers/F/Flobama/Recordings",
       last_scan_at: args.lastScanAt ?? null,
       last_catalog_sync_at: new Date().toISOString(),
       catalog_count: args.recordings.length,
@@ -241,6 +276,7 @@ export async function syncPerformanceCatalog(
         ...(args.scanStats || {}),
         nonVideoCount: args.nonVideoCount ?? 0,
         recordingsRootConfigured: args.recordingsRootConfigured,
+        dropboxRelativeRoot: args.dropboxRelativeRoot ?? null,
       } as Json,
     },
     { onConflict: "venue_id" },
