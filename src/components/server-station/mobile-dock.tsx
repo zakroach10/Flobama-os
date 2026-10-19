@@ -171,7 +171,7 @@ export function ServerStationMobileDock() {
         aria-label="Server Station"
         className="border-t border-white/10 bg-[#100e0c] pb-[env(safe-area-inset-bottom,0px)]"
       >
-        <div className="mx-auto flex w-full max-w-lg items-stretch gap-0.5 px-1 pt-1">
+        <div className="mx-auto grid h-14 w-full max-w-lg grid-cols-4 items-stretch px-0.5">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -215,7 +215,7 @@ function DockLink({
       ariaLabel={label}
       onNavigate={onNavigate}
       className={cn(
-        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold tracking-wide uppercase",
         active ? "bg-white/10 text-[#f7efe6]" : "text-[#e8d5c4]/80",
       )}
     >
@@ -247,7 +247,7 @@ function DockButton({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold tracking-wide uppercase",
         emphasize && !pressed
           ? "bg-[#d36b4a] text-white"
           : active || pressed

@@ -111,7 +111,7 @@ export function ServerStationShell({
     <div
       className={cn(
         "dark bg-[radial-gradient(ellipse_at_top,_rgba(211,107,74,0.16),_transparent_50%),linear-gradient(180deg,_#14110f_0%,_#1a1613_45%,_#100e0c_100%)] text-foreground",
-        "absolute inset-0 flex flex-col overflow-hidden overscroll-none",
+        "absolute inset-0 flex h-full max-h-full flex-col overflow-hidden overscroll-none",
       )}
     >
       <header
