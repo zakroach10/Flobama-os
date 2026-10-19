@@ -1,6 +1,6 @@
 {
   "name": "flobama-local-runner",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "type": "module",
   "description": "FloBama Local Runner — OBS sync, media cache, performance library, and localhost wall player",

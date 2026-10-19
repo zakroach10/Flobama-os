@@ -207,6 +207,49 @@ export async function resumeStationPerformanceAction(): Promise<StationPerforman
   return { ok: true, message: "Resumed.", commandId: command?.id };
 }
 
+export async function seekStationPerformanceRelativeAction(
+  deltaSeconds: number,
+): Promise<StationPerformanceActionResult> {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const n = Number(deltaSeconds);
+  if (!Number.isFinite(n) || n === 0) {
+    return { ok: false, message: "Enter a non-zero skip amount in seconds." };
+  }
+  if (Math.abs(n) > 3600) {
+    return { ok: false, message: "Skip amount is too large." };
+  }
+
+  const { admin, deviceId } = await resolveLedRunner(gate.venueId);
+  if (!admin || !deviceId) {
+    return { ok: false, message: "No paired LED Local Runner is online." };
+  }
+
+  const { command, error } = await enqueuePerformanceCommand(admin, {
+    venueId: gate.venueId,
+    deviceId,
+    kind: "seek",
+    payload: { deltaSeconds: n },
+    issuedBy: gate.actor.userId,
+  });
+  if (error) return { ok: false, message: error };
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "performance.seek_relative",
+    detail: { deltaSeconds: n },
+  });
+
+  revalidateStation();
+  return {
+    ok: true,
+    message: n > 0 ? `Skipped ahead ${Math.round(n)}s.` : `Skipped back ${Math.round(Math.abs(n))}s.`,
+    commandId: command?.id,
+  };
+}
+
 export async function setStationPerformanceMutedAction(
   muted: boolean,
 ): Promise<StationPerformanceActionResult> {

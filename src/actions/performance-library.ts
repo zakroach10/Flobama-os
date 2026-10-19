@@ -139,6 +139,18 @@ export async function seekPerformanceAction(positionSeconds: number): Promise<Pe
   return issue("playback", "seek", { positionSeconds });
 }
 
+/** Skip forward or backward relative to the current playhead (e.g. +15 / -15). */
+export async function seekPerformanceRelativeAction(deltaSeconds: number): Promise<PerformanceActionResult> {
+  const n = Number(deltaSeconds);
+  if (!Number.isFinite(n) || n === 0) {
+    return { ok: false, message: "Enter a non-zero skip amount in seconds." };
+  }
+  if (Math.abs(n) > 3600) {
+    return { ok: false, message: "Skip amount is too large." };
+  }
+  return issue("playback", "seek", { deltaSeconds: n });
+}
+
 export async function skipPerformanceAction(): Promise<PerformanceActionResult> {
   return issue("playback", "skip");
 }

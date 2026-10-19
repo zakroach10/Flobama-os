@@ -237,17 +237,37 @@ async function resumePlayback(runtime) {
 }
 
 async function seekPlayback(runtime, payload) {
-  const positionSeconds = Number(payload.positionSeconds);
-  if (!Number.isFinite(positionSeconds) || positionSeconds < 0) {
-    return { status: "rejected", rejectReason: "Invalid positionSeconds." };
-  }
   const perf = getPerformanceState(runtime.recordingsCatalog);
   if (!perf.nowPlaying) return { status: "rejected", rejectReason: "Nothing playing." };
+
+  let positionSeconds;
+  const delta = Number(payload.deltaSeconds);
+  if (Number.isFinite(delta)) {
+    const current = Number(perf.nowPlaying.positionSeconds) || 0;
+    positionSeconds = Math.max(0, current + delta);
+  } else {
+    positionSeconds = Number(payload.positionSeconds);
+  }
+  if (!Number.isFinite(positionSeconds) || positionSeconds < 0) {
+    return { status: "rejected", rejectReason: "Invalid positionSeconds or deltaSeconds." };
+  }
+
+  const duration = Number(perf.nowPlaying.durationSeconds);
+  if (Number.isFinite(duration) && duration > 0) {
+    // Keep a small cushion so we don't immediately fire "ended".
+    positionSeconds = Math.min(positionSeconds, Math.max(0, duration - 0.25));
+  }
+
   await setPerformanceState(runtime.recordingsCatalog, {
     nowPlaying: { ...perf.nowPlaying, positionSeconds, seekToken: Date.now() },
   });
   bumpPerformancePlayback(runtime);
-  return { status: "completed" };
+  return {
+    status: "completed",
+    detail: Number.isFinite(delta)
+      ? `Seeked ${delta >= 0 ? "+" : ""}${Math.round(delta)}s → ${Math.floor(positionSeconds)}s.`
+      : `Seeked to ${Math.floor(positionSeconds)}s.`,
+  };
 }
 
 async function skipPlayback(runtime) {

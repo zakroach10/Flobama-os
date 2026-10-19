@@ -8,6 +8,7 @@ import {
   pauseStationPerformanceAction,
   playStationPublishedPerformanceAction,
   resumeStationPerformanceAction,
+  seekStationPerformanceRelativeAction,
   setStationPerformanceMutedAction,
   setStationPerformanceVolumeAction,
   stopStationPerformanceAction,
@@ -116,6 +117,20 @@ export function ServerStationPerformances({
             onClick={() => run(() => resumeStationPerformanceAction())}
           >
             Resume
+          </ServerStationButton>
+          <ServerStationButton
+            variant="secondary"
+            disabled={pending}
+            onClick={() => run(() => seekStationPerformanceRelativeAction(-15))}
+          >
+            −15s
+          </ServerStationButton>
+          <ServerStationButton
+            variant="secondary"
+            disabled={pending}
+            onClick={() => run(() => seekStationPerformanceRelativeAction(15))}
+          >
+            +15s
           </ServerStationButton>
           <ServerStationButton
             variant="danger"

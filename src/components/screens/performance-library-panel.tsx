@@ -13,6 +13,7 @@ import {
   renameServerStationPerformanceAction,
   resumePerformanceAction,
   scanPerformanceLibraryAction,
+  seekPerformanceRelativeAction,
   setPerformanceAudioMutedAction,
   setRecordingsRootAction,
   skipPerformanceAction,
@@ -254,16 +255,32 @@ export function PerformanceLibraryPanel({
               <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => (playback.paused ? resumePerformanceAction() : pausePerformanceAction()))}>
                 {playback.paused ? "Resume" : "Pause"}
               </Button>
-              <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => skipPerformanceAction())}>
-                Skip
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => run(() => seekPerformanceRelativeAction(-15))}
+              >
+                −15s
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
                 disabled={pending}
-                onClick={() => run(() => setPerformanceAudioMutedAction(!(playback.audio_muted === false)))}
+                onClick={() => run(() => seekPerformanceRelativeAction(15))}
               >
-                {playback.audio_muted === false ? "Mute audio" : "Enable audio"}
+                +15s
+              </Button>
+              <Button size="sm" variant="secondary" disabled={pending} onClick={() => run(() => skipPerformanceAction())}>
+                Next in queue
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => run(() => setPerformanceAudioMutedAction(!playback.audio_muted))}
+              >
+                {playback.audio_muted ? "Enable audio" : "Mute audio"}
               </Button>
               <Button size="sm" variant="destructive" disabled={pending} onClick={() => run(() => stopReturnToNormalWallAction())}>
                 Stop &amp; return to normal wall
