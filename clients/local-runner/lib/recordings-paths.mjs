@@ -211,6 +211,34 @@ export function isVideoFilename(name) {
   return VIDEO_EXTENSIONS.has(lower.slice(dot));
 }
 
+/**
+ * FloBama Performance Library only catalogs the main Ecamm program recording.
+ * Nested session folders also contain Camera A/B angle ISOs — those are skipped.
+ *
+ * Include:  "Ecamm Recording on 2026-08-15 at 20.07.11.mp4"
+ * Exclude:  "Camera A.mp4", "Camera B.mp4", "Camera A 002.mp4"
+ */
+export function isMainEcammRecording(filename) {
+  const name = String(filename || "");
+  const base = name.replace(/\.[^.]+$/, "");
+  if (/^camera\b/i.test(base.trim())) return false;
+  if (!/ecamm/i.test(name)) return false;
+  return true;
+}
+
+/** Human-readable skip reason for inventory accounting. */
+export function ecammSkipReason(filename) {
+  const name = String(filename || "");
+  const base = name.replace(/\.[^.]+$/, "");
+  if (/^camera\b/i.test(base.trim())) {
+    return "Camera angle / ISO view — not the main Ecamm program recording.";
+  }
+  if (!/ecamm/i.test(name)) {
+    return "Filename does not include “Ecamm” — skipped for Performance Library.";
+  }
+  return null;
+}
+
 export async function openInFinder(targetPath) {
   if (process.platform !== "darwin") {
     return { ok: false, error: "Open in Finder is only available on macOS." };

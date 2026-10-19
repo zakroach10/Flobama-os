@@ -4,14 +4,38 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseRecordingFilename, localPartsToUtcIso } from "../clients/local-runner/lib/recordings-parse.mjs";
-import { resolveUnderRecordingsRoot, stableRecordingId } from "../clients/local-runner/lib/recordings-paths.mjs";
+import {
+  isMainEcammRecording,
+  resolveUnderRecordingsRoot,
+  stableRecordingId,
+} from "../clients/local-runner/lib/recordings-paths.mjs";
 import { inventoryRecordingsFolder } from "../clients/local-runner/lib/recordings-inventory.mjs";
 import { openRecordingsCatalog, mergeScanResults } from "../clients/local-runner/lib/recordings-catalog.mjs";
 import { sendRecordingFile, isPathInsideRoot } from "../clients/local-runner/lib/recordings-serve.mjs";
 import { matchRecordingToEvents } from "@/lib/performance/match";
 import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performance/titles";
 
+describe("ecamm main-recording filter", () => {
+  it("keeps Ecamm program files and drops Camera angle views", () => {
+    expect(isMainEcammRecording("Ecamm Recording on 2026-08-15 at 20.07.11.mp4")).toBe(true);
+    expect(isMainEcammRecording("Camera A.mp4")).toBe(false);
+    expect(isMainEcammRecording("Camera A 002.mp4")).toBe(false);
+    expect(isMainEcammRecording("Camera B.mp4")).toBe(false);
+    expect(isMainEcammRecording("random-clip.mp4")).toBe(false);
+  });
+});
+
 describe("performance filename parsing", () => {
+  it("parses Ecamm Live folder/file names", () => {
+    const parsed = parseRecordingFilename("Ecamm Recording on 2026-08-15 at 20.07.11.mp4", {
+      relativePath: "Ecamm Recording on 2026-08-15 at 20.07.11/Ecamm Recording on 2026-08-15 at 20.07.11.mp4",
+    });
+    expect(parsed.ok).toBe(true);
+    expect(parsed.parseSource).toBe("ecamm-on-date-at-time");
+    expect(parsed.parseConfidence).toBe("high");
+    expect(parsed.parsedTimestamp).toMatch(/2026-08-1[56]T/);
+  });
+
   it("parses compact and iso-like timestamps in America/Chicago", () => {
     const a = parseRecordingFilename("Show_20261017_213000.mp4");
     expect(a.ok).toBe(true);
@@ -157,11 +181,17 @@ describe("recordings inventory + path security", () => {
     const root = await mkdtemp(join(tmpdir(), "flobama-rec-"));
     // Point catalog file into temp by stubbing SUPPORT is hard; test inventory + resolve directly.
     try {
-      await writeFile(join(root, "20261017_213000.mp4"), Buffer.alloc(2048));
+      const session = join(root, "Ecamm Recording on 2026-08-15 at 20.07.11");
+      await mkdir(session, { recursive: true });
+      await writeFile(join(session, "Ecamm Recording on 2026-08-15 at 20.07.11.mp4"), Buffer.alloc(2048));
+      await writeFile(join(session, "Camera A.mp4"), Buffer.alloc(1024));
+      await writeFile(join(session, "Camera B.mp4"), Buffer.alloc(1024));
       await writeFile(join(root, "notes.txt"), "not video");
       const first = await inventoryRecordingsFolder(root);
       expect(first.stats.videoFiles).toBe(1);
-      expect(first.nonVideo.length).toBeGreaterThanOrEqual(1);
+      expect(first.stats.skippedCameraOrNonEcamm).toBe(2);
+      expect(first.nonVideo.length).toBeGreaterThanOrEqual(3);
+      expect(first.scanned[0].originalFilename).toMatch(/Ecamm/i);
       expect(first.scanned[0].recordingId).toBe(stableRecordingId(first.scanned[0].relativePath));
 
       const second = await inventoryRecordingsFolder(root);
@@ -280,9 +310,10 @@ describe("idempotent catalog merge", () => {
         },
       };
       await mkdir(root, { recursive: true });
-      const videoPath = join(root, "2026-10-17_213000.mp4");
+      const videoPath = join(root, "Ecamm Recording on 2026-10-17 at 21.30.00.mp4");
       await writeFile(videoPath, Buffer.alloc(4096));
       const scan = await inventoryRecordingsFolder(root);
+      expect(scan.scanned).toHaveLength(1);
       await mergeScanResults(catalog, {
         recordingsRoot: root,
         scanned: scan.scanned.map((row) => ({ ...row, displayTitleOverride: "Locked Title" })),
