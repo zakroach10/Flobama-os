@@ -53,4 +53,17 @@ describe("displayDeviceHeartbeatSchema", () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it("accepts overlong manifestRevision by truncating", () => {
+    const long = `led|playlist|${"a".repeat(800)}`;
+    const parsed = displayDeviceHeartbeatSchema.safeParse({
+      appVersion: "1.3.2",
+      manifestRevision: long,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.manifestRevision?.length).toBe(500);
+    }
+  });
 });
+

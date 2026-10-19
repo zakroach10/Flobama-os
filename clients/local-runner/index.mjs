@@ -674,7 +674,10 @@ async function main() {
       },
       body: JSON.stringify({
         appVersion: VERSION,
-        manifestRevision: runtime.manifestRevision,
+        // Keep under the server heartbeat limit (hashed revisions are short; older
+        // pipe-joined revisions can be thousands of characters).
+        manifestRevision:
+          runtime.manifestRevision == null ? null : String(runtime.manifestRevision).slice(0, 500),
         currentAssetId: perf.nowPlaying?.recordingId || null,
         playbackState: perf.mode === "performance" ? perf.nowPlaying?.status || "performance" : "playing",
         obs: {

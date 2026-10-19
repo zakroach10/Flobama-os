@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
@@ -59,8 +60,13 @@ function mediaTypeForKind(mediaKind: string | null | undefined) {
   return null;
 }
 
+/**
+ * Fingerprint manifest inputs into a short stable revision.
+ * Joining asset ids/sha256s raw easily exceeds the heartbeat schema limit (~500).
+ */
 function buildRevision(parts: Array<string | number | null | undefined>) {
-  return parts.map((part) => (part == null ? "" : String(part))).join("|");
+  const raw = parts.map((part) => (part == null ? "" : String(part))).join("|");
+  return createHash("sha256").update(raw).digest("hex");
 }
 
 type MediaHashRow = {

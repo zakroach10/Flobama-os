@@ -651,7 +651,12 @@ const softRecordNullable = z.preprocess((value) => {
 
 export const displayDeviceHeartbeatSchema = z.object({
   appVersion: z.string().trim().min(1).max(40).optional(),
-  manifestRevision: z.string().trim().max(500).optional().nullable(),
+  // Older runners may still echo a pre-hash pipe-joined revision (>500 chars).
+  // Truncate for validation/storage; inequality still forces a manifest refresh.
+  manifestRevision: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().slice(0, 500) : value),
+    z.string().max(500).optional().nullable(),
+  ),
   currentAssetId: z.string().trim().max(120).optional().nullable(),
   playbackState: z.string().trim().max(80).optional().nullable(),
   obs: z
