@@ -2,7 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getPublicSupabaseEnv } from "@/lib/env";
 import { isMissingServerStationRelation } from "@/lib/auth/server-station";
-import { buildScreenAdsPublicUrl, ledScenePosterStoragePath } from "@/lib/screens/led-poster";
+import {
+  buildScreenAdsPublicUrl,
+  ledScenePosterStoragePath,
+  serverStationScenePreviewPath,
+} from "@/lib/screens/led-poster";
 
 type Client = SupabaseClient<Database>;
 
@@ -42,15 +46,23 @@ export function resolveLedSceneMediaUrl(scene: {
 }
 
 /**
- * Grid preview URL. MP4 loops use a sibling `.poster.jpg` so phones load a tiny
- * still instead of the full video. Missing posters 404 once; the client then
- * grabs a frame and can persist the poster for next time.
+ * Grid preview URL. Prefer the same-origin Server Station preview endpoint so
+ * phones get a tiny, SW/edge-cached still instead of a full PNG/MP4 from storage.
+ * Without a scene id (tests / legacy), fall back to a direct storage URL.
  */
 export function resolveLedScenePreviewUrl(scene: {
+  id?: string | null | undefined;
   public_url: string | null | undefined;
   storage_path: string | null | undefined;
   media_kind?: string | null | undefined;
+  kind?: string | null | undefined;
 }): string | null {
+  if (scene.id && scene.kind !== "obs" && scene.kind !== "trivia" && scene.kind !== "audience") {
+    if (scene.media_kind === "video" || scene.media_kind === "image" || scene.storage_path || scene.public_url) {
+      return serverStationScenePreviewPath(scene.id);
+    }
+  }
+
   const path = scene.storage_path?.trim();
   const env = getPublicSupabaseEnv();
   const isVideo = scene.media_kind === "video";

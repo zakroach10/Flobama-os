@@ -1,7 +1,13 @@
 /** Lightweight stills for LED loop (MP4) previews — especially Server Station on phones. */
 
-export const LED_SCENE_POSTER_MAX_EDGE = 480;
-export const LED_SCENE_POSTER_JPEG_QUALITY = 0.72;
+/** Grid tiles are ~104 CSS px tall — keep posters small for phones. */
+export const LED_SCENE_POSTER_MAX_EDGE = 240;
+export const LED_SCENE_POSTER_JPEG_QUALITY = 0.55;
+
+/** Same-origin preview used by Server Station (SW + edge cacheable). */
+export function serverStationScenePreviewPath(sceneId: string) {
+  return `/api/server-station/preview/${sceneId}`;
+}
 
 /** Sibling poster path: `…/band-loop.mp4` → `…/band-loop.poster.jpg`. */
 export function ledScenePosterStoragePath(storagePath: string): string {
