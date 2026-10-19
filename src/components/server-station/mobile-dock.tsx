@@ -184,16 +184,15 @@ export function ServerStationMobileDock() {
 
       <nav
         aria-label="Server Station"
-        className="border-t border-white/10 bg-[#100e0c]"
+        className="border-t border-white/10 bg-[#100e0c] pt-1"
         style={{
-          // Full safe-area inset left a blank band under the labels. Keep only a
-          // slim clearance so tabs sit just above the home indicator.
+          // Sit almost on the home indicator — only a couple pixels of clearance.
           paddingBottom: standalone
-            ? "max(0.4rem, calc(env(safe-area-inset-bottom, 0px) - 1.25rem))"
-            : "0.35rem",
+            ? "max(0.125rem, calc(env(safe-area-inset-bottom, 0px) - 1.85rem))"
+            : "0.125rem",
         }}
       >
-        <div className="grid h-10 grid-cols-4">
+        <div className="grid h-9 grid-cols-4">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -237,7 +236,7 @@ function DockLink({
       ariaLabel={label}
       onNavigate={onNavigate}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-end gap-0.5 pb-1 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-end gap-0 text-[10px] font-semibold tracking-wide uppercase",
         active ? "text-[#f7efe6]" : "text-[#e8d5c4]/75",
       )}
     >
@@ -269,7 +268,7 @@ function DockButton({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-end gap-0.5 pb-1 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-end gap-0 text-[10px] font-semibold tracking-wide uppercase",
         pressed || active ? "text-[#f7efe6]" : emphasize ? "text-[#f0a58a]" : "text-[#e8d5c4]/75",
       )}
     >
