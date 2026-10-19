@@ -26,12 +26,14 @@ Out of scope: push, loyalty, guest accounts, WebView checkout, staff APIs.
    - Note your **Team ID** (Apple Developer → Membership).
 4. Register an **iOS Bundle ID** you own (candidate in config: `com.flobama.guest` — change if you don’t own it).
 5. Create an **App Store Connect API Key** (Users and Access → Integrations → App Store Connect API) with access to submit builds. Download the `.p8` once; store it outside GitHub.
-6. On Expo: create/link the project from a trusted machine or ask the cloud agent **after** you paste credentials into Expo secrets (never commit them):
+6. On Expo: the dashboard project is already linked in `app.config.ts` as  
+   `45cc604d-a79f-4b2b-adcb-e48b42faf3e3` (slug `flobama-downtown`).  
+   **Do not** run `create-expo-app` — that would create a second empty app.  
+   Authenticate this cloud agent with an Expo access token (`EXPO_TOKEN`), then optionally:
 
 ```bash
 cd apps/mobile
-npx eas-cli@latest login
-npx eas-cli@latest init   # writes EAS projectId — review the diff before committing
+EXPO_TOKEN=… npx eas-cli@latest init --id 45cc604d-a79f-4b2b-adcb-e48b42faf3e3 --non-interactive
 ```
 
 7. Store secrets in the **Expo dashboard** (project → Environment variables / credentials), not in this repo:
