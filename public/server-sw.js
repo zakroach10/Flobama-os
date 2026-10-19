@@ -2,7 +2,7 @@
  * Caches static shell assets only. Never caches HTML, auth cookies,
  * API responses, or wall-command traffic.
  */
-const CACHE = "server-station-static-v2";
+const CACHE = "server-station-static-v3";
 const PRECACHE = [
   "/icons/server-station-180.png",
   "/icons/server-station-192.png",

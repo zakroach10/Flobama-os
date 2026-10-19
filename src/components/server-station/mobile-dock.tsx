@@ -75,9 +75,10 @@ function pathMatches(pathname: string, href: string, exact?: boolean) {
 }
 
 /**
- * Bottom-anchored Server Station dock for phone/PWA.
- * Must stay in normal flex flow (not position:fixed) so iOS visual-viewport
- * rubber-banding cannot drag it around inside the fixed station shell.
+ * Edge-to-edge bottom tab bar for the phone/PWA shell.
+ * Lives in normal flex flow at the bottom of the fixed station shell — no
+ * floating pill, no side inset, no visualViewport height tricks that leave a
+ * black gap under the bar.
  */
 export function ServerStationMobileDock() {
   const nav = useStationNav();
@@ -113,7 +114,7 @@ export function ServerStationMobileDock() {
         <button
           type="button"
           aria-label="Close menu"
-          className="absolute inset-x-0 bottom-full z-40 h-[100dvh] bg-black/55 backdrop-blur-[2px]"
+          className="absolute inset-x-0 bottom-full z-40 h-screen bg-black/55"
           onClick={() => setSheet(null)}
         />
       ) : null}
@@ -169,9 +170,10 @@ export function ServerStationMobileDock() {
 
       <nav
         aria-label="Server Station"
-        className="border-t border-white/10 bg-[#100e0c] pb-[env(safe-area-inset-bottom,0px)]"
+        className="border-t border-white/10 bg-[#100e0c]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="mx-auto grid h-14 w-full max-w-lg grid-cols-4 items-stretch px-0.5">
+        <div className="grid h-12 grid-cols-4">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -215,11 +217,11 @@ function DockLink({
       ariaLabel={label}
       onNavigate={onNavigate}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold tracking-wide uppercase",
-        active ? "bg-white/10 text-[#f7efe6]" : "text-[#e8d5c4]/80",
+        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide uppercase",
+        active ? "text-[#f7efe6]" : "text-[#e8d5c4]/75",
       )}
     >
-      <Icon className={cn("size-5", active && "text-[#d36b4a]")} aria-hidden />
+      <Icon className={cn("size-5", active ? "text-[#d36b4a]" : "text-current")} aria-hidden />
       {label}
     </StationLink>
   );
@@ -247,15 +249,18 @@ function DockButton({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold tracking-wide uppercase",
-        emphasize && !pressed
-          ? "bg-[#d36b4a] text-white"
-          : active || pressed
-            ? "bg-white/10 text-[#f7efe6]"
-            : "text-[#e8d5c4]/80",
+        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide uppercase",
+        pressed || active ? "text-[#f7efe6]" : emphasize ? "text-[#f0a58a]" : "text-[#e8d5c4]/75",
       )}
     >
-      <Icon className={cn("size-5", emphasize && !pressed && "text-white")} aria-hidden />
+      <span
+        className={cn(
+          "inline-flex size-7 items-center justify-center rounded-full",
+          emphasize && !pressed ? "bg-[#d36b4a] text-white" : pressed || active ? "bg-white/10" : "",
+        )}
+      >
+        <Icon className="size-4" aria-hidden />
+      </span>
       {label}
     </button>
   );
