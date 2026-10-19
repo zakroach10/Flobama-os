@@ -2,7 +2,7 @@ import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
 import { isWallOpsAccount, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
-export const STAFF_MENUS_SQL = "supabase/migrations/20261017000051_server_station.sql";
+export const STAFF_MENUS_SQL = "supabase/migrations/20261019000058_production_ecamm.sql";
 
 export const STAFF_MENU_IDS = [
   "dashboard",
@@ -12,6 +12,7 @@ export const STAFF_MENU_IDS = [
   "audience",
   "screens",
   "cameras",
+  "production",
   "ticketing",
   "spoton",
   "artists",
@@ -34,6 +35,7 @@ export const STAFF_MENUS: {
   { id: "audience", label: "Audience", href: "/audience" },
   { id: "screens", label: "Screens", href: "/screens" },
   { id: "cameras", label: "Cameras", href: "/cameras" },
+  { id: "production", label: "Production", href: "/production" },
   { id: "ticketing", label: "Ticketing", href: "/ticketing" },
   { id: "spoton", label: "Spot on BOH", href: "https://client.restaurantpos.spoton.com/b/", external: true },
   { id: "artists", label: "Artists", href: "/artists" },
@@ -51,6 +53,7 @@ const MENU_PREFIXES: { prefix: string; id: StaffMenuId }[] = [
   { prefix: "/audience", id: "audience" },
   { prefix: "/screens", id: "screens" },
   { prefix: "/cameras", id: "cameras" },
+  { prefix: "/production", id: "production" },
   { prefix: "/ticketing", id: "ticketing" },
   { prefix: "/artists", id: "artists" },
   { prefix: "/settings", id: "settings" },

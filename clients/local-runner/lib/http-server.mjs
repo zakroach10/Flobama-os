@@ -20,6 +20,7 @@ import {
   prepareRecording,
   reportLocalProgress,
 } from "./performance-controller.mjs";
+import { createShortcutsHandler } from "./ecamm/shortcuts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WALL_DIR = join(__dirname, "..", "wall-player");
@@ -202,6 +203,22 @@ export function startHttpServer(runtime) {
   const host = runtime.config.bindHost || "127.0.0.1";
   const port = Number(runtime.config.bindPort || 4173);
 
+  const shortcutsHandler = createShortcutsHandler({
+    recordingsRootResolver: async () => {
+      const root =
+        runtime.recordingsCatalog?.data?.recordingsRoot ||
+        (await loadRecordingsSettings()).recordingsRoot;
+      return root ? [root] : [];
+    },
+    onRecordingEvent: async (event) => {
+      runtime.lastEcammRecordingEvent = event;
+      if (typeof runtime.onEcammRecordingEvent === "function") {
+        await runtime.onEcammRecordingEvent(event);
+      }
+    },
+    sharedSecret: runtime.config?.ecammShortcutsSecret || null,
+  });
+
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url || "/", `http://${host}:${port}`);
@@ -215,6 +232,7 @@ export function startHttpServer(runtime) {
 
       if (path === "/status") {
         const perf = runtime.recordingsCatalog ? getPerformanceState(runtime.recordingsCatalog) : null;
+        const ecamm = runtime.ecammController?.getPublicState?.() || null;
         sendJson(res, 200, {
           ok: true,
           version: runtime.version,
@@ -232,7 +250,39 @@ export function startHttpServer(runtime) {
           recordingsRoot: runtime.recordingsCatalog?.data?.recordingsRoot || null,
           recordingsCount: runtime.recordingsCatalog ? listRecordings(runtime.recordingsCatalog).length : 0,
           performanceMode: perf?.mode || "normal",
+          ecamm: ecamm
+            ? {
+                connected: ecamm.connected,
+                connectionPhase: ecamm.connectionState,
+                permission: ecamm.permission,
+                hostname: ecamm.selectedHostname,
+                host: ecamm.host,
+                currentSceneId: ecamm.info?.currentSceneId || null,
+                buttonLabel: ecamm.info?.buttonLabel || null,
+                lastError: ecamm.lastError,
+                lastSuccessAt: ecamm.lastSuccessAt,
+              }
+            : null,
         });
+        return;
+      }
+
+      if (path === "/api/ecamm/status" && method === "GET") {
+        if (!runtime.ecammController) {
+          sendJson(res, 503, { error: "Ecamm controller not ready." });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          ecamm: runtime.ecammController.getDiagnosticsSnapshot(),
+        });
+        return;
+      }
+
+      if (path === "/api/ecamm/shortcuts" && method === "POST") {
+        const body = await readJsonBody(req);
+        const result = await shortcutsHandler.handleNotification(body, req);
+        sendJson(res, result.status || (result.ok ? 200 : 400), result);
         return;
       }
 

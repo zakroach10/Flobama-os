@@ -43,19 +43,22 @@ export function EventActions({
     });
   }
 
-  if (!canEdit) return null;
-
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-      {!archived ? (
+      <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/production?eventId=${eventId}`} />}>
+        Production
+      </Button>
+      {canEdit && !archived ? (
         <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/programming/${eventId}/edit`} />}>
           Edit
         </Button>
       ) : null}
-      <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/programming/new?from=${eventId}`} />}>
-        Duplicate
-      </Button>
-      {!archived && status !== "published" ? (
+      {canEdit ? (
+        <Button className="w-full sm:w-auto" variant="outline" render={<Link href={`/programming/new?from=${eventId}`} />}>
+          Duplicate
+        </Button>
+      ) : null}
+      {canEdit && !archived && status !== "published" ? (
         <Button
           className="w-full sm:w-auto"
           variant="outline"
@@ -65,7 +68,7 @@ export function EventActions({
           Publish
         </Button>
       ) : null}
-      {!archived && status === "published" ? (
+      {canEdit && !archived && status === "published" ? (
         <Button
           className="w-full sm:w-auto"
           variant="outline"
@@ -75,12 +78,12 @@ export function EventActions({
           Return to draft
         </Button>
       ) : null}
-      {!archived && status !== "cancelled" ? (
+      {canEdit && !archived && status !== "cancelled" ? (
         <Button className="w-full sm:w-auto" variant="outline" disabled={pending} onClick={() => setConfirm("cancel")}>
           Cancel event
         </Button>
       ) : null}
-      {!archived ? (
+      {canEdit && !archived ? (
         <Button className="w-full sm:w-auto" variant="destructive" disabled={pending} onClick={() => setConfirm("archive")}>
           Archive
         </Button>

@@ -1305,7 +1305,7 @@ export type Database = {
           id: string;
           venue_id: string;
           code_hash: string;
-          intended_kind: "led_runner" | "vertical_kiosk";
+          intended_kind: "led_runner" | "vertical_kiosk" | "production_runner";
           expires_at: string;
           consumed_at: string | null;
           created_by: string | null;
@@ -1315,7 +1315,7 @@ export type Database = {
           id?: string;
           venue_id: string;
           code_hash: string;
-          intended_kind: "led_runner" | "vertical_kiosk";
+          intended_kind: "led_runner" | "vertical_kiosk" | "production_runner";
           expires_at: string;
           consumed_at?: string | null;
           created_by?: string | null;
@@ -1332,7 +1332,7 @@ export type Database = {
           id: string;
           venue_id: string;
           label: string;
-          kind: "led_runner" | "vertical_kiosk";
+          kind: "led_runner" | "vertical_kiosk" | "production_runner";
           token_hash: string;
           revoked_at: string | null;
           last_seen_at: string | null;
@@ -1346,7 +1346,7 @@ export type Database = {
           id?: string;
           venue_id: string;
           label?: string;
-          kind: "led_runner" | "vertical_kiosk";
+          kind: "led_runner" | "vertical_kiosk" | "production_runner";
           token_hash: string;
           revoked_at?: string | null;
           last_seen_at?: string | null;
@@ -1770,6 +1770,348 @@ export type Database = {
           accepted_at?: string | null;
           completed_at?: string | null;
           reject_reason?: string | null;
+        };
+        Relationships: [];
+      };
+
+      production_settings: {
+        Row: {
+          venue_id: string;
+          production_device_id: string | null;
+          allow_per_bus_mute: boolean;
+          scene_favorites: Json;
+          overlay_favorites: Json;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          production_device_id?: string | null;
+          allow_per_bus_mute?: boolean;
+          scene_favorites?: Json;
+          overlay_favorites?: Json;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          production_device_id?: string | null;
+          allow_per_bus_mute?: boolean;
+          scene_favorites?: Json;
+          overlay_favorites?: Json;
+        };
+        Relationships: [];
+      };
+      production_device_status: {
+        Row: {
+          device_id: string;
+          venue_id: string;
+          connection_phase: string;
+          approval_permission: string | null;
+          ecamm_host: string | null;
+          ecamm_hostname: string | null;
+          ecamm_service_name: string | null;
+          runner_version: string | null;
+          ecamm_client_uuid: string | null;
+          current_scene_id: string | null;
+          current_scene_label: string | null;
+          button_label: string | null;
+          pause_button_label: string | null;
+          broadcast_inference: string | null;
+          broadcast_inference_source: string | null;
+          viewers: number | null;
+          preview_mode: boolean | null;
+          zoom_in_meeting: boolean | null;
+          last_success_at: string | null;
+          last_error: string | null;
+          endpoint_status: Json;
+          state_fingerprint: string | null;
+          raw_info_unmapped: Json;
+          reported_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          device_id: string;
+          venue_id: string;
+          connection_phase?: string;
+          approval_permission?: string | null;
+          ecamm_host?: string | null;
+          ecamm_hostname?: string | null;
+          ecamm_service_name?: string | null;
+          runner_version?: string | null;
+          ecamm_client_uuid?: string | null;
+          current_scene_id?: string | null;
+          current_scene_label?: string | null;
+          button_label?: string | null;
+          pause_button_label?: string | null;
+          broadcast_inference?: string | null;
+          broadcast_inference_source?: string | null;
+          viewers?: number | null;
+          preview_mode?: boolean | null;
+          zoom_in_meeting?: boolean | null;
+          last_success_at?: string | null;
+          last_error?: string | null;
+          endpoint_status?: Json;
+          state_fingerprint?: string | null;
+          raw_info_unmapped?: Json;
+          reported_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          connection_phase?: string;
+          approval_permission?: string | null;
+          ecamm_host?: string | null;
+          ecamm_hostname?: string | null;
+          ecamm_service_name?: string | null;
+          runner_version?: string | null;
+          ecamm_client_uuid?: string | null;
+          current_scene_id?: string | null;
+          current_scene_label?: string | null;
+          button_label?: string | null;
+          pause_button_label?: string | null;
+          broadcast_inference?: string | null;
+          broadcast_inference_source?: string | null;
+          viewers?: number | null;
+          preview_mode?: boolean | null;
+          zoom_in_meeting?: boolean | null;
+          last_success_at?: string | null;
+          last_error?: string | null;
+          endpoint_status?: Json;
+          state_fingerprint?: string | null;
+          raw_info_unmapped?: Json;
+          reported_at?: string;
+        };
+        Relationships: [];
+      };
+      production_sessions: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string | null;
+          event_id: string | null;
+          artist_ids: string[];
+          status: "planned" | "live" | "recording" | "paused" | "ended" | "unassigned";
+          title: string | null;
+          notes: string | null;
+          set_number: number | null;
+          started_at: string | null;
+          ended_at: string | null;
+          recording_started_at: string | null;
+          recording_ended_at: string | null;
+          ecamm_recording_path: string | null;
+          performance_recording_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id?: string | null;
+          event_id?: string | null;
+          artist_ids?: string[];
+          status?: "planned" | "live" | "recording" | "paused" | "ended" | "unassigned";
+          title?: string | null;
+          notes?: string | null;
+          set_number?: number | null;
+          started_at?: string | null;
+          ended_at?: string | null;
+          recording_started_at?: string | null;
+          recording_ended_at?: string | null;
+          ecamm_recording_path?: string | null;
+          performance_recording_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          device_id?: string | null;
+          event_id?: string | null;
+          artist_ids?: string[];
+          status?: "planned" | "live" | "recording" | "paused" | "ended" | "unassigned";
+          title?: string | null;
+          notes?: string | null;
+          set_number?: number | null;
+          started_at?: string | null;
+          ended_at?: string | null;
+          recording_started_at?: string | null;
+          recording_ended_at?: string | null;
+          ecamm_recording_path?: string | null;
+          performance_recording_id?: string | null;
+        };
+        Relationships: [];
+      };
+      production_markers: {
+        Row: {
+          id: string;
+          venue_id: string;
+          session_id: string;
+          label: string;
+          notes: string | null;
+          marked_at: string;
+          relative_seconds: number | null;
+          os_saved: boolean;
+          ecamm_status: "not_sent" | "queued" | "sent" | "acknowledged" | "failed" | "unknown";
+          ecamm_command_id: string | null;
+          ecamm_error: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          session_id: string;
+          label?: string;
+          notes?: string | null;
+          marked_at?: string;
+          relative_seconds?: number | null;
+          os_saved?: boolean;
+          ecamm_status?: "not_sent" | "queued" | "sent" | "acknowledged" | "failed" | "unknown";
+          ecamm_command_id?: string | null;
+          ecamm_error?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          label?: string;
+          notes?: string | null;
+          marked_at?: string;
+          relative_seconds?: number | null;
+          os_saved?: boolean;
+          ecamm_status?: "not_sent" | "queued" | "sent" | "acknowledged" | "failed" | "unknown";
+          ecamm_command_id?: string | null;
+          ecamm_error?: string | null;
+        };
+        Relationships: [];
+      };
+      production_commands: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string;
+          kind: string;
+          endpoint: string | null;
+          payload: Json;
+          status:
+            | "pending"
+            | "queued"
+            | "sent"
+            | "acknowledged"
+            | "confirmed"
+            | "failed"
+            | "expired"
+            | "uncertain"
+            | "rejected";
+          result: Json | null;
+          reject_reason: string | null;
+          issued_by: string | null;
+          issued_at: string;
+          expires_at: string;
+          sent_at: string | null;
+          acknowledged_at: string | null;
+          completed_at: string | null;
+          dedupe_key: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id: string;
+          kind: string;
+          endpoint?: string | null;
+          payload?: Json;
+          status?:
+            | "pending"
+            | "queued"
+            | "sent"
+            | "acknowledged"
+            | "confirmed"
+            | "failed"
+            | "expired"
+            | "uncertain"
+            | "rejected";
+          result?: Json | null;
+          reject_reason?: string | null;
+          issued_by?: string | null;
+          expires_at: string;
+          sent_at?: string | null;
+          acknowledged_at?: string | null;
+          completed_at?: string | null;
+          dedupe_key?: string | null;
+        };
+        Update: {
+          status?:
+            | "pending"
+            | "queued"
+            | "sent"
+            | "acknowledged"
+            | "confirmed"
+            | "failed"
+            | "expired"
+            | "uncertain"
+            | "rejected";
+          result?: Json | null;
+          reject_reason?: string | null;
+          sent_at?: string | null;
+          acknowledged_at?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      production_audit_log: {
+        Row: {
+          id: string;
+          venue_id: string;
+          actor_user_id: string | null;
+          device_id: string | null;
+          session_id: string | null;
+          action: string;
+          detail: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          actor_user_id?: string | null;
+          device_id?: string | null;
+          session_id?: string | null;
+          action: string;
+          detail?: Json;
+        };
+        Update: {
+          action?: string;
+          detail?: Json;
+        };
+        Relationships: [];
+      };
+      production_recording_events: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string | null;
+          session_id: string | null;
+          event_type: "recording_started" | "recording_finished" | "broadcast_started" | "broadcast_finished";
+          path_text: string | null;
+          path_validated: boolean;
+          idempotency_key: string;
+          payload: Json;
+          processed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id?: string | null;
+          session_id?: string | null;
+          event_type: "recording_started" | "recording_finished" | "broadcast_started" | "broadcast_finished";
+          path_text?: string | null;
+          path_validated?: boolean;
+          idempotency_key: string;
+          payload?: Json;
+          processed_at?: string | null;
+        };
+        Update: {
+          session_id?: string | null;
+          path_text?: string | null;
+          path_validated?: boolean;
+          payload?: Json;
+          processed_at?: string | null;
         };
         Relationships: [];
       };
@@ -2209,7 +2551,19 @@ export type Database = {
       camera_command_kind: "ptz_move" | "ptz_stop" | "ptz_zoom" | "ptz_preset_recall" | "ptz_preset_save" | "ptz_focus";
       camera_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";
       camera_preview_mode: "snapshot" | "webrtc";
-      display_device_kind: "led_runner" | "vertical_kiosk";
+      display_device_kind: "led_runner" | "vertical_kiosk" | "production_runner";
+      production_command_status:
+        | "pending"
+        | "queued"
+        | "sent"
+        | "acknowledged"
+        | "confirmed"
+        | "failed"
+        | "expired"
+        | "uncertain"
+        | "rejected";
+      production_session_status: "planned" | "live" | "recording" | "paused" | "ended" | "unassigned";
+      production_marker_ecamm_status: "not_sent" | "queued" | "sent" | "acknowledged" | "failed" | "unknown";
       performance_availability:
         | "metadata-only"
         | "needs download"

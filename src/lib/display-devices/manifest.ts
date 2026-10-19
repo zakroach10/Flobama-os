@@ -97,6 +97,26 @@ export async function buildDeviceManifest(
   const generatedAt = new Date().toISOString();
   const reloadNonce = await loadReloadNonce(client, input.venueId);
 
+  if (input.kind === "production_runner") {
+    const revision = buildRevision(["production", input.deviceId, generatedAt, reloadNonce]);
+    return {
+      revision,
+      etag: revision,
+      deviceId: input.deviceId,
+      venueId: input.venueId,
+      generatedAt,
+      mode: "idle",
+      playlistId: null,
+      startedAt: null,
+      fallbackPlaylistId: null,
+      takeover: null,
+      reloadNonce,
+      items: [],
+      assets: [],
+      overlays: { triviaEnabled: false, audienceEnabled: false },
+    };
+  }
+
   if (input.kind === "led_runner") {
     const [{ playback }, settingsRes] = await Promise.all([
       getPublicLedPlayback(client, input.venueId),

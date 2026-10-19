@@ -32,6 +32,7 @@ import {
 } from "./lib/recordings-paths.mjs";
 import { inventoryExportRows, inventoryRecordingsFolder, inventoryToCsv } from "./lib/recordings-inventory.mjs";
 import { applyPerformanceCommand } from "./lib/performance-controller.mjs";
+import { createEcammController } from "./lib/ecamm/index.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -183,6 +184,32 @@ async function runSetRecordingsRootCli() {
   console.log(JSON.stringify({ ok: true, settings }, null, 2));
 }
 
+async function runEcammDiscoverCli() {
+  const controller = createEcammController({
+    log: async (message) => console.error(message),
+    deviceName: hostname() || "FloBama Local Runner",
+  });
+  await controller.init();
+  const instances = await controller.discoverNow();
+  console.log(JSON.stringify({ count: instances.length, instances }, null, 2));
+  await controller.stop();
+}
+
+async function runEcammStatusCli() {
+  const controller = createEcammController({
+    log: async (message) => console.error(message),
+    deviceName: hostname() || "FloBama Local Runner",
+  });
+  await controller.init();
+  // Brief connect attempt when a host is already selected.
+  if (controller.getIdentity()?.lastHostPort) {
+    await controller.start();
+    await delay(500);
+    await controller.stop();
+  }
+  console.log(JSON.stringify(controller.getDiagnosticsSnapshot(), null, 2));
+}
+
 async function makeLogger() {
   await mkdir(LOG_DIR, { recursive: true });
   await mkdir(SUPPORT_DIR, { recursive: true });
@@ -311,6 +338,14 @@ async function main() {
     await runSetRecordingsRootCli();
     return;
   }
+  if (args.includes("--ecamm-discover")) {
+    await runEcammDiscoverCli();
+    return;
+  }
+  if (args.includes("--ecamm-status")) {
+    await runEcammStatusCli();
+    return;
+  }
 
   const log = await makeLogger();
   let config = await loadConfig();
@@ -371,6 +406,13 @@ async function main() {
     await saveCatalog(recordingsCatalog);
   }
 
+  const ecammController = createEcammController({
+    log,
+    deviceName: hostname() || config.label || "FloBama Local Runner",
+  });
+  await ecammController.init();
+  await ecammController.start();
+
   const savedManifest = readSavedManifest(db);
   const runtime = {
     version: VERSION,
@@ -391,6 +433,7 @@ async function main() {
     pendingCatalogSync: true,
     performanceRevision: getPerformanceState(recordingsCatalog).revision || 1,
     acknowledgedCommandIds: new Set(),
+    ecammController,
   };
 
   try {
@@ -664,6 +707,7 @@ async function main() {
           lastScanAt: runtime.recordingsCatalog.data.lastScanAt,
           catalogCount: Object.keys(runtime.recordingsCatalog.data.recordings || {}).length,
         },
+        ecamm: ecammController.getHeartbeatEcammPayload(),
         lastError: state.lastError,
       }),
     });
@@ -746,6 +790,32 @@ async function main() {
           "content-type": "application/json",
         },
         body: JSON.stringify({ commandResults }),
+      }).catch(() => {});
+    }
+
+    const productionCommands = Array.isArray(desired.commands?.productionCommands)
+      ? desired.commands.productionCommands
+      : [];
+    const productionResults = [];
+    for (const command of productionCommands) {
+      if (!command?.id) continue;
+      const result = await ecammController.executeCommand(command);
+      productionResults.push({
+        id: command.id,
+        status: result.status,
+        rejectReason: result.rejectReason || null,
+      });
+      const reason = result.rejectReason ? ` — ${result.rejectReason}` : "";
+      await log(`Production command ${command.kind} (${command.id}): ${result.status}${reason}`);
+    }
+    if (productionResults.length) {
+      await fetch(`${config.apiBase}/api/agent/v1/display-devices/production/command-ack`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${config.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ commandResults: productionResults }),
       }).catch(() => {});
     }
   }

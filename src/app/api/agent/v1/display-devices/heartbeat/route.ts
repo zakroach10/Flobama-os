@@ -6,6 +6,8 @@ import type { Json } from "@/lib/database.types";
 import { resolveDesiredObsScene } from "@/lib/screens/led-wall";
 import { getPublicLedPlayback, resolvePlaylistActiveScene } from "@/lib/queries/led-playlists";
 import { listPendingPerformanceCommands } from "@/lib/performance/commands";
+import { listPendingProductionCommands } from "@/lib/production/commands";
+import { upsertProductionDeviceStatus } from "@/lib/production/status";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +198,49 @@ export async function POST(request: Request) {
     performanceCommands = pending.commands;
   }
 
+  if (parsed.data.ecamm) {
+    const upsert = await upsertProductionDeviceStatus(auth.admin, {
+      deviceId: auth.device.id,
+      venueId: auth.device.venue_id,
+      ecamm: parsed.data.ecamm,
+      runnerVersion: parsed.data.appVersion ?? null,
+      reportedAt: now,
+    });
+    if (upsert.error) {
+      console.error("production device status upsert failed", upsert.error);
+    }
+  }
+
+  let productionCommands: Array<{
+    id: string;
+    kind: string;
+    payload: Json;
+    expiresAt: string;
+    endpoint?: string | null;
+    nonIdempotent?: boolean;
+  }> = [];
+
+  const caps = (auth.device.capabilities || {}) as Record<string, unknown>;
+  const hasEcammCapability = Boolean(caps.ecamm || caps.production || parsed.data.ecamm);
+  let isVenueProductionDevice = auth.device.kind === "production_runner";
+  if (!isVenueProductionDevice && (auth.device.kind === "led_runner" || hasEcammCapability)) {
+    const { data: settings } = await auth.admin
+      .from("production_settings")
+      .select("production_device_id")
+      .eq("venue_id", auth.device.venue_id)
+      .maybeSingle();
+    isVenueProductionDevice = settings?.production_device_id === auth.device.id;
+  }
+
+  if (
+    auth.device.kind === "production_runner" ||
+    isVenueProductionDevice ||
+    hasEcammCapability
+  ) {
+    const pending = await listPendingProductionCommands(auth.admin, auth.device.id, new Date(now));
+    productionCommands = pending.commands;
+  }
+
   // Priority: performance playback on the runner suppresses routine OBS scene chasing
   // when the runner reports performance mode (handled client-side). Server still sends desiredObsScene.
   return NextResponse.json({
@@ -207,6 +252,7 @@ export async function POST(request: Request) {
       safeRefresh,
       desiredObsScene,
       performanceCommands,
+      productionCommands,
     },
   });
 }

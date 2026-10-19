@@ -1,9 +1,10 @@
-export const DISPLAY_DEVICE_KINDS = ["led_runner", "vertical_kiosk"] as const;
+export const DISPLAY_DEVICE_KINDS = ["led_runner", "vertical_kiosk", "production_runner"] as const;
 export type DisplayDeviceKind = (typeof DISPLAY_DEVICE_KINDS)[number];
 
 export const DISPLAY_DEVICE_KIND_LABELS: Record<DisplayDeviceKind, string> = {
   led_runner: "LED Local Runner",
   vertical_kiosk: "Vertical kiosk",
+  production_runner: "Production Local Runner",
 };
 
 export const DISPLAY_PAIRING_TTL_MS = 10 * 60 * 1000;

@@ -161,6 +161,7 @@ export function DisplayDevicesPanel({
             >
               <option value="led_runner">{DISPLAY_DEVICE_KIND_LABELS.led_runner}</option>
               <option value="vertical_kiosk">{DISPLAY_DEVICE_KIND_LABELS.vertical_kiosk}</option>
+              <option value="production_runner">{DISPLAY_DEVICE_KIND_LABELS.production_runner}</option>
             </select>
           </label>
           <Button
