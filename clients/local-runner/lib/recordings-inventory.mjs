@@ -152,14 +152,15 @@ export async function inventoryRecordingsFolder(recordingsRoot, options = {}) {
       continue;
     }
 
-    // Recurse into every session folder, but only catalog main Ecamm program files.
-    if (!isMainEcammRecording(entry.name)) {
+    // Recurse into every session folder, but only catalog main Ecamm program files
+    // (Ecamm in filename or parent folder). Always skip Camera A/B angle views.
+    if (!isMainEcammRecording(entry.name, rel)) {
       skippedCameraOrNonEcamm += 1;
       nonVideo.push({
         relativePath: rel,
         originalFilename: entry.name,
         fileSize: info.size,
-        reason: ecammSkipReason(entry.name) || "Skipped (not main Ecamm recording).",
+        reason: ecammSkipReason(entry.name, rel) || "Skipped (not main Ecamm recording).",
       });
       continue;
     }

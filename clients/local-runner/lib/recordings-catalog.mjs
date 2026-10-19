@@ -154,41 +154,69 @@ export function getPerformanceState(catalog) {
   return catalog.data.performance || defaultPerformanceState();
 }
 
+function asIsoOrNull(value) {
+  if (value == null || value === "") return null;
+  const s = String(value);
+  const ms = Date.parse(s);
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString();
+}
+
+function asFiniteNumberOrNull(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Metadata safe to sync to FloBama OS (no absolute paths). */
 export function catalogSyncPayload(catalog, deviceId) {
-  const recordings = listRecordings(catalog).map((rec) => ({
-    recordingId: rec.recordingId,
-    sourceDeviceId: deviceId || null,
-    originalFilename: rec.originalFilename,
-    relativePath: rec.relativePath,
-    fileSize: rec.fileSize ?? null,
-    birthtimeMs: rec.birthtimeMs ?? null,
-    mtimeMs: rec.mtimeMs ?? null,
-    parsedTimestamp: rec.parsedTimestamp ?? null,
-    rawTimestampText: rec.rawTimestampText ?? null,
-    timezone: rec.timezone ?? null,
-    parseSource: rec.parseSource ?? null,
-    parseConfidence: rec.parseConfidence ?? null,
-    durationSeconds: rec.durationSeconds ?? null,
-    container: rec.container ?? null,
-    videoCodec: rec.videoCodec ?? null,
-    audioCodec: rec.audioCodec ?? null,
-    width: rec.width ?? null,
-    height: rec.height ?? null,
-    hasAudio: rec.hasAudio ?? null,
-    availability: rec.availability,
-    lastScanAt: rec.lastScanAt ?? null,
-    lastError: rec.lastError ?? null,
-    playbackCompatible: rec.playbackCompatible ?? null,
-    needsConversion: rec.needsConversion ?? false,
-  }));
+  const sourceDeviceId =
+    typeof deviceId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId)
+      ? deviceId
+      : null;
+
+  const recordings = listRecordings(catalog)
+    .filter((rec) => rec && rec.recordingId && rec.originalFilename && rec.relativePath)
+    .filter((rec) => rec.availability !== "missing")
+    .map((rec) => ({
+      recordingId: String(rec.recordingId).slice(0, 64),
+      sourceDeviceId,
+      originalFilename: String(rec.originalFilename).slice(0, 500),
+      relativePath: String(rec.relativePath).slice(0, 2000),
+      fileSize: asFiniteNumberOrNull(rec.fileSize),
+      birthtimeMs: asFiniteNumberOrNull(rec.birthtimeMs),
+      mtimeMs: asFiniteNumberOrNull(rec.mtimeMs),
+      parsedTimestamp: asIsoOrNull(rec.parsedTimestamp),
+      rawTimestampText: rec.rawTimestampText != null ? String(rec.rawTimestampText).slice(0, 200) : null,
+      timezone: rec.timezone != null ? String(rec.timezone).slice(0, 80) : null,
+      parseSource: rec.parseSource != null ? String(rec.parseSource).slice(0, 80) : null,
+      parseConfidence: rec.parseConfidence != null ? String(rec.parseConfidence).slice(0, 40) : null,
+      durationSeconds: asFiniteNumberOrNull(rec.durationSeconds),
+      container: rec.container != null ? String(rec.container).slice(0, 80) : null,
+      videoCodec: rec.videoCodec != null ? String(rec.videoCodec).slice(0, 80) : null,
+      audioCodec: rec.audioCodec != null ? String(rec.audioCodec).slice(0, 80) : null,
+      width: asFiniteNumberOrNull(rec.width) != null ? Math.trunc(Number(rec.width)) : null,
+      height: asFiniteNumberOrNull(rec.height) != null ? Math.trunc(Number(rec.height)) : null,
+      hasAudio: typeof rec.hasAudio === "boolean" ? rec.hasAudio : null,
+      availability: rec.availability || "error",
+      lastScanAt: asIsoOrNull(rec.lastScanAt),
+      lastError: rec.lastError != null ? String(rec.lastError).slice(0, 1000) : null,
+      playbackCompatible: typeof rec.playbackCompatible === "boolean" ? rec.playbackCompatible : null,
+      needsConversion: Boolean(rec.needsConversion),
+    }));
 
   return {
     recordingsRootConfigured: Boolean(catalog.data.recordingsRoot),
-    lastScanAt: catalog.data.lastScanAt,
-    scanStats: catalog.data.scanStats,
+    recordingsRoot: catalog.data.recordingsRoot || null,
+    lastScanAt: asIsoOrNull(catalog.data.lastScanAt),
+    scanStats: catalog.data.scanStats || {},
     nonVideoCount: Array.isArray(catalog.data.nonVideo) ? catalog.data.nonVideo.length : 0,
-    nonVideoSample: (catalog.data.nonVideo || []).slice(0, 50),
+    nonVideoSample: (catalog.data.nonVideo || []).slice(0, 50).map((row) => ({
+      originalFilename: row?.originalFilename ?? null,
+      relativePath: row?.relativePath ?? null,
+      reason: row?.reason ?? null,
+    })),
     recordings,
     performance: getPerformanceState(catalog),
   };
