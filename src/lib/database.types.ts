@@ -1428,6 +1428,7 @@ export type Database = {
           venue_id: string;
           device_id: string | null;
           recordings_root: string | null;
+          dropbox_relative_root: string | null;
           default_timezone: string;
           last_scan_at: string | null;
           last_catalog_sync_at: string | null;
@@ -1440,6 +1441,7 @@ export type Database = {
           venue_id: string;
           device_id?: string | null;
           recordings_root?: string | null;
+          dropbox_relative_root?: string | null;
           default_timezone?: string;
           last_scan_at?: string | null;
           last_catalog_sync_at?: string | null;
@@ -1451,6 +1453,7 @@ export type Database = {
         Update: {
           device_id?: string | null;
           recordings_root?: string | null;
+          dropbox_relative_root?: string | null;
           default_timezone?: string;
           last_scan_at?: string | null;
           last_catalog_sync_at?: string | null;
@@ -1467,6 +1470,11 @@ export type Database = {
           recording_id: string;
           original_filename: string;
           relative_path: string;
+          session_folder: string | null;
+          session_relative_path: string | null;
+          primary_asset_id: string | null;
+          camera_count: number;
+          assets: Json;
           file_size: number | null;
           birthtime_ms: number | null;
           mtime_ms: number | null;
@@ -1512,6 +1520,11 @@ export type Database = {
           recording_id: string;
           original_filename: string;
           relative_path: string;
+          session_folder?: string | null;
+          session_relative_path?: string | null;
+          primary_asset_id?: string | null;
+          camera_count?: number;
+          assets?: Json;
           file_size?: number | null;
           birthtime_ms?: number | null;
           mtime_ms?: number | null;
@@ -1552,6 +1565,11 @@ export type Database = {
           source_device_id?: string | null;
           original_filename?: string;
           relative_path?: string;
+          session_folder?: string | null;
+          session_relative_path?: string | null;
+          primary_asset_id?: string | null;
+          camera_count?: number;
+          assets?: Json;
           file_size?: number | null;
           birthtime_ms?: number | null;
           mtime_ms?: number | null;

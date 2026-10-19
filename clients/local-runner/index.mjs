@@ -24,8 +24,10 @@ import {
   saveCatalog,
 } from "./lib/recordings-catalog.mjs";
 import {
+  DEFAULT_DROPBOX_RELATIVE_ROOT,
   discoverRecordingsCandidates,
   loadRecordingsSettings,
+  resolveConfiguredRecordingsRoot,
   saveRecordingsSettings,
 } from "./lib/recordings-paths.mjs";
 import { inventoryExportRows, inventoryRecordingsFolder, inventoryToCsv } from "./lib/recordings-inventory.mjs";
@@ -65,13 +67,30 @@ async function loadConfig() {
 }
 
 async function runDiscoverRecordingsCli() {
-  const candidates = await discoverRecordingsCandidates();
   const settings = await loadRecordingsSettings();
-  console.log(JSON.stringify({ settings, candidates, count: candidates.length }, null, 2));
+  const resolved = await resolveConfiguredRecordingsRoot(settings);
+  const candidates = resolved.candidates.length
+    ? resolved.candidates
+    : await discoverRecordingsCandidates({ dropboxRelativeRoot: settings.dropboxRelativeRoot });
+  console.log(
+    JSON.stringify(
+      {
+        settings,
+        dropboxRelativeRoot: settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+        resolvedRoot: resolved.recordingsRoot,
+        source: resolved.source,
+        candidates,
+        count: candidates.length,
+      },
+      null,
+      2,
+    ),
+  );
   if (!candidates.length) {
     console.error(
-      "No Recordings folder candidates found under Dropbox/CloudStorage. Configure manually with --set-recordings-root=PATH",
+      `No folder found for Dropbox-relative path ${settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT}.`,
     );
+    console.error("Configure the local synced path with --set-recordings-root=PATH");
     process.exitCode = 2;
   }
 }
@@ -79,32 +98,43 @@ async function runDiscoverRecordingsCli() {
 async function runInventoryRecordingsCli() {
   const settings = await loadRecordingsSettings();
   const rootArg = args.find((arg) => arg.startsWith("--recordings-root="));
-  const root = rootArg
-    ? expandHome(rootArg.slice("--recordings-root=".length))
-    : settings.recordingsRoot || (await discoverRecordingsCandidates())[0] || null;
+  const relativeArg = args.find((arg) => arg.startsWith("--dropbox-relative-root="));
+  const dropboxRelativeRoot = relativeArg
+    ? relativeArg.slice("--dropbox-relative-root=".length)
+    : settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT;
+
+  let root = rootArg ? expandHome(rootArg.slice("--recordings-root=".length)) : null;
+  if (!root) {
+    const resolved = await resolveConfiguredRecordingsRoot({ ...settings, dropboxRelativeRoot });
+    root = resolved.recordingsRoot;
+  }
 
   if (!root) {
     console.error("No recordings folder available in this environment.");
     console.error("On the wall Mac, run:");
     console.error("  cd clients/local-runner && node index.mjs --discover-recordings");
-    console.error("  node index.mjs --set-recordings-root=\"/path/to/Recordings\"");
+    console.error(`  # expects Dropbox-relative ${DEFAULT_DROPBOX_RELATIVE_ROOT}`);
+    console.error("  node index.mjs --set-recordings-root=\"/path/to/local/Dropbox/.../Recordings\"");
     console.error("  node index.mjs --inventory-recordings");
     process.exit(2);
   }
 
   console.error(`Scanning: ${root}`);
+  console.error(`Dropbox-relative: ${dropboxRelativeRoot}`);
   const catalog = await openRecordingsCatalog();
   const result = await inventoryRecordingsFolder(root, {
     timeZone: settings.defaultTimezone || "America/Chicago",
   });
   await mergeScanResults(catalog, {
     recordingsRoot: root,
+    dropboxRelativeRoot,
     scanned: result.scanned,
     nonVideo: result.nonVideo,
     stats: result.stats,
   });
   await saveRecordingsSettings({
     recordingsRoot: root,
+    dropboxRelativeRoot,
     defaultTimezone: settings.defaultTimezone || "America/Chicago",
   });
 
@@ -112,6 +142,7 @@ async function runInventoryRecordingsCli() {
   const rows = inventoryExportRows(catalog.data);
   const payload = {
     recordingsRoot: root,
+    dropboxRelativeRoot,
     scannedAt: result.stats.scannedAt,
     stats: result.stats,
     nonVideoCount: result.nonVideo.length,
@@ -129,18 +160,26 @@ async function runInventoryRecordingsCli() {
   }
   console.log(JSON.stringify({ ...payload, rows: rows.slice(0, 20), rowCount: rows.length }, null, 2));
   console.error(
-    `Inventory complete: ${result.stats.videoFiles} videos / ${result.stats.totalFiles} total files (${result.nonVideo.length} non-video).`,
+    `Inventory complete: ${result.stats.sessionFolders || 0} sessions / ${result.stats.videoFiles} videos / ${result.stats.cameraAssets || 0} camera assets.`,
   );
 }
 
 async function runSetRecordingsRootCli() {
   const rootArg = args.find((arg) => arg.startsWith("--set-recordings-root="));
+  const relativeArg = args.find((arg) => arg.startsWith("--dropbox-relative-root="));
   const root = rootArg ? expandHome(rootArg.slice("--set-recordings-root=".length)) : null;
   if (!root) {
-    console.error("Usage: node index.mjs --set-recordings-root=\"/path/to/Recordings\"");
+    console.error(
+      'Usage: node index.mjs --set-recordings-root="/Users/…/Dropbox/…/Recordings" [--dropbox-relative-root="/A- View 360 Brands/3- Customers/F/Flobama/Recordings"]',
+    );
     process.exit(1);
   }
-  const settings = await saveRecordingsSettings({ recordingsRoot: root });
+  const settings = await saveRecordingsSettings({
+    recordingsRoot: root,
+    dropboxRelativeRoot: relativeArg
+      ? relativeArg.slice("--dropbox-relative-root=".length)
+      : DEFAULT_DROPBOX_RELATIVE_ROOT,
+  });
   console.log(JSON.stringify({ ok: true, settings }, null, 2));
 }
 
@@ -308,11 +347,28 @@ async function main() {
   const recordingsCatalog = await openRecordingsCatalog();
   const recordingsSettings = await loadRecordingsSettings();
   if (config.recordingsRoot && !recordingsSettings.recordingsRoot) {
-    await saveRecordingsSettings({ recordingsRoot: config.recordingsRoot });
+    await saveRecordingsSettings({
+      recordingsRoot: config.recordingsRoot,
+      dropboxRelativeRoot: recordingsSettings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+    });
     recordingsCatalog.data.recordingsRoot = config.recordingsRoot;
+    recordingsCatalog.data.dropboxRelativeRoot =
+      recordingsSettings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT;
     await saveCatalog(recordingsCatalog);
-  } else if (recordingsSettings.recordingsRoot) {
-    recordingsCatalog.data.recordingsRoot = recordingsSettings.recordingsRoot;
+  } else {
+    const resolved = await resolveConfiguredRecordingsRoot(recordingsSettings);
+    if (resolved.recordingsRoot) {
+      recordingsCatalog.data.recordingsRoot = resolved.recordingsRoot;
+    }
+    recordingsCatalog.data.dropboxRelativeRoot = resolved.dropboxRelativeRoot;
+    if (resolved.recordingsRoot && !recordingsSettings.recordingsRoot) {
+      await saveRecordingsSettings({
+        ...recordingsSettings,
+        recordingsRoot: resolved.recordingsRoot,
+        dropboxRelativeRoot: resolved.dropboxRelativeRoot,
+      });
+    }
+    await saveCatalog(recordingsCatalog);
   }
 
   const savedManifest = readSavedManifest(db);
@@ -502,13 +558,14 @@ async function main() {
       });
       await mergeScanResults(runtime.recordingsCatalog, {
         recordingsRoot: root,
+        dropboxRelativeRoot: settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
         scanned: result.scanned,
         nonVideo: result.nonVideo,
         stats: result.stats,
       });
       runtime.pendingCatalogSync = true;
       await log(
-        `Recordings scan: ${result.stats.videoFiles} videos / ${result.stats.totalFiles} files (${result.nonVideo.length} non-video)`,
+        `Recordings scan: ${result.stats.sessionFolders || 0} sessions / ${result.stats.videoFiles} videos / ${result.stats.cameraAssets || 0} cameras`,
       );
     } catch (error) {
       state.lastError = error instanceof Error ? error.message : String(error);

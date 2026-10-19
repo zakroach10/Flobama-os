@@ -260,12 +260,15 @@ export function startHttpServer(runtime) {
           sendJson(res, 400, { error: "recordingsRoot is required." });
           return;
         }
+        const { DEFAULT_DROPBOX_RELATIVE_ROOT } = await import("./recordings-paths.mjs");
         const settings = await saveRecordingsSettings({
           recordingsRoot: root,
+          dropboxRelativeRoot: body.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
           defaultTimezone: body.timezone || "America/Chicago",
         });
         if (runtime.recordingsCatalog) {
           runtime.recordingsCatalog.data.recordingsRoot = settings.recordingsRoot;
+          runtime.recordingsCatalog.data.dropboxRelativeRoot = settings.dropboxRelativeRoot;
         }
         runtime.pendingScan = true;
         sendJson(res, 200, { ok: true, settings });

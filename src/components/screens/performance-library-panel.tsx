@@ -20,7 +20,11 @@ import {
 } from "@/actions/performance-library";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PERFORMANCE_LIBRARY_SQL } from "@/lib/constants";
+import {
+  DROPBOX_RECORDINGS_RELATIVE_ROOT,
+  PERFORMANCE_LIBRARY_SQL,
+  PERFORMANCE_SESSION_ASSETS_SQL,
+} from "@/lib/constants";
 import type { StaffPerformanceRecording } from "@/lib/queries/performance-library";
 import { isDisplayDeviceStale, type StaffDisplayDevice } from "@/lib/display-devices/types";
 
@@ -62,10 +66,18 @@ type PlaybackState = {
 
 type Settings = {
   recordings_root: string | null;
+  dropbox_relative_root?: string | null;
   last_scan_at: string | null;
   catalog_count: number;
   last_catalog_sync_at: string | null;
+  scan_stats?: unknown;
 } | null;
+
+function scanStatNumber(stats: unknown, key: string): number | null {
+  if (!stats || typeof stats !== "object" || Array.isArray(stats)) return null;
+  const value = (stats as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
 export function PerformanceLibraryPanel({
   recordings,
@@ -124,7 +136,8 @@ export function PerformanceLibraryPanel({
       <section className="rounded-xl border bg-card p-5">
         <h2 className="text-lg font-semibold">Performance Library</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Apply <code className="text-xs">{PERFORMANCE_LIBRARY_SQL}</code> in the Supabase SQL editor, then reload
+          Apply <code className="text-xs">{PERFORMANCE_LIBRARY_SQL}</code> and{" "}
+          <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code> in the Supabase SQL editor, then reload
           Screens.
         </p>
       </section>
@@ -136,10 +149,10 @@ export function PerformanceLibraryPanel({
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Performance Library</h2>
         <p className="text-sm text-muted-foreground">
-          Catalog Dropbox-synced recordings on the wall Mac, match them to historical events, and queue them for LED
-          playback. The runner opens every nested session folder and keeps Ecamm program recordings (Ecamm in the
-          filename or folder) — Camera A/B angle views are skipped. Media bytes stay on the Local Runner (
-          <code className="text-xs">127.0.0.1:4173</code>), never through Vercel.
+          Each Ecamm session folder under the configured Dropbox Recordings root becomes one catalog entry. The
+          matching <code className="text-xs">.mp4</code> is the primary playback candidate; Camera A/B variants stay
+          attached as session assets. Timestamps come from the folder name in America/Chicago. Media bytes stay on
+          the Local Runner (<code className="text-xs">127.0.0.1:4173</code>), never through Vercel.
         </p>
       </div>
 
@@ -153,15 +166,15 @@ export function PerformanceLibraryPanel({
         <div className="space-y-1 text-sm">
           <div className="font-medium">Recordings folder</div>
           <div className="text-muted-foreground break-all">{settings?.recordings_root || "Not configured on the Mac yet"}</div>
+          <div className="text-xs text-muted-foreground break-all">
+            Dropbox-relative: {settings?.dropbox_relative_root || DROPBOX_RECORDINGS_RELATIVE_ROOT}
+          </div>
           <div className="text-xs text-muted-foreground">
-            Last scan: {formatClock(settings?.last_scan_at)} · {settings?.catalog_count ?? 0} catalogued
-            {typeof (settings as { scan_stats?: { skippedCameraOrNonEcamm?: number; videoFiles?: number; totalFiles?: number } } | null)?.scan_stats
-              ?.totalFiles === "number"
-              ? ` · scanned ${
-                  (settings as { scan_stats?: { totalFiles?: number } }).scan_stats?.totalFiles
-                } files / ${
-                  (settings as { scan_stats?: { videoFiles?: number } }).scan_stats?.videoFiles ?? 0
-                } Ecamm`
+            Last scan: {formatClock(settings?.last_scan_at)} · {settings?.catalog_count ?? 0} sessions
+            {scanStatNumber(settings?.scan_stats, "sessionFolders") != null
+              ? ` · ${scanStatNumber(settings?.scan_stats, "sessionFolders")} folders / ${
+                  scanStatNumber(settings?.scan_stats, "cameraAssets") ?? 0
+                } cameras`
               : ""}
           </div>
         </div>
@@ -189,13 +202,13 @@ export function PerformanceLibraryPanel({
         >
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium" htmlFor="recordings-root">
-              Set recordings root on Mac
+              Local synced Recordings root on Mac
             </label>
             <Input
               id="recordings-root"
               value={rootInput}
               onChange={(e) => setRootInput(e.target.value)}
-              placeholder="/Users/…/Dropbox/…/Recordings"
+              placeholder="/Users/…/Dropbox/A- View 360 Brands/3- Customers/F/Flobama/Recordings"
             />
           </div>
           <Button type="submit" disabled={pending || !rootInput.trim()}>
@@ -278,10 +291,15 @@ export function PerformanceLibraryPanel({
             <p>No recordings in this view yet.</p>
             <ol className="list-decimal space-y-1 pl-5">
               <li>Apply the performance library SQL migration in Supabase if the panel asked you to.</li>
-              <li>Install Local Runner 1.1.2+ on the wall Mac and keep it online.</li>
+              <li>Install Local Runner 1.2.0+ on the wall Mac and keep it online.</li>
               <li>
-                Set the Recordings root to the Dropbox <code className="text-xs">…/Recordings</code> folder (the one
-                that contains the Ecamm session folders), then click Rescan.
+                Set the local synced path for{" "}
+                <code className="text-xs">{DROPBOX_RECORDINGS_RELATIVE_ROOT}</code> (session folders only — do not
+                point at other Recordings trees), then click Rescan.
+              </li>
+              <li>
+                Apply <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code> in Supabase if sessions sync
+                but camera asset columns are missing.
               </li>
               <li>
                 Or on the Mac:{" "}
@@ -305,7 +323,13 @@ export function PerformanceLibraryPanel({
                     {formatBytes(row.file_size)}
                     {" · "}
                     {formatClock(row.parsed_timestamp)}
+                    {typeof row.camera_count === "number" && row.camera_count > 0
+                      ? ` · ${row.camera_count} camera${row.camera_count === 1 ? "" : "s"}`
+                      : ""}
                   </div>
+                  {row.session_folder ? (
+                    <div className="text-xs text-muted-foreground break-all">Session: {row.session_folder}</div>
+                  ) : null}
                   {row.events ? (
                     <div className="text-xs">Event: {row.events.title}</div>
                   ) : row.suggested_event_ids?.length ? (

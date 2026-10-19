@@ -70,6 +70,22 @@ export async function resolvePlayablePath(catalog, recordingId) {
     return { ok: false, status: 409, error: "Recording is still being written." };
   }
 
+  // Re-verify local bytes before LED playback — Dropbox may have gone online-only since scan.
+  try {
+    const info = await stat(resolved);
+    const { detectLocalAvailability } = await import("./recordings-inventory.mjs");
+    const local = await detectLocalAvailability(resolved, info);
+    if (local.availability === "needs download" || local.availability === "preparing" || local.availability === "missing") {
+      return {
+        ok: false,
+        status: 409,
+        error: local.reason || `Primary file is ${local.availability}; download before LED playback.`,
+      };
+    }
+  } catch {
+    return { ok: false, status: 404, error: "Primary recording file missing." };
+  }
+
   return {
     ok: true,
     path: resolved,

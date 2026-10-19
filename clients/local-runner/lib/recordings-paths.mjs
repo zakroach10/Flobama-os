@@ -1,8 +1,15 @@
 import { createHash } from "node:crypto";
-import { access, readdir, realpath, stat } from "node:fs/promises";
+import { access, readdir, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, normalize, relative, resolve, sep } from "node:path";
 import { SUPPORT_DIR, expandHome } from "./paths.mjs";
+import {
+  DEFAULT_DROPBOX_RELATIVE_ROOT,
+  DEFAULT_VENUE_TIMEZONE,
+  dropboxRelativeSegments,
+  isCameraAngleFilename,
+  normalizeDropboxRelativePath,
+} from "./recordings-ecamm.mjs";
 
 export const RECORDINGS_CATALOG_FILE = join(SUPPORT_DIR, "recordings-catalog.json");
 export const PERFORMANCE_CACHE_DIR = join(SUPPORT_DIR, "performance-cache");
@@ -22,17 +29,12 @@ export const VIDEO_EXTENSIONS = new Set([
   ".m2ts",
 ]);
 
-/**
- * Hint segments from the Finder hierarchy (Dropbox / A- View 360 Brands / … / Recordings).
- * Used only for discovery — never treated as a verified absolute path.
- */
-export const RECORDINGS_PATH_HINTS = [
-  ["A- View 360 Brands", "3- Customers", "F", "Flobama", "Recordings"],
-  ["A- View 360 Brands", "3- Customers", "F", "FloBama", "Recordings"],
-  ["A- View 360 Brands", "3-Customers", "F", "Flobama", "Recordings"],
-  ["View 360 Brands", "3- Customers", "F", "Flobama", "Recordings"],
-];
+export { DEFAULT_DROPBOX_RELATIVE_ROOT, DEFAULT_VENUE_TIMEZONE };
 
+/**
+ * Stable id from a full relative path (session folder or asset). Never filename alone —
+ * "Camera A.mp4" repeats across sessions.
+ */
 export function stableRecordingId(relativePath) {
   const normalized = String(relativePath || "")
     .replace(/\\/g, "/")
@@ -69,7 +71,6 @@ export async function discoverDropboxRoots(home = homedir()) {
     }
   }
 
-  // Some installs use ~/Dropbox (Personal) or team folders as siblings.
   try {
     const homeEntries = await readdir(home, { withFileTypes: true });
     for (const entry of homeEntries) {
@@ -85,60 +86,90 @@ export async function discoverDropboxRoots(home = homedir()) {
   return roots;
 }
 
-async function findHintMatchesUnder(root, hintSegments) {
-  const matches = [];
-
-  async function walk(dir, depth, segmentIndex) {
-    if (depth > 12 || segmentIndex >= hintSegments.length) return;
+/**
+ * Join a Dropbox sync root with a Dropbox-relative path (leading slash ok).
+ * Returns absolute local path if every segment exists; otherwise null.
+ */
+export async function joinDropboxRelative(dropboxRoot, relativeRoot) {
+  if (!dropboxRoot) return null;
+  const segments = dropboxRelativeSegments(relativeRoot);
+  let current = dropboxRoot;
+  for (const segment of segments) {
     let entries;
     try {
-      entries = await readdir(dir, { withFileTypes: true });
+      entries = await readdir(current, { withFileTypes: true });
     } catch {
-      return;
+      return null;
     }
-    const want = hintSegments[segmentIndex];
-    for (const entry of entries) {
-      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-      if (entry.name !== want && entry.name.toLowerCase() !== want.toLowerCase()) continue;
-      const next = join(dir, entry.name);
-      if (segmentIndex === hintSegments.length - 1) {
-        matches.push(next);
-      } else {
-        await walk(next, depth + 1, segmentIndex + 1);
-      }
-    }
+    const match = entries.find(
+      (entry) =>
+        (entry.isDirectory() || entry.isSymbolicLink()) &&
+        (entry.name === segment || entry.name.toLowerCase() === segment.toLowerCase()),
+    );
+    if (!match) return null;
+    current = join(current, match.name);
   }
-
-  await walk(root, 0, 0);
-  return matches;
+  if (!(await pathExists(current))) return null;
+  return current;
 }
 
 /**
- * Discover candidate Recordings folders. Returns unique absolute paths.
- * Does not download cloud content — only lists directories that are already visible.
+ * Resolve the verified FloBama Recordings folder from Dropbox-relative path only.
+ * Does not return similarly named Recordings folders elsewhere.
+ */
+export async function resolveDropboxRelativeRoot(options = {}) {
+  const home = options.home || homedir();
+  const relativeRoot = normalizeDropboxRelativePath(
+    options.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+  );
+  const roots = options.roots || (await discoverDropboxRoots(home));
+  const found = [];
+  for (const root of roots) {
+    const match = await joinDropboxRelative(root, relativeRoot);
+    if (match) found.push(match);
+  }
+  return {
+    dropboxRelativeRoot: relativeRoot,
+    candidates: [...new Set(found)].sort(),
+  };
+}
+
+/**
+ * Discover the configured FloBama Recordings root(s).
+ * Uses the exact Dropbox-relative path — never auto-merges other Recordings trees.
  */
 export async function discoverRecordingsCandidates(options = {}) {
-  const home = options.home || homedir();
-  const roots = options.roots || (await discoverDropboxRoots(home));
-  const found = new Set();
+  const resolved = await resolveDropboxRelativeRoot(options);
+  return resolved.candidates;
+}
 
-  for (const root of roots) {
-    for (const hint of RECORDINGS_PATH_HINTS) {
-      const matches = await findHintMatchesUnder(root, hint);
-      for (const match of matches) found.add(match);
-    }
-    // Also accept a top-level Recordings folder under Dropbox / Flobama-ish paths.
-    const shallow = [
-      join(root, "Flobama", "Recordings"),
-      join(root, "FloBama", "Recordings"),
-      join(root, "Recordings"),
-    ];
-    for (const candidate of shallow) {
-      if (await pathExists(candidate)) found.add(candidate);
-    }
+/**
+ * Prefer an explicit local absolute path; otherwise resolve Dropbox-relative against sync roots.
+ */
+export async function resolveConfiguredRecordingsRoot(settings = {}, options = {}) {
+  const dropboxRelativeRoot = normalizeDropboxRelativePath(
+    settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+  );
+  const explicit = settings.recordingsRoot ? expandHome(String(settings.recordingsRoot)) : null;
+  if (explicit && (await pathExists(explicit))) {
+    return {
+      recordingsRoot: explicit,
+      dropboxRelativeRoot,
+      source: "absolute",
+      candidates: [explicit],
+    };
   }
 
-  return [...found].sort();
+  const { candidates } = await resolveDropboxRelativeRoot({
+    ...options,
+    dropboxRelativeRoot,
+  });
+  return {
+    recordingsRoot: candidates[0] || null,
+    dropboxRelativeRoot,
+    source: candidates.length ? "dropbox-relative" : "unresolved",
+    candidates,
+  };
 }
 
 export async function loadRecordingsSettings() {
@@ -147,11 +178,19 @@ export async function loadRecordingsSettings() {
     const raw = JSON.parse(await readFile(RECORDINGS_SETTINGS_FILE, "utf8"));
     return {
       recordingsRoot: raw.recordingsRoot ? expandHome(String(raw.recordingsRoot)) : null,
-      defaultTimezone: String(raw.defaultTimezone || "America/Chicago"),
+      dropboxRelativeRoot: normalizeDropboxRelativePath(
+        raw.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+      ),
+      defaultTimezone: String(raw.defaultTimezone || DEFAULT_VENUE_TIMEZONE),
       selectedAt: raw.selectedAt || null,
     };
   } catch {
-    return { recordingsRoot: null, defaultTimezone: "America/Chicago", selectedAt: null };
+    return {
+      recordingsRoot: null,
+      dropboxRelativeRoot: DEFAULT_DROPBOX_RELATIVE_ROOT,
+      defaultTimezone: DEFAULT_VENUE_TIMEZONE,
+      selectedAt: null,
+    };
   }
 }
 
@@ -160,7 +199,10 @@ export async function saveRecordingsSettings(settings) {
   await mkdir(SUPPORT_DIR, { recursive: true });
   const payload = {
     recordingsRoot: settings.recordingsRoot || null,
-    defaultTimezone: settings.defaultTimezone || "America/Chicago",
+    dropboxRelativeRoot: normalizeDropboxRelativePath(
+      settings.dropboxRelativeRoot || DEFAULT_DROPBOX_RELATIVE_ROOT,
+    ),
+    defaultTimezone: settings.defaultTimezone || DEFAULT_VENUE_TIMEZONE,
     selectedAt: settings.selectedAt || new Date().toISOString(),
   };
   const tmp = `${RECORDINGS_SETTINGS_FILE}.${process.pid}.tmp`;
@@ -211,21 +253,11 @@ export function isVideoFilename(name) {
   return VIDEO_EXTENSIONS.has(lower.slice(dot));
 }
 
-export function isCameraAngleFilename(filename) {
-  const base = String(filename || "")
-    .replace(/\.[^.]+$/, "")
-    .trim();
-  return /^camera\b/i.test(base);
-}
+export { isCameraAngleFilename };
 
 /**
- * FloBama Performance Library catalogs the main Ecamm program recording from each
- * nested session folder. Camera A/B angle ISOs are always skipped.
- *
- * Include when:
- *  - filename contains "ecamm", OR
- *  - any parent folder in relativePath contains "ecamm"
- * Exclude: Camera A/B*.mp4
+ * @deprecated Prefer session-folder inventory. Kept for tests/compat:
+ * primary Ecamm program file (not Camera A/B).
  */
 export function isMainEcammRecording(filename, relativePath = null) {
   if (isCameraAngleFilename(filename)) return false;
@@ -235,13 +267,12 @@ export function isMainEcammRecording(filename, relativePath = null) {
   return false;
 }
 
-/** Human-readable skip reason for inventory accounting. */
 export function ecammSkipReason(filename, relativePath = null) {
   if (isCameraAngleFilename(filename)) {
-    return "Camera angle / ISO view — not the main Ecamm program recording.";
+    return "Camera angle — attached as a session asset, not a separate catalog row.";
   }
   if (!isMainEcammRecording(filename, relativePath)) {
-    return "Not inside an Ecamm session folder / filename — skipped for Performance Library.";
+    return "Not an Ecamm session primary.";
   }
   return null;
 }
