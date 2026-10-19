@@ -69,6 +69,33 @@ export function getRecording(catalog, recordingId) {
   return catalog.data.recordings[recordingId] ?? null;
 }
 
+/**
+ * Resolve a recording by catalog id, primary asset id, or legacy file-path id.
+ * Session catalog rows use session-folder ids; older OS rows may still send the
+ * primary-file path hash — both must play.
+ */
+export function findCatalogRecording(catalog, recordingId) {
+  if (!recordingId || !catalog?.data?.recordings) return null;
+  const wanted = String(recordingId);
+  const direct = catalog.data.recordings[wanted];
+  if (direct) return { recordingId: wanted, recording: direct };
+
+  for (const [id, rec] of Object.entries(catalog.data.recordings)) {
+    if (!rec || typeof rec !== "object") continue;
+    if (rec.primaryAssetId && String(rec.primaryAssetId) === wanted) {
+      return { recordingId: id, recording: rec };
+    }
+    if (Array.isArray(rec.assets)) {
+      for (const asset of rec.assets) {
+        if (asset?.assetId && String(asset.assetId) === wanted) {
+          return { recordingId: id, recording: rec };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function listRecordings(catalog) {
   return Object.values(catalog.data.recordings);
 }

@@ -1,8 +1,8 @@
 import { createReadStream } from "node:fs";
 import { lstat, realpath, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
-import { resolveUnderRecordingsRoot } from "./recordings-paths.mjs";
-import { PERFORMANCE_CACHE_DIR } from "./recordings-paths.mjs";
+import { findCatalogRecording } from "./recordings-catalog.mjs";
+import { resolveUnderRecordingsRoot, PERFORMANCE_CACHE_DIR } from "./recordings-paths.mjs";
 import { convertedCachePath } from "./recordings-probe.mjs";
 
 const MIME = {
@@ -22,17 +22,32 @@ export function recordingMediaType(filePath) {
  * Prefers converted cache when present; otherwise the Dropbox path under recordingsRoot.
  */
 export async function resolvePlayablePath(catalog, recordingId) {
-  const rec = catalog.data.recordings[recordingId];
-  if (!rec) return { ok: false, status: 404, error: "Recording not found." };
+  const found = findCatalogRecording(catalog, recordingId);
+  if (!found) {
+    return {
+      ok: false,
+      status: 404,
+      error:
+        "Recording not found in the Local Runner catalog. Rescan recordings on the Mac, wait for catalog sync, then try again.",
+    };
+  }
+  const { recordingId: catalogId, recording: rec } = found;
 
-  const cachePath = convertedCachePath(recordingId);
+  const cachePath = convertedCachePath(catalogId);
   try {
     const info = await stat(cachePath);
     if (info.isFile() && info.size > 0) {
       const real = await realpath(cachePath);
       const cacheRoot = await realpath(PERFORMANCE_CACHE_DIR).catch(() => PERFORMANCE_CACHE_DIR);
       if (real.startsWith(cacheRoot + sep) || real === cacheRoot) {
-        return { ok: true, path: real, mediaType: "video/mp4", source: "converted-cache" };
+        return {
+          ok: true,
+          path: real,
+          mediaType: "video/mp4",
+          source: "converted-cache",
+          recordingId: catalogId,
+          recording: rec,
+        };
       }
     }
   } catch {
@@ -40,50 +55,83 @@ export async function resolvePlayablePath(catalog, recordingId) {
   }
 
   const root = catalog.data.recordingsRoot;
-  if (!root || !rec.relativePath) {
-    return { ok: false, status: 409, error: "Recordings root is not configured." };
+  // Prefer primary asset path when present (session model).
+  const primaryRel =
+    (Array.isArray(rec.assets) && rec.assets.find((a) => a.role === "primary")?.relativePath) ||
+    rec.relativePath;
+  if (!root || !primaryRel) {
+    return { ok: false, status: 409, error: "Recordings root is not configured on the Local Runner." };
   }
 
-  const resolved = await resolveUnderRecordingsRoot(root, rec.relativePath);
+  const resolved = await resolveUnderRecordingsRoot(root, primaryRel);
   if (!resolved) {
-    return { ok: false, status: 403, error: "Path rejected (traversal or symlink escape)." };
+    return {
+      ok: false,
+      status: 403,
+      error: `Cannot resolve local file under recordings root (${primaryRel}). Check the Dropbox path on the Mac.`,
+    };
   }
 
-  // Reject if the path is a symlink that escapes (resolveUnder already realpath-checks).
   try {
     const linkInfo = await lstat(resolved);
     if (linkInfo.isSymbolicLink()) {
-      // Should not happen after realpath, but defend anyway.
       return { ok: false, status: 403, error: "Symlink rejected." };
     }
   } catch {
-    return { ok: false, status: 404, error: "File missing." };
+    return { ok: false, status: 404, error: `Primary recording file missing: ${primaryRel}` };
   }
 
-  if (rec.availability === "needs download" || rec.availability === "missing") {
-    return { ok: false, status: 409, error: `Recording is ${rec.availability}.` };
-  }
   if (rec.availability === "unsupported") {
     return { ok: false, status: 415, error: "Unsupported media." };
   }
-  if (rec.availability === "preparing") {
-    return { ok: false, status: 409, error: "Recording is still being written." };
+  if (rec.availability === "missing") {
+    return {
+      ok: false,
+      status: 409,
+      error: "Recording is missing on the Mac. Rescan the Recordings folder.",
+    };
   }
 
-  // Re-verify local bytes before LED playback — Dropbox may have gone online-only since scan.
+  // Live local-byte check is authoritative. Catalog "needs download" / "preparing" can
+  // be stale or false-positive (recent mtime after scan, APFS allocation heuristics).
   try {
     const info = await stat(resolved);
-    const { detectLocalAvailability } = await import("./recordings-inventory.mjs");
-    const local = await detectLocalAvailability(resolved, info);
-    if (local.availability === "needs download" || local.availability === "preparing" || local.availability === "missing") {
+    if (!info.size) {
       return {
         ok: false,
         status: 409,
-        error: local.reason || `Primary file is ${local.availability}; download before LED playback.`,
+        error: "Primary file size is 0 (online-only or empty). Make available offline in Dropbox.",
       };
     }
-  } catch {
-    return { ok: false, status: 404, error: "Primary recording file missing." };
+    const { open } = await import("node:fs/promises");
+    const handle = await open(resolved, "r");
+    try {
+      const buf = Buffer.alloc(16);
+      const { bytesRead } = await handle.read(buf, 0, 16, 0);
+      if (bytesRead <= 0) {
+        return {
+          ok: false,
+          status: 409,
+          error: "Could not read file header (online-only placeholder). Make available offline in Dropbox.",
+        };
+      }
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    const code = error && typeof error === "object" ? error.code : "";
+    if (code === "ENOLINK" || code === "EREMOTE" || code === "EAGAIN" || code === "EBUSY") {
+      return {
+        ok: false,
+        status: 409,
+        error: `Cloud placeholder (${code}). Make available offline in Dropbox, then Prepare for playback.`,
+      };
+    }
+    return {
+      ok: false,
+      status: 404,
+      error: error instanceof Error ? error.message : "Primary recording file missing.",
+    };
   }
 
   return {
@@ -91,6 +139,8 @@ export async function resolvePlayablePath(catalog, recordingId) {
     path: resolved,
     mediaType: recordingMediaType(resolved),
     source: "dropbox-local",
+    recordingId: catalogId,
+    recording: rec,
   };
 }
 

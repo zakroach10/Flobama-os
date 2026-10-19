@@ -731,7 +731,11 @@ async function main() {
       if (result.status === "accepted" && command.kind === "prepare_recording") {
         // Keep accepted; completion happens via catalog sync after prepare finishes.
       }
-      await log(`Performance command ${command.kind} (${command.id}): ${result.status}`);
+      const reason =
+        result.rejectReason || result.detail
+          ? ` — ${result.rejectReason || result.detail}`
+          : "";
+      await log(`Performance command ${command.kind} (${command.id}): ${result.status}${reason}`);
     }
     if (commandResults.length) {
       await fetch(`${config.apiBase}/api/agent/v1/display-devices/performance/command-ack`, {
