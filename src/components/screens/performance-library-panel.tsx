@@ -70,6 +70,7 @@ type Settings = {
 export function PerformanceLibraryPanel({
   recordings,
   missingTable,
+  listError = null,
   settings,
   playback,
   ledRunner,
@@ -78,6 +79,7 @@ export function PerformanceLibraryPanel({
 }: {
   recordings: StaffPerformanceRecording[];
   missingTable: boolean;
+  listError?: string | null;
   settings: Settings;
   playback: PlaybackState;
   ledRunner: StaffDisplayDevice | null;
@@ -135,12 +137,17 @@ export function PerformanceLibraryPanel({
         <h2 className="text-lg font-semibold">Performance Library</h2>
         <p className="text-sm text-muted-foreground">
           Catalog Dropbox-synced recordings on the wall Mac, match them to historical events, and queue them for LED
-          playback. The runner opens every nested Ecamm session folder and keeps only files with{" "}
-          <span className="font-medium text-foreground">Ecamm</span> in the name — Camera A/B angle views are skipped.
-          Remote staff browse the catalog here; media bytes stay on the Local Runner (
+          playback. The runner opens every nested session folder and keeps Ecamm program recordings (Ecamm in the
+          filename or folder) — Camera A/B angle views are skipped. Media bytes stay on the Local Runner (
           <code className="text-xs">127.0.0.1:4173</code>), never through Vercel.
         </p>
       </div>
+
+      {listError ? (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          Could not load catalog: {listError}
+        </p>
+      ) : null}
 
       <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-2">
         <div className="space-y-1 text-sm">
@@ -148,6 +155,14 @@ export function PerformanceLibraryPanel({
           <div className="text-muted-foreground break-all">{settings?.recordings_root || "Not configured on the Mac yet"}</div>
           <div className="text-xs text-muted-foreground">
             Last scan: {formatClock(settings?.last_scan_at)} · {settings?.catalog_count ?? 0} catalogued
+            {typeof (settings as { scan_stats?: { skippedCameraOrNonEcamm?: number; videoFiles?: number; totalFiles?: number } } | null)?.scan_stats
+              ?.totalFiles === "number"
+              ? ` · scanned ${
+                  (settings as { scan_stats?: { totalFiles?: number } }).scan_stats?.totalFiles
+                } files / ${
+                  (settings as { scan_stats?: { videoFiles?: number } }).scan_stats?.videoFiles ?? 0
+                } Ecamm`
+              : ""}
           </div>
         </div>
         <div className="space-y-1 text-sm">
@@ -259,10 +274,21 @@ export function PerformanceLibraryPanel({
 
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No recordings in this view. On the wall Mac run{" "}
-            <code className="text-xs">node index.mjs --inventory-recordings</code> after configuring the folder.
-          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>No recordings in this view yet.</p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>Apply the performance library SQL migration in Supabase if the panel asked you to.</li>
+              <li>Install Local Runner 1.1.2+ on the wall Mac and keep it online.</li>
+              <li>
+                Set the Recordings root to the Dropbox <code className="text-xs">…/Recordings</code> folder (the one
+                that contains the Ecamm session folders), then click Rescan.
+              </li>
+              <li>
+                Or on the Mac:{" "}
+                <code className="text-xs">node index.mjs --inventory-recordings --export=~/Desktop/performance-inventory.json</code>
+              </li>
+            </ol>
+          </div>
         ) : (
           filtered.slice(0, 100).map((row) => (
             <article key={row.id} className="space-y-2 rounded-lg border p-3">

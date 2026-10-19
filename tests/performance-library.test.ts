@@ -18,8 +18,16 @@ import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performanc
 describe("ecamm main-recording filter", () => {
   it("keeps Ecamm program files and drops Camera angle views", () => {
     expect(isMainEcammRecording("Ecamm Recording on 2026-08-15 at 20.07.11.mp4")).toBe(true);
+    expect(
+      isMainEcammRecording(
+        "Recording on 2026-08-15 at 20.07.11.mp4",
+        "Ecamm Recording on 2026-08-15 at 20.07.11/Recording on 2026-08-15 at 20.07.11.mp4",
+      ),
+    ).toBe(true);
     expect(isMainEcammRecording("Camera A.mp4")).toBe(false);
-    expect(isMainEcammRecording("Camera A 002.mp4")).toBe(false);
+    expect(isMainEcammRecording("Camera A 002.mp4", "Ecamm Recording on 2026-08-15 at 20.07.11/Camera A 002.mp4")).toBe(
+      false,
+    );
     expect(isMainEcammRecording("Camera B.mp4")).toBe(false);
     expect(isMainEcammRecording("random-clip.mp4")).toBe(false);
   });

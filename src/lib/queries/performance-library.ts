@@ -24,16 +24,13 @@ export async function listStaffPerformanceRecordings(
     limit?: number;
   },
 ) {
+  // Avoid embed joins here — a missing FK relationship made the whole list return empty.
   let q = client
     .from("performance_recordings")
-    .select(
-      `
-      *,
-      events:matched_event_id ( id, title, starts_at, ends_at, status )
-    `,
-    )
+    .select("*")
     .eq("venue_id", venueId)
-    .order("parsed_timestamp", { ascending: false, nullsFirst: false })
+    .neq("availability", "missing")
+    .order("parsed_timestamp", { ascending: false })
     .limit(filters?.limit ?? 500);
 
   if (filters?.matchStatus && filters.matchStatus !== "all") {

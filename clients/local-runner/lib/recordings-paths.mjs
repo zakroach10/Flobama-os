@@ -211,30 +211,37 @@ export function isVideoFilename(name) {
   return VIDEO_EXTENSIONS.has(lower.slice(dot));
 }
 
+export function isCameraAngleFilename(filename) {
+  const base = String(filename || "")
+    .replace(/\.[^.]+$/, "")
+    .trim();
+  return /^camera\b/i.test(base);
+}
+
 /**
- * FloBama Performance Library only catalogs the main Ecamm program recording.
- * Nested session folders also contain Camera A/B angle ISOs — those are skipped.
+ * FloBama Performance Library catalogs the main Ecamm program recording from each
+ * nested session folder. Camera A/B angle ISOs are always skipped.
  *
- * Include:  "Ecamm Recording on 2026-08-15 at 20.07.11.mp4"
- * Exclude:  "Camera A.mp4", "Camera B.mp4", "Camera A 002.mp4"
+ * Include when:
+ *  - filename contains "ecamm", OR
+ *  - any parent folder in relativePath contains "ecamm"
+ * Exclude: Camera A/B*.mp4
  */
-export function isMainEcammRecording(filename) {
+export function isMainEcammRecording(filename, relativePath = null) {
+  if (isCameraAngleFilename(filename)) return false;
   const name = String(filename || "");
-  const base = name.replace(/\.[^.]+$/, "");
-  if (/^camera\b/i.test(base.trim())) return false;
-  if (!/ecamm/i.test(name)) return false;
-  return true;
+  if (/ecamm/i.test(name)) return true;
+  if (relativePath && /ecamm/i.test(String(relativePath))) return true;
+  return false;
 }
 
 /** Human-readable skip reason for inventory accounting. */
-export function ecammSkipReason(filename) {
-  const name = String(filename || "");
-  const base = name.replace(/\.[^.]+$/, "");
-  if (/^camera\b/i.test(base.trim())) {
+export function ecammSkipReason(filename, relativePath = null) {
+  if (isCameraAngleFilename(filename)) {
     return "Camera angle / ISO view — not the main Ecamm program recording.";
   }
-  if (!/ecamm/i.test(name)) {
-    return "Filename does not include “Ecamm” — skipped for Performance Library.";
+  if (!isMainEcammRecording(filename, relativePath)) {
+    return "Not inside an Ecamm session folder / filename — skipped for Performance Library.";
   }
   return null;
 }

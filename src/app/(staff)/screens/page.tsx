@@ -284,6 +284,11 @@ export default async function ScreensPage({
                 missingTable={
                   performanceRecordingsRes.missingTable || performanceSettingsRes.missingTable
                 }
+                listError={
+                  performanceRecordingsRes.missingTable
+                    ? null
+                    : performanceRecordingsRes.error || performanceSettingsRes.error
+                }
                 settings={performanceSettingsRes.settings}
                 playback={performancePlaybackRes.state}
                 ledRunner={freshestRunner}

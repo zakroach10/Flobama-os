@@ -544,7 +544,14 @@ async function main() {
         }
         throw new Error(`Catalog sync failed (${response.status}): ${body}`);
       }
-      await log(`Synced ${payload.recordings.length} recording catalog rows to FloBama OS`);
+      const syncBody = await response.json().catch(() => ({}));
+      await log(
+        `Synced ${payload.recordings.length} recording catalog rows to FloBama OS` +
+          (syncBody.upserted != null ? ` (upserted ${syncBody.upserted})` : "") +
+          (payload.scanStats?.skippedCameraOrNonEcamm
+            ? ` · skipped ${payload.scanStats.skippedCameraOrNonEcamm} camera/non-Ecamm`
+            : ""),
+      );
     } catch (error) {
       runtime.pendingCatalogSync = true;
       await log(error instanceof Error ? error.message : String(error));

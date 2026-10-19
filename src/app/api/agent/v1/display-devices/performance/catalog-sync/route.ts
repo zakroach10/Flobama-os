@@ -13,7 +13,7 @@ const recordingSchema = z.object({
   fileSize: z.number().nonnegative().nullable().optional(),
   birthtimeMs: z.number().nullable().optional(),
   mtimeMs: z.number().nullable().optional(),
-  parsedTimestamp: z.string().datetime().nullable().optional(),
+  parsedTimestamp: z.string().min(1).max(80).nullable().optional(),
   rawTimestampText: z.string().max(200).nullable().optional(),
   timezone: z.string().max(80).nullable().optional(),
   parseSource: z.string().max(80).nullable().optional(),
@@ -34,7 +34,7 @@ const recordingSchema = z.object({
     "missing",
     "error",
   ]),
-  lastScanAt: z.string().datetime().nullable().optional(),
+  lastScanAt: z.string().min(1).max(80).nullable().optional(),
   lastError: z.string().max(1000).nullable().optional(),
   playbackCompatible: z.boolean().nullable().optional(),
   needsConversion: z.boolean().optional(),
@@ -42,7 +42,8 @@ const recordingSchema = z.object({
 
 const bodySchema = z.object({
   recordingsRootConfigured: z.boolean(),
-  lastScanAt: z.string().datetime().nullable().optional(),
+  recordingsRoot: z.string().max(2000).nullable().optional(),
+  lastScanAt: z.string().min(1).max(80).nullable().optional(),
   scanStats: z.record(z.string(), z.unknown()).optional(),
   nonVideoCount: z.number().int().nonnegative().optional(),
   nonVideoSample: z.array(z.unknown()).max(100).optional(),
@@ -68,7 +69,16 @@ export async function POST(request: Request) {
   }
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Check the catalog sync payload." }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Check the catalog sync payload.",
+        details: parsed.error.issues.slice(0, 8).map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+      { status: 400 },
+    );
   }
 
   // Persist playback telemetry when provided
@@ -119,12 +129,17 @@ export async function POST(request: Request) {
       venueId: auth.device.venue_id,
       deviceId: auth.device.id,
       recordingsRootConfigured: parsed.data.recordingsRootConfigured,
+      recordingsRoot: parsed.data.recordingsRoot,
       lastScanAt: parsed.data.lastScanAt,
       scanStats: parsed.data.scanStats,
       nonVideoCount: parsed.data.nonVideoCount,
       recordings: parsed.data.recordings,
     });
-    return NextResponse.json({ ok: true, upserted: result.upserted });
+    return NextResponse.json({
+      ok: true,
+      upserted: result.upserted,
+      received: parsed.data.recordings.length,
+    });
   } catch (error) {
     console.error("catalog sync failed", error);
     return NextResponse.json({ error: "Could not sync performance catalog." }, { status: 500 });
