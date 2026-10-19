@@ -11,7 +11,9 @@ export type ServerStationSceneCard = {
   kind: string;
   media_kind: string | null;
   public_url: string | null;
+  /** Menu thumbnail — PNG poster for video loops, image URL otherwise. */
   preview_url: string | null;
+  poster_url: string | null;
   obs_scene_name: string | null;
   artist_id: string | null;
   server_approved: boolean;
@@ -44,6 +46,23 @@ export function resolveLedScenePreviewUrl(scene: {
 
   const direct = scene.public_url?.trim();
   return direct || null;
+}
+
+/** Menu tiles must use a PNG for video loops — never the MP4 itself. */
+export function resolveLedSceneMenuPreviewUrl(scene: {
+  media_kind: string | null | undefined;
+  public_url: string | null | undefined;
+  storage_path: string | null | undefined;
+  poster_url: string | null | undefined;
+  poster_storage_path: string | null | undefined;
+}): string | null {
+  if (scene.media_kind === "video") {
+    return resolveLedScenePreviewUrl({
+      public_url: scene.poster_url,
+      storage_path: scene.poster_storage_path,
+    });
+  }
+  return resolveLedScenePreviewUrl(scene);
 }
 
 /** Artist scenes are always available on Server Station; house scenes need server_approved. */
@@ -89,6 +108,8 @@ function toSceneCard(scene: {
   media_kind: string | null;
   public_url: string | null;
   storage_path: string | null;
+  poster_url: string | null;
+  poster_storage_path: string | null;
   obs_scene_name: string | null;
   artist_id: string | null;
   server_approved: boolean;
@@ -99,7 +120,8 @@ function toSceneCard(scene: {
     kind: scene.kind,
     media_kind: scene.media_kind,
     public_url: scene.public_url,
-    preview_url: resolveLedScenePreviewUrl(scene),
+    poster_url: scene.poster_url,
+    preview_url: resolveLedSceneMenuPreviewUrl(scene),
     obs_scene_name: scene.obs_scene_name,
     artist_id: scene.artist_id,
     server_approved: scene.server_approved,
@@ -110,7 +132,7 @@ export async function listServerApprovedScenes(client: Client, venueId: string) 
   const { data: scenes, error } = await client
     .from("led_wall_scenes")
     .select(
-      "id, title, kind, media_kind, public_url, storage_path, obs_scene_name, artist_id, server_approved, enabled",
+      "id, title, kind, media_kind, public_url, storage_path, poster_url, poster_storage_path, obs_scene_name, artist_id, server_approved, enabled",
     )
     .eq("venue_id", venueId)
     .eq("enabled", true)

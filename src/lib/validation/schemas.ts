@@ -346,9 +346,17 @@ export const createLedMediaSceneSchema = z.object({
   mediaKind: z.enum(["image", "video"]),
   storagePath: z.string().trim().min(1).max(500),
   publicUrl: z.string().trim().min(8).max(800),
+  posterStoragePath: z.string().trim().min(1).max(500).optional().nullable(),
+  posterUrl: z.string().trim().min(8).max(800).optional().nullable(),
   sha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   sizeBytes: z.number().int().nonnegative().optional(),
   mediaType: z.string().trim().min(1).max(120).optional(),
+});
+
+export const saveLedScenePosterSchema = z.object({
+  sceneId: z.string().uuid(),
+  posterStoragePath: z.string().trim().min(1).max(500),
+  posterUrl: z.string().trim().min(8).max(800),
 });
 
 export const updateLedWallSceneSchema = z.object({

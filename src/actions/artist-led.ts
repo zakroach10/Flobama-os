@@ -52,6 +52,8 @@ const saveArtistLedMediaSchema = z.object({
   mediaKind: z.enum(["image", "video"]),
   storagePath: z.string().trim().min(1).max(500),
   publicUrl: z.string().trim().min(8).max(800),
+  posterStoragePath: z.string().trim().min(1).max(500).optional().nullable(),
+  posterUrl: z.string().trim().min(8).max(800).optional().nullable(),
 });
 
 export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLedActionResult> {
@@ -72,10 +74,14 @@ export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLe
   const title = parsed.data.title?.trim() || artist.name;
   const { data: existing } = await g.supabase
     .from("led_wall_scenes")
-    .select("id, storage_path")
+    .select("id, storage_path, poster_storage_path")
     .eq("venue_id", g.context.venue.id)
     .eq("artist_id", artist.id)
     .maybeSingle();
+
+  const posterStoragePath =
+    parsed.data.mediaKind === "video" ? (parsed.data.posterStoragePath ?? null) : null;
+  const posterUrl = parsed.data.mediaKind === "video" ? (parsed.data.posterUrl ?? null) : null;
 
   if (existing) {
     const { error } = await g.supabase
@@ -86,12 +92,23 @@ export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLe
         media_kind: parsed.data.mediaKind,
         storage_path: parsed.data.storagePath,
         public_url: parsed.data.publicUrl,
+        poster_storage_path: posterStoragePath,
+        poster_url: posterUrl,
         obs_scene_name: null,
         enabled: true,
       })
       .eq("id", existing.id)
       .eq("venue_id", g.context.venue.id);
     if (error) return { ok: false, message: sqlHint(error.message) };
+
+    const stale = [existing.storage_path, existing.poster_storage_path].filter(
+      (path): path is string =>
+        Boolean(path) && path !== parsed.data.storagePath && path !== posterStoragePath,
+    );
+    if (stale.length) {
+      await g.supabase.storage.from("screen-ads").remove(stale);
+    }
+
     revalidateArtistLed(artist.id);
     return { ok: true, message: "Artist LED graphic saved.", sceneId: existing.id };
   }
@@ -105,6 +122,8 @@ export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLe
       media_kind: parsed.data.mediaKind,
       storage_path: parsed.data.storagePath,
       public_url: parsed.data.publicUrl,
+      poster_storage_path: posterStoragePath,
+      poster_url: posterUrl,
       artist_id: artist.id,
       enabled: true,
       sort_order: 9999,
@@ -139,12 +158,27 @@ export async function clearArtistLedMediaAction(artistId: string): Promise<Artis
   if (!g.ok) return { ok: false, message: g.message };
   if (!z.string().uuid().safeParse(artistId).success) return { ok: false, message: "Invalid artist." };
 
+  const { data: existing } = await g.supabase
+    .from("led_wall_scenes")
+    .select("storage_path, poster_storage_path")
+    .eq("venue_id", g.context.venue.id)
+    .eq("artist_id", artistId)
+    .maybeSingle();
+
   const { error } = await g.supabase
     .from("led_wall_scenes")
     .delete()
     .eq("venue_id", g.context.venue.id)
     .eq("artist_id", artistId);
   if (error) return { ok: false, message: sqlHint(error.message) };
+
+  const paths = [existing?.storage_path, existing?.poster_storage_path].filter(
+    (path): path is string => Boolean(path),
+  );
+  if (paths.length) {
+    await g.supabase.storage.from("screen-ads").remove(paths);
+  }
+
   revalidateArtistLed(artistId);
   return { ok: true, message: "Artist LED graphic removed." };
 }

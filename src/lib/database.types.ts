@@ -500,6 +500,8 @@ export type Database = {
           media_kind: "image" | "video" | "week_events" | null;
           storage_path: string | null;
           public_url: string | null;
+          poster_storage_path: string | null;
+          poster_url: string | null;
           artist_id: string | null;
           sort_order: number;
           enabled: boolean;
@@ -516,6 +518,8 @@ export type Database = {
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
           public_url?: string | null;
+          poster_storage_path?: string | null;
+          poster_url?: string | null;
           artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;
@@ -528,6 +532,8 @@ export type Database = {
           media_kind?: "image" | "video" | "week_events" | null;
           storage_path?: string | null;
           public_url?: string | null;
+          poster_storage_path?: string | null;
+          poster_url?: string | null;
           artist_id?: string | null;
           sort_order?: number;
           enabled?: boolean;

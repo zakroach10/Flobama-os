@@ -12,6 +12,8 @@ export type ArtistLedConfig = {
   sceneId: string;
   title: string;
   publicUrl: string | null;
+  /** PNG still for menus when mediaKind is video. */
+  posterUrl: string | null;
   mediaKind: "image" | "video" | "week_events" | null;
   enabled: boolean;
 };
@@ -28,6 +30,7 @@ export type TodayLedListing = {
     name: string;
     displayOrder: number;
     sceneId: string | null;
+    /** Menu thumbnail (poster for loops, image URL otherwise). */
     publicUrl: string | null;
     enabled: boolean;
   }>;
@@ -67,7 +70,7 @@ export async function getArtistLedScene(client: Client, venueId: string, artistI
 export async function listArtistLedConfigs(client: Client, venueId: string) {
   const { data: scenes, error } = await client
     .from("led_wall_scenes")
-    .select("id, title, public_url, media_kind, enabled, artist_id")
+    .select("id, title, public_url, poster_url, media_kind, enabled, artist_id")
     .eq("venue_id", venueId)
     .not("artist_id", "is", null);
 
@@ -102,6 +105,7 @@ export async function listArtistLedConfigs(client: Client, venueId: string) {
       sceneId: row.id,
       title: row.title,
       publicUrl: row.public_url,
+      posterUrl: row.poster_url,
       mediaKind: row.media_kind,
       enabled: row.enabled,
     }))
@@ -147,12 +151,14 @@ export async function listTodayLedListings(
       .sort((a, b) => a.display_order - b.display_order)
       .map((row) => {
         const config = configByArtist.get(row.artist_id);
+        const menuUrl =
+          config?.mediaKind === "video" ? config.posterUrl : config?.publicUrl ?? null;
         return {
           artistId: row.artist_id,
           name: row.artists?.name ?? "Artist",
           displayOrder: row.display_order,
           sceneId: config?.enabled ? config.sceneId : null,
-          publicUrl: config?.enabled ? config.publicUrl : null,
+          publicUrl: config?.enabled ? menuUrl : null,
           enabled: Boolean(config?.enabled),
         };
       });
