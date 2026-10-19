@@ -180,7 +180,7 @@ export function ServerStationShell({
           </button>
         </div>
       </header>
-      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pt-3 pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:px-4 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 overflow-hidden px-3 pt-3 lg:px-4 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <nav
           aria-label="Server Station"
           className="hidden min-h-0 w-[5.75rem] shrink-0 flex-col gap-2 overflow-y-auto lg:flex"
@@ -208,7 +208,7 @@ export function ServerStationShell({
         </nav>
         <main
           className={cn(
-            "min-h-0 min-w-0 flex-1 overflow-y-auto",
+            "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain",
             pos && "lg:flex lg:flex-col lg:overflow-hidden",
           )}
         >

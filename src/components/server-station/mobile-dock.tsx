@@ -74,6 +74,11 @@ function pathMatches(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Bottom-anchored Server Station dock for phone/PWA.
+ * Must stay in normal flex flow (not position:fixed) so iOS visual-viewport
+ * rubber-banding cannot drag it around inside the fixed station shell.
+ */
 export function ServerStationMobileDock() {
   const nav = useStationNav();
   const path = nav?.path ?? "/server";
@@ -103,12 +108,12 @@ export function ServerStationMobileDock() {
   const sheetTitle = sheet === "create" ? "Put something on the wall" : sheet === "more" ? "More" : "";
 
   return (
-    <>
+    <div className="relative z-50 shrink-0 lg:hidden">
       {sheet ? (
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] lg:hidden"
+          className="absolute inset-x-0 bottom-full z-40 h-[100dvh] bg-black/55 backdrop-blur-[2px]"
           onClick={() => setSheet(null)}
         />
       ) : null}
@@ -118,9 +123,9 @@ export function ServerStationMobileDock() {
           role="dialog"
           aria-modal="true"
           aria-label={sheetTitle}
-          className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:hidden"
+          className="absolute inset-x-0 bottom-full z-50 px-3 pb-2"
         >
-          <div className="mx-auto w-full max-w-md overflow-hidden rounded-[28px] border border-white/12 bg-[#1a1613] shadow-[0_-20px_60px_rgba(0,0,0,0.55)]">
+          <div className="mx-auto w-full max-w-md overflow-hidden rounded-[24px] border border-white/12 bg-[#1a1613] shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">{sheetTitle}</p>
               <button
@@ -143,11 +148,11 @@ export function ServerStationMobileDock() {
                     ariaCurrent={active ? "page" : undefined}
                     onNavigate={closeSheet}
                     className={cn(
-                      "flex min-h-16 items-center gap-3 rounded-2xl px-3 py-2 text-left transition active:scale-[0.99]",
+                      "flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2 text-left transition active:scale-[0.99]",
                       active ? "bg-[#d36b4a]/25 text-[#f7efe6]" : "text-[#f7efe6] hover:bg-white/5",
                     )}
                   >
-                    <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-black/35">
+                    <span className="inline-flex size-10 items-center justify-center rounded-2xl bg-black/35">
                       <Icon className="size-5" aria-hidden />
                     </span>
                     <span className="min-w-0">
@@ -162,11 +167,11 @@ export function ServerStationMobileDock() {
         </div>
       ) : null}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-        <nav
-          aria-label="Server Station"
-          className="pointer-events-auto mx-auto flex w-full max-w-md items-center gap-1 rounded-full border border-white/12 bg-[#14110f]/92 p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.55)] backdrop-blur-xl"
-        >
+      <nav
+        aria-label="Server Station"
+        className="border-t border-white/10 bg-[#100e0c] pb-[env(safe-area-inset-bottom,0px)]"
+      >
+        <div className="mx-auto flex w-full max-w-lg items-stretch gap-0.5 px-1 pt-1">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -184,9 +189,9 @@ export function ServerStationMobileDock() {
             pressed={moreOpen}
             onClick={() => setSheet(moreOpen ? null : "more")}
           />
-        </nav>
-      </div>
-    </>
+        </div>
+      </nav>
+    </div>
   );
 }
 
@@ -210,7 +215,7 @@ function DockLink({
       ariaLabel={label}
       onNavigate={onNavigate}
       className={cn(
-        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 text-[10px] font-semibold tracking-wide uppercase transition",
+        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-semibold tracking-wide uppercase",
         active ? "bg-white/10 text-[#f7efe6]" : "text-[#e8d5c4]/80",
       )}
     >
@@ -242,9 +247,9 @@ function DockButton({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 text-[10px] font-semibold tracking-wide uppercase transition",
+        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-semibold tracking-wide uppercase",
         emphasize && !pressed
-          ? "bg-[#d36b4a] text-white shadow-[0_8px_24px_rgba(211,107,74,0.35)]"
+          ? "bg-[#d36b4a] text-white"
           : active || pressed
             ? "bg-white/10 text-[#f7efe6]"
             : "text-[#e8d5c4]/80",
