@@ -10,7 +10,6 @@ import {
   LED_SCENE_POSTER_JPEG_QUALITY,
   LED_SCENE_POSTER_MAX_EDGE,
 } from "@/lib/screens/led-poster";
-import { acquireLoopPreviewSlot } from "@/lib/server-station/preview-load";
 import {
   paginateServerStationScenes,
   SERVER_STATION_SCENE_PAGE_SIZE,
@@ -31,7 +30,7 @@ function persistScenePoster(sceneId: string, posterObjectUrl: string) {
       body.set("poster", new File([blob], "poster.jpg", { type: "image/jpeg" }));
       await fetch("/api/server-station/scene-poster", { method: "POST", body });
     } catch {
-      /* best-effort; tile already shows a frame */
+      /* best-effort */
     }
   })();
 }
@@ -53,44 +52,29 @@ function blobFromVideoFrame(video: HTMLVideoElement): Promise<string | null> {
   }
   return new Promise((resolve) => {
     canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          resolve(null);
-          return;
-        }
-        resolve(URL.createObjectURL(blob));
-      },
+      (blob) => resolve(blob ? URL.createObjectURL(blob) : null),
       "image/jpeg",
       LED_SCENE_POSTER_JPEG_QUALITY,
     );
   });
 }
 
-/** Paints a loop frame; persists a JPEG in the background for the next visit. */
-function LoopVideoFallback({ url, sceneId }: { url: string; sceneId: string }) {
+/**
+ * Always-on loop layer. Starts immediately (no queue) so tiles never sit black
+ * waiting for a poster API or a concurrency slot.
+ */
+function LoopVideoLayer({
+  url,
+  sceneId,
+  dimmed,
+}: {
+  url: string;
+  sceneId: string;
+  dimmed: boolean;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    let release: (() => void) | null = null;
-    void acquireLoopPreviewSlot().then((rel) => {
-      release = rel;
-      if (cancelled) {
-        rel();
-        return;
-      }
-      setReady(true);
-    });
-    return () => {
-      cancelled = true;
-      release?.();
-      setReady(false);
-    };
-  }, [sceneId, url]);
-
-  useEffect(() => {
-    if (!ready) return;
     const el = ref.current;
     if (!el) return;
     let cancelled = false;
@@ -114,7 +98,6 @@ function LoopVideoFallback({ url, sceneId }: { url: string; sceneId: string }) {
       void blobFromVideoFrame(el).then((poster) => {
         if (cancelled || !poster) return;
         cacheLedPosterUrl(url, poster);
-        // Keep the video frame on screen — swapping to a blob can hitch on phones.
         persistScenePoster(sceneId, poster);
       });
     };
@@ -126,96 +109,40 @@ function LoopVideoFallback({ url, sceneId }: { url: string; sceneId: string }) {
     return () => {
       cancelled = true;
       el.removeAttribute("src");
-      el.load();
+      try {
+        el.load();
+      } catch {
+        /* ignore */
+      }
     };
-  }, [ready, sceneId, url]);
+  }, [sceneId, url]);
 
   return (
-    <>
-      {!ready ? <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden /> : null}
-      <video
-        ref={ref}
-        muted
-        playsInline
-        preload={ready ? "metadata" : "none"}
-        className="absolute inset-0 h-full w-full object-contain"
-      />
-    </>
+    <video
+      ref={ref}
+      muted
+      playsInline
+      autoPlay
+      preload="auto"
+      className={cn(
+        "absolute inset-0 h-full w-full object-contain transition-opacity duration-150",
+        dimmed ? "opacity-0" : "opacity-100",
+      )}
+    />
   );
 }
 
-function ScenePreview({ scene, priority }: { scene: ServerStationSceneCard; priority: boolean }) {
+function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
   const isVideo = scene.media_kind === "video";
-  const posterUrl = scene.preview_url;
+  const stillUrl = scene.preview_url;
   const mediaUrl = scene.public_url;
-  const [displayUrl, setDisplayUrl] = useState<string | null>(() => posterUrl);
-  const [failed, setFailed] = useState(false);
-  const [useVideoFallback, setUseVideoFallback] = useState(false);
+  const [stillOk, setStillOk] = useState(false);
+  const [stillFailed, setStillFailed] = useState(false);
 
   useEffect(() => {
-    setDisplayUrl(posterUrl);
-    setFailed(false);
-    setUseVideoFallback(false);
-  }, [posterUrl, mediaUrl, scene.id]);
-
-  function beginLoopPreview() {
-    if (!isVideo || !mediaUrl || useVideoFallback) return;
-    setDisplayUrl(null);
-    setUseVideoFallback(true);
-    setFailed(false);
-  }
-
-  // Loops with no preview endpoint / stored poster yet.
-  useEffect(() => {
-    if (!isVideo || !mediaUrl || posterUrl || displayUrl || useVideoFallback) return;
-    beginLoopPreview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayUrl, isVideo, mediaUrl, posterUrl, scene.id, useVideoFallback]);
-
-  if (displayUrl) {
-    return (
-      <div className="relative h-full w-full bg-black">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={displayUrl}
-          src={displayUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full object-contain p-1"
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          fetchPriority={priority ? "high" : "low"}
-          onError={() => {
-            if (isVideo && mediaUrl) {
-              beginLoopPreview();
-              return;
-            }
-            setFailed(true);
-          }}
-        />
-        {failed ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
-            Preview unavailable
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (isVideo && mediaUrl && useVideoFallback) {
-    return (
-      <div className="relative h-full w-full bg-black">
-        <LoopVideoFallback url={mediaUrl} sceneId={scene.id} />
-      </div>
-    );
-  }
-
-  if (isVideo && mediaUrl) {
-    return (
-      <div className="relative h-full w-full bg-black">
-        <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden />
-      </div>
-    );
-  }
+    setStillOk(false);
+    setStillFailed(false);
+  }, [stillUrl, mediaUrl, scene.id]);
 
   if (scene.kind === "obs") {
     return (
@@ -226,26 +153,62 @@ function ScenePreview({ scene, priority }: { scene: ServerStationSceneCard; prio
     );
   }
 
+  const showVideo = Boolean(isVideo && mediaUrl);
+  const showStill = Boolean(stillUrl && !stillFailed);
+  const showEmpty = !showVideo && (!showStill || stillFailed);
+
   return (
-    <div className="flex h-full items-center justify-center bg-black text-sm text-[#e8d5c4]">No preview</div>
+    <div className="relative h-full w-full bg-black">
+      {showVideo ? (
+        <LoopVideoLayer url={mediaUrl!} sceneId={scene.id} dimmed={stillOk} />
+      ) : null}
+
+      {showStill ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={stillUrl!}
+          src={stillUrl!}
+          alt=""
+          className={cn(
+            "absolute inset-0 h-full w-full object-contain p-1 transition-opacity duration-150",
+            stillOk ? "opacity-100" : "opacity-0",
+          )}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+          onLoad={() => setStillOk(true)}
+          onError={() => {
+            setStillFailed(true);
+            setStillOk(false);
+          }}
+        />
+      ) : null}
+
+      {showEmpty ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
+          {scene.title}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
 function prefetchScenePreviews(scenes: ServerStationSceneCard[]) {
   if (typeof window === "undefined") return;
   for (const scene of scenes) {
-    if (!scene.preview_url) continue;
-    const link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "image";
-    link.href = scene.preview_url;
-    link.setAttribute("data-ss-preview", scene.id);
-    if (!document.head.querySelector(`link[data-ss-preview="${scene.id}"]`)) {
-      document.head.appendChild(link);
+    if (scene.preview_url) {
+      const img = new window.Image();
+      img.decoding = "async";
+      img.src = scene.preview_url;
     }
-    const img = new window.Image();
-    img.decoding = "async";
-    img.src = scene.preview_url;
+    // Warm the first frame of loops that still need a poster.
+    if (scene.media_kind === "video" && scene.public_url) {
+      const probe = document.createElement("video");
+      probe.muted = true;
+      probe.preload = "metadata";
+      probe.playsInline = true;
+      probe.src = `${scene.public_url}#t=0.001`;
+    }
   }
 }
 
@@ -296,7 +259,6 @@ export function ServerStationWallControls({
     if (page !== paged.page) setPage(paged.page);
   }, [page, paged.page]);
 
-  // Current page must load immediately; next page warms in the background.
   useEffect(() => {
     prefetchScenePreviews(paged.items);
     if (!paged.hasNext) return;
@@ -384,7 +346,7 @@ export function ServerStationWallControls({
 
         {catalog.length ? (
           <div className="grid grid-cols-2 gap-2 max-lg:auto-rows-[9.75rem] sm:max-lg:grid-cols-3 lg:min-h-0 lg:flex-1 lg:grid-cols-4 lg:grid-rows-5 lg:gap-2.5 xl:grid-cols-5 xl:grid-rows-4">
-            {paged.items.map((scene, index) => (
+            {paged.items.map((scene) => (
               <button
                 key={`${paged.page}-${scene.id}`}
                 type="button"
@@ -398,7 +360,7 @@ export function ServerStationWallControls({
                 className="flex h-[9.75rem] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40 lg:h-full lg:min-h-0"
               >
                 <div className="relative h-[6.5rem] w-full shrink-0 overflow-hidden bg-black lg:h-auto lg:min-h-0 lg:flex-1">
-                  <ScenePreview scene={scene} priority={index < 8} />
+                  <ScenePreview scene={scene} />
                 </div>
                 <div className="shrink-0 border-t border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
                   <p className="line-clamp-2 text-xs font-bold leading-tight text-[#f7efe6] sm:text-sm">
