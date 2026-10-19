@@ -74,15 +74,29 @@ function pathMatches(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function useStandaloneDisplay() {
+  const [standalone, setStandalone] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(display-mode: standalone)");
+    const iosStandalone =
+      "standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const sync = () => setStandalone(media.matches || iosStandalone);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  return standalone;
+}
+
 /**
- * Edge-to-edge bottom tab bar for the phone/PWA shell.
- * Lives in normal flex flow at the bottom of the fixed station shell — no
- * floating pill, no side inset, no visualViewport height tricks that leave a
- * black gap under the bar.
+ * Edge-to-edge bottom tab bar.
+ * Icons sit near the home indicator; safe-area padding only applies in
+ * installed standalone mode (Safari already clears the home indicator).
  */
 export function ServerStationMobileDock() {
   const nav = useStationNav();
   const path = nav?.path ?? "/server";
+  const standalone = useStandaloneDisplay();
   const [sheet, setSheet] = useState<SheetId>(null);
 
   useEffect(() => {
@@ -171,9 +185,15 @@ export function ServerStationMobileDock() {
       <nav
         aria-label="Server Station"
         className="border-t border-white/10 bg-[#100e0c]"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{
+          // Full safe-area inset left a blank band under the labels. Keep only a
+          // slim clearance so tabs sit just above the home indicator.
+          paddingBottom: standalone
+            ? "max(0.4rem, calc(env(safe-area-inset-bottom, 0px) - 1.25rem))"
+            : "0.35rem",
+        }}
       >
-        <div className="grid h-12 grid-cols-4">
+        <div className="grid h-10 grid-cols-4">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -217,7 +237,7 @@ function DockLink({
       ariaLabel={label}
       onNavigate={onNavigate}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-end gap-0.5 pb-1 text-[10px] font-semibold tracking-wide uppercase",
         active ? "text-[#f7efe6]" : "text-[#e8d5c4]/75",
       )}
     >
@@ -249,17 +269,17 @@ function DockButton({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-end gap-0.5 pb-1 text-[10px] font-semibold tracking-wide uppercase",
         pressed || active ? "text-[#f7efe6]" : emphasize ? "text-[#f0a58a]" : "text-[#e8d5c4]/75",
       )}
     >
       <span
         className={cn(
-          "inline-flex size-7 items-center justify-center rounded-full",
+          "inline-flex size-6 items-center justify-center rounded-full",
           emphasize && !pressed ? "bg-[#d36b4a] text-white" : pressed || active ? "bg-white/10" : "",
         )}
       >
-        <Icon className="size-4" aria-hidden />
+        <Icon className="size-3.5" aria-hidden />
       </span>
       {label}
     </button>
