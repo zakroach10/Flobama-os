@@ -26,6 +26,7 @@ const STATION_HREFS = [
   "/server",
   "/server/events",
   "/server/wall",
+  "/server/performances",
   "/server/specials",
   "/server/birthday",
   "/server/message",

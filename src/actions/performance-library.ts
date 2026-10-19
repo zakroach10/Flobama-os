@@ -14,7 +14,11 @@ import { buildPerformanceDisplayTitle } from "@/lib/performance/titles";
 import { artistNames, getEventById } from "@/lib/queries/events";
 import { freshestLedRunner } from "@/lib/display-devices/types";
 import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
-import { PERFORMANCE_LIBRARY_SQL } from "@/lib/constants";
+import {
+  PERFORMANCE_LIBRARY_SQL,
+  PERFORMANCE_SERVER_STATION_SQL,
+} from "@/lib/constants";
+import { stationPerformanceLabel } from "@/lib/queries/performance-library";
 
 export type PerformanceActionResult = {
   ok: boolean;
@@ -24,6 +28,8 @@ export type PerformanceActionResult = {
 
 function revalidate() {
   revalidatePath("/screens");
+  revalidatePath("/server");
+  revalidatePath("/server/performances");
 }
 
 async function gate(mode: "playback" | "configure") {
@@ -218,4 +224,125 @@ export async function updateRecordingTitleAction(input: z.infer<typeof updateTit
   if (error) return { ok: false, message: error.message };
   revalidate();
   return { ok: true, message: "Display title saved (source filename unchanged)." };
+}
+
+const publishSchema = z.object({
+  recordingRowId: z.string().uuid(),
+  stationTitle: z.string().trim().min(1).max(120).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(10_000).optional(),
+});
+
+export async function publishRecordingToServerStationAction(
+  input: z.infer<typeof publishSchema>,
+): Promise<PerformanceActionResult> {
+  const access = await gate("configure");
+  if (!access.ok) return { ok: false, message: access.message };
+  const parsed = publishSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Check the publish fields." };
+
+  const { data: row, error: loadError } = await access.supabase
+    .from("performance_recordings")
+    .select("id, display_title, original_filename, server_station_title")
+    .eq("id", parsed.data.recordingRowId)
+    .eq("venue_id", access.context.venue.id)
+    .maybeSingle();
+  if (loadError || !row) {
+    if (loadError && /server_station_published/i.test(loadError.message)) {
+      return { ok: false, message: `Apply ${PERFORMANCE_SERVER_STATION_SQL} in Supabase, then retry.` };
+    }
+    return { ok: false, message: loadError?.message || "Recording not found." };
+  }
+
+  const stationTitle =
+    parsed.data.stationTitle === undefined
+      ? row.server_station_title
+      : parsed.data.stationTitle;
+
+  const { error } = await access.supabase
+    .from("performance_recordings")
+    .update({
+      server_station_published: true,
+      server_station_title: stationTitle,
+      server_station_sort_order: parsed.data.sortOrder ?? 0,
+      server_station_published_at: new Date().toISOString(),
+      server_station_published_by: access.context.userId,
+    })
+    .eq("id", row.id)
+    .eq("venue_id", access.context.venue.id);
+
+  if (error) {
+    if (/server_station_published|server_station_title/i.test(error.message)) {
+      return { ok: false, message: `Apply ${PERFORMANCE_SERVER_STATION_SQL} in Supabase, then retry.` };
+    }
+    return { ok: false, message: error.message };
+  }
+
+  revalidate();
+  const label = stationPerformanceLabel({
+    server_station_title: stationTitle,
+    display_title: row.display_title,
+    original_filename: row.original_filename,
+  });
+  return { ok: true, message: `Published “${label}” to Server Station.` };
+}
+
+export async function unpublishRecordingFromServerStationAction(
+  recordingRowId: string,
+): Promise<PerformanceActionResult> {
+  const access = await gate("configure");
+  if (!access.ok) return { ok: false, message: access.message };
+  if (!z.string().uuid().safeParse(recordingRowId).success) {
+    return { ok: false, message: "Invalid recording." };
+  }
+
+  const { error } = await access.supabase
+    .from("performance_recordings")
+    .update({
+      server_station_published: false,
+      server_station_published_at: null,
+      server_station_published_by: null,
+    })
+    .eq("id", recordingRowId)
+    .eq("venue_id", access.context.venue.id);
+
+  if (error) {
+    if (/server_station_published/i.test(error.message)) {
+      return { ok: false, message: `Apply ${PERFORMANCE_SERVER_STATION_SQL} in Supabase, then retry.` };
+    }
+    return { ok: false, message: error.message };
+  }
+  revalidate();
+  return { ok: true, message: "Removed from Server Station." };
+}
+
+const renameStationSchema = z.object({
+  recordingRowId: z.string().uuid(),
+  stationTitle: z.string().trim().min(1).max(120),
+});
+
+/** Rename the Server Station label only — Dropbox filename stays unchanged. */
+export async function renameServerStationPerformanceAction(
+  input: z.infer<typeof renameStationSchema>,
+): Promise<PerformanceActionResult> {
+  const access = await gate("configure");
+  if (!access.ok) return { ok: false, message: access.message };
+  const parsed = renameStationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Enter a name (1–120 characters)." };
+
+  const { error } = await access.supabase
+    .from("performance_recordings")
+    .update({
+      server_station_title: parsed.data.stationTitle,
+    })
+    .eq("id", parsed.data.recordingRowId)
+    .eq("venue_id", access.context.venue.id);
+
+  if (error) {
+    if (/server_station_title/i.test(error.message)) {
+      return { ok: false, message: `Apply ${PERFORMANCE_SERVER_STATION_SQL} in Supabase, then retry.` };
+    }
+    return { ok: false, message: error.message };
+  }
+  revalidate();
+  return { ok: true, message: "Server Station name saved (source filename unchanged)." };
 }

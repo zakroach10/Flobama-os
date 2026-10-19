@@ -12,6 +12,7 @@ import {
   LockIcon,
   MessageSquareTextIcon,
   MonitorPlayIcon,
+  Music2Icon,
   SmartphoneIcon,
   UtensilsCrossedIcon,
   type LucideIcon,
@@ -31,6 +32,7 @@ const STATION_MENUS: Array<{ href: string; label: string; icon: LucideIcon; exac
   { href: "/server", label: "Home", icon: LayoutGridIcon, exact: true },
   { href: "/server/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/server/wall", label: "Wall", icon: MonitorPlayIcon },
+  { href: "/server/performances", label: "Shows", icon: Music2Icon },
   { href: "/server/specials", label: "Specials", icon: UtensilsCrossedIcon },
   { href: "/server/birthday", label: "Celebrate", icon: CakeIcon },
   { href: "/server/message", label: "Message", icon: MessageSquareTextIcon },
@@ -41,6 +43,7 @@ const PHONE_TABS: Array<{ href: string; label: string; icon: LucideIcon; exact?:
   { href: "/server", label: "Home", icon: LayoutGridIcon, exact: true },
   { href: "/server/specials", label: "Specials", icon: UtensilsCrossedIcon },
   { href: "/server/wall", label: "Wall", icon: MonitorPlayIcon },
+  { href: "/server/performances", label: "Shows", icon: Music2Icon },
   { href: "/server/events", label: "Tonight", icon: CalendarDaysIcon },
   { href: "/server/active", label: "Rotation", icon: ClapperboardIcon },
 ];

@@ -4,6 +4,7 @@ import { ServerStationActiveItems } from "@/components/server-station/active-ite
 import { ServerStationDashboard } from "@/components/server-station/dashboard";
 import { ServerStationEventsExplorer } from "@/components/server-station/events-explorer";
 import { ServerStationGraphicBuilder } from "@/components/server-station/graphic-builder";
+import { ServerStationPerformances } from "@/components/server-station/performances";
 import { ServerStationPhoneUploadPanel } from "@/components/server-station/phone-upload-panel";
 import { useStationNav } from "@/components/server-station/station-nav";
 import { ServerStationWallControls } from "@/components/server-station/wall-controls";
@@ -71,6 +72,9 @@ export function StationScreen() {
   }
   if (path.startsWith("/server/events")) {
     return <ServerStationEventsExplorer actorName={session.actorName} wall={session.wall} />;
+  }
+  if (path.startsWith("/server/performances")) {
+    return <ServerStationPerformances actorName={session.actorName} wall={session.wall} />;
   }
   if (path.startsWith("/server/active")) {
     return <ServerStationActiveItems actorName={session.actorName} wall={session.wall} />;

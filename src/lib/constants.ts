@@ -91,6 +91,8 @@ export const LOCAL_RUNNER_DMG_FILENAME = `FloBama-Local-Runner-${LOCAL_RUNNER_VE
 export const PERFORMANCE_LIBRARY_SQL = "supabase/migrations/20261018000054_performance_library.sql";
 export const PERFORMANCE_SESSION_ASSETS_SQL =
   "supabase/migrations/20261019000055_performance_session_assets.sql";
+export const PERFORMANCE_SERVER_STATION_SQL =
+  "supabase/migrations/20261019000056_performance_server_station_publish.sql";
 export const DROPBOX_RECORDINGS_RELATIVE_ROOT =
   "/A- View 360 Brands/3- Customers/F/Flobama/Recordings";
 export const LOCAL_RUNNER_DMG_HREF = `/downloads/${LOCAL_RUNNER_DMG_FILENAME}`;

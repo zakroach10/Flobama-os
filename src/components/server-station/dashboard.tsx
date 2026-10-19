@@ -5,6 +5,7 @@ import {
   CalendarDaysIcon,
   MessageSquareTextIcon,
   MonitorPlayIcon,
+  Music2Icon,
   SmartphoneIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
@@ -37,6 +38,13 @@ export function ServerStationDashboard({
           description="Pick a scene for the wall."
           icon={MonitorPlayIcon}
           accent="warm"
+        />
+        <ServerStationTile
+          href="/server/performances"
+          title="Performances"
+          description="Play published shows on the wall."
+          icon={Music2Icon}
+          accent="cool"
         />
         <ServerStationTile
           href="/server/specials"

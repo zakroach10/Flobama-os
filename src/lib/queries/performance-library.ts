@@ -111,3 +111,74 @@ export async function listPerformanceQueue(client: Client, deviceId: string) {
   }
   return { items: data ?? [], missingTable: false, error: null as string | null };
 }
+
+export type PublishedStationPerformance = {
+  id: string;
+  recording_id: string;
+  title: string;
+  catalog_title: string | null;
+  original_filename: string;
+  availability: StaffPerformanceRecording["availability"];
+  parsed_timestamp: string | null;
+  duration_seconds: number | null;
+  camera_count: number;
+  server_station_title: string | null;
+  server_station_sort_order: number;
+};
+
+/** Curated sessions published for Server Station floor staff. */
+export async function listPublishedStationPerformances(client: Client, venueId: string) {
+  const { data, error } = await client
+    .from("performance_recordings")
+    .select(
+      "id, recording_id, display_title, server_station_title, original_filename, availability, parsed_timestamp, duration_seconds, camera_count, server_station_sort_order",
+    )
+    .eq("venue_id", venueId)
+    .eq("server_station_published", true)
+    .neq("availability", "missing")
+    .order("server_station_sort_order", { ascending: true })
+    .order("parsed_timestamp", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    return {
+      performances: [] as PublishedStationPerformance[],
+      missingTable:
+        missingPerf(error.message) ||
+        /server_station_published|server_station_title/i.test(error.message),
+      error: error.message,
+    };
+  }
+
+  const performances: PublishedStationPerformance[] = (data ?? []).map((row) => {
+    const catalogTitle = row.display_title;
+    const stationTitle = row.server_station_title?.trim() || null;
+    return {
+      id: row.id,
+      recording_id: row.recording_id,
+      title: stationTitle || catalogTitle || row.original_filename,
+      catalog_title: catalogTitle,
+      original_filename: row.original_filename,
+      availability: row.availability,
+      parsed_timestamp: row.parsed_timestamp,
+      duration_seconds: row.duration_seconds,
+      camera_count: row.camera_count ?? 0,
+      server_station_title: stationTitle,
+      server_station_sort_order: row.server_station_sort_order ?? 0,
+    };
+  });
+
+  return { performances, missingTable: false, error: null as string | null };
+}
+
+export function stationPerformanceLabel(row: {
+  server_station_title?: string | null;
+  display_title?: string | null;
+  original_filename: string;
+}) {
+  return (
+    row.server_station_title?.trim() ||
+    row.display_title?.trim() ||
+    row.original_filename
+  );
+}
