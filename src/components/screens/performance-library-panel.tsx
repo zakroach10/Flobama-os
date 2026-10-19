@@ -9,12 +9,15 @@ import {
   playNextAction,
   playNowAction,
   prepareRecordingAction,
+  publishRecordingToServerStationAction,
+  renameServerStationPerformanceAction,
   resumePerformanceAction,
   scanPerformanceLibraryAction,
   setPerformanceAudioMutedAction,
   setRecordingsRootAction,
   skipPerformanceAction,
   stopReturnToNormalWallAction,
+  unpublishRecordingFromServerStationAction,
   updateRecordingMatchAction,
   updateRecordingTitleAction,
 } from "@/actions/performance-library";
@@ -23,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import {
   DROPBOX_RECORDINGS_RELATIVE_ROOT,
   PERFORMANCE_LIBRARY_SQL,
+  PERFORMANCE_SERVER_STATION_SQL,
   PERFORMANCE_SESSION_ASSETS_SQL,
 } from "@/lib/constants";
 import type { StaffPerformanceRecording } from "@/lib/queries/performance-library";
@@ -101,10 +105,14 @@ export function PerformanceLibraryPanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "matched" | "needs_review" | "ready" | "needs download">("all");
+  const [filter, setFilter] = useState<
+    "all" | "matched" | "needs_review" | "ready" | "needs download" | "published"
+  >("all");
   const [rootInput, setRootInput] = useState(settings?.recordings_root || "");
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
+  const [editingStationId, setEditingStationId] = useState<string | null>(null);
+  const [stationTitleDraft, setStationTitleDraft] = useState("");
   const [eventDraft, setEventDraft] = useState<Record<string, string>>({});
 
   const deviceOffline = !ledRunner || isDisplayDeviceStale(ledRunner.last_seen_at);
@@ -116,6 +124,7 @@ export function PerformanceLibraryPanel({
       if (filter === "needs_review" && row.match_status !== "needs_review") return false;
       if (filter === "ready" && row.availability !== "ready") return false;
       if (filter === "needs download" && row.availability !== "needs download") return false;
+      if (filter === "published" && !row.server_station_published) return false;
       if (!q) return true;
       const hay = `${row.display_title || ""} ${row.original_filename} ${row.relative_path} ${row.events?.title || ""}`.toLowerCase();
       return hay.includes(q);
@@ -136,8 +145,9 @@ export function PerformanceLibraryPanel({
       <section className="rounded-xl border bg-card p-5">
         <h2 className="text-lg font-semibold">Performance Library</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Apply <code className="text-xs">{PERFORMANCE_LIBRARY_SQL}</code> and{" "}
-          <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code> in the Supabase SQL editor, then reload
+          Apply <code className="text-xs">{PERFORMANCE_LIBRARY_SQL}</code>,{" "}
+          <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code>, and{" "}
+          <code className="text-xs">{PERFORMANCE_SERVER_STATION_SQL}</code> in the Supabase SQL editor, then reload
           Screens.
         </p>
       </section>
@@ -271,6 +281,7 @@ export function PerformanceLibraryPanel({
               ["needs_review", "Needs review"],
               ["ready", "Ready"],
               ["needs download", "Needs download"],
+              ["published", "On Server Station"],
             ] as const
           ).map(([value, label]) => (
             <Button
@@ -298,8 +309,8 @@ export function PerformanceLibraryPanel({
                 point at other Recordings trees), then click Rescan.
               </li>
               <li>
-                Apply <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code> in Supabase if sessions sync
-                but camera asset columns are missing.
+                Apply <code className="text-xs">{PERFORMANCE_SESSION_ASSETS_SQL}</code> and{" "}
+                <code className="text-xs">{PERFORMANCE_SERVER_STATION_SQL}</code> in Supabase if columns are missing.
               </li>
               <li>
                 Or on the Mac:{" "}
@@ -329,6 +340,12 @@ export function PerformanceLibraryPanel({
                   </div>
                   {row.session_folder ? (
                     <div className="text-xs text-muted-foreground break-all">Session: {row.session_folder}</div>
+                  ) : null}
+                  {row.server_station_published ? (
+                    <div className="text-xs text-emerald-700 dark:text-emerald-400">
+                      On Server Station
+                      {row.server_station_title ? ` as “${row.server_station_title}”` : ""}
+                    </div>
                   ) : null}
                   {row.events ? (
                     <div className="text-xs">Event: {row.events.title}</div>
@@ -378,44 +395,49 @@ export function PerformanceLibraryPanel({
               </div>
 
               {canConfigure ? (
-                <div className="flex flex-col gap-2 border-t pt-2 sm:flex-row">
-                  {editingTitleId === row.id ? (
-                    <>
-                      <Input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} className="sm:max-w-md" />
+                <div className="space-y-2 border-t pt-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {editingTitleId === row.id ? (
+                      <>
+                        <Input
+                          value={titleDraft}
+                          onChange={(e) => setTitleDraft(e.target.value)}
+                          className="sm:max-w-md"
+                          placeholder="Catalog display title"
+                        />
+                        <Button
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await updateRecordingTitleAction({
+                                recordingRowId: row.id,
+                                displayTitle: titleDraft,
+                                lock: true,
+                              });
+                              if (result.ok) setEditingTitleId(null);
+                              return result;
+                            })
+                          }
+                        >
+                          Save catalog title
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingTitleId(null)}>
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
                       <Button
                         size="sm"
-                        disabled={pending}
-                        onClick={() =>
-                          run(async () => {
-                            const result = await updateRecordingTitleAction({
-                              recordingRowId: row.id,
-                              displayTitle: titleDraft,
-                              lock: true,
-                            });
-                            if (result.ok) setEditingTitleId(null);
-                            return result;
-                          })
-                        }
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingTitleId(row.id);
+                          setTitleDraft(row.display_title || "");
+                        }}
                       >
-                        Save title
+                        Edit catalog title
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditingTitleId(null)}>
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingTitleId(row.id);
-                        setTitleDraft(row.display_title || "");
-                      }}
-                    >
-                      Edit display title
-                    </Button>
-                  )}
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    )}
                     <Input
                       placeholder="Event UUID to assign"
                       value={eventDraft[row.id] || row.matched_event_id || ""}
@@ -438,6 +460,78 @@ export function PerformanceLibraryPanel({
                     >
                       Lock event match
                     </Button>
+                  </div>
+
+                  <div className="flex flex-col gap-2 rounded-md border border-dashed bg-muted/20 p-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {editingStationId === row.id ? (
+                      <>
+                        <Input
+                          value={stationTitleDraft}
+                          onChange={(e) => setStationTitleDraft(e.target.value)}
+                          className="sm:max-w-md"
+                          placeholder="Name shown on Server Station"
+                          maxLength={120}
+                        />
+                        <Button
+                          size="sm"
+                          disabled={pending || !stationTitleDraft.trim()}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await renameServerStationPerformanceAction({
+                                recordingRowId: row.id,
+                                stationTitle: stationTitleDraft.trim(),
+                              });
+                              if (result.ok) setEditingStationId(null);
+                              return result;
+                            })
+                          }
+                        >
+                          Save Server Station name
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingStationId(null)}>
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingStationId(row.id);
+                          setStationTitleDraft(
+                            row.server_station_title || row.display_title || row.original_filename || "",
+                          );
+                        }}
+                      >
+                        Rename for Server Station
+                      </Button>
+                    )}
+                    {row.server_station_published ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => run(() => unpublishRecordingFromServerStationAction(row.id))}
+                      >
+                        Unpublish from Server Station
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        disabled={pending}
+                        onClick={() =>
+                          run(() =>
+                            publishRecordingToServerStationAction({
+                              recordingRowId: row.id,
+                              stationTitle:
+                                (row.server_station_title || row.display_title || "").trim() || null,
+                            }),
+                          )
+                        }
+                      >
+                        Publish to Server Station
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : null}

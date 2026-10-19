@@ -1510,6 +1510,11 @@ export type Database = {
           match_reason: string | null;
           match_locked: boolean;
           suggested_event_ids: string[];
+          server_station_published: boolean;
+          server_station_title: string | null;
+          server_station_sort_order: number;
+          server_station_published_at: string | null;
+          server_station_published_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1525,6 +1530,11 @@ export type Database = {
           primary_asset_id?: string | null;
           camera_count?: number;
           assets?: Json;
+          server_station_published?: boolean;
+          server_station_title?: string | null;
+          server_station_sort_order?: number;
+          server_station_published_at?: string | null;
+          server_station_published_by?: string | null;
           file_size?: number | null;
           birthtime_ms?: number | null;
           mtime_ms?: number | null;
@@ -1605,6 +1615,11 @@ export type Database = {
           match_reason?: string | null;
           match_locked?: boolean;
           suggested_event_ids?: string[];
+          server_station_published?: boolean;
+          server_station_title?: string | null;
+          server_station_sort_order?: number;
+          server_station_published_at?: string | null;
+          server_station_published_by?: string | null;
         };
         Relationships: [];
       };

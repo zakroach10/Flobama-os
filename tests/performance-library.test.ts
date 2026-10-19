@@ -19,6 +19,7 @@ import { openRecordingsCatalog, mergeScanResults } from "../clients/local-runner
 import { sendRecordingFile, isPathInsideRoot } from "../clients/local-runner/lib/recordings-serve.mjs";
 import { matchRecordingToEvents } from "@/lib/performance/match";
 import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performance/titles";
+import { stationPerformanceLabel } from "@/lib/queries/performance-library";
 
 describe("ecamm session folder model", () => {
   it("parses verified session folder names", () => {
@@ -237,6 +238,23 @@ describe("performance titles", () => {
     ]);
     expect(labels.get("a")).toBe("Part 1");
     expect(labels.get("b")).toBe("Part 2");
+  });
+
+  it("prefers Server Station rename over catalog title and filename", () => {
+    expect(
+      stationPerformanceLabel({
+        server_station_title: "Friday Late Show",
+        display_title: "River Band — Live at FloBama",
+        original_filename: "Ecamm Recording on 2026-10-14 at 17.41.33.mp4",
+      }),
+    ).toBe("Friday Late Show");
+    expect(
+      stationPerformanceLabel({
+        server_station_title: null,
+        display_title: "River Band — Live at FloBama",
+        original_filename: "Ecamm Recording on 2026-10-14 at 17.41.33.mp4",
+      }),
+    ).toBe("River Band — Live at FloBama");
   });
 });
 
