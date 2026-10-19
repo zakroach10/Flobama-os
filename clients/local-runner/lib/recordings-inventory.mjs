@@ -158,8 +158,17 @@ export async function inventoryEcammSession(recordingsRoot, sessionDir, sessionF
     return String(a.originalFilename).localeCompare(String(b.originalFilename));
   });
 
-  const primary = assets.find((a) => a.role === "primary") || null;
+  const namedPrimary = assets.find((a) => a.role === "primary") || null;
   const cameras = assets.filter((a) => a.role === "camera");
+  const others = assets.filter((a) => a.role === "other");
+  // Exact folder-name primary wins; otherwise a single non-camera video can stand in for playback.
+  let primary = namedPrimary;
+  if (!primary && others.length === 1) {
+    primary = { ...others[0], role: "primary" };
+    const idx = assets.findIndex((a) => a.assetId === others[0].assetId);
+    if (idx >= 0) assets[idx] = primary;
+  }
+
   // Playback path: primary file when present; otherwise session folder (unplayable until primary exists).
   const playbackRel = primary?.relativePath || sessionRel;
   const playbackAbs = primary?.absolutePath || sessionDir;
@@ -167,10 +176,13 @@ export async function inventoryEcammSession(recordingsRoot, sessionDir, sessionF
   let availability = primary?.availability || "error";
   let lastError = primary?.lastError || null;
   if (!primary) {
-    availability = cameras.length ? "needs download" : "error";
-    lastError = cameras.length
-      ? "Session has camera files but no primary Ecamm Recording *.mp4 matching the folder name."
-      : "Session folder has no catalogued video assets.";
+    if (cameras.length || others.length) {
+      availability = "needs download";
+      lastError = `No primary “${sessionFolderName}.mp4” yet (${cameras.length} camera, ${others.length} other). Make the main Ecamm file available offline, then rescan.`;
+    } else {
+      availability = "error";
+      lastError = "Session folder has no playable video files.";
+    }
   }
 
   return {

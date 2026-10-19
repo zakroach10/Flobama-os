@@ -350,10 +350,10 @@ export function PerformanceLibraryPanel({
                   <div className="font-medium leading-snug">{row.display_title || row.original_filename}</div>
                   <div className="text-xs text-muted-foreground break-all">{row.original_filename}</div>
                   <div className="text-xs text-muted-foreground">
-                    {row.match_status.replace("_", " ")}
-                    {row.match_reason ? ` · ${row.match_reason}` : ""}
+                    Match: {row.match_status.replace(/_/g, " ")}
+                    {row.match_reason ? ` — ${row.match_reason}` : ""}
                     {" · "}
-                    {row.availability}
+                    File: {row.availability}
                     {" · "}
                     {formatBytes(row.file_size)}
                     {" · "}
@@ -362,6 +362,17 @@ export function PerformanceLibraryPanel({
                       ? ` · ${row.camera_count} camera${row.camera_count === 1 ? "" : "s"}`
                       : ""}
                   </div>
+                  {row.availability !== "ready" && row.last_error ? (
+                    <div
+                      className={
+                        row.availability === "error"
+                          ? "text-xs text-destructive"
+                          : "text-xs text-amber-700 dark:text-amber-400"
+                      }
+                    >
+                      {row.last_error}
+                    </div>
+                  ) : null}
                   {row.session_folder ? (
                     <div className="text-xs text-muted-foreground break-all">Session: {row.session_folder}</div>
                   ) : null}

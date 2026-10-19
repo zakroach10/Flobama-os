@@ -56,9 +56,9 @@ function scoreEvent(
     const contained =
       recordingStartMs >= eventStartMs - 5 * 60_000 && recordingEndMs <= eventEndMs + 15 * 60_000;
     if (contained) {
-      return { score: 100, reason: "Recording interval falls inside the event window." };
+      return { score: 100, reason: "Inside the event window." };
     }
-    return { score: 80, reason: "Recording overlaps the event window." };
+    return { score: 80, reason: "Overlaps the event window." };
   }
 
   // After-midnight: recording shortly after midnight may belong to previous evening show.
