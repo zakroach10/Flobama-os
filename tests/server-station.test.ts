@@ -300,6 +300,18 @@ describe("server station scene previews", () => {
     expect(ledScenePosterStoragePath("/venue/led/loop.MP4")).toBe("venue/led/loop.poster.jpg");
   });
 
+  it("uses the same-origin preview endpoint when a scene id is present", () => {
+    expect(
+      resolveLedScenePreviewUrl({
+        id: "11111111-1111-1111-1111-111111111111",
+        public_url: "https://cdn.example/loop.mp4",
+        storage_path: "/led/artists/band loop.mp4",
+        media_kind: "video",
+        kind: "media",
+      }),
+    ).toBe("/api/server-station/preview/11111111-1111-1111-1111-111111111111");
+  });
+
   it("rebuilds public storage URLs from storage_path when possible", () => {
     const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -382,5 +394,6 @@ describe("Server Station PWA", () => {
     expect(source).toContain("text/html");
     expect(source).toContain("/_next/static/");
     expect(source).toContain("/icons/");
+    expect(source).toContain("/api/server-station/preview/");
   });
 });

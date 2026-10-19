@@ -7,10 +7,10 @@ import { activateServerStationSceneAction } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
 import {
   cacheLedPosterUrl,
-  getCachedLedPosterUrl,
   LED_SCENE_POSTER_JPEG_QUALITY,
   LED_SCENE_POSTER_MAX_EDGE,
 } from "@/lib/screens/led-poster";
+import { acquireLoopPreviewSlot } from "@/lib/server-station/preview-load";
 import {
   paginateServerStationScenes,
   SERVER_STATION_SCENE_PAGE_SIZE,
@@ -31,7 +31,7 @@ function persistScenePoster(sceneId: string, posterObjectUrl: string) {
       body.set("poster", new File([blob], "poster.jpg", { type: "image/jpeg" }));
       await fetch("/api/server-station/scene-poster", { method: "POST", body });
     } catch {
-      /* best-effort; grid already shows the captured still */
+      /* best-effort; tile already shows a frame */
     }
   })();
 }
@@ -66,123 +66,126 @@ function blobFromVideoFrame(video: HTMLVideoElement): Promise<string | null> {
   });
 }
 
-/** Paints a loop frame and, when possible, saves a tiny JPEG poster from the same decode. */
-function LoopVideoFallback({
-  url,
-  sceneId,
-  onPoster,
-}: {
-  url: string;
-  sceneId: string;
-  onPoster?: (posterUrl: string) => void;
-}) {
+/** Paints a loop frame; persists a JPEG in the background for the next visit. */
+function LoopVideoFallback({ url, sceneId }: { url: string; sceneId: string }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const onPosterRef = useRef(onPoster);
-  onPosterRef.current = onPoster;
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
+    let cancelled = false;
+    let release: (() => void) | null = null;
+    void acquireLoopPreviewSlot().then((rel) => {
+      release = rel;
+      if (cancelled) {
+        rel();
+        return;
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+      release?.();
+      setReady(false);
+    };
+  }, [sceneId, url]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const el = ref.current;
+    if (!el) return;
     let cancelled = false;
 
     const showFrame = () => {
       try {
-        const duration = Number.isFinite(video.duration) ? video.duration : 0;
-        video.currentTime = duration > 0 ? Math.min(0.05, duration * 0.01) : 0.001;
+        const duration = Number.isFinite(el.duration) ? el.duration : 0;
+        el.currentTime = duration > 0 ? Math.min(0.05, duration * 0.01) : 0.001;
       } catch {
         /* ignore */
       }
-      void video.play().then(
+      void el.play().then(
         () => {
-          video.pause();
+          el.pause();
         },
         () => undefined,
       );
     };
 
     const persistFromElement = () => {
-      void blobFromVideoFrame(video).then((poster) => {
+      void blobFromVideoFrame(el).then((poster) => {
         if (cancelled || !poster) return;
         cacheLedPosterUrl(url, poster);
-        onPosterRef.current?.(poster);
+        // Keep the video frame on screen — swapping to a blob can hitch on phones.
         persistScenePoster(sceneId, poster);
       });
     };
 
-    video.addEventListener("loadeddata", showFrame, { once: true });
-    video.addEventListener("seeked", persistFromElement, { once: true });
-    showFrame();
+    el.addEventListener("loadeddata", showFrame, { once: true });
+    el.addEventListener("seeked", persistFromElement, { once: true });
+    el.src = `${url}${url.includes("#") ? "" : "#t=0.001"}`;
+    el.load();
     return () => {
       cancelled = true;
+      el.removeAttribute("src");
+      el.load();
     };
-  }, [sceneId, url]);
+  }, [ready, sceneId, url]);
 
   return (
-    <video
-      ref={ref}
-      key={url}
-      src={`${url}${url.includes("#") ? "" : "#t=0.001"}`}
-      muted
-      playsInline
-      preload="metadata"
-      className="absolute inset-0 h-full w-full object-contain"
-    />
+    <>
+      {!ready ? <div className="absolute inset-0 animate-pulse bg-white/5" aria-hidden /> : null}
+      <video
+        ref={ref}
+        muted
+        playsInline
+        preload={ready ? "metadata" : "none"}
+        className="absolute inset-0 h-full w-full object-contain"
+      />
+    </>
   );
 }
 
-function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
+function ScenePreview({ scene, priority }: { scene: ServerStationSceneCard; priority: boolean }) {
   const isVideo = scene.media_kind === "video";
   const posterUrl = scene.preview_url;
   const mediaUrl = scene.public_url;
-  const cached = mediaUrl ? getCachedLedPosterUrl(mediaUrl) : null;
-  const [displayUrl, setDisplayUrl] = useState<string | null>(() => cached || posterUrl);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(() => posterUrl);
   const [failed, setFailed] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
 
   useEffect(() => {
-    const next = (mediaUrl && getCachedLedPosterUrl(mediaUrl)) || posterUrl;
-    setDisplayUrl(next);
+    setDisplayUrl(posterUrl);
     setFailed(false);
     setUseVideoFallback(false);
   }, [posterUrl, mediaUrl, scene.id]);
 
   function beginLoopPreview() {
     if (!isVideo || !mediaUrl || useVideoFallback) return;
-    const hit = getCachedLedPosterUrl(mediaUrl);
-    if (hit) {
-      setDisplayUrl(hit);
-      setFailed(false);
-      setUseVideoFallback(false);
-      return;
-    }
     setDisplayUrl(null);
     setUseVideoFallback(true);
     setFailed(false);
   }
 
-  // Loops with no stored poster URL yet.
+  // Loops with no preview endpoint / stored poster yet.
   useEffect(() => {
     if (!isVideo || !mediaUrl || posterUrl || displayUrl || useVideoFallback) return;
     beginLoopPreview();
-    // beginLoopPreview closes over scene/media; intentional for this tile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayUrl, isVideo, mediaUrl, posterUrl, scene.id, useVideoFallback]);
 
   if (displayUrl) {
     return (
       <div className="relative h-full w-full bg-black">
-        {/* Visible immediately. iOS skips onLoad when a prefetched logo is already complete. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           key={displayUrl}
           src={displayUrl}
           alt=""
           className="absolute inset-0 h-full w-full object-contain p-1"
-          loading="eager"
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
+          fetchPriority={priority ? "high" : "low"}
           onError={() => {
-            // Stored .poster.jpg missing for this loop — show a video frame, then cache a JPEG.
-            if (isVideo && mediaUrl && displayUrl === posterUrl) {
+            if (isVideo && mediaUrl) {
               beginLoopPreview();
               return;
             }
@@ -201,14 +204,7 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
   if (isVideo && mediaUrl && useVideoFallback) {
     return (
       <div className="relative h-full w-full bg-black">
-        <LoopVideoFallback
-          url={mediaUrl}
-          sceneId={scene.id}
-          onPoster={(poster) => {
-            setDisplayUrl(poster);
-            setUseVideoFallback(false);
-          }}
-        />
+        <LoopVideoFallback url={mediaUrl} sceneId={scene.id} />
       </div>
     );
   }
@@ -238,8 +234,15 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
 function prefetchScenePreviews(scenes: ServerStationSceneCard[]) {
   if (typeof window === "undefined") return;
   for (const scene of scenes) {
-    // Prefer tiny poster/image URLs. Skip MP4s so the phone is not flooded.
     if (!scene.preview_url) continue;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = scene.preview_url;
+    link.setAttribute("data-ss-preview", scene.id);
+    if (!document.head.querySelector(`link[data-ss-preview="${scene.id}"]`)) {
+      document.head.appendChild(link);
+    }
     const img = new window.Image();
     img.decoding = "async";
     img.src = scene.preview_url;
@@ -381,7 +384,7 @@ export function ServerStationWallControls({
 
         {catalog.length ? (
           <div className="grid grid-cols-2 gap-2 max-lg:auto-rows-[9.75rem] sm:max-lg:grid-cols-3 lg:min-h-0 lg:flex-1 lg:grid-cols-4 lg:grid-rows-5 lg:gap-2.5 xl:grid-cols-5 xl:grid-rows-4">
-            {paged.items.map((scene) => (
+            {paged.items.map((scene, index) => (
               <button
                 key={`${paged.page}-${scene.id}`}
                 type="button"
@@ -395,7 +398,7 @@ export function ServerStationWallControls({
                 className="flex h-[9.75rem] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/15 bg-black/35 text-left disabled:opacity-40 lg:h-full lg:min-h-0"
               >
                 <div className="relative h-[6.5rem] w-full shrink-0 overflow-hidden bg-black lg:h-auto lg:min-h-0 lg:flex-1">
-                  <ScenePreview scene={scene} />
+                  <ScenePreview scene={scene} priority={index < 8} />
                 </div>
                 <div className="shrink-0 border-t border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
                   <p className="line-clamp-2 text-xs font-bold leading-tight text-[#f7efe6] sm:text-sm">
