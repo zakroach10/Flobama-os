@@ -54,7 +54,7 @@ export async function listStaffLedPlaylistItems(client: Client, venueId: string,
   const { data: scenes } = sceneIds.length
     ? await client
         .from("led_wall_scenes")
-        .select("id, title, kind, media_kind, public_url, obs_scene_name")
+        .select("id, title, kind, media_kind, public_url, poster_url, obs_scene_name")
         .in("id", sceneIds)
     : {
         data: [] as Array<{
@@ -63,6 +63,7 @@ export async function listStaffLedPlaylistItems(client: Client, venueId: string,
           kind: StaffLedPlaylistItem["kind"];
           media_kind: StaffLedPlaylistItem["media_kind"];
           public_url: string | null;
+          poster_url: string | null;
           obs_scene_name: string | null;
         }>,
       };
@@ -82,6 +83,7 @@ export async function listStaffLedPlaylistItems(client: Client, venueId: string,
       kind: scene?.kind ?? "media",
       media_kind: scene?.media_kind ?? null,
       public_url: scene?.public_url ?? null,
+      poster_url: scene?.poster_url ?? null,
       obs_scene_name: scene?.obs_scene_name ?? null,
     };
   });

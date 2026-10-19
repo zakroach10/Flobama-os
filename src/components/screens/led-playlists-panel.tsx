@@ -351,16 +351,16 @@ function ItemRow({
   return (
     <li className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[96px_1fr]">
       <div className="overflow-hidden rounded-md bg-muted">
-        {item.kind === "media" && item.public_url ? (
-          item.media_kind === "video" ? (
-            <video src={item.public_url} muted className="h-24 w-full object-cover" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.public_url} alt="" className="h-24 w-full object-cover" />
-          )
+        {item.kind === "media" && (item.media_kind === "video" ? item.poster_url : item.public_url) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={(item.media_kind === "video" ? item.poster_url : item.public_url) || ""}
+            alt=""
+            className="h-24 w-full object-cover"
+          />
         ) : (
           <div className="flex h-24 items-center justify-center px-2 text-center text-xs text-muted-foreground">
-            {item.kind === "obs" ? "OBS" : item.kind}
+            {item.kind === "obs" ? "OBS" : item.media_kind === "video" ? "Poster pending" : item.kind}
           </div>
         )}
       </div>

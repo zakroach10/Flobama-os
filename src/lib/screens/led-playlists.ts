@@ -21,6 +21,7 @@ export type StaffLedPlaylistItem = {
   kind: LedWallSceneKind;
   media_kind: LedWallMediaKind | "week_events" | null;
   public_url: string | null;
+  poster_url: string | null;
   obs_scene_name: string | null;
 };
 

@@ -21,6 +21,7 @@ import type { LedWallAgentSnapshot, LedWallSceneRow } from "@/lib/queries/led-wa
 import { houseLedScenes } from "@/lib/screens/artist-led";
 import { agentStatusCopy, ledSceneDetail } from "@/lib/screens/led-wall";
 import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
+import { backfillLedVideoPostersFromBrowser } from "@/lib/screens/led-poster-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 import { LocalRunnerDownload } from "@/components/screens/local-runner-download";
@@ -51,7 +52,11 @@ export function LedWallPanel({
   // Artist logos/loops live on artist profiles — keep this list to house scenes only.
   const houseScenes = houseLedScenes(scenes);
   const visible = canConfigure ? houseScenes : houseScenes.filter((scene) => scene.enabled);
+  const missingPosters = scenes.filter(
+    (scene) => scene.kind === "media" && scene.media_kind === "video" && scene.storage_path && !scene.poster_url,
+  ).length;
   const [setupOpen, setSetupOpen] = useState(false);
+  const [posterBusy, setPosterBusy] = useState(false);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -67,6 +72,48 @@ export function LedWallPanel({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canConfigure && missingPosters > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={posterBusy || pending}
+                onClick={() => {
+                  setPosterBusy(true);
+                  void (async () => {
+                    const toastId = toast.loading(`Generating menu posters (0/${missingPosters})…`);
+                    const result = await backfillLedVideoPostersFromBrowser({
+                      venueId,
+                      scenes,
+                      supabaseEnv,
+                      onProgress: (done, total, title) => {
+                        toast.loading(
+                          done >= total
+                            ? "Finishing…"
+                            : `Generating menu posters (${done + 1}/${total}): ${title}`,
+                          { id: toastId },
+                        );
+                      },
+                    });
+                    setPosterBusy(false);
+                    if (!result.ok) {
+                      toast.error(result.message, { id: toastId });
+                      return;
+                    }
+                    const failedNote = result.failed.length
+                      ? ` ${result.failed.length} failed.`
+                      : "";
+                    toast.success(
+                      `Generated ${result.generated} menu poster${result.generated === 1 ? "" : "s"}.${failedNote}`,
+                      { id: toastId },
+                    );
+                    if (result.failed[0]) toast.error(result.failed[0]);
+                    router.refresh();
+                  })();
+                }}
+              >
+                {posterBusy ? "Generating…" : `Generate menu posters (${missingPosters})`}
+              </Button>
+            ) : null}
             {canConfigure && !hasTriviaScene ? (
               <Button
                 type="button"

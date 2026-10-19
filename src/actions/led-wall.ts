@@ -30,6 +30,7 @@ import { endTriviaSession, startTriviaSession } from "@/lib/trivia/runtime";
 import {
   activateLedWallSceneSchema,
   createLedMediaSceneSchema,
+  saveLedScenePosterSchema,
   createLedObsSceneSchema,
   ledWallMediaSceneNameSchema,
   reorderLedWallScenesSchema,
@@ -234,6 +235,8 @@ export async function createLedMediaSceneAction(input: unknown): Promise<LedWall
     media_kind: parsed.data.mediaKind,
     storage_path: parsed.data.storagePath,
     public_url: parsed.data.publicUrl,
+    poster_storage_path: parsed.data.posterStoragePath ?? null,
+    poster_url: parsed.data.posterUrl ?? null,
     sort_order: await nextSortOrder(gate.supabase, gate.context.venue.id),
     enabled: true,
   });
@@ -299,7 +302,7 @@ export async function deleteLedWallSceneAction(id: string): Promise<LedWallActio
 
   const { data: scene, error: sceneError } = await gate.supabase
     .from("led_wall_scenes")
-    .select("id, storage_path, title")
+    .select("id, storage_path, poster_storage_path, title")
     .eq("id", id)
     .eq("venue_id", gate.context.venue.id)
     .maybeSingle();
@@ -308,11 +311,53 @@ export async function deleteLedWallSceneAction(id: string): Promise<LedWallActio
 
   const { error } = await gate.supabase.from("led_wall_scenes").delete().eq("id", scene.id).eq("venue_id", gate.context.venue.id);
   if (error) return { ok: false, message: ledSqlMessage(error.message) };
-  if (scene.storage_path) {
-    await gate.supabase.storage.from("screen-ads").remove([scene.storage_path]);
+  const paths = [scene.storage_path, scene.poster_storage_path].filter(
+    (path): path is string => Boolean(path),
+  );
+  if (paths.length) {
+    await gate.supabase.storage.from("screen-ads").remove(paths);
   }
   revalidateLedWall();
   return { ok: true, message: `${scene.title} was removed.` };
+}
+
+export async function saveLedScenePosterAction(input: unknown): Promise<LedWallActionResult> {
+  const gate = await staffGate("media-upload");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = saveLedScenePosterSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const { data: scene, error: sceneError } = await gate.supabase
+    .from("led_wall_scenes")
+    .select("id, media_kind, poster_storage_path, title")
+    .eq("id", parsed.data.sceneId)
+    .eq("venue_id", gate.context.venue.id)
+    .maybeSingle();
+  if (sceneError) return { ok: false, message: ledSqlMessage(sceneError.message) };
+  if (!scene) return { ok: false, message: "Scene not found." };
+  if (scene.media_kind !== "video") {
+    return { ok: false, message: "Menu posters are only needed for video loops." };
+  }
+
+  const { error } = await gate.supabase
+    .from("led_wall_scenes")
+    .update({
+      poster_storage_path: parsed.data.posterStoragePath,
+      poster_url: parsed.data.posterUrl,
+    })
+    .eq("id", scene.id)
+    .eq("venue_id", gate.context.venue.id);
+  if (error) return { ok: false, message: ledSqlMessage(error.message) };
+
+  if (
+    scene.poster_storage_path &&
+    scene.poster_storage_path !== parsed.data.posterStoragePath
+  ) {
+    await gate.supabase.storage.from("screen-ads").remove([scene.poster_storage_path]);
+  }
+
+  revalidateLedWall();
+  return { ok: true, message: `Menu poster saved for ${scene.title}.` };
 }
 
 export async function saveLedWallMediaSceneAction(input: unknown): Promise<LedWallActionResult> {

@@ -15,33 +15,13 @@ import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-s
 import { cn } from "@/lib/utils";
 
 function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
+  // Videos use a PNG poster in preview_url — never the MP4 (blank on mobile).
   const url = scene.preview_url;
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
   }, [url, scene.id]);
-
-  if (url && scene.media_kind === "video") {
-    return (
-      <div className="relative h-full w-full bg-black">
-        <video
-          key={url}
-          src={url}
-          muted
-          playsInline
-          preload="metadata"
-          className="absolute inset-0 h-full w-full object-contain"
-          onError={() => setFailed(true)}
-        />
-        {failed ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black px-2 text-center text-xs text-[#e8d5c4]">
-            Preview unavailable
-          </div>
-        ) : null}
-      </div>
-    );
-  }
 
   if (url) {
     return (
@@ -75,6 +55,15 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
     );
   }
 
+  if (scene.media_kind === "video") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1 bg-black px-2 text-center text-[#e8d5c4]">
+        <span className="line-clamp-3 text-xs font-medium sm:text-sm">{scene.title}</span>
+        <span className="text-[10px] opacity-70">Poster pending</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full items-center justify-center bg-black text-sm text-[#e8d5c4]">No preview</div>
   );
@@ -83,7 +72,7 @@ function ScenePreview({ scene }: { scene: ServerStationSceneCard }) {
 function prefetchScenePreviews(scenes: ServerStationSceneCard[]) {
   if (typeof window === "undefined") return;
   for (const scene of scenes) {
-    if (!scene.preview_url || scene.media_kind === "video") continue;
+    if (!scene.preview_url) continue;
     const img = new window.Image();
     img.decoding = "async";
     img.src = scene.preview_url;

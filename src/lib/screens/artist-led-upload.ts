@@ -5,6 +5,7 @@ import {
   artistLedMediaKindForFile,
   MAX_ARTIST_LED_BYTES,
 } from "@/lib/screens/artist-led";
+import { uploadLedVideoPosterFromBrowser } from "@/lib/screens/led-poster-upload";
 import {
   uploadStorageObjectWithProgress,
   type StorageUploadProgress,
@@ -66,15 +67,36 @@ export async function uploadArtistLedMediaFromBrowser(input: {
 
   input.onPhase?.("saving");
   const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
+
+  let posterStoragePath: string | null = null;
+  let posterUrl: string | null = null;
+  if (mediaKind === "video") {
+    const sceneId = crypto.randomUUID();
+    const poster = await uploadLedVideoPosterFromBrowser({
+      file: input.file,
+      venueId: input.venueId,
+      sceneId,
+      supabaseEnv: input.supabaseEnv,
+      folder: "led/artists",
+    });
+    if (poster.ok) {
+      posterStoragePath = poster.storagePath;
+      posterUrl = poster.publicUrl;
+    }
+  }
+
   const result = await saveArtistLedMediaAction({
     artistId: input.artistId,
     title: input.title,
     mediaKind,
     storagePath,
     publicUrl,
+    posterStoragePath,
+    posterUrl,
   });
   if (!result.ok) {
-    await supabase.storage.from("screen-ads").remove([storagePath]);
+    const cleanup = [storagePath, posterStoragePath].filter((path): path is string => Boolean(path));
+    await supabase.storage.from("screen-ads").remove(cleanup);
     return { ok: false as const, message: result.message };
   }
   return { ok: true as const, message: result.message };

@@ -79,13 +79,14 @@ export function ArtistLedPanel({
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex size-28 items-center justify-center overflow-hidden rounded-xl bg-neutral-950 ring-1 ring-black/10">
-          {scene?.public_url ? (
-            scene.media_kind === "video" ? (
-              <video src={scene.public_url} className="max-h-full max-w-full" muted playsInline />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={scene.public_url} alt="" className="max-h-full max-w-full object-contain" />
-            )
+          {scene?.media_kind === "video" && scene.poster_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={scene.poster_url} alt="" className="max-h-full max-w-full object-contain" />
+          ) : scene?.public_url && scene.media_kind !== "video" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={scene.public_url} alt="" className="max-h-full max-w-full object-contain" />
+          ) : scene?.media_kind === "video" ? (
+            <span className="px-3 text-center text-xs text-muted-foreground">Loop saved · menu poster pending</span>
           ) : (
             <span className="px-3 text-center text-xs text-muted-foreground">No graphic yet</span>
           )}

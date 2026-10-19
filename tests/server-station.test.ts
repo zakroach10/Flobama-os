@@ -35,6 +35,7 @@ import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds
 import {
   isServerStationActivatableScene,
   paginateServerStationScenes,
+  resolveLedSceneMenuPreviewUrl,
   resolveLedScenePreviewUrl,
   SERVER_STATION_SCENE_PAGE_SIZE,
 } from "@/lib/server-station/scenes";
@@ -312,6 +313,38 @@ describe("server station scene previews", () => {
     ).toBe(
       "https://project.supabase.co/storage/v1/object/public/screen-ads/led/artists/band%20logo.png",
     );
+    process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
+  });
+
+  it("uses PNG posters for video menu previews, never the MP4", () => {
+    const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey || "test-anon";
+
+    expect(
+      resolveLedSceneMenuPreviewUrl({
+        media_kind: "video",
+        public_url: "https://project.supabase.co/storage/v1/object/public/screen-ads/v.mp4",
+        storage_path: "venue/led/v.mp4",
+        poster_url: null,
+        poster_storage_path: "venue/led/v-poster.png",
+      }),
+    ).toBe(
+      "https://project.supabase.co/storage/v1/object/public/screen-ads/venue/led/v-poster.png",
+    );
+
+    expect(
+      resolveLedSceneMenuPreviewUrl({
+        media_kind: "image",
+        public_url: "https://cdn.example/logo.png",
+        storage_path: null,
+        poster_url: null,
+        poster_storage_path: null,
+      }),
+    ).toBe("https://cdn.example/logo.png");
+
     process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
   });
