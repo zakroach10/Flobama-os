@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
-import { CAMERA_CONNECTOR_DMG_FILENAME, LED_OBS_DMG_FILENAME } from "./src/lib/constants";
+import {
+  CAMERA_CONNECTOR_DMG_FILENAME,
+  LED_OBS_DMG_FILENAME,
+  LOCAL_RUNNER_DMG_FILENAME,
+} from "./src/lib/constants";
 
 const embeddable = [{ key: "Content-Security-Policy", value: "frame-ancestors *" }];
 const dmgHeaders = (filename: string) => [
@@ -13,6 +17,17 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "50mb",
     },
+  },
+  // Keep Local Runner / camera DMGs and Mac client sources out of serverless traces.
+  outputFileTracingExcludes: {
+    "*": [
+      "./public/downloads/**",
+      "./clients/**",
+      "./tmp/**",
+      "./scripts/**",
+      "./tests/**",
+      "./supabase/**",
+    ],
   },
   async headers() {
     return [
@@ -35,6 +50,10 @@ const nextConfig: NextConfig = {
       {
         source: `/downloads/${CAMERA_CONNECTOR_DMG_FILENAME}`,
         headers: dmgHeaders(CAMERA_CONNECTOR_DMG_FILENAME),
+      },
+      {
+        source: `/downloads/${LOCAL_RUNNER_DMG_FILENAME}`,
+        headers: dmgHeaders(LOCAL_RUNNER_DMG_FILENAME),
       },
       {
         source: "/wall-sw.js",
