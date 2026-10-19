@@ -206,3 +206,95 @@ export async function resumeStationPerformanceAction(): Promise<StationPerforman
   revalidateStation();
   return { ok: true, message: "Resumed.", commandId: command?.id };
 }
+
+export async function setStationPerformanceMutedAction(
+  muted: boolean,
+): Promise<StationPerformanceActionResult> {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const { admin, deviceId } = await resolveLedRunner(gate.venueId);
+  if (!admin || !deviceId) {
+    return { ok: false, message: "No paired LED Local Runner is online." };
+  }
+
+  const { command, error } = await enqueuePerformanceCommand(admin, {
+    venueId: gate.venueId,
+    deviceId,
+    kind: "set_audio_muted",
+    payload: { muted: Boolean(muted) },
+    issuedBy: gate.actor.userId,
+  });
+  if (error) return { ok: false, message: error };
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: muted ? "performance.mute" : "performance.unmute",
+    detail: { muted: Boolean(muted) },
+  });
+
+  revalidateStation();
+  return { ok: true, message: muted ? "Audio muted." : "Audio on.", commandId: command?.id };
+}
+
+const volumeSchema = z.object({
+  volume: z.number().min(0).max(1),
+});
+
+export async function setStationPerformanceVolumeAction(
+  input: z.infer<typeof volumeSchema>,
+): Promise<StationPerformanceActionResult> {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = volumeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Volume must be between 0% and 100%." };
+
+  const { admin, deviceId } = await resolveLedRunner(gate.venueId);
+  if (!admin || !deviceId) {
+    return { ok: false, message: "No paired LED Local Runner is online." };
+  }
+
+  const { command, error } = await enqueuePerformanceCommand(admin, {
+    venueId: gate.venueId,
+    deviceId,
+    kind: "set_audio_volume",
+    payload: { volume: parsed.data.volume },
+    issuedBy: gate.actor.userId,
+  });
+  if (error) {
+    // Older runner / DB without set_audio_volume: fall back to mute command with volume in payload.
+    if (/set_audio_volume|invalid input value|enum/i.test(error)) {
+      const fallback = await enqueuePerformanceCommand(admin, {
+        venueId: gate.venueId,
+        deviceId,
+        kind: "set_audio_muted",
+        payload: { muted: parsed.data.volume <= 0, volume: parsed.data.volume },
+        issuedBy: gate.actor.userId,
+      });
+      if (fallback.error) return { ok: false, message: fallback.error };
+      revalidateStation();
+      return {
+        ok: true,
+        message: `Volume ${Math.round(parsed.data.volume * 100)}%.`,
+        commandId: fallback.command?.id,
+      };
+    }
+    return { ok: false, message: error };
+  }
+
+  await writeServerStationAudit(gate.writeClient, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "performance.volume",
+    detail: { volume: parsed.data.volume },
+  });
+
+  revalidateStation();
+  return {
+    ok: true,
+    message: `Volume ${Math.round(parsed.data.volume * 100)}%.`,
+    commandId: command?.id,
+  };
+}

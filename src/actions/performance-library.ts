@@ -147,6 +147,14 @@ export async function setPerformanceAudioMutedAction(muted: boolean): Promise<Pe
   return issue("playback", "set_audio_muted", { muted });
 }
 
+export async function setPerformanceAudioVolumeAction(volume: number): Promise<PerformanceActionResult> {
+  const n = Number(volume);
+  if (!Number.isFinite(n) || n < 0 || n > 1) {
+    return { ok: false, message: "Volume must be between 0 and 1." };
+  }
+  return issue("playback", "set_audio_volume", { volume: n });
+}
+
 export async function stopReturnToNormalWallAction(): Promise<PerformanceActionResult> {
   return issue("playback", "stop_return_normal");
 }

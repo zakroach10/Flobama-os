@@ -655,7 +655,8 @@ async function main() {
         performance: {
           mode: perf.mode,
           revision: perf.revision,
-          audioMuted: perf.audioMuted !== false,
+          audioMuted: Boolean(perf.audioMuted),
+          audioVolume: Number.isFinite(Number(perf.audioVolume)) ? Number(perf.audioVolume) : 1,
           nowPlaying: perf.nowPlaying,
           queue: perf.queue,
           lastError: perf.lastError,

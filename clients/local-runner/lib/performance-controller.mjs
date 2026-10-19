@@ -1,5 +1,10 @@
 import { availableParallelism } from "node:os";
-import { getPerformanceState, setPerformanceState, upsertRecording } from "./recordings-catalog.mjs";
+import {
+  clampAudioVolume,
+  getPerformanceState,
+  setPerformanceState,
+  upsertRecording,
+} from "./recordings-catalog.mjs";
 import { probeLocalRecording, convertRecordingToCache } from "./recordings-probe.mjs";
 import { resolvePlayablePath } from "./recordings-serve.mjs";
 import { detectLocalAvailability } from "./recordings-inventory.mjs";
@@ -70,6 +75,8 @@ export async function applyPerformanceCommand(runtime, command) {
         return skipPlayback(runtime);
       case "set_audio_muted":
         return setAudioMuted(runtime, payload);
+      case "set_audio_volume":
+        return setAudioVolume(runtime, payload);
       case "stop_return_normal":
         return stopReturnNormal(runtime, payload);
       case "report_progress":
@@ -108,7 +115,9 @@ async function enterPerformanceMode(runtime) {
     mode: "performance",
     priorWallRevision: runtime.manifestRevision || null,
     priorMode: runtime.manifest?.mode || "playlist",
-    audioMuted: perf.audioMuted !== false ? true : perf.audioMuted,
+    // Keep operator mute/volume preference when entering performance mode.
+    audioMuted: Boolean(perf.audioMuted),
+    audioVolume: clampAudioVolume(perf.audioVolume, 1),
   });
 }
 
@@ -128,6 +137,8 @@ async function playNow(runtime, payload) {
   const perf = getPerformanceState(runtime.recordingsCatalog);
   const queue = [playItem, ...(perf.queue || []).filter((q) => q.queueItemId !== playItem.queueItemId)];
   const rec = playable.recording || runtime.recordingsCatalog.data.recordings[catalogRecordingId];
+  // Always start playback with audio on; staff can mute/adjust from Server Station.
+  const audioVolume = clampAudioVolume(perf.audioVolume, 1) || 1;
   await setPerformanceState(runtime.recordingsCatalog, {
     mode: "performance",
     queue,
@@ -140,15 +151,17 @@ async function playNow(runtime, payload) {
       positionSeconds: 0,
       durationSeconds: rec?.durationSeconds ?? null,
       paused: false,
-      muted: true,
+      muted: false,
+      volume: audioVolume,
       status: "playing",
       url: `/recordings/${catalogRecordingId}/media`,
     },
-    audioMuted: true,
+    audioMuted: false,
+    audioVolume,
     lastError: null,
   });
   bumpPerformancePlayback(runtime);
-  return { status: "completed", detail: "Playing now." };
+  return { status: "completed", detail: "Playing now with audio." };
 }
 
 async function playNext(runtime, payload) {
@@ -255,12 +268,43 @@ async function skipPlayback(runtime) {
 async function setAudioMuted(runtime, payload) {
   const muted = payload.muted !== false;
   const perf = getPerformanceState(runtime.recordingsCatalog);
+  const volume =
+    payload.volume != null ? clampAudioVolume(payload.volume, perf.audioVolume ?? 1) : clampAudioVolume(perf.audioVolume, 1);
   await setPerformanceState(runtime.recordingsCatalog, {
     audioMuted: muted,
-    nowPlaying: perf.nowPlaying ? { ...perf.nowPlaying, muted } : null,
+    audioVolume: volume,
+    nowPlaying: perf.nowPlaying ? { ...perf.nowPlaying, muted, volume } : null,
   });
   bumpPerformancePlayback(runtime);
   return { status: "completed", detail: muted ? "Muted." : "Audio enabled." };
+}
+
+async function setAudioVolume(runtime, payload) {
+  const perf = getPerformanceState(runtime.recordingsCatalog);
+  const raw = Number(payload.volume);
+  if (!Number.isFinite(raw)) {
+    return { status: "rejected", rejectReason: "volume must be a number from 0 to 1." };
+  }
+  const volume = clampAudioVolume(raw, 0);
+  // volume 0 → mute but keep prior level for restore; volume > 0 → unmute at that level.
+  if (volume <= 0) {
+    const kept = clampAudioVolume(perf.audioVolume, 1) || 1;
+    await setPerformanceState(runtime.recordingsCatalog, {
+      audioMuted: true,
+      audioVolume: kept,
+      nowPlaying: perf.nowPlaying ? { ...perf.nowPlaying, muted: true, volume: kept } : null,
+    });
+    bumpPerformancePlayback(runtime);
+    return { status: "completed", detail: "Muted." };
+  }
+  const muted = payload.muted === true;
+  await setPerformanceState(runtime.recordingsCatalog, {
+    audioMuted: muted,
+    audioVolume: volume,
+    nowPlaying: perf.nowPlaying ? { ...perf.nowPlaying, muted, volume } : null,
+  });
+  bumpPerformancePlayback(runtime);
+  return { status: "completed", detail: muted ? `Muted at ${Math.round(volume * 100)}%.` : `Volume ${Math.round(volume * 100)}%.` };
 }
 
 async function stopReturnNormal(runtime, payload = {}) {
@@ -429,6 +473,8 @@ export function performancePlaybackPayload(runtime) {
   if (perf.mode !== "performance" || !perf.nowPlaying) {
     return null;
   }
+  const audioMuted = Boolean(perf.audioMuted);
+  const audioVolume = clampAudioVolume(perf.audioVolume, 1);
   return {
     mode: "performance",
     revision: `perf-${perf.revision}`,
@@ -436,7 +482,8 @@ export function performancePlaybackPayload(runtime) {
     startedAt: perf.nowPlaying.startedAt,
     playlistId: null,
     reloadNonce: runtime.reloadNonce,
-    audioMuted: perf.audioMuted !== false,
+    audioMuted,
+    audioVolume,
     nowPlaying: perf.nowPlaying,
     queue: perf.queue,
     lastError: perf.lastError,
@@ -450,7 +497,8 @@ export function performancePlaybackPayload(runtime) {
         obsSceneName: null,
         durationSeconds: perf.nowPlaying.durationSeconds || 0,
         displayTitle: perf.nowPlaying.displayTitle,
-        muted: perf.audioMuted !== false,
+        muted: audioMuted,
+        volume: audioVolume,
         paused: Boolean(perf.nowPlaying.paused),
         positionSeconds: perf.nowPlaying.positionSeconds || 0,
         seekToken: perf.nowPlaying.seekToken || null,

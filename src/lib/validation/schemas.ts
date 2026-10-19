@@ -648,6 +648,7 @@ export const displayDeviceHeartbeatSchema = z.object({
       mode: z.enum(["normal", "performance"]).optional(),
       revision: z.number().int().nonnegative().optional(),
       audioMuted: z.boolean().optional(),
+      audioVolume: z.number().min(0).max(1).optional(),
       nowPlaying: z
         .object({
           queueItemId: z.string().max(80).optional().nullable(),

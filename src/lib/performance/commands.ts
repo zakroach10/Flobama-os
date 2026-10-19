@@ -19,6 +19,7 @@ export type PerformanceCommandKind =
   | "seek"
   | "skip"
   | "set_audio_muted"
+  | "set_audio_volume"
   | "stop_return_normal";
 
 export function isPerformanceCommandExpired(expiresAt: string, now = new Date()) {

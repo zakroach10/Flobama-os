@@ -154,7 +154,11 @@ export async function POST(request: Request) {
         venue_id: auth.device.venue_id,
         mode: perf.mode === "performance" ? "performance" : "normal",
         revision: Number(perf.revision) || 1,
-        audio_muted: perf.audioMuted !== false,
+        audio_muted: Boolean(perf.audioMuted),
+        audio_volume:
+          typeof perf.audioVolume === "number" && Number.isFinite(perf.audioVolume)
+            ? Math.min(1, Math.max(0, perf.audioVolume))
+            : 1,
         now_playing_queue_item_id: perf.nowPlaying?.queueItemId ?? null,
         now_playing_recording_id: perf.nowPlaying?.recordingId ?? null,
         now_playing_title: perf.nowPlaying?.displayTitle ?? null,

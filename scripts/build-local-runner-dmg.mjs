@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "local-runner");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "local-runner-dmg");
-const version = "1.2.1";
+const version = "1.2.2";
 const output = path.join(root, "public", "downloads", `FloBama-Local-Runner-${version}.dmg`);
 
 const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");
