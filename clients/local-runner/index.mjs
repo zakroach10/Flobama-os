@@ -16,6 +16,20 @@ import {
   VERSION,
   expandHome,
 } from "./lib/paths.mjs";
+import {
+  catalogSyncPayload,
+  getPerformanceState,
+  mergeScanResults,
+  openRecordingsCatalog,
+  saveCatalog,
+} from "./lib/recordings-catalog.mjs";
+import {
+  discoverRecordingsCandidates,
+  loadRecordingsSettings,
+  saveRecordingsSettings,
+} from "./lib/recordings-paths.mjs";
+import { inventoryExportRows, inventoryRecordingsFolder, inventoryToCsv } from "./lib/recordings-inventory.mjs";
+import { applyPerformanceCommand } from "./lib/performance-controller.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -46,7 +60,88 @@ async function loadConfig() {
     maxCacheBytes: Number(raw.maxCacheBytes ?? 40_000_000_000),
     heartbeatMs: Number(raw.heartbeatMs ?? 2000),
     menubarEnabled: raw.menubarEnabled !== false,
+    recordingsRoot: raw.recordingsRoot ? expandHome(String(raw.recordingsRoot)) : null,
   };
+}
+
+async function runDiscoverRecordingsCli() {
+  const candidates = await discoverRecordingsCandidates();
+  const settings = await loadRecordingsSettings();
+  console.log(JSON.stringify({ settings, candidates, count: candidates.length }, null, 2));
+  if (!candidates.length) {
+    console.error(
+      "No Recordings folder candidates found under Dropbox/CloudStorage. Configure manually with --set-recordings-root=PATH",
+    );
+    process.exitCode = 2;
+  }
+}
+
+async function runInventoryRecordingsCli() {
+  const settings = await loadRecordingsSettings();
+  const rootArg = args.find((arg) => arg.startsWith("--recordings-root="));
+  const root = rootArg
+    ? expandHome(rootArg.slice("--recordings-root=".length))
+    : settings.recordingsRoot || (await discoverRecordingsCandidates())[0] || null;
+
+  if (!root) {
+    console.error("No recordings folder available in this environment.");
+    console.error("On the wall Mac, run:");
+    console.error("  cd clients/local-runner && node index.mjs --discover-recordings");
+    console.error("  node index.mjs --set-recordings-root=\"/path/to/Recordings\"");
+    console.error("  node index.mjs --inventory-recordings");
+    process.exit(2);
+  }
+
+  console.error(`Scanning: ${root}`);
+  const catalog = await openRecordingsCatalog();
+  const result = await inventoryRecordingsFolder(root, {
+    timeZone: settings.defaultTimezone || "America/Chicago",
+  });
+  await mergeScanResults(catalog, {
+    recordingsRoot: root,
+    scanned: result.scanned,
+    nonVideo: result.nonVideo,
+    stats: result.stats,
+  });
+  await saveRecordingsSettings({
+    recordingsRoot: root,
+    defaultTimezone: settings.defaultTimezone || "America/Chicago",
+  });
+
+  const exportPathArg = args.find((arg) => arg.startsWith("--export="));
+  const rows = inventoryExportRows(catalog.data);
+  const payload = {
+    recordingsRoot: root,
+    scannedAt: result.stats.scannedAt,
+    stats: result.stats,
+    nonVideoCount: result.nonVideo.length,
+    nonVideoSample: result.nonVideo.slice(0, 25),
+    rows,
+  };
+  if (exportPathArg) {
+    const out = exportPathArg.slice("--export=".length);
+    if (out.endsWith(".csv")) {
+      await writeFile(out, inventoryToCsv(rows), "utf8");
+    } else {
+      await writeFile(out, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    }
+    console.error(`Wrote export: ${out}`);
+  }
+  console.log(JSON.stringify({ ...payload, rows: rows.slice(0, 20), rowCount: rows.length }, null, 2));
+  console.error(
+    `Inventory complete: ${result.stats.videoFiles} videos / ${result.stats.totalFiles} total files (${result.nonVideo.length} non-video).`,
+  );
+}
+
+async function runSetRecordingsRootCli() {
+  const rootArg = args.find((arg) => arg.startsWith("--set-recordings-root="));
+  const root = rootArg ? expandHome(rootArg.slice("--set-recordings-root=".length)) : null;
+  if (!root) {
+    console.error("Usage: node index.mjs --set-recordings-root=\"/path/to/Recordings\"");
+    process.exit(1);
+  }
+  const settings = await saveRecordingsSettings({ recordingsRoot: root });
+  console.log(JSON.stringify({ ok: true, settings }, null, 2));
 }
 
 async function makeLogger() {
@@ -165,6 +260,19 @@ function readSavedManifest(db) {
 }
 
 async function main() {
+  if (args.includes("--discover-recordings")) {
+    await runDiscoverRecordingsCli();
+    return;
+  }
+  if (args.includes("--inventory-recordings")) {
+    await runInventoryRecordingsCli();
+    return;
+  }
+  if (args.some((arg) => arg.startsWith("--set-recordings-root="))) {
+    await runSetRecordingsRootCli();
+    return;
+  }
+
   const log = await makeLogger();
   let config = await loadConfig();
 
@@ -197,6 +305,16 @@ async function main() {
 
   const db = await openCache(config.cacheRoot);
   const state = { downloads: {}, lastError: null };
+  const recordingsCatalog = await openRecordingsCatalog();
+  const recordingsSettings = await loadRecordingsSettings();
+  if (config.recordingsRoot && !recordingsSettings.recordingsRoot) {
+    await saveRecordingsSettings({ recordingsRoot: config.recordingsRoot });
+    recordingsCatalog.data.recordingsRoot = config.recordingsRoot;
+    await saveCatalog(recordingsCatalog);
+  } else if (recordingsSettings.recordingsRoot) {
+    recordingsCatalog.data.recordingsRoot = recordingsSettings.recordingsRoot;
+  }
+
   const savedManifest = readSavedManifest(db);
   const runtime = {
     version: VERSION,
@@ -212,6 +330,11 @@ async function main() {
     manifestRevision: savedManifest?.revision || getMeta(db, "manifestRevision"),
     manifestEtag: getMeta(db, "manifestEtag"),
     reloadNonce: Number(savedManifest?.reloadNonce) || Number(getMeta(db, "reloadNonce")) || 1,
+    recordingsCatalog,
+    pendingScan: Boolean(recordingsCatalog.data.recordingsRoot),
+    pendingCatalogSync: true,
+    performanceRevision: getPerformanceState(recordingsCatalog).revision || 1,
+    acknowledgedCommandIds: new Set(),
   };
 
   try {
@@ -359,10 +482,82 @@ async function main() {
     }
   }
 
+  let scanningRecordings = false;
+  let syncingCatalog = false;
+
+  async function maybeScanRecordings() {
+    if (!runtime.pendingScan || scanningRecordings) return;
+    const root = runtime.recordingsCatalog.data.recordingsRoot;
+    if (!root) {
+      runtime.pendingScan = false;
+      return;
+    }
+    scanningRecordings = true;
+    runtime.pendingScan = false;
+    try {
+      await log(`Scanning recordings library: ${root}`);
+      const settings = await loadRecordingsSettings();
+      const result = await inventoryRecordingsFolder(root, {
+        timeZone: settings.defaultTimezone || "America/Chicago",
+      });
+      await mergeScanResults(runtime.recordingsCatalog, {
+        recordingsRoot: root,
+        scanned: result.scanned,
+        nonVideo: result.nonVideo,
+        stats: result.stats,
+      });
+      runtime.pendingCatalogSync = true;
+      await log(
+        `Recordings scan: ${result.stats.videoFiles} videos / ${result.stats.totalFiles} files (${result.nonVideo.length} non-video)`,
+      );
+    } catch (error) {
+      state.lastError = error instanceof Error ? error.message : String(error);
+      await log(`Recordings scan failed: ${state.lastError}`);
+    } finally {
+      scanningRecordings = false;
+    }
+  }
+
+  async function maybeSyncCatalog() {
+    if (!runtime.pendingCatalogSync || syncingCatalog) return;
+    syncingCatalog = true;
+    runtime.pendingCatalogSync = false;
+    try {
+      const payload = catalogSyncPayload(runtime.recordingsCatalog, config.deviceId);
+      const response = await fetch(`${config.apiBase}/api/agent/v1/display-devices/performance/catalog-sync`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${config.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 404) {
+        // Migration not applied yet — retry later without treating as fatal.
+        runtime.pendingCatalogSync = true;
+        return;
+      }
+      if (!response.ok) {
+        const body = await response.text();
+        if (response.status === 401) {
+          await requireReauth(log, `Catalog sync failed (401): ${body}`);
+        }
+        throw new Error(`Catalog sync failed (${response.status}): ${body}`);
+      }
+      await log(`Synced ${payload.recordings.length} recording catalog rows to FloBama OS`);
+    } catch (error) {
+      runtime.pendingCatalogSync = true;
+      await log(error instanceof Error ? error.message : String(error));
+    } finally {
+      syncingCatalog = false;
+    }
+  }
+
   async function heartbeat() {
     const snapshot = await readObsBounded();
     runtime.obsConnected = snapshot.connected;
     runtime.programScene = snapshot.programScene;
+    const perf = getPerformanceState(runtime.recordingsCatalog);
 
     const response = await fetch(`${config.apiBase}/api/agent/v1/display-devices/heartbeat`, {
       method: "POST",
@@ -373,7 +568,8 @@ async function main() {
       body: JSON.stringify({
         appVersion: VERSION,
         manifestRevision: runtime.manifestRevision,
-        playbackState: "playing",
+        currentAssetId: perf.nowPlaying?.recordingId || null,
+        playbackState: perf.mode === "performance" ? perf.nowPlaying?.status || "performance" : "playing",
         obs: {
           connected: snapshot.connected,
           programScene: snapshot.programScene,
@@ -391,6 +587,17 @@ async function main() {
             bytesReceived: progress.received,
             bytesTotal: progress.total,
           })),
+        },
+        performance: {
+          mode: perf.mode,
+          revision: perf.revision,
+          audioMuted: perf.audioMuted !== false,
+          nowPlaying: perf.nowPlaying,
+          queue: perf.queue,
+          lastError: perf.lastError,
+          recordingsRoot: runtime.recordingsCatalog.data.recordingsRoot,
+          lastScanAt: runtime.recordingsCatalog.data.lastScanAt,
+          catalogCount: Object.keys(runtime.recordingsCatalog.data.recordings || {}).length,
         },
         lastError: state.lastError,
       }),
@@ -417,21 +624,60 @@ async function main() {
       void maybeSyncMedia();
     }
     if (desired.commands?.safeRefresh) {
-      runtime.reloadNonce = (Number(runtime.reloadNonce) || 1) + 1;
-      if (runtime.manifest) runtime.manifest.reloadNonce = runtime.reloadNonce;
-      await setMeta(db, "reloadNonce", runtime.reloadNonce);
-      await log(`Safe refresh requested — wall reload nonce → ${runtime.reloadNonce}`);
+      // Avoid tearing down an active performance for a routine refresh.
+      if (perf.mode !== "performance") {
+        runtime.reloadNonce = (Number(runtime.reloadNonce) || 1) + 1;
+        if (runtime.manifest) runtime.manifest.reloadNonce = runtime.reloadNonce;
+        await setMeta(db, "reloadNonce", runtime.reloadNonce);
+        await log(`Safe refresh requested — wall reload nonce → ${runtime.reloadNonce}`);
+      } else {
+        await log("Safe refresh deferred while performance mode is active.");
+      }
     }
 
     const sceneName =
       typeof desired.commands?.desiredObsScene === "string" ? desired.commands.desiredObsScene.trim() : "";
-    if (sceneName && snapshot.connected && sceneName !== snapshot.programScene) {
+    // Performance mode owns the media OBS scene; still allow explicit cuts when not performing.
+    if (perf.mode !== "performance" && sceneName && snapshot.connected && sceneName !== snapshot.programScene) {
       try {
         await obs.call("SetCurrentProgramScene", { sceneName });
         await log(`Cut to ${sceneName}`);
       } catch (error) {
         await log(error instanceof Error ? error.message : `Could not cut to ${sceneName}.`);
       }
+    }
+
+    const performanceCommands = Array.isArray(desired.commands?.performanceCommands)
+      ? desired.commands.performanceCommands
+      : [];
+    const commandResults = [];
+    for (const command of performanceCommands) {
+      if (!command?.id) continue;
+      if (runtime.acknowledgedCommandIds.has(command.id)) {
+        commandResults.push({ id: command.id, status: "completed", rejectReason: null });
+        continue;
+      }
+      const result = await applyPerformanceCommand(runtime, command);
+      runtime.acknowledgedCommandIds.add(command.id);
+      commandResults.push({
+        id: command.id,
+        status: result.status === "accepted" ? "accepted" : result.status === "completed" ? "completed" : "rejected",
+        rejectReason: result.rejectReason || null,
+      });
+      if (result.status === "accepted" && command.kind === "prepare_recording") {
+        // Keep accepted; completion happens via catalog sync after prepare finishes.
+      }
+      await log(`Performance command ${command.kind} (${command.id}): ${result.status}`);
+    }
+    if (commandResults.length) {
+      await fetch(`${config.apiBase}/api/agent/v1/display-devices/performance/command-ack`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${config.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ commandResults }),
+      }).catch(() => {});
     }
   }
 
@@ -455,12 +701,20 @@ async function main() {
   await log(`FloBama Local Runner ${VERSION}`);
   await log(`Cache root: ${config.cacheRoot}`);
   await log(`Wall URL: http://${config.bindHost}:${config.bindPort}/wall`);
+  if (runtime.recordingsCatalog.data.recordingsRoot) {
+    await log(`Recordings root: ${runtime.recordingsCatalog.data.recordingsRoot}`);
+  } else {
+    await log("Recordings root not configured — use Screens → Performance Library or --set-recordings-root");
+  }
   void maybeSyncMedia();
+  void maybeScanRecordings();
 
   while (true) {
     try {
       await applyLocalCommand();
+      await maybeScanRecordings();
       await heartbeat();
+      await maybeSyncCatalog();
       state.lastError = null;
     } catch (error) {
       if (error instanceof DeviceAuthError) {

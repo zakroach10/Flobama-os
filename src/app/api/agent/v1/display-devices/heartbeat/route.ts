@@ -5,6 +5,7 @@ import { displayDeviceHeartbeatSchema } from "@/lib/validation/schemas";
 import type { Json } from "@/lib/database.types";
 import { resolveDesiredObsScene } from "@/lib/screens/led-wall";
 import { getPublicLedPlayback, resolvePlaylistActiveScene } from "@/lib/queries/led-playlists";
+import { listPendingPerformanceCommands } from "@/lib/performance/commands";
 
 export const dynamic = "force-dynamic";
 
@@ -144,6 +145,55 @@ export async function POST(request: Request) {
       .eq("device_id", auth.device.id);
   }
 
+  // Mirror authoritative performance playback from the runner (when provided).
+  if (parsed.data.performance && auth.device.kind === "led_runner") {
+    const perf = parsed.data.performance;
+    await auth.admin.from("performance_playback_state").upsert(
+      {
+        device_id: auth.device.id,
+        venue_id: auth.device.venue_id,
+        mode: perf.mode === "performance" ? "performance" : "normal",
+        revision: Number(perf.revision) || 1,
+        audio_muted: perf.audioMuted !== false,
+        now_playing_queue_item_id: perf.nowPlaying?.queueItemId ?? null,
+        now_playing_recording_id: perf.nowPlaying?.recordingId ?? null,
+        now_playing_title: perf.nowPlaying?.displayTitle ?? null,
+        position_seconds: perf.nowPlaying?.positionSeconds ?? null,
+        duration_seconds: perf.nowPlaying?.durationSeconds ?? null,
+        paused: Boolean(perf.nowPlaying?.paused),
+        status: perf.nowPlaying?.status ?? null,
+        last_error: perf.lastError ?? null,
+        reported_at: now,
+      },
+      { onConflict: "device_id" },
+    );
+    if (perf.recordingsRoot || perf.catalogCount != null || perf.lastScanAt) {
+      await auth.admin.from("performance_library_settings").upsert(
+        {
+          venue_id: auth.device.venue_id,
+          device_id: auth.device.id,
+          recordings_root: perf.recordingsRoot ?? undefined,
+          last_scan_at: perf.lastScanAt ?? undefined,
+          catalog_count: perf.catalogCount ?? undefined,
+        },
+        { onConflict: "venue_id" },
+      );
+    }
+  }
+
+  let performanceCommands: Array<{
+    id: string;
+    kind: string;
+    payload: Json;
+    expiresAt: string;
+  }> = [];
+  if (auth.device.kind === "led_runner") {
+    const pending = await listPendingPerformanceCommands(auth.admin, auth.device.id, new Date(now));
+    performanceCommands = pending.commands;
+  }
+
+  // Priority: performance playback on the runner suppresses routine OBS scene chasing
+  // when the runner reports performance mode (handled client-side). Server still sends desiredObsScene.
   return NextResponse.json({
     ok: true,
     serverTime: now,
@@ -152,6 +202,7 @@ export async function POST(request: Request) {
     commands: {
       safeRefresh,
       desiredObsScene,
+      performanceCommands,
     },
   });
 }

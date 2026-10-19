@@ -248,6 +248,30 @@ export function authorizeDisplaySafeRefresh(
   return { allowed: true };
 }
 
+/** Admins/managers configure recordings sources and correct event matches. */
+export function authorizePerformanceConfigure(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!(role === "admin" || role === "manager")) {
+    return { allowed: false, reason: "Only admins and managers can configure the Performance Library." };
+  }
+  return { allowed: true };
+}
+
+/** Operators who can control LED playback can queue/play performances. */
+export function authorizePerformancePlayback(
+  role: StaffRole | null,
+  email?: string | null,
+  options?: { userId?: string | null; wallOpsUserId?: string | null },
+): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canManageScreensControls(role!, email, options)) {
+    return { allowed: false, reason: "Your role cannot control Performance Library playback." };
+  }
+  return { allowed: true };
+}
+
 export function authorizeCameraView(role: StaffRole | null): AuthzDecision {
   return requireRole(role);
 }
