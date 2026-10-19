@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import {
   issueServerStationUploadSessionAction,
   pollServerStationUploadSessionAction,
+  prepareServerStationGraphicUploadAction,
   publishServerStationGraphicAction,
 } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
 export function ServerStationPhoneUploadPanel({
   actorName,
   wall,
-  venueId,
+  venueId: _venueId,
   supabaseEnv,
 }: {
   actorName: string;
@@ -28,6 +29,7 @@ export function ServerStationPhoneUploadPanel({
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
+  void _venueId;
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -73,28 +75,29 @@ export function ServerStationPhoneUploadPanel({
       toast.error("Upload is not configured.");
       return;
     }
-    const id = crypto.randomUUID();
-    const storagePath = `${venueId}/led/server-upload-${id}.png`;
-    const file = new File([blob], `server-upload-${id}.png`, { type: "image/png" });
-    const { error } = await supabase.storage.from("screen-ads").upload(storagePath, file, {
-      contentType: "image/png",
-      upsert: false,
-    });
+    const file = new File([blob], `server-upload.png`, { type: "image/png" });
+    const prepared = await prepareServerStationGraphicUploadAction({ prefix: "server-upload" });
+    if (!prepared.ok) {
+      toast.error(prepared.message);
+      return;
+    }
+    const { error } = await supabase.storage
+      .from("screen-ads")
+      .uploadToSignedUrl(prepared.path, prepared.token, file, { contentType: prepared.contentType });
     if (error) {
       toast.error(error.message);
       return;
     }
-    const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
     const result = await publishServerStationGraphicAction({
       kind: "upload",
       title: headline || "Phone upload",
       templateId,
-      publicUrl,
-      storagePath,
+      publicUrl: prepared.publicUrl,
+      storagePath: prepared.storagePath,
       contentHash,
       durationPreset: mode === "show_now" ? 15 : "tonight",
       mode,
-      photoUrl: publicUrl,
+      photoUrl: prepared.publicUrl,
     });
     setMessage(result.message);
     if (result.ok) toast.success(result.message);

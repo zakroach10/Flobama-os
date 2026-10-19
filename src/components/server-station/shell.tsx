@@ -6,7 +6,6 @@ import {
   ArrowLeftIcon,
   CakeIcon,
   CalendarDaysIcon,
-  ClapperboardIcon,
   HomeIcon,
   LayoutGridIcon,
   LockIcon,
@@ -18,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ServerStationPosRail } from "@/components/server-station/pos-rail";
+import { ServerStationMobileDock } from "@/components/server-station/mobile-dock";
 import { getServerStationDashboardAction } from "@/actions/server-station";
 import {
   lockServerStationStaffAction,
@@ -37,15 +37,6 @@ const STATION_MENUS: Array<{ href: string; label: string; icon: LucideIcon; exac
   { href: "/server/birthday", label: "Celebrate", icon: CakeIcon },
   { href: "/server/message", label: "Message", icon: MessageSquareTextIcon },
   { href: "/server/upload", label: "Upload", icon: SmartphoneIcon },
-];
-
-const PHONE_TABS: Array<{ href: string; label: string; icon: LucideIcon; exact?: boolean }> = [
-  { href: "/server", label: "Home", icon: LayoutGridIcon, exact: true },
-  { href: "/server/specials", label: "Specials", icon: UtensilsCrossedIcon },
-  { href: "/server/wall", label: "Wall", icon: MonitorPlayIcon },
-  { href: "/server/performances", label: "Shows", icon: Music2Icon },
-  { href: "/server/events", label: "Tonight", icon: CalendarDaysIcon },
-  { href: "/server/active", label: "Rotation", icon: ClapperboardIcon },
 ];
 
 function menuIsActive(pathname: string, href: string, exact?: boolean) {
@@ -189,7 +180,7 @@ export function ServerStationShell({
           </button>
         </div>
       </header>
-      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pt-3 lg:px-4 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex min-h-0 w-full flex-1 gap-3 px-3 pt-3 pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:px-4 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <nav
           aria-label="Server Station"
           className="hidden min-h-0 w-[5.75rem] shrink-0 flex-col gap-2 overflow-y-auto lg:flex"
@@ -227,31 +218,7 @@ export function ServerStationShell({
           <ServerStationPosRail />
         </aside>
       </div>
-      <nav
-        aria-label="Server Station"
-        className="shrink-0 bg-[#100e0c] pb-[env(safe-area-inset-bottom)] lg:hidden"
-      >
-        <div className="grid grid-cols-5">
-          {PHONE_TABS.map((item) => {
-            const active = menuIsActive(path, item.href, item.exact);
-            const Icon = item.icon;
-            return (
-              <StationLink
-                key={item.href}
-                href={item.href}
-                ariaCurrent={active ? "page" : undefined}
-                className={cn(
-                  "flex min-h-16 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold",
-                  active ? "text-[#f7efe6]" : "text-[#e8d5c4]/80",
-                )}
-              >
-                <Icon className={cn("size-5", active && "text-[#d36b4a]")} aria-hidden />
-                {item.label}
-              </StationLink>
-            );
-          })}
-        </div>
-      </nav>
+      <ServerStationMobileDock />
     </div>
   );
 }

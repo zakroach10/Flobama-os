@@ -84,12 +84,14 @@ export function StationLink({
   children,
   ariaCurrent,
   ariaLabel,
+  onNavigate,
 }: {
   href: string;
   className?: string;
   children: React.ReactNode;
   ariaCurrent?: "page" | undefined;
   ariaLabel?: string;
+  onNavigate?: () => void;
 }) {
   const nav = useStationNav();
   return (
@@ -102,6 +104,7 @@ export function StationLink({
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         event.preventDefault();
+        onNavigate?.();
         if (nav) nav.go(href);
       }}
     >

@@ -63,7 +63,23 @@ function contentDb(gate: ServerStationGateOk) {
   // Kiosk already uses the service role. Staff sessions (server/manager) cannot
   // insert LED scenes under admin-only RLS, so content writes use the same client
   // after the gate has authorized them.
-  return createServiceRoleClient() ?? gate.writeClient;
+  const admin = createServiceRoleClient();
+  if (admin) return admin;
+  // Fall back only for local/dev without a service role — production must set it.
+  return gate.writeClient;
+}
+
+function requireContentDb(gate: ServerStationGateOk) {
+  const admin = createServiceRoleClient();
+  if (admin) return { ok: true as const, db: admin };
+  // Without service role, authenticated servers hit admin-only LED RLS.
+  if (gate.actor.role === "server" || gate.mode === "kiosk") {
+    return {
+      ok: false as const,
+      message: "Server Station content writes require the service role key on this deployment.",
+    };
+  }
+  return { ok: true as const, db: gate.writeClient };
 }
 
 function revalidateServerStation() {
@@ -370,7 +386,9 @@ export async function publishServerStationGraphicAction(input: unknown): Promise
     businessNightEndHour: settings.business_night_end_hour,
   });
 
-  const db = contentDb(gate);
+  const content = requireContentDb(gate);
+  if (!content.ok) return { ok: false, message: content.message };
+  const db = content.db;
   const sceneId = crypto.randomUUID();
   const title =
     data.kind === "birthday"
@@ -877,6 +895,54 @@ export async function extendServerStationItemAction(input: unknown): Promise<Ser
   return {
     ok: true,
     message: `Extended ${item.title} (${durationPresetLabel(parsed.data.durationPreset as ServerStationDurationPreset)}).`,
+  };
+}
+
+/**
+ * Mint a short-lived signed upload URL for a Server Station LED graphic.
+ * Browser clients (especially the server role / kiosk) cannot write screen-ads
+ * under manager-only storage RLS, so uploads go through this gate + service role.
+ */
+export async function prepareServerStationGraphicUploadAction(input?: {
+  prefix?: "server" | "server-upload";
+}): Promise<
+  | {
+      ok: true;
+      storagePath: string;
+      path: string;
+      token: string;
+      publicUrl: string;
+      contentType: string;
+    }
+  | { ok: false; message: string }
+> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return {
+      ok: false,
+      message: "Server Station uploads require the service role key on this deployment.",
+    };
+  }
+
+  const prefix = input?.prefix === "server-upload" ? "server-upload" : "server";
+  const id = crypto.randomUUID();
+  const storagePath = `${gate.venueId}/led/${prefix}-${id}.png`;
+  const { data, error } = await admin.storage.from("screen-ads").createSignedUploadUrl(storagePath);
+  if (error || !data) {
+    return { ok: false, message: error?.message ?? "Could not prepare the graphic upload." };
+  }
+
+  const publicUrl = admin.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
+  return {
+    ok: true,
+    storagePath,
+    path: data.path,
+    token: data.token,
+    publicUrl,
+    contentType: "image/png",
   };
 }
 

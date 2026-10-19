@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   issueServerStationUploadSessionAction,
   pollServerStationUploadSessionAction,
+  prepareServerStationGraphicUploadAction,
   publishServerStationGraphicAction,
 } from "@/actions/server-station";
 import {
@@ -42,7 +43,7 @@ export function ServerStationGraphicBuilder({
   actorName,
   wall,
   mode,
-  venueId,
+  venueId: _venueId,
   supabaseEnv,
 }: {
   actorName: string;
@@ -51,6 +52,7 @@ export function ServerStationGraphicBuilder({
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
 }) {
+  void _venueId;
   const [category, setCategory] = useState<"food_special" | "drink_special">("food_special");
   const [foodComposer, setFoodComposer] = useState<"presets" | "custom">("presets");
   const [presetPage, setPresetPage] = useState(0);
@@ -241,9 +243,7 @@ export function ServerStationGraphicBuilder({
           toast.error("Upload is not configured on this deployment.");
           return;
         }
-        const id = crypto.randomUUID();
-        const storagePath = `${venueId}/led/server-${id}.png`;
-        const file = new File([blob], `server-${id}.png`, { type: "image/png" });
+        const file = new File([blob], `server-graphic.png`, { type: "image/png" });
         let contentHash: string | undefined;
         try {
           const { sha256HexFromBlob } = await import("@/lib/display-devices/hashes");
@@ -251,15 +251,18 @@ export function ServerStationGraphicBuilder({
         } catch {
           contentHash = undefined;
         }
-        const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, file, {
-          contentType: "image/png",
-          upsert: false,
-        });
+        const prepared = await prepareServerStationGraphicUploadAction({ prefix: "server" });
+        if (!prepared.ok) {
+          toast.error(prepared.message);
+          return;
+        }
+        const { error: uploadError } = await supabase.storage
+          .from("screen-ads")
+          .uploadToSignedUrl(prepared.path, prepared.token, file, { contentType: prepared.contentType });
         if (uploadError) {
           toast.error(uploadError.message);
           return;
         }
-        const publicUrl = supabase.storage.from("screen-ads").getPublicUrl(storagePath).data.publicUrl;
         const result = await publishServerStationGraphicAction({
           kind: mode === "birthday" ? (celebration === "birthday" ? "birthday" : "celebration") : mode === "special" ? category : "message",
           celebrationType: mode === "birthday" ? celebration : undefined,
@@ -267,8 +270,8 @@ export function ServerStationGraphicBuilder({
           subtitle: subtitle.trim() || null,
           price: price.trim() || null,
           templateId,
-          publicUrl,
-          storagePath,
+          publicUrl: prepared.publicUrl,
+          storagePath: prepared.storagePath,
           contentHash,
           durationPreset: duration,
           mode: publishMode,
