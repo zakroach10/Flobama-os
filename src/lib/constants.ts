@@ -86,13 +86,15 @@ export const AUDIENCE_POLL_MS = 1000;
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
 export const LED_OBS_DMG_FILENAME = `FloBama-LED-OBS-${LED_OBS_CLIENT_VERSION}.dmg`;
 export const LED_OBS_DMG_HREF = `/downloads/${LED_OBS_DMG_FILENAME}`;
-export const LOCAL_RUNNER_VERSION = "1.2.1";
+export const LOCAL_RUNNER_VERSION = "1.2.2";
 export const LOCAL_RUNNER_DMG_FILENAME = `FloBama-Local-Runner-${LOCAL_RUNNER_VERSION}.dmg`;
 export const PERFORMANCE_LIBRARY_SQL = "supabase/migrations/20261018000054_performance_library.sql";
 export const PERFORMANCE_SESSION_ASSETS_SQL =
   "supabase/migrations/20261019000055_performance_session_assets.sql";
 export const PERFORMANCE_SERVER_STATION_SQL =
   "supabase/migrations/20261019000056_performance_server_station_publish.sql";
+export const PERFORMANCE_AUDIO_VOLUME_SQL =
+  "supabase/migrations/20261019000057_performance_audio_volume.sql";
 export const DROPBOX_RECORDINGS_RELATIVE_ROOT =
   "/A- View 360 Brands/3- Customers/F/Flobama/Recordings";
 export const LOCAL_RUNNER_DMG_HREF = `/downloads/${LOCAL_RUNNER_DMG_FILENAME}`;

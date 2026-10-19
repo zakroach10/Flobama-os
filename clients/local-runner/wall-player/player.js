@@ -173,6 +173,27 @@ function renderMedia(item, { loop = true } = {}) {
   stage.appendChild(img);
 }
 
+function clampVolume(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 1;
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
+}
+
+/** Apply mute + volume for performance playback (audio on by default). */
+function applyPerformanceAudio(video, item) {
+  if (!video) return;
+  const muted = Boolean(item?.muted);
+  const volume = clampVolume(item?.volume);
+  video.muted = muted;
+  try {
+    video.volume = volume;
+  } catch {
+    /* ignore */
+  }
+}
+
 function postPerformanceProgress(payload) {
   const now = Date.now();
   if (!payload.ended && !payload.error && now - lastProgressPost < 900) return;
@@ -192,7 +213,7 @@ function renderPerformance(item) {
 
   const sameUrl = performanceVideo && performanceItem?.url === item.url && performanceVideo.isConnected;
   if (sameUrl) {
-    performanceVideo.muted = item.muted !== false;
+    applyPerformanceAudio(performanceVideo, item);
     if (item.paused) {
       performanceVideo.pause();
     } else if (performanceVideo.paused) {
@@ -217,8 +238,7 @@ function renderPerformance(item) {
   const video = document.createElement("video");
   video.src = item.url;
   video.autoplay = true;
-  // Default muted until operator explicitly enables audio.
-  video.muted = item.muted !== false;
+  applyPerformanceAudio(video, item);
   video.playsInline = true;
   video.loop = false;
   video.preload = "auto";
@@ -354,6 +374,7 @@ async function refresh() {
         performanceItem.id !== item?.id ||
         performanceItem.url !== item?.url ||
         performanceItem.muted !== item?.muted ||
+        performanceItem.volume !== item?.volume ||
         performanceItem.paused !== item?.paused ||
         performanceItem.seekToken !== item?.seekToken;
       mode = "performance";

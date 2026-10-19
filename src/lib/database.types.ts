@@ -1658,6 +1658,7 @@ export type Database = {
           mode: string;
           revision: number;
           audio_muted: boolean;
+          audio_volume: number;
           now_playing_queue_item_id: string | null;
           now_playing_recording_id: string | null;
           now_playing_title: string | null;
@@ -1676,6 +1677,7 @@ export type Database = {
           mode?: string;
           revision?: number;
           audio_muted?: boolean;
+          audio_volume?: number;
           now_playing_queue_item_id?: string | null;
           now_playing_recording_id?: string | null;
           now_playing_title?: string | null;
@@ -1691,6 +1693,7 @@ export type Database = {
           mode?: string;
           revision?: number;
           audio_muted?: boolean;
+          audio_volume?: number;
           now_playing_queue_item_id?: string | null;
           now_playing_recording_id?: string | null;
           now_playing_title?: string | null;
@@ -1723,6 +1726,7 @@ export type Database = {
             | "seek"
             | "skip"
             | "set_audio_muted"
+            | "set_audio_volume"
             | "stop_return_normal";
           payload: Json;
           status: "pending" | "accepted" | "rejected" | "expired" | "completed";
@@ -1751,6 +1755,7 @@ export type Database = {
             | "seek"
             | "skip"
             | "set_audio_muted"
+            | "set_audio_volume"
             | "stop_return_normal";
           payload?: Json;
           status?: "pending" | "accepted" | "rejected" | "expired" | "completed";
@@ -2229,6 +2234,7 @@ export type Database = {
         | "seek"
         | "skip"
         | "set_audio_muted"
+        | "set_audio_volume"
         | "stop_return_normal";
     };
     CompositeTypes: {

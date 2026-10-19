@@ -41,11 +41,21 @@ export function defaultPerformanceState() {
     priorWallRevision: null,
     priorMode: null,
     queue: [], // [{ queueItemId, recordingId, displayTitle, addedAt }]
-    nowPlaying: null, // { queueItemId, recordingId, startedAt, positionSeconds, durationSeconds, paused, muted, status }
-    audioMuted: true,
+    nowPlaying: null, // { queueItemId, recordingId, startedAt, positionSeconds, durationSeconds, paused, muted, volume, status }
+    audioMuted: false,
+    audioVolume: 1,
     lastError: null,
     revision: 1,
   };
+}
+
+/** Clamp performance volume to 0..1. */
+export function clampAudioVolume(value, fallback = 1) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
 }
 
 export async function openRecordingsCatalog() {

@@ -59,6 +59,7 @@ function formatClock(iso: string | null | undefined) {
 type PlaybackState = {
   mode: string;
   audio_muted: boolean;
+  audio_volume?: number | null;
   now_playing_title: string | null;
   now_playing_recording_id: string | null;
   position_seconds: number | null;
@@ -195,7 +196,13 @@ export function PerformanceLibraryPanel({
           </div>
           <div className="text-xs text-muted-foreground">
             Playback: {playback?.mode === "performance" ? "Performance mode" : "Normal wall"}
-            {playback?.audio_muted === false ? " · Audio ON" : " · Audio muted"}
+            {playback?.audio_muted
+              ? " · Audio muted"
+              : ` · Audio ON${
+                  typeof playback?.audio_volume === "number"
+                    ? ` ${Math.round(playback.audio_volume * 100)}%`
+                    : ""
+                }`}
           </div>
         </div>
       </div>
