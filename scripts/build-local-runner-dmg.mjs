@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, chmod, rm, symlink, writeFile, readFile } from "node:fs/promises";
+import { cp, mkdir, chmod, rm, symlink, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "local-runner");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "local-runner-dmg");
-const version = "1.0.7";
+const version = "1.1.0";
 const output = path.join(root, "public", "downloads", `FloBama-Local-Runner-${version}.dmg`);
 
 const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");
@@ -33,14 +33,11 @@ await cp(path.join(clientDir, "package.json"), path.join(resourcesApp, "package.
 await cp(path.join(clientDir, "package-lock.json"), path.join(resourcesApp, "package-lock.json"));
 await writeFile(path.join(resourcesApp, "VERSION"), `${version}\n`, "utf8");
 
-for (const file of [
-  "cache-db.mjs",
-  "downloader.mjs",
-  "http-server.mjs",
-  "menubar.mjs",
-  "paths.mjs",
-]) {
-  await cp(path.join(clientDir, "lib", file), path.join(resourcesApp, "lib", file));
+// Package every lib module (cache, downloads, performance library, etc.).
+const libDir = path.join(clientDir, "lib");
+for (const file of await readdir(libDir)) {
+  if (!file.endsWith(".mjs")) continue;
+  await cp(path.join(libDir, file), path.join(resourcesApp, "lib", file));
 }
 await cp(path.join(clientDir, "wall-player", "index.html"), path.join(resourcesApp, "wall-player", "index.html"));
 await cp(path.join(clientDir, "wall-player", "player.js"), path.join(resourcesApp, "wall-player", "player.js"));
@@ -64,11 +61,11 @@ const writer = spawnSync("go", ["run", ".", staging, output], {
   },
 });
 if (writer.status !== 0) process.exit(writer.status ?? 1);
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.0.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.1.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.2.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.3.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.4.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.5.dmg"), { force: true });
-await rm(path.join(root, "public", "downloads", "FloBama-Local-Runner-1.0.6.dmg"), { force: true });
+
+// Keep only the current Local Runner DMG in public downloads.
+for (const file of await readdir(path.join(root, "public", "downloads"))) {
+  if (!/^FloBama-Local-Runner-/.test(file)) continue;
+  if (file === `FloBama-Local-Runner-${version}.dmg`) continue;
+  await rm(path.join(root, "public", "downloads", file), { force: true });
+}
 console.log(output);
