@@ -1,4 +1,6 @@
-/* FloBama local wall player — media from localhost cache; overlays from FloBama APIs. */
+/* FloBama local wall player — media from localhost cache; overlays from FloBama APIs.
+ * Performance mode: full videos advance on ended/skip — never forced through ad slot timers.
+ */
 
 // Keep in sync with resolveLedPlaylistStartedAt in src/lib/screens/led-playlists.ts.
 function ledPlaylistIndexAt(items, startedAt, now = Date.now()) {
@@ -101,6 +103,12 @@ let audience = null;
 let playlistReadyKey = "";
 let heldMedia = null;
 
+/** Performance-mode state (authoritative controls come from /api/playback). */
+let performanceItem = null;
+let performanceSeekToken = null;
+let performanceVideo = null;
+let lastProgressPost = 0;
+
 function playlistSignature(items) {
   return (items || [])
     .map((item) => `${item.id || ""}:${item.url || ""}:${item.kind || ""}:${item.mediaKind || ""}`)
@@ -115,6 +123,7 @@ async function fetchJson(url) {
 
 function clearStage() {
   stage.replaceChildren();
+  performanceVideo = null;
 }
 
 function renderBlack() {
@@ -164,6 +173,107 @@ function renderMedia(item, { loop = true } = {}) {
   stage.appendChild(img);
 }
 
+function postPerformanceProgress(payload) {
+  const now = Date.now();
+  if (!payload.ended && !payload.error && now - lastProgressPost < 900) return;
+  lastProgressPost = now;
+  void fetch("/api/performance/progress", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+function renderPerformance(item) {
+  if (!item?.url) {
+    renderHoldCard();
+    return;
+  }
+
+  const sameUrl = performanceVideo && performanceItem?.url === item.url && performanceVideo.isConnected;
+  if (sameUrl) {
+    performanceVideo.muted = item.muted !== false;
+    if (item.paused) {
+      performanceVideo.pause();
+    } else if (performanceVideo.paused) {
+      void performanceVideo.play().catch(() => {});
+    }
+    if (item.seekToken && item.seekToken !== performanceSeekToken) {
+      performanceSeekToken = item.seekToken;
+      const target = Number(item.positionSeconds) || 0;
+      try {
+        performanceVideo.currentTime = target;
+      } catch {
+        /* ignore */
+      }
+    }
+    performanceItem = item;
+    return;
+  }
+
+  clearStage();
+  performanceItem = item;
+  performanceSeekToken = item.seekToken || null;
+  const video = document.createElement("video");
+  video.src = item.url;
+  video.autoplay = true;
+  // Default muted until operator explicitly enables audio.
+  video.muted = item.muted !== false;
+  video.playsInline = true;
+  video.loop = false;
+  video.preload = "auto";
+  video.dataset.performance = "1";
+
+  video.addEventListener("ended", () => {
+    postPerformanceProgress({
+      queueItemId: item.id,
+      recordingId: item.sceneId,
+      positionSeconds: video.currentTime || 0,
+      durationSeconds: video.duration || item.durationSeconds || null,
+      ended: true,
+    });
+  });
+  video.addEventListener("error", () => {
+    postPerformanceProgress({
+      queueItemId: item.id,
+      recordingId: item.sceneId,
+      positionSeconds: video.currentTime || 0,
+      error: "Video playback error.",
+    });
+  });
+  video.addEventListener("timeupdate", () => {
+    postPerformanceProgress({
+      queueItemId: item.id,
+      recordingId: item.sceneId,
+      positionSeconds: video.currentTime || 0,
+      durationSeconds: Number.isFinite(video.duration) ? video.duration : item.durationSeconds || null,
+      paused: video.paused,
+    });
+  });
+
+  stage.appendChild(video);
+  performanceVideo = video;
+  if (item.positionSeconds > 1) {
+    const seekTo = Number(item.positionSeconds) || 0;
+    video.addEventListener(
+      "loadedmetadata",
+      () => {
+        try {
+          video.currentTime = seekTo;
+        } catch {
+          /* ignore */
+        }
+      },
+      { once: true },
+    );
+  }
+  if (item.paused) {
+    video.pause();
+  } else {
+    void video.play().catch(() => {});
+  }
+}
+
 function renderPlaylist() {
   const visible = chooseVisibleItem(playlist, index, heldMedia);
   if (!visible?.url) {
@@ -176,6 +286,12 @@ function renderPlaylist() {
 }
 
 function render() {
+  if (mode === "performance") {
+    // Performance takes priority over trivia/audience overlays on the local wall player.
+    const item = performanceItem || playlist[0] || null;
+    renderPerformance(item);
+    return;
+  }
   if (trivia || audience?.tool) {
     // Overlay UIs are hosted; show black under OBS scene that still hosts overlays, or keep media.
     // Local player keeps last media; trivia/audience preferably use hosted /display/led during those modes.
@@ -197,6 +313,7 @@ function render() {
 
 async function refreshOverlays() {
   if (!apiBase) return;
+  if (mode === "performance") return;
   try {
     const [triviaRes, audienceRes] = await Promise.all([
       fetchJson(`${apiBase}/api/public/v1/trivia/wall`),
@@ -216,15 +333,45 @@ async function refresh() {
       if (reloadNonce === null) {
         // First observation: adopt without reloading (avoids infinite reload when nonce ≠ 1).
         reloadNonce = data.reloadNonce;
-      } else if (data.reloadNonce !== reloadNonce) {
+      } else if (data.reloadNonce !== reloadNonce && data.mode !== "performance") {
+        // Do not reload mid-performance on routine nonce flaps from ads.
         reloadNonce = data.reloadNonce;
         window.location.reload();
         return;
+      } else if (data.reloadNonce !== reloadNonce) {
+        reloadNonce = data.reloadNonce;
       }
     }
     apiBase = data.apiBase || apiBase;
     const nextRevision = data.revision || "idle";
     const nextMode = data.mode || "idle";
+
+    if (nextMode === "performance") {
+      const item = (data.items && data.items[0]) || null;
+      const changed =
+        mode !== "performance" ||
+        !performanceItem ||
+        performanceItem.id !== item?.id ||
+        performanceItem.url !== item?.url ||
+        performanceItem.muted !== item?.muted ||
+        performanceItem.paused !== item?.paused ||
+        performanceItem.seekToken !== item?.seekToken;
+      mode = "performance";
+      revision = nextRevision;
+      playlist = data.items || [];
+      performanceItem = item;
+      startedAt = data.startedAt || null;
+      if (changed) render();
+      return;
+    }
+
+    // Leaving performance mode: clear performance video so ads can take over cleanly.
+    if (mode === "performance" && nextMode !== "performance") {
+      performanceItem = null;
+      performanceSeekToken = null;
+      performanceVideo = null;
+    }
+
     const nextPlaylist = data.playlist || data.items || [];
     const nextStartedAt = data.startedAt || null;
 
@@ -266,6 +413,8 @@ async function refresh() {
 }
 
 setInterval(() => {
+  // Ad rotation only — never advance performances on the timer.
+  if (mode === "performance") return;
   if (mode === "playlist" && playlist.length && !trivia && !audience?.tool) {
     const next = ledPlaylistIndexAt(playlist, startedAt);
     if (next !== index) {

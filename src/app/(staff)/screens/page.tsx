@@ -25,10 +25,17 @@ import { TriviaPanel } from "@/components/screens/trivia-panel";
 import { VerticalAdsPanel } from "@/components/screens/vertical-ads-panel";
 import { WallOpsControlCenter } from "@/components/screens/wall-ops-control-center";
 import { DisplayDevicesPanel } from "@/components/screens/display-devices-panel";
+import { PerformanceLibraryPanel } from "@/components/screens/performance-library-panel";
 import { ErrorState } from "@/components/states";
 import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
+import {
+  getPerformanceLibrarySettings,
+  getPerformancePlaybackState,
+  listStaffPerformanceRecordings,
+} from "@/lib/queries/performance-library";
 import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
 import { isAgentStale } from "@/lib/screens/led-wall";
+import { authorizePerformanceConfigure, authorizePerformancePlayback } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +80,8 @@ export default async function ScreensPage({
     todayLedRes,
     artistLedRes,
     displayDevicesRes,
+    performanceRecordingsRes,
+    performanceSettingsRes,
   ] = await Promise.all([
     listLedWallScenes(supabase, context.venue.id),
     getLedWallRuntime(supabase, context.venue.id),
@@ -93,6 +102,12 @@ export default async function ScreensPage({
     listTodayLedListings(supabase, context.venue.id, context.venue.timezone),
     listArtistLedConfigs(supabase, context.venue.id),
     listStaffDisplayDevices(supabase, context.venue.id),
+    canProgram
+      ? listStaffPerformanceRecordings(supabase, context.venue.id)
+      : Promise.resolve({ recordings: [], missingTable: false, error: null }),
+    canProgram
+      ? getPerformanceLibrarySettings(supabase, context.venue.id)
+      : Promise.resolve({ settings: null, missingTable: false, error: null }),
   ]);
 
   if (missingTable || runtimeRes.missingTable || agentRes.missingTable || settingsRes.missingTable) {
@@ -161,10 +176,19 @@ export default async function ScreensPage({
   const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
   const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
-  const runner = describeLedRunnerLink(freshestLedRunner(displayDevicesRes.devices), {
+  const freshestRunner = freshestLedRunner(displayDevicesRes.devices);
+  const runner = describeLedRunnerLink(freshestRunner, {
     fresh: Boolean(agentRes.agent.lastSeenAt) && !isAgentStale(agentRes.agent.lastSeenAt),
     programScene: agentRes.agent.programScene,
   });
+  const performancePlaybackRes = freshestRunner
+    ? await getPerformancePlaybackState(supabase, freshestRunner.id)
+    : { state: null, missingTable: false, error: null as string | null };
+  const canPerformanceConfigure = authorizePerformanceConfigure(context.role).allowed;
+  const canPerformancePlayback = authorizePerformancePlayback(context.role, context.email, {
+    userId: context.userId,
+    wallOpsUserId: context.venue.wall_ops_user_id,
+  }).allowed;
 
   if (wallOps) {
     return (
@@ -252,6 +276,19 @@ export default async function ScreensPage({
                   displaySignalRes.signal?.hostedVerticalPublicEnabled !== false
                 }
                 signalsMissingTable={displaySignalRes.missingTable}
+              />
+            ) : null}
+            {canProgram ? (
+              <PerformanceLibraryPanel
+                recordings={performanceRecordingsRes.recordings}
+                missingTable={
+                  performanceRecordingsRes.missingTable || performanceSettingsRes.missingTable
+                }
+                settings={performanceSettingsRes.settings}
+                playback={performancePlaybackRes.state}
+                ledRunner={freshestRunner}
+                canConfigure={canPerformanceConfigure}
+                canPlayback={canPerformancePlayback}
               />
             ) : null}
           </>

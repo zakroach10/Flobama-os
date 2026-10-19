@@ -643,6 +643,30 @@ export const displayDeviceHeartbeatSchema = z.object({
         .optional(),
     })
     .optional(),
+  performance: z
+    .object({
+      mode: z.enum(["normal", "performance"]).optional(),
+      revision: z.number().int().nonnegative().optional(),
+      audioMuted: z.boolean().optional(),
+      nowPlaying: z
+        .object({
+          queueItemId: z.string().max(80).optional().nullable(),
+          recordingId: z.string().max(64).optional().nullable(),
+          displayTitle: z.string().max(500).optional().nullable(),
+          positionSeconds: z.number().nonnegative().optional().nullable(),
+          durationSeconds: z.number().nonnegative().optional().nullable(),
+          paused: z.boolean().optional(),
+          status: z.string().max(40).optional().nullable(),
+        })
+        .nullable()
+        .optional(),
+      queue: z.array(z.unknown()).max(200).optional(),
+      lastError: z.string().max(500).nullable().optional(),
+      recordingsRoot: z.string().max(2000).nullable().optional(),
+      lastScanAt: z.string().datetime().nullable().optional(),
+      catalogCount: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
   diskFreeBytes: z.number().int().nonnegative().optional().nullable(),
   lastError: z.string().trim().max(500).optional().nullable(),
 });

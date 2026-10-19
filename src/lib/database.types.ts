@@ -1423,6 +1423,318 @@ export type Database = {
         Relationships: [];
       };
 
+      performance_library_settings: {
+        Row: {
+          venue_id: string;
+          device_id: string | null;
+          recordings_root: string | null;
+          default_timezone: string;
+          last_scan_at: string | null;
+          last_catalog_sync_at: string | null;
+          catalog_count: number;
+          scan_stats: Json;
+          updated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          venue_id: string;
+          device_id?: string | null;
+          recordings_root?: string | null;
+          default_timezone?: string;
+          last_scan_at?: string | null;
+          last_catalog_sync_at?: string | null;
+          catalog_count?: number;
+          scan_stats?: Json;
+          updated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          device_id?: string | null;
+          recordings_root?: string | null;
+          default_timezone?: string;
+          last_scan_at?: string | null;
+          last_catalog_sync_at?: string | null;
+          catalog_count?: number;
+          scan_stats?: Json;
+        };
+        Relationships: [];
+      };
+      performance_recordings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          source_device_id: string | null;
+          recording_id: string;
+          original_filename: string;
+          relative_path: string;
+          file_size: number | null;
+          birthtime_ms: number | null;
+          mtime_ms: number | null;
+          parsed_timestamp: string | null;
+          raw_timestamp_text: string | null;
+          timezone: string | null;
+          parse_source: string | null;
+          parse_confidence: string | null;
+          duration_seconds: number | null;
+          container: string | null;
+          video_codec: string | null;
+          audio_codec: string | null;
+          width: number | null;
+          height: number | null;
+          has_audio: boolean | null;
+          availability:
+            | "metadata-only"
+            | "needs download"
+            | "preparing"
+            | "ready"
+            | "unsupported"
+            | "missing"
+            | "error";
+          playback_compatible: boolean | null;
+          needs_conversion: boolean;
+          last_scan_at: string | null;
+          last_error: string | null;
+          display_title: string | null;
+          display_title_locked: boolean;
+          match_status: "matched" | "needs_review" | "unmatched" | "manual";
+          matched_event_id: string | null;
+          match_confidence: string | null;
+          match_reason: string | null;
+          match_locked: boolean;
+          suggested_event_ids: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          source_device_id?: string | null;
+          recording_id: string;
+          original_filename: string;
+          relative_path: string;
+          file_size?: number | null;
+          birthtime_ms?: number | null;
+          mtime_ms?: number | null;
+          parsed_timestamp?: string | null;
+          raw_timestamp_text?: string | null;
+          timezone?: string | null;
+          parse_source?: string | null;
+          parse_confidence?: string | null;
+          duration_seconds?: number | null;
+          container?: string | null;
+          video_codec?: string | null;
+          audio_codec?: string | null;
+          width?: number | null;
+          height?: number | null;
+          has_audio?: boolean | null;
+          availability?:
+            | "metadata-only"
+            | "needs download"
+            | "preparing"
+            | "ready"
+            | "unsupported"
+            | "missing"
+            | "error";
+          playback_compatible?: boolean | null;
+          needs_conversion?: boolean;
+          last_scan_at?: string | null;
+          last_error?: string | null;
+          display_title?: string | null;
+          display_title_locked?: boolean;
+          match_status?: "matched" | "needs_review" | "unmatched" | "manual";
+          matched_event_id?: string | null;
+          match_confidence?: string | null;
+          match_reason?: string | null;
+          match_locked?: boolean;
+          suggested_event_ids?: string[];
+        };
+        Update: {
+          source_device_id?: string | null;
+          original_filename?: string;
+          relative_path?: string;
+          file_size?: number | null;
+          birthtime_ms?: number | null;
+          mtime_ms?: number | null;
+          parsed_timestamp?: string | null;
+          raw_timestamp_text?: string | null;
+          timezone?: string | null;
+          parse_source?: string | null;
+          parse_confidence?: string | null;
+          duration_seconds?: number | null;
+          container?: string | null;
+          video_codec?: string | null;
+          audio_codec?: string | null;
+          width?: number | null;
+          height?: number | null;
+          has_audio?: boolean | null;
+          availability?:
+            | "metadata-only"
+            | "needs download"
+            | "preparing"
+            | "ready"
+            | "unsupported"
+            | "missing"
+            | "error";
+          playback_compatible?: boolean | null;
+          needs_conversion?: boolean;
+          last_scan_at?: string | null;
+          last_error?: string | null;
+          display_title?: string | null;
+          display_title_locked?: boolean;
+          match_status?: "matched" | "needs_review" | "unmatched" | "manual";
+          matched_event_id?: string | null;
+          match_confidence?: string | null;
+          match_reason?: string | null;
+          match_locked?: boolean;
+          suggested_event_ids?: string[];
+        };
+        Relationships: [];
+      };
+      performance_queue_items: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string;
+          recording_row_id: string;
+          recording_id: string;
+          display_title: string | null;
+          sort_order: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id: string;
+          recording_row_id: string;
+          recording_id: string;
+          display_title?: string | null;
+          sort_order?: number;
+          created_by?: string | null;
+        };
+        Update: {
+          display_title?: string | null;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
+      performance_playback_state: {
+        Row: {
+          device_id: string;
+          venue_id: string;
+          mode: string;
+          revision: number;
+          audio_muted: boolean;
+          now_playing_queue_item_id: string | null;
+          now_playing_recording_id: string | null;
+          now_playing_title: string | null;
+          position_seconds: number | null;
+          duration_seconds: number | null;
+          paused: boolean;
+          status: string | null;
+          prior_wall_revision: string | null;
+          last_error: string | null;
+          reported_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          device_id: string;
+          venue_id: string;
+          mode?: string;
+          revision?: number;
+          audio_muted?: boolean;
+          now_playing_queue_item_id?: string | null;
+          now_playing_recording_id?: string | null;
+          now_playing_title?: string | null;
+          position_seconds?: number | null;
+          duration_seconds?: number | null;
+          paused?: boolean;
+          status?: string | null;
+          prior_wall_revision?: string | null;
+          last_error?: string | null;
+          reported_at?: string;
+        };
+        Update: {
+          mode?: string;
+          revision?: number;
+          audio_muted?: boolean;
+          now_playing_queue_item_id?: string | null;
+          now_playing_recording_id?: string | null;
+          now_playing_title?: string | null;
+          position_seconds?: number | null;
+          duration_seconds?: number | null;
+          paused?: boolean;
+          status?: string | null;
+          prior_wall_revision?: string | null;
+          last_error?: string | null;
+          reported_at?: string;
+        };
+        Relationships: [];
+      };
+      performance_commands: {
+        Row: {
+          id: string;
+          venue_id: string;
+          device_id: string;
+          kind:
+            | "scan_recordings"
+            | "set_recordings_root"
+            | "prepare_recording"
+            | "play_now"
+            | "play_next"
+            | "queue_add"
+            | "queue_remove"
+            | "queue_reorder"
+            | "pause"
+            | "resume"
+            | "seek"
+            | "skip"
+            | "set_audio_muted"
+            | "stop_return_normal";
+          payload: Json;
+          status: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          issued_by: string | null;
+          issued_at: string;
+          expires_at: string;
+          accepted_at: string | null;
+          completed_at: string | null;
+          reject_reason: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          device_id: string;
+          kind:
+            | "scan_recordings"
+            | "set_recordings_root"
+            | "prepare_recording"
+            | "play_now"
+            | "play_next"
+            | "queue_add"
+            | "queue_remove"
+            | "queue_reorder"
+            | "pause"
+            | "resume"
+            | "seek"
+            | "skip"
+            | "set_audio_muted"
+            | "stop_return_normal";
+          payload?: Json;
+          status?: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          issued_by?: string | null;
+          expires_at: string;
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reject_reason?: string | null;
+        };
+        Update: {
+          status?: "pending" | "accepted" | "rejected" | "expired" | "completed";
+          accepted_at?: string | null;
+          completed_at?: string | null;
+          reject_reason?: string | null;
+        };
+        Relationships: [];
+      };
 
       camera_inventory: {
         Row: {
@@ -1860,6 +2172,31 @@ export type Database = {
       camera_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";
       camera_preview_mode: "snapshot" | "webrtc";
       display_device_kind: "led_runner" | "vertical_kiosk";
+      performance_availability:
+        | "metadata-only"
+        | "needs download"
+        | "preparing"
+        | "ready"
+        | "unsupported"
+        | "missing"
+        | "error";
+      performance_match_status: "matched" | "needs_review" | "unmatched" | "manual";
+      performance_command_status: "pending" | "accepted" | "rejected" | "expired" | "completed";
+      performance_command_kind:
+        | "scan_recordings"
+        | "set_recordings_root"
+        | "prepare_recording"
+        | "play_now"
+        | "play_next"
+        | "queue_add"
+        | "queue_remove"
+        | "queue_reorder"
+        | "pause"
+        | "resume"
+        | "seek"
+        | "skip"
+        | "set_audio_muted"
+        | "stop_return_normal";
     };
     CompositeTypes: {
       [_ in never]: never;

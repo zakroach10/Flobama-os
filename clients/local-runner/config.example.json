@@ -11,5 +11,6 @@
   "cacheRoot": "/Users/Shared/FloBamaOS/media",
   "maxCacheBytes": 40000000000,
   "heartbeatMs": 2000,
-  "menubarEnabled": true
+  "menubarEnabled": true,
+  "recordingsRoot": null
 }
