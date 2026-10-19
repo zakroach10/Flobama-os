@@ -116,26 +116,33 @@ async function playNow(runtime, payload) {
   const item = await ensureQueueItem(payload);
   const playable = await resolvePlayablePath(runtime.recordingsCatalog, item.recordingId);
   if (!playable.ok) {
-    return { status: "rejected", rejectReason: playable.error || "Not playable." };
+    const reason = playable.error || "Not playable.";
+    await setPerformanceState(runtime.recordingsCatalog, { lastError: reason });
+    bumpPerformancePlayback(runtime);
+    return { status: "rejected", rejectReason: reason };
   }
+  // Prefer the catalog session id (may differ from a legacy file-path id in the command).
+  const catalogRecordingId = playable.recordingId || item.recordingId;
+  const playItem = { ...item, recordingId: catalogRecordingId };
   await enterPerformanceMode(runtime);
   const perf = getPerformanceState(runtime.recordingsCatalog);
-  const queue = [item, ...(perf.queue || []).filter((q) => q.queueItemId !== item.queueItemId)];
-  const rec = runtime.recordingsCatalog.data.recordings[item.recordingId];
+  const queue = [playItem, ...(perf.queue || []).filter((q) => q.queueItemId !== playItem.queueItemId)];
+  const rec = playable.recording || runtime.recordingsCatalog.data.recordings[catalogRecordingId];
   await setPerformanceState(runtime.recordingsCatalog, {
     mode: "performance",
     queue,
     nowPlaying: {
-      queueItemId: item.queueItemId,
-      recordingId: item.recordingId,
-      displayTitle: item.displayTitle || rec?.displayTitleOverride || rec?.originalFilename || item.recordingId,
+      queueItemId: playItem.queueItemId,
+      recordingId: catalogRecordingId,
+      displayTitle:
+        playItem.displayTitle || rec?.displayTitleOverride || rec?.originalFilename || catalogRecordingId,
       startedAt: new Date().toISOString(),
       positionSeconds: 0,
       durationSeconds: rec?.durationSeconds ?? null,
       paused: false,
       muted: true,
       status: "playing",
-      url: `/recordings/${item.recordingId}/media`,
+      url: `/recordings/${catalogRecordingId}/media`,
     },
     audioMuted: true,
     lastError: null,

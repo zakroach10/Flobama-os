@@ -15,8 +15,12 @@ import {
   stableRecordingId,
 } from "../clients/local-runner/lib/recordings-paths.mjs";
 import { inventoryRecordingsFolder } from "../clients/local-runner/lib/recordings-inventory.mjs";
-import { openRecordingsCatalog, mergeScanResults } from "../clients/local-runner/lib/recordings-catalog.mjs";
-import { sendRecordingFile, isPathInsideRoot } from "../clients/local-runner/lib/recordings-serve.mjs";
+import {
+  findCatalogRecording,
+  openRecordingsCatalog,
+  mergeScanResults,
+} from "../clients/local-runner/lib/recordings-catalog.mjs";
+import { sendRecordingFile, isPathInsideRoot, resolvePlayablePath } from "../clients/local-runner/lib/recordings-serve.mjs";
 import { matchRecordingToEvents } from "@/lib/performance/match";
 import { assignPartLabels, buildPerformanceDisplayTitle } from "@/lib/performance/titles";
 import { stationPerformanceLabel } from "@/lib/queries/performance-library";
@@ -379,6 +383,42 @@ describe("recordings inventory + path security", () => {
 
       expect(isPathInsideRoot(root, file)).toBe(true);
       expect(isPathInsideRoot(root, join(root, "..", "x"))).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("play_now catalog id resolution", () => {
+  it("resolves legacy primary-file ids to the session row", async () => {
+    const root = await mkdtemp(join(tmpdir(), "flobama-play-"));
+    try {
+      const sessionName = "Ecamm Recording on 2026-10-14 at 17.41.33";
+      const session = join(root, sessionName);
+      await mkdir(session, { recursive: true });
+      await writeFile(join(session, `${sessionName}.mp4`), Buffer.alloc(4096));
+      await writeFile(join(session, "Camera A.mp4"), Buffer.alloc(1024));
+      const scan = await inventoryRecordingsFolder(root);
+      expect(scan.scanned).toHaveLength(1);
+      const sessionId = scan.scanned[0].recordingId;
+      const primaryPath = scan.scanned[0].relativePath;
+      const primaryId = stableRecordingId(primaryPath);
+      expect(primaryId).not.toBe(sessionId);
+
+      const catalog = {
+        data: {
+          recordingsRoot: root,
+          recordings: { [sessionId]: scan.scanned[0] },
+        },
+      };
+
+      expect(findCatalogRecording(catalog, sessionId)?.recordingId).toBe(sessionId);
+      expect(findCatalogRecording(catalog, primaryId)?.recordingId).toBe(sessionId);
+      expect(findCatalogRecording(catalog, scan.scanned[0].primaryAssetId)?.recordingId).toBe(sessionId);
+
+      const playable = await resolvePlayablePath(catalog, primaryId);
+      expect(playable.ok).toBe(true);
+      expect(playable.recordingId).toBe(sessionId);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
