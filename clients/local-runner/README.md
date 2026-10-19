@@ -2,24 +2,27 @@
 
 Booth Mac agent that:
 
-1. Pairs with FloBama OS as a `led_runner` display device
+1. Pairs with FloBama OS as a `led_runner` or `production_runner` display device
 2. Downloads LED playlist media into `/Users/Shared/FloBamaOS/media`
 3. Serves `http://127.0.0.1:4173/wall` for the OBS Browser Source
 4. Cuts OBS scenes from FloBama heartbeats
 5. Inventories Dropbox **Ecamm session folders** for the Performance Library and plays queued shows in performance mode
+6. Discovers and controls **Ecamm Live Remote Control** for the Production section (Bonjour `_ecammliveremote._tcp`, client name **FloBama OS**)
 
 ## Install (venue Mac)
 
-1. Build or download `FloBama-Local-Runner-1.2.0.dmg`
+1. Build or download `FloBama-Local-Runner-1.3.0.dmg`
 2. Drag **FloBama Local Runner** into Applications and open it
-3. In FloBama → Screens → Display devices, create an **LED Local Runner** pairing code
-4. Enter API base + code + OBS WebSocket settings
-5. Point OBS media Browser Source to `http://127.0.0.1:4173/wall`
+3. In FloBama → Screens → Display devices, create an **LED Local Runner** and/or **Production Local Runner** pairing code
+4. Enter API base + code + OBS WebSocket settings (OBS optional on a dedicated Production Mac)
+5. Point OBS media Browser Source to `http://127.0.0.1:4173/wall` when using LED playback
 6. Optional autostart: `macos/install.sh`
 7. Apply these SQL migrations on the hosted Supabase project:
    - `supabase/migrations/20261018000054_performance_library.sql`
    - `supabase/migrations/20261019000055_performance_session_assets.sql`
+   - `supabase/migrations/20261019000058_production_ecamm.sql`
 8. Configure the Recordings folder (see below)
+9. For Production: approve **FloBama OS** in Ecamm → Settings → Remote Control, then select the Mac under Production → Devices (see `docs/production-ecamm-mac-setup.md`)
 
 ## Performance Library — Recordings folder
 
@@ -57,6 +60,10 @@ Local APIs (wall Mac only, not public):
 - `POST http://127.0.0.1:4173/api/recordings/scan`
 - `GET http://127.0.0.1:4173/api/recordings/export.json`
 - `GET http://127.0.0.1:4173/recordings/:id/media` (Range / HEAD)
+- `GET http://127.0.0.1:4173/api/ecamm/status`
+- `POST http://127.0.0.1:4173/api/ecamm/shortcuts` (Ecamm recording/broadcast notifications)
+
+CLI helpers: `--ecamm-discover`, `--ecamm-status`.
 
 Original Dropbox files are never renamed, moved, deleted, or placed in the ad media cache eviction pool.
 

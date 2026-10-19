@@ -16,6 +16,8 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Pair and revoke display devices (Local Runner and Vertical Player)",
     "Pair and revoke the FloBama Mac camera connector",
     "Operate remote cameras and live previews",
+    "Configure Production (Ecamm Live) device pairing and per-bus mute",
+    "Operate Production broadcast, scenes, audio, graphics, and Zoom controls",
     "Manage vertical ads",
     "Start and end Shoals trivia; upload question spreadsheets",
     "Run Live Audience Interactor tools on the wall",
@@ -28,6 +30,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Manage Booking from GoHighLevel custom objects",
     "Activate LED wall scenes",
     "Operate remote cameras and live previews",
+    "Operate Production broadcast, scenes, audio, graphics, and Zoom controls",
     "Manage vertical ads",
     "Publish Performance Library shows to Server Station and rename station labels",
     "Start and end Shoals trivia; upload question spreadsheets",
@@ -48,6 +51,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "View the calendar, artists, and staff directory",
     "View and activate LED wall scenes",
     "View camera connection status (no PTZ control)",
+    "View Production status, sessions, and markers (read-only)",
     "View and run Shoals trivia",
     "View ticketing sales, orders, and check-in status without selling or refunding",
     "View settings (read-only)",
@@ -246,6 +250,48 @@ export function authorizeDisplaySafeRefresh(
   if (!access.allowed) return access;
   if (!canManageScreensControls(role!, email, options)) {
     return { allowed: false, reason: "Your role cannot push an update to the local runner." };
+  }
+  return { allowed: true };
+}
+
+/** Viewers and above can open Production; servers/interactors denied by default. */
+export function canViewProduction(role: StaffRole): boolean {
+  return role === "admin" || role === "manager" || role === "viewer";
+}
+
+/** Managers and admins can enqueue Ecamm control commands. */
+export function canOperateProduction(role: StaffRole): boolean {
+  return role === "admin" || role === "manager";
+}
+
+/** Admins configure the production Mac, favorites policy, and per-bus mute. */
+export function canConfigureProduction(role: StaffRole): boolean {
+  return role === "admin";
+}
+
+export function authorizeProductionView(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canViewProduction(role!)) {
+    return { allowed: false, reason: "Your role cannot open Production." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeProductionControl(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canOperateProduction(role!)) {
+    return { allowed: false, reason: "Your role can view Production but cannot control Ecamm." };
+  }
+  return { allowed: true };
+}
+
+export function authorizeProductionConfigure(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canConfigureProduction(role!)) {
+    return { allowed: false, reason: "Only admins can configure Production device settings." };
   }
   return { allowed: true };
 }

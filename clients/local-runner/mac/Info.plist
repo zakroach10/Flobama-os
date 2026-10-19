@@ -9,9 +9,9 @@
   <key>CFBundleIdentifier</key>
   <string>com.flobama.local-runner</string>
   <key>CFBundleVersion</key>
-  <string>1.2.4</string>
+  <string>1.3.0</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.4</string>
+  <string>1.3.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
@@ -21,6 +21,6 @@
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>FloBama Local Runner connects to OBS on this Mac and serves the LED wall player on localhost.</string>
+  <string>FloBama Local Runner connects to OBS and Ecamm Live Remote Control on this Mac and serves the LED wall player on localhost.</string>
 </dict>
 </plist>

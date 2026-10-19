@@ -73,15 +73,20 @@ export async function POST(request: Request) {
   const token = createDisplayDeviceToken();
   const label =
     parsed.data.label?.trim() ||
-    (kind === "led_runner" ? "FloBama Local Runner" : "FloBama Vertical Player");
+    (kind === "led_runner"
+      ? "FloBama Local Runner"
+      : kind === "production_runner"
+        ? "FloBama Production Runner"
+        : "FloBama Vertical Player");
 
-  // One live LED runner per venue; vertical kiosks may have many.
-  if (kind === "led_runner") {
+  // One live LED runner per venue; one production runner per venue; vertical kiosks may have many.
+  // Pairing production_runner must NOT revoke led_runner (and vice versa).
+  if (kind === "led_runner" || kind === "production_runner") {
     await admin
       .from("display_devices")
       .update({ revoked_at: now.toISOString() })
       .eq("venue_id", pairing.venue_id)
-      .eq("kind", "led_runner")
+      .eq("kind", kind)
       .is("revoked_at", null);
   }
 

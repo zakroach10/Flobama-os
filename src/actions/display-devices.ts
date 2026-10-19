@@ -106,7 +106,9 @@ export async function createDisplayPairingCodeAction(input: unknown): Promise<Di
     message:
       parsed.data.kind === "led_runner"
         ? "Pairing code created. Enter it on the Mac Local Runner within 10 minutes."
-        : "Pairing code created. Enter it on the Vertical Player within 10 minutes.",
+        : parsed.data.kind === "production_runner"
+          ? "Pairing code created. Enter it on the Production Local Runner within 10 minutes."
+          : "Pairing code created. Enter it on the Vertical Player within 10 minutes.",
   };
 }
 

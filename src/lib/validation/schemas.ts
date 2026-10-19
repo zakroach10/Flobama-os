@@ -603,7 +603,7 @@ export const displayDevicePairSchema = z.object({
   // Allow messy pastes; route normalizes and enforces length >= 6.
   code: z.string().trim().min(1).max(64),
   label: optionalPairText(120),
-  kind: z.enum(["led_runner", "vertical_kiosk"]).optional(),
+  kind: z.enum(["led_runner", "vertical_kiosk", "production_runner"]).optional(),
   hostname: optionalPairText(200),
   appVersion: optionalPairText(40),
   capabilities: z.record(z.string(), z.any()).optional(),
@@ -668,12 +668,50 @@ export const displayDeviceHeartbeatSchema = z.object({
       catalogCount: z.number().int().nonnegative().optional(),
     })
     .optional(),
+  ecamm: z
+    .object({
+      connected: z.boolean().optional(),
+      connectionPhase: z.string().trim().max(40).optional().nullable(),
+      permission: z.string().trim().max(40).optional().nullable(),
+      host: z.string().trim().max(200).optional().nullable(),
+      hostname: z.string().trim().max(200).optional().nullable(),
+      serviceName: z.string().trim().max(200).optional().nullable(),
+      uuid: z.string().trim().max(80).optional().nullable(),
+      clientName: z.string().trim().max(80).optional().nullable(),
+      clientVersion: z.string().trim().max(40).optional().nullable(),
+      lastSuccessAt: z.string().optional().nullable(),
+      lastError: z.string().max(500).optional().nullable(),
+      currentSceneId: z.string().max(200).optional().nullable(),
+      currentSceneLabel: z.string().max(200).optional().nullable(),
+      buttonLabel: z.string().max(200).optional().nullable(),
+      pauseButtonLabel: z.string().max(200).optional().nullable(),
+      broadcast: z.record(z.string(), z.any()).optional().nullable(),
+      viewers: z.number().int().nonnegative().optional().nullable(),
+      previewMode: z.boolean().optional().nullable(),
+      mute: z.boolean().optional().nullable(),
+      zoomInMeeting: z.boolean().optional().nullable(),
+      zoom: z.record(z.string(), z.any()).optional().nullable(),
+      currentMode: z.string().max(80).optional().nullable(),
+      defaultCameraId: z.string().max(200).optional().nullable(),
+      liveCameraKnown: z.boolean().optional(),
+      volumes: z.record(z.string(), z.any()).optional(),
+      mutes: z.record(z.string(), z.any()).optional(),
+      lists: z.record(z.string(), z.any()).optional(),
+      discovered: z.array(z.any()).max(50).optional(),
+      stateFingerprint: z.string().max(500).optional().nullable(),
+      unmappedKeys: z.array(z.any()).max(100).optional(),
+      endpointSupport: z.record(z.string(), z.any()).optional(),
+      favorites: z.record(z.string(), z.any()).optional(),
+      allowPerBusMute: z.boolean().optional(),
+    })
+    .passthrough()
+    .optional(),
   diskFreeBytes: z.number().int().nonnegative().optional().nullable(),
   lastError: z.string().trim().max(500).optional().nullable(),
 });
 
 export const createDisplayPairingCodeSchema = z.object({
-  kind: z.enum(["led_runner", "vertical_kiosk"]),
+  kind: z.enum(["led_runner", "vertical_kiosk", "production_runner"]),
 });
 
 export const revokeDisplayDeviceSchema = z.object({

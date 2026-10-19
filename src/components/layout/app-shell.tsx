@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDaysIcon,
+  ClapperboardIcon,
   ClipboardListIcon,
   ExternalLinkIcon,
   LayoutDashboardIcon,
@@ -34,6 +35,7 @@ const MENU_ICONS = {
   audience: RadioIcon,
   screens: MonitorPlayIcon,
   cameras: VideoIcon,
+  production: ClapperboardIcon,
   ticketing: TicketIcon,
   spoton: UtensilsCrossedIcon,
   artists: UsersIcon,
@@ -114,6 +116,7 @@ function mobileSection(pathname: string) {
   if (pathname.startsWith("/server")) return "Server Station";
   if (pathname.startsWith("/screens")) return "Screens";
   if (pathname.startsWith("/cameras")) return "Cameras";
+  if (pathname.startsWith("/production")) return "Production";
   if (pathname.startsWith("/dashboard")) return "Dashboard";
   return "Staff OS";
 }

@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "clients", "local-runner");
 const macDir = path.join(clientDir, "mac");
 const staging = path.join(root, "tmp", "local-runner-dmg");
-const version = "1.2.4";
+const version = "1.3.0";
 const output = path.join(root, "public", "downloads", `FloBama-Local-Runner-${version}.dmg`);
 
 const pkgRaw = await readFile(path.join(clientDir, "package.json"), "utf8");
@@ -33,12 +33,8 @@ await cp(path.join(clientDir, "package.json"), path.join(resourcesApp, "package.
 await cp(path.join(clientDir, "package-lock.json"), path.join(resourcesApp, "package-lock.json"));
 await writeFile(path.join(resourcesApp, "VERSION"), `${version}\n`, "utf8");
 
-// Package every lib module (cache, downloads, performance library, etc.).
-const libDir = path.join(clientDir, "lib");
-for (const file of await readdir(libDir)) {
-  if (!file.endsWith(".mjs")) continue;
-  await cp(path.join(libDir, file), path.join(resourcesApp, "lib", file));
-}
+// Package every lib module including subfolders (ecamm adapter, etc.).
+await cp(path.join(clientDir, "lib"), path.join(resourcesApp, "lib"), { recursive: true });
 await cp(path.join(clientDir, "wall-player", "index.html"), path.join(resourcesApp, "wall-player", "index.html"));
 await cp(path.join(clientDir, "wall-player", "player.js"), path.join(resourcesApp, "wall-player", "player.js"));
 
