@@ -135,7 +135,9 @@ export function PerformanceLibraryPanel({
         <h2 className="text-lg font-semibold">Performance Library</h2>
         <p className="text-sm text-muted-foreground">
           Catalog Dropbox-synced recordings on the wall Mac, match them to historical events, and queue them for LED
-          playback. Remote staff browse the catalog here; preview and media bytes stay on the Local Runner (
+          playback. The runner opens every nested Ecamm session folder and keeps only files with{" "}
+          <span className="font-medium text-foreground">Ecamm</span> in the name — Camera A/B angle views are skipped.
+          Remote staff browse the catalog here; media bytes stay on the Local Runner (
           <code className="text-xs">127.0.0.1:4173</code>), never through Vercel.
         </p>
       </div>

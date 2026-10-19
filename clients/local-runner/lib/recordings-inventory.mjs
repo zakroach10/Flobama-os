@@ -1,7 +1,13 @@
 import { createReadStream } from "node:fs";
 import { open, readdir, stat } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
-import { isVideoFilename, relativeFromRoot, stableRecordingId } from "./recordings-paths.mjs";
+import {
+  ecammSkipReason,
+  isMainEcammRecording,
+  isVideoFilename,
+  relativeFromRoot,
+  stableRecordingId,
+} from "./recordings-paths.mjs";
 import { parseRecordingFilename } from "./recordings-parse.mjs";
 
 const GROWING_WINDOW_MS = 15_000;
@@ -106,6 +112,7 @@ export async function inventoryRecordingsFolder(recordingsRoot, options = {}) {
   const unsupported = [];
   let totalFiles = 0;
   let videoFiles = 0;
+  let skippedCameraOrNonEcamm = 0;
   let errorCount = 0;
 
   let batch = [];
@@ -145,8 +152,21 @@ export async function inventoryRecordingsFolder(recordingsRoot, options = {}) {
       continue;
     }
 
+    // Recurse into every session folder, but only catalog main Ecamm program files.
+    if (!isMainEcammRecording(entry.name)) {
+      skippedCameraOrNonEcamm += 1;
+      nonVideo.push({
+        relativePath: rel,
+        originalFilename: entry.name,
+        fileSize: info.size,
+        reason: ecammSkipReason(entry.name) || "Skipped (not main Ecamm recording).",
+      });
+      continue;
+    }
+
     videoFiles += 1;
     const recordingId = stableRecordingId(rel);
+    // Prefer parent folder name in the haystack — Ecamm puts the full date there.
     const parsed = parseRecordingFilename(entry.name, { timeZone, relativePath: rel });
     const local = await detectLocalAvailability(entry.full, info);
 
@@ -204,6 +224,7 @@ export async function inventoryRecordingsFolder(recordingsRoot, options = {}) {
   const stats = {
     totalFiles,
     videoFiles,
+    skippedCameraOrNonEcamm,
     nonVideoFiles: nonVideo.length,
     unsupportedFiles: unsupported.length,
     errorCount,

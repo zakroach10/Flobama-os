@@ -133,6 +133,20 @@ export function localPartsToUtcIso(parts, timeZone, { ambiguity = "earlier" } = 
 }
 
 const PATTERNS = [
+  // Ecamm Live: "Ecamm Recording on 2026-08-15 at 20.07.11" (folder and/or .mp4)
+  {
+    source: "ecamm-on-date-at-time",
+    confidence: "high",
+    re: /Ecamm\s+Recording\s+on\s+(20\d{2})[-_.](\d{2})[-_.](\d{2})\s+at\s+(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?/i,
+    map: (m) => buildLocalParts(m[1], m[2], m[3], m[4], m[5], m[6] || 0),
+  },
+  // Ecamm truncated / alternate: "... at 20.07.11" with date nearby in path
+  {
+    source: "ecamm-at-time-with-nearby-date",
+    confidence: "high",
+    re: /(20\d{2})[-_.](\d{2})[-_.](\d{2}).{0,80}?\bat\s+(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?/i,
+    map: (m) => buildLocalParts(m[1], m[2], m[3], m[4], m[5], m[6] || 0),
+  },
   // 2026-10-17 21-30-00 / 2026-10-17_21-30-00 / 2026-10-17T21:30:00
   {
     source: "iso-like",
