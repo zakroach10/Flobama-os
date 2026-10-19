@@ -35,10 +35,12 @@ export async function GET(request: Request) {
   const days = pages[pageIndex] ?? [];
   const pageLabel = pages.length > 1 ? `${pageIndex + 1} / ${pages.length}` : null;
   const filename = socialGraphicFileName(week.rangeLabel, format.id, pageIndex + 1, pages.length);
+  // Keep path strings literal in each readFile call so Next file tracing does not
+  // include the whole repo (Local Runner DMGs / clients) and fail the Vercel build.
   const [paperSrc, tearSrc, stickerSrc, regular, bold] = await Promise.all([
-    fileDataUri("public/social/paper-orange.jpg", "image/jpeg"),
-    fileDataUri("public/social/paper-tear.png", "image/png"),
-    fileDataUri("public/social/flobama-sticker.png", "image/png"),
+    readAsDataUri(join(process.cwd(), "public/social/paper-orange.jpg"), "image/jpeg"),
+    readAsDataUri(join(process.cwd(), "public/social/paper-tear.png"), "image/png"),
+    readAsDataUri(join(process.cwd(), "public/social/flobama-sticker.png"), "image/png"),
     readFile(join(process.cwd(), "public/fonts/Roboto-Regular.ttf")),
     readFile(join(process.cwd(), "public/fonts/Roboto-Bold.ttf")),
   ]);
@@ -82,9 +84,9 @@ async function loadLiveWeek() {
   return buildWeekSlidePayload(events);
 }
 
-async function fileDataUri(relativePath: string, mime: string) {
+async function readAsDataUri(absolutePath: string, mime: string) {
   try {
-    const bytes = await readFile(join(process.cwd(), relativePath));
+    const bytes = await readFile(absolutePath);
     return `data:${mime};base64,${bytes.toString("base64")}`;
   } catch {
     return null;
