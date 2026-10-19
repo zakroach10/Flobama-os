@@ -70,5 +70,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         process.env.EAS_PROJECT_ID?.trim() || "45cc604d-a79f-4b2b-adcb-e48b42faf3e3",
     },
   },
-  owner: process.env.EXPO_OWNER?.trim() || undefined,
+  owner: process.env.EXPO_OWNER?.trim() || "zakaryroachs-team",
 });
