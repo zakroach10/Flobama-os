@@ -53,6 +53,23 @@ function formatEventCard(event: EventRow, timeZone: string, origin: string): Ser
   };
 }
 
+/** True when the event starts on the venue-local calendar day. */
+export function isServerStationEventTonight(
+  event: Pick<ServerStationEventCard, "startsAt">,
+  timeZone = DEFAULT_VENUE_TIMEZONE,
+  now = DateTime.now(),
+) {
+  const start = DateTime.fromISO(event.startsAt, { zone: "utc" }).setZone(timeZone);
+  if (!start.isValid) return false;
+  return start.hasSame(now.setZone(timeZone), "day");
+}
+
+/** Guest-facing band/act label for the header and rails. */
+export function serverStationEventBandLabel(event: Pick<ServerStationEventCard, "title" | "artists">) {
+  if (event.artists.length) return event.artists.join(", ");
+  return event.title;
+}
+
 function rangeForBucket(bucket: "tonight" | "tomorrow" | "weekend" | "upcoming", timeZone: string, now = DateTime.now()) {
   const local = now.setZone(timeZone);
   if (bucket === "tonight") {

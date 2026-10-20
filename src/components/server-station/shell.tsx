@@ -16,6 +16,7 @@ import {
   UtensilsCrossedIcon,
   type LucideIcon,
 } from "lucide-react";
+import { ServerStationHeaderMeta } from "@/components/server-station/header-meta";
 import { ServerStationPosRail } from "@/components/server-station/pos-rail";
 import { ServerStationMobileDock } from "@/components/server-station/mobile-dock";
 import { getServerStationDashboardAction } from "@/actions/server-station";
@@ -135,6 +136,7 @@ export function ServerStationShell({
             <p className="truncate text-[10px] font-semibold tracking-[0.18em] text-[#e8d5c4] uppercase sm:text-xs">
               {title || "Server Station"}
             </p>
+            <ServerStationHeaderMeta className="mt-0.5 text-left sm:hidden" />
             <p
               className={cn(
                 "truncate text-[11px] font-semibold sm:hidden",
@@ -145,11 +147,12 @@ export function ServerStationShell({
               {liveWall.currentlyPlaying ? ` · ${liveWall.currentlyPlaying}` : ""}
             </p>
           </div>
-          <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-[#f7efe6]">{actorName}</p>
+          <div className="hidden min-w-0 max-w-[18rem] text-right sm:block lg:max-w-[22rem]">
+            <ServerStationHeaderMeta />
+            <p className="mt-0.5 truncate text-xs font-medium text-[#e8d5c4]/90">{actorName}</p>
             <p
               className={cn(
-                "text-xs font-semibold",
+                "truncate text-xs font-semibold",
                 liveWall.connected ? "text-emerald-300" : "text-amber-300",
               )}
             >

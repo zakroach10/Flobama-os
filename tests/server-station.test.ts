@@ -30,8 +30,13 @@ import {
   validateSpecialCopy,
 } from "@/lib/server-station/moderation";
 import { resolveServerStationEndsAt, durationPresetLabel } from "@/lib/server-station/expiration";
+import {
+  isServerStationEventTonight,
+  serverStationEventBandLabel,
+} from "@/lib/server-station/events";
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
+import { DateTime } from "luxon";
 import { ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 import {
   isServerStationActivatableScene,
@@ -192,6 +197,16 @@ describe("server station content validation", () => {
     expect(detectServerStationUploadKind({ type: "image/webp", name: "a.webp" })).toBe("image");
     expect(detectServerStationUploadKind({ type: "video/mp4", name: "a.mp4" })).toBe("video");
     expect(detectServerStationUploadKind({ type: "application/pdf", name: "a.pdf" })).toBeNull();
+  });
+
+  it("flags venue-local tonight events and prefers artist names", () => {
+    const now = DateTime.fromISO("2026-10-20T21:00:00", { zone: "America/Chicago" });
+    const tonightIso = DateTime.fromISO("2026-10-20T20:00:00", { zone: "America/Chicago" }).toUTC().toISO()!;
+    const tomorrowIso = DateTime.fromISO("2026-10-21T20:00:00", { zone: "America/Chicago" }).toUTC().toISO()!;
+    expect(isServerStationEventTonight({ startsAt: tonightIso }, "America/Chicago", now)).toBe(true);
+    expect(isServerStationEventTonight({ startsAt: tomorrowIso }, "America/Chicago", now)).toBe(false);
+    expect(serverStationEventBandLabel({ title: "Late Show", artists: ["Slaw Dogs"] })).toBe("Slaw Dogs");
+    expect(serverStationEventBandLabel({ title: "Open Mic", artists: [] })).toBe("Open Mic");
   });
 });
 

@@ -62,6 +62,7 @@ export function StationScreen() {
   if (path.startsWith("/server/specials")) {
     return (
       <ServerStationGraphicBuilder
+        key="special"
         actorName={session.actorName}
         wall={session.wall}
         mode="special"
@@ -73,6 +74,7 @@ export function StationScreen() {
   if (path.startsWith("/server/birthday")) {
     return (
       <ServerStationGraphicBuilder
+        key="birthday"
         actorName={session.actorName}
         wall={session.wall}
         mode="birthday"
@@ -84,6 +86,7 @@ export function StationScreen() {
   if (path.startsWith("/server/message")) {
     return (
       <ServerStationGraphicBuilder
+        key="message"
         actorName={session.actorName}
         wall={session.wall}
         mode="message"

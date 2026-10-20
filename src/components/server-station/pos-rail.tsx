@@ -10,7 +10,10 @@ import {
   removeServerStationItemAction,
 } from "@/actions/server-station";
 import { serverStationKindLabel, serverStationPlacement } from "@/lib/server-station/item-labels";
-import type { ServerStationEventCard } from "@/lib/server-station/events";
+import {
+  serverStationEventBandLabel,
+  type ServerStationEventCard,
+} from "@/lib/server-station/events";
 import { cn } from "@/lib/utils";
 
 type RotationItem = {
@@ -25,7 +28,7 @@ type RotationItem = {
 };
 
 function tonightLabel(event: ServerStationEventCard) {
-  const who = event.artists.length ? event.artists.join(", ") : event.title;
+  const who = serverStationEventBandLabel(event);
   const extra = event.artists.length && event.title !== who ? event.title : null;
   return { who, extra };
 }
@@ -174,8 +177,9 @@ export function ServerStationPosRail() {
               <StationLink
                 key={event.id}
                 href="/server/events"
-                className="block rounded-2xl border border-white/10 bg-black/25 px-3 py-2"
+                className="block rounded-2xl border border-[#d36b4a]/50 bg-[#d36b4a]/15 px-3 py-2"
               >
+                <p className="text-[10px] font-semibold tracking-[0.14em] text-[#d36b4a] uppercase">Tonight</p>
                 <p className="truncate text-sm font-bold text-[#f7efe6]">{label.who}</p>
                 <p className="truncate text-xs text-[#e8d5c4]">
                   {label.extra ? `${label.extra} · ` : ""}
