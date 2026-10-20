@@ -76,6 +76,56 @@ export async function clearExpiredLedOverride(client: Client, venueId: string, n
   return { cleared: true, missingTable: false };
 }
 
+/**
+ * Wall player reports a YouTube take finished — clear the override and resume house ads.
+ * Only succeeds when `sceneId` is the active override scene with media_kind youtube.
+ */
+export async function completeYoutubeWallPlayback(
+  client: Client,
+  venueId: string,
+  sceneId: string,
+  now = new Date(),
+) {
+  const { data: override, error } = await client
+    .from("led_wall_overrides")
+    .select(
+      "venue_id, scene_id, server_item_id, starts_at, previous_playlist_id, previous_scene_id, previous_activation_source, resume_playlist_item_id",
+    )
+    .eq("venue_id", venueId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingServerStationRelation(error.message)) {
+      return { ok: false as const, message: "Server Station tables are missing." };
+    }
+    return { ok: false as const, message: error.message };
+  }
+  if (!override || override.scene_id !== sceneId) {
+    return { ok: false as const, message: "That YouTube take is no longer on the wall." };
+  }
+
+  const { data: scene } = await client
+    .from("led_wall_scenes")
+    .select("id, media_kind")
+    .eq("id", sceneId)
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  if (scene?.media_kind !== "youtube") {
+    return { ok: false as const, message: "That scene is not a YouTube take." };
+  }
+
+  await client.from("led_wall_overrides").delete().eq("venue_id", venueId);
+  if (override.server_item_id) {
+    await client
+      .from("led_server_items")
+      .update({ status: "expired" })
+      .eq("id", override.server_item_id)
+      .eq("venue_id", venueId);
+  }
+  await restoreAdRollAfterOverride(client, venueId, override, now);
+  return { ok: true as const, message: "Returned to normal programming." };
+}
+
 export async function expireServerStationItems(client: Client, venueId: string, now = new Date()) {
   const nowIso = now.toISOString();
   const { data: expired, error } = await client

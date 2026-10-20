@@ -12,7 +12,7 @@ export type ArtistLedConfig = {
   sceneId: string;
   title: string;
   publicUrl: string | null;
-  mediaKind: "image" | "video" | "week_events" | null;
+  mediaKind: "image" | "video" | "week_events" | "youtube" | null;
   enabled: boolean;
 };
 

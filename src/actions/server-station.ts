@@ -19,7 +19,13 @@ import {
   validateServerStationMessage,
   validateSpecialCopy,
 } from "@/lib/server-station/moderation";
-import { clearExpiredLedOverride, getLedWallProtection } from "@/lib/server-station/overrides";
+import {
+  clearExpiredLedOverride,
+  completeYoutubeWallPlayback,
+  getLedWallProtection,
+} from "@/lib/server-station/overrides";
+import { parseYoutubeVideoUrl, youtubeWallEndsAt } from "@/lib/screens/youtube";
+import { LED_YOUTUBE_WALL_SQL, SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 import {
   isServerStationActivatableScene,
@@ -34,12 +40,11 @@ import {
   restoreAdRollAfterOverride,
 } from "@/lib/server-station/ad-roll";
 import { isMissingServerStationRelation, SERVER_STATION_SQL } from "@/lib/auth/server-station";
-import { SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicAppUrl } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { hashDisplaySecret } from "@/lib/display-devices/crypto";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { SERVER_STATION_TEMPLATES } from "@/lib/server-station/templates";
 
 export type ServerStationActionResult = {
@@ -1070,6 +1075,172 @@ export async function updateServerStationSettingsAction(input: unknown): Promise
   });
   revalidateServerStation();
   return { ok: true, message: "Server Station settings saved." };
+}
+
+/**
+ * Paste a YouTube link → Show Now on the LED wall link.
+ * When the video ends (player callback) or the safety window expires, house ads resume.
+ */
+export async function playYoutubeOnWallAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = z
+    .object({
+      url: z.string().trim().min(8).max(800),
+      title: z.string().trim().max(120).optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Paste a YouTube video link." };
+
+  const video = parseYoutubeVideoUrl(parsed.data.url);
+  if (!video) return { ok: false, message: "That does not look like a YouTube video link." };
+
+  const dbGate = requireContentDb(gate);
+  if (!dbGate.ok) return { ok: false, message: dbGate.message };
+  const db = dbGate.db;
+
+  const protection = await getLedWallProtection(db, gate.venueId);
+  if (protection.protected) {
+    return {
+      ok: false,
+      message: protection.reason,
+    };
+  }
+
+  const title = (parsed.data.title?.trim() || video.title).slice(0, 120);
+  const sceneId = randomUUID();
+  const endsAt = youtubeWallEndsAt();
+  const thumbnailUrl = `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+
+  const { error: sceneError } = await db.from("led_wall_scenes").insert({
+    id: sceneId,
+    venue_id: gate.venueId,
+    title,
+    kind: "media",
+    media_kind: "youtube",
+    storage_path: video.storagePath,
+    public_url: video.watchUrl,
+    sort_order: await nextSceneSortOrder(db, gate.venueId),
+    enabled: true,
+    server_approved: false,
+  });
+  if (sceneError) {
+    if (/youtube|media_kind|led_wall_scenes_shape/i.test(sceneError.message)) {
+      return {
+        ok: false,
+        message: `Apply ${LED_YOUTUBE_WALL_SQL} in the Supabase SQL editor, then try again.`,
+      };
+    }
+    return { ok: false, message: sqlMessage(sceneError.message) };
+  }
+
+  const hold = await readAdRollHold(db, gate.venueId);
+  const startsAt = hold?.startsAt ?? new Date().toISOString();
+  const playsAfterCurrentAd = Boolean(hold);
+
+  const { data: runtime } = await db
+    .from("led_wall_runtime")
+    .select("active_scene_id, active_playlist_id, activation_source")
+    .eq("venue_id", gate.venueId)
+    .maybeSingle();
+
+  const { error: overrideError } = await db.from("led_wall_overrides").upsert(
+    {
+      venue_id: gate.venueId,
+      scene_id: sceneId,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      previous_scene_id: hold?.previousSceneId ?? runtime?.active_scene_id ?? null,
+      previous_playlist_id: hold?.playlistId ?? runtime?.active_playlist_id ?? null,
+      previous_activation_source: hold?.previousActivationSource ?? runtime?.activation_source ?? null,
+      resume_playlist_item_id: hold?.resumePlaylistItemId ?? null,
+      created_by: gate.actor.userId,
+    },
+    { onConflict: "venue_id" },
+  );
+  if (overrideError) return { ok: false, message: sqlMessage(overrideError.message) };
+
+  if (!hold) {
+    const { error: runtimeError } = await db.from("led_wall_runtime").upsert(
+      {
+        venue_id: gate.venueId,
+        active_scene_id: sceneId,
+        active_playlist_id: null,
+        activation_source: "server_override",
+        auto_event_id: null,
+        auto_artist_id: null,
+      },
+      { onConflict: "venue_id" },
+    );
+    if (runtimeError) return { ok: false, message: sqlMessage(runtimeError.message) };
+  }
+
+  const { data: item, error: itemError } = await db
+    .from("led_server_items")
+    .insert({
+      venue_id: gate.venueId,
+      kind: "youtube",
+      title,
+      subtitle: video.videoId,
+      template_id: "classic",
+      status: "active",
+      scene_id: sceneId,
+      thumbnail_url: thumbnailUrl,
+      public_url: video.watchUrl,
+      storage_path: video.storagePath,
+      created_by: gate.actor.userId,
+      created_by_name: gate.actor.displayName,
+      device_id: gate.actor.deviceId,
+      ends_at: endsAt,
+      show_now: true,
+    })
+    .select("id")
+    .single();
+  if (itemError) {
+    if (/youtube|led_server_items_kind/i.test(itemError.message)) {
+      return {
+        ok: false,
+        message: `Apply ${LED_YOUTUBE_WALL_SQL} in the Supabase SQL editor, then try again.`,
+      };
+    }
+    return { ok: false, message: sqlMessage(itemError.message) };
+  }
+
+  await db
+    .from("led_wall_overrides")
+    .update({ server_item_id: item.id })
+    .eq("venue_id", gate.venueId);
+
+  await writeServerStationAudit(db, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "content_show_now",
+    detail: { itemId: item.id, kind: "youtube", videoId: video.videoId, title },
+  });
+
+  revalidateServerStation();
+  return {
+    ok: true,
+    message: playsAfterCurrentAd
+      ? "The current ad will finish, then this YouTube video plays. When it ends, the wall goes back to normal."
+      : "YouTube is on the wall. When the video ends, the wall goes back to normal programming.",
+    itemId: item.id,
+  };
+}
+
+/** Display / local wall player: YouTube finished → resume house ads. */
+export async function finishYoutubeOnWallAction(input: unknown): Promise<ServerStationActionResult> {
+  const parsed = z.object({ sceneId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Missing scene." };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, message: "Service role is not configured." };
+
+  const { FLO_BAMA_VENUE_ID } = await import("@/lib/constants");
+  const result = await completeYoutubeWallPlayback(admin, FLO_BAMA_VENUE_ID, parsed.data.sceneId);
+  if (result.ok) revalidateServerStation();
+  return result;
 }
 
 export async function cancelServerStationOverrideAction(): Promise<ServerStationActionResult> {

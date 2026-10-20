@@ -14,6 +14,7 @@ import type { TriviaWallState } from "@/lib/trivia/types";
 import type { AudienceWallState } from "@/lib/audience/types";
 import { TriviaWall } from "@/components/screens/trivia-wall";
 import { AudienceWall } from "@/components/audience/audience-wall";
+import { LedYoutubePlayer } from "@/components/screens/led-youtube-player";
 
 type LedApiPayload = {
   active?: PublicLedMedia | null;
@@ -180,6 +181,10 @@ export function LedDisplay({
 
   if (!media) return <LedHoldCard />;
 
+  if (media.mediaKind === "youtube") {
+    return <LedYoutubePlayer key={media.id} sceneId={media.id} url={media.url} />;
+  }
+
   if (media.mediaKind === "video") {
     return (
       <video
@@ -273,6 +278,15 @@ function LedMediaSurface({
   const className = active
     ? "absolute inset-0 z-10 h-full w-full bg-[#100e0c] object-contain opacity-100"
     : "pointer-events-none absolute inset-0 z-0 h-full w-full bg-[#100e0c] object-contain opacity-0";
+
+  if (item.mediaKind === "youtube") {
+    if (!active) return null;
+    return (
+      <div className={className} aria-hidden={!active}>
+        <LedYoutubePlayer sceneId={item.sceneId} url={item.url} />
+      </div>
+    );
+  }
 
   if (item.mediaKind === "video") {
     return (

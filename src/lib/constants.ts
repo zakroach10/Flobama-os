@@ -55,12 +55,13 @@ export const SCREEN_TRANSITION_LABELS: Record<ScreenTransition, string> = {
 export const SCREEN_WALL_MODES = ["auto", "manual"] as const;
 export type ScreenWallMode = (typeof SCREEN_WALL_MODES)[number];
 
-export const SCREEN_MEDIA_KINDS = ["image", "video", "week_events"] as const;
+export const SCREEN_MEDIA_KINDS = ["image", "video", "week_events", "youtube"] as const;
 export type ScreenMediaKind = (typeof SCREEN_MEDIA_KINDS)[number];
 
 export const WEEK_EVENTS_PUBLIC_URL = "dynamic://week_events";
 export const WEEK_EVENTS_STORAGE_PATH = "dynamic/week_events";
 export const WEEK_EVENTS_DEFAULT_SECONDS = 20;
+export const LED_YOUTUBE_WALL_SQL = "supabase/migrations/20261020000059_led_youtube_wall.sql";
 export const VERTICAL_PLAYLIST_POLL_MS = 4000;
 export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
 export const SCREEN_TAKEOVER_MAX_MINUTES = 480;

@@ -8,12 +8,16 @@ import { ServerStationPerformances } from "@/components/server-station/performan
 import { ServerStationPhoneUploadPanel } from "@/components/server-station/phone-upload-panel";
 import { useStationNav } from "@/components/server-station/station-nav";
 import { ServerStationWallControls } from "@/components/server-station/wall-controls";
+import { ServerStationYoutubeWall } from "@/components/server-station/youtube-wall";
 
 export function StationScreen() {
   const nav = useStationNav();
   if (!nav) return null;
   const { session, path } = nav;
 
+  if (path.startsWith("/server/youtube")) {
+    return <ServerStationYoutubeWall actorName={session.actorName} wall={session.wall} />;
+  }
   if (path.startsWith("/server/wall")) {
     return (
       <ServerStationWallControls

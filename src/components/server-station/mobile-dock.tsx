@@ -14,6 +14,7 @@ import {
   SmartphoneIcon,
   UtensilsCrossedIcon,
   XIcon,
+  TvMinimalPlayIcon,
   type LucideIcon,
 } from "lucide-react";
 import { StationLink, useStationNav } from "@/components/server-station/station-nav";
@@ -45,6 +46,12 @@ const CREATE_ITEMS: Array<{ href: string; label: string; hint: string; icon: Luc
     label: "Phone upload",
     hint: "Guest photo via QR",
     icon: SmartphoneIcon,
+  },
+  {
+    href: "/server/youtube",
+    label: "YouTube",
+    hint: "Play a link, then back to normal",
+    icon: TvMinimalPlayIcon,
   },
 ];
 

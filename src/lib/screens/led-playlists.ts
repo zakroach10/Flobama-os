@@ -287,7 +287,10 @@ export function toPublicLedPlaylistItem(row: {
   obs_scene_name: string | null;
   duration_seconds: number;
 }): PublicLedPlaylistItem {
-  const mediaKind = row.media_kind === "image" || row.media_kind === "video" ? row.media_kind : null;
+  const mediaKind =
+    row.media_kind === "image" || row.media_kind === "video" || row.media_kind === "youtube"
+      ? row.media_kind
+      : null;
   return {
     id: row.id,
     sceneId: row.scene_id,

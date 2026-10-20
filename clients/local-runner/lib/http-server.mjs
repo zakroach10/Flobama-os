@@ -134,8 +134,24 @@ export function playbackPayload(runtime) {
       };
     }
     const cached = getAsset(runtime.db, item.assetId);
+    const manifestAsset = (manifest.assets || []).find((asset) => asset.id === item.assetId);
+    const streamUrl = cached?.streamUrl || manifestAsset?.streamUrl || null;
+    const mediaType = cached?.mediaType || manifestAsset?.mediaType || "";
+    const isYoutube =
+      Boolean(streamUrl) &&
+      (String(mediaType).includes("youtube") || String(mediaType) === "application/vnd.flobama.youtube+json");
+    if (isYoutube && streamUrl) {
+      return {
+        id: item.slotId,
+        sceneId: item.assetId,
+        kind: "media",
+        mediaKind: "youtube",
+        url: streamUrl,
+        obsSceneName: item.obsSceneName,
+        durationSeconds: item.durationSeconds,
+      };
+    }
     const ready = cached?.state === "ready" && cached.sha256;
-    const mediaType = cached?.mediaType || "";
     const mediaKind = mediaType.startsWith("video/")
       ? "video"
       : mediaType.startsWith("image/")

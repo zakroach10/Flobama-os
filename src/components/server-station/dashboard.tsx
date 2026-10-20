@@ -8,6 +8,7 @@ import {
   Music2Icon,
   SmartphoneIcon,
   UtensilsCrossedIcon,
+  TvMinimalPlayIcon,
 } from "lucide-react";
 import { ServerStationShell, ServerStationTile } from "@/components/server-station/shell";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
@@ -73,6 +74,13 @@ export function ServerStationDashboard({
           description="Show a QR code for a guest photo."
           icon={SmartphoneIcon}
           accent="warm"
+        />
+        <ServerStationTile
+          href="/server/youtube"
+          title="YouTube"
+          description="Play a video link, then back to normal."
+          icon={TvMinimalPlayIcon}
+          accent="cool"
         />
       </div>
     </ServerStationShell>
