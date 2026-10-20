@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import { DEFAULT_VENUE_TIMEZONE, LED_AGENT_STALE_MS } from "@/lib/constants";
 
 export type LedWallSceneKind = "obs" | "media" | "trivia" | "audience";
-export type LedWallMediaKind = "image" | "video";
+export type LedWallMediaKind = "image" | "video" | "youtube";
 
 export type LedSceneRef = {
   id: string;
@@ -28,6 +28,7 @@ export function ledSceneKindLabel(scene: {
     const name = blankToNull(scene.obsSceneName);
     return name ? `OBS · ${name}` : "OBS scene";
   }
+  if (scene.mediaKind === "youtube") return "YouTube";
   if (scene.mediaKind === "video") return "Video";
   if (scene.mediaKind === "image") return "Image";
   return "Scene";
@@ -67,6 +68,7 @@ export function ledSceneDetail(scene: {
   if (scene.kind === "audience") {
     return "Live Audience Interactor · polls, Q&A, pictures, cards, countdowns";
   }
+  if (scene.media_kind === "youtube") return "YouTube video on the FloBama display page";
   if (scene.media_kind === "video") return "MP4 loop on the FloBama display page";
   return "PNG on the FloBama display page";
 }
@@ -80,7 +82,9 @@ export function toPublicLedMedia(row: {
   if (!row) return null;
   const url = blankToNull(row.public_url);
   if (!url) return null;
-  if (row.media_kind !== "image" && row.media_kind !== "video") return null;
+  if (row.media_kind !== "image" && row.media_kind !== "video" && row.media_kind !== "youtube") {
+    return null;
+  }
   const title = blankToNull(row.title) ?? "LED media";
   return { id: row.scene_id, title, url, mediaKind: row.media_kind };
 }

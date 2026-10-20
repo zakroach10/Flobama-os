@@ -299,7 +299,7 @@ export type Database = {
           title: string;
           storage_path: string;
           public_url: string;
-          media_kind: "image" | "video" | "week_events";
+          media_kind: "image" | "video" | "week_events" | "youtube";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
@@ -314,7 +314,7 @@ export type Database = {
           title: string;
           storage_path: string;
           public_url: string;
-          media_kind: "image" | "video" | "week_events";
+          media_kind: "image" | "video" | "week_events" | "youtube";
           duration_seconds?: number | null;
           transition?: "cut" | "fade" | "slide";
           sort_order?: number;
@@ -497,7 +497,7 @@ export type Database = {
           title: string;
           kind: "obs" | "media" | "trivia" | "audience";
           obs_scene_name: string | null;
-          media_kind: "image" | "video" | "week_events" | null;
+          media_kind: "image" | "video" | "week_events" | "youtube" | null;
           storage_path: string | null;
           public_url: string | null;
           artist_id: string | null;
@@ -513,7 +513,7 @@ export type Database = {
           title: string;
           kind: "obs" | "media" | "trivia" | "audience";
           obs_scene_name?: string | null;
-          media_kind?: "image" | "video" | "week_events" | null;
+          media_kind?: "image" | "video" | "week_events" | "youtube" | null;
           storage_path?: string | null;
           public_url?: string | null;
           artist_id?: string | null;
@@ -525,7 +525,7 @@ export type Database = {
           title?: string;
           kind?: "obs" | "media" | "trivia" | "audience";
           obs_scene_name?: string | null;
-          media_kind?: "image" | "video" | "week_events" | null;
+          media_kind?: "image" | "video" | "week_events" | "youtube" | null;
           storage_path?: string | null;
           public_url?: string | null;
           artist_id?: string | null;
@@ -939,7 +939,7 @@ export type Database = {
         Row: {
           id: string;
           venue_id: string;
-          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload";
+          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload" | "youtube";
           title: string;
           subtitle: string | null;
           template_id: string;
@@ -962,7 +962,7 @@ export type Database = {
         Insert: {
           id?: string;
           venue_id: string;
-          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload";
+          kind: "food_special" | "drink_special" | "birthday" | "celebration" | "message" | "upload" | "youtube";
           title: string;
           subtitle?: string | null;
           template_id?: string;
@@ -1163,7 +1163,7 @@ export type Database = {
           venue_id: string;
           title: string;
           public_url: string;
-          media_kind: "image" | "video" | "week_events";
+          media_kind: "image" | "video" | "week_events" | "youtube";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
@@ -1176,7 +1176,7 @@ export type Database = {
           venue_id: string;
           title: string;
           public_url: string;
-          media_kind: "image" | "video" | "week_events";
+          media_kind: "image" | "video" | "week_events" | "youtube";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
           sort_order: number;
@@ -1188,7 +1188,7 @@ export type Database = {
           venue_id: string;
           scene_id: string;
           title: string;
-          media_kind: "image" | "video" | "week_events" | null;
+          media_kind: "image" | "video" | "week_events" | "youtube" | null;
           public_url: string | null;
           activated_at: string | null;
         };
@@ -1204,7 +1204,7 @@ export type Database = {
           sort_order: number;
           title: string;
           kind: "obs" | "media" | "trivia" | "audience";
-          media_kind: "image" | "video" | "week_events" | null;
+          media_kind: "image" | "video" | "week_events" | "youtube" | null;
           public_url: string | null;
           obs_scene_name: string | null;
           activated_at: string | null;
@@ -1220,7 +1220,7 @@ export type Database = {
           updated_at: string;
           title: string;
           kind: "obs" | "media" | "trivia" | "audience";
-          media_kind: "image" | "video" | "week_events" | null;
+          media_kind: "image" | "video" | "week_events" | "youtube" | null;
           public_url: string | null;
           obs_scene_name: string | null;
           duration_seconds: number;
@@ -2496,7 +2496,7 @@ export type Database = {
           updated_at: string;
           title: string;
           public_url: string;
-          media_kind: "image" | "video" | "week_events";
+          media_kind: "image" | "video" | "week_events" | "youtube";
           duration_seconds: number | null;
           transition: "cut" | "fade" | "slide";
         };
@@ -2544,7 +2544,7 @@ export type Database = {
       event_visibility: "public" | "private";
       event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
       screen_wall_mode: "auto" | "manual";
-      screen_media_kind: "image" | "video" | "week_events";
+      screen_media_kind: "image" | "video" | "week_events" | "youtube";
       screen_transition: "cut" | "fade" | "slide";
       led_wall_scene_kind: "obs" | "media" | "trivia" | "audience";
       camera_protocol: "simulated" | "ndi_ptz" | "visca_udp" | "visca_tcp" | "unknown";

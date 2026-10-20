@@ -111,7 +111,12 @@ export async function getPublicLedPlayback(
           id: overrideRow.scene_id,
           title: overrideRow.title,
           url: overrideRow.public_url,
-          mediaKind: overrideRow.media_kind === "video" ? "video" : "image",
+          mediaKind:
+            overrideRow.media_kind === "youtube"
+              ? "youtube"
+              : overrideRow.media_kind === "video"
+                ? "video"
+                : "image",
         },
         playlist: [],
         playlistId: null,

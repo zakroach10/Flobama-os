@@ -61,6 +61,12 @@ export async function POST(
   if (!asset) {
     return NextResponse.json({ error: "Asset not found." }, { status: 404 });
   }
+  if (asset.streamUrl || String(asset.mediaType || "").includes("youtube")) {
+    return NextResponse.json(
+      { error: "YouTube takes stream remotely and are not downloadable." },
+      { status: 400 },
+    );
+  }
 
   const resolved = await resolveDownloadSource(
     auth.admin,

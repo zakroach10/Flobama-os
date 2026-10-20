@@ -5,6 +5,7 @@ export const SERVER_STATION_KIND_LABEL: Record<string, string> = {
   celebration: "Celebration",
   message: "Message",
   upload: "Photo",
+  youtube: "YouTube",
 };
 
 export function serverStationKindLabel(kind: string) {

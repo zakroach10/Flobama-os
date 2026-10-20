@@ -74,7 +74,33 @@ async function downloadToFile(url, filePath, onProgress) {
   return sha256File(filePath);
 }
 
+function isYoutubeAsset(asset) {
+  return (
+    Boolean(asset?.streamUrl) ||
+    String(asset?.mediaType || "").includes("youtube") ||
+    String(asset?.mediaType || "") === "application/vnd.flobama.youtube+json"
+  );
+}
+
 export async function ensureAssetCached(db, config, asset, state) {
+  // YouTube takes stream remotely — never download a blob.
+  if (isYoutubeAsset(asset) && asset.streamUrl) {
+    const ready = await upsertAsset(db, {
+      assetId: asset.id,
+      version: asset.version ?? 1,
+      sha256: asset.sha256 ?? null,
+      sizeBytes: 0,
+      mediaType: asset.mediaType ?? "application/vnd.flobama.youtube+json",
+      state: "ready",
+      pinned: true,
+      path: null,
+      streamUrl: asset.streamUrl,
+      verifiedAt: new Date().toISOString(),
+      lastUsedAt: new Date().toISOString(),
+    });
+    return { ok: true, skipped: true, asset: ready };
+  }
+
   const existing = getAsset(db, asset.id);
   if (existing?.state === "ready" && existing.sha256 && (!asset.sha256 || existing.sha256 === asset.sha256)) {
     const path = blobPath(db.cacheRoot, existing.sha256);

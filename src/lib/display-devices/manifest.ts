@@ -18,6 +18,8 @@ export type ManifestAsset = {
   mediaType: string | null;
   downloadPath: string;
   storagePath: string | null;
+  /** Non-downloadable stream (YouTube). Local runner plays this URL directly. */
+  streamUrl?: string | null;
 };
 
 export type ManifestItem = {
@@ -53,10 +55,13 @@ export type DeviceManifest = {
   };
 };
 
+export const YOUTUBE_MANIFEST_MEDIA_TYPE = "application/vnd.flobama.youtube+json";
+
 function mediaTypeForKind(mediaKind: string | null | undefined) {
   if (mediaKind === "video") return "video/mp4";
   if (mediaKind === "image") return "image/png";
   if (mediaKind === "week_events") return "application/vnd.flobama.week-events+json";
+  if (mediaKind === "youtube") return YOUTUBE_MANIFEST_MEDIA_TYPE;
   return null;
 }
 
@@ -170,10 +175,11 @@ export async function buildDeviceManifest(
       });
     }
 
+    const streamByAsset = new Map<string, string>();
     if (assetIds.length > 0) {
       const { data: scenes } = await client
         .from("led_wall_scenes")
-        .select("id, storage_path, media_kind")
+        .select("id, storage_path, media_kind, public_url")
         .eq("venue_id", input.venueId)
         .in("id", assetIds);
       for (const scene of scenes ?? []) {
@@ -183,6 +189,9 @@ export async function buildDeviceManifest(
           mediaKind: scene.media_kind ?? prior?.mediaKind ?? null,
           duration: prior?.duration ?? null,
         });
+        if (scene.media_kind === "youtube" && scene.public_url) {
+          streamByAsset.set(scene.id, scene.public_url);
+        }
       }
     }
 
@@ -190,16 +199,24 @@ export async function buildDeviceManifest(
     const assets: ManifestAsset[] = assetIds.map((id) => {
       const hash = hashes.get(id);
       const meta = storageByAsset.get(id);
-      const version = hash?.sha256 ? 1 : 0;
+      const isYoutube = meta?.mediaKind === "youtube";
+      const streamUrl = streamByAsset.get(id) ?? null;
+      const version = hash?.sha256 ? 1 : isYoutube && streamUrl ? 1 : 0;
+      // Synthetic fingerprint so local runners treat the stream as "ready" without a blob.
+      const youtubeSha =
+        isYoutube && streamUrl
+          ? createHash("sha256").update(`youtube:${streamUrl}`).digest("hex")
+          : null;
       return {
         id,
         version,
-        sha256: hash?.sha256 ?? null,
+        sha256: hash?.sha256 ?? youtubeSha,
         sizeBytes: hash?.size_bytes ?? null,
         durationSeconds: meta?.duration ?? null,
         mediaType: hash?.media_type ?? mediaTypeForKind(meta?.mediaKind),
         downloadPath: `/api/agent/v1/display-devices/assets/${id}/download`,
         storagePath: hash?.storage_path ?? meta?.storagePath ?? null,
+        streamUrl,
       };
     });
 
