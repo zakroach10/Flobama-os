@@ -24,8 +24,16 @@ export type ServerStationEventCard = {
   eventType: string;
 };
 
+/** Only the columns the kiosk cards need — avoid `*` on every poll. */
 const EVENT_SELECT = `
-  *,
+  id,
+  title,
+  starts_at,
+  ends_at,
+  cover_label,
+  ticket_url,
+  public_description,
+  event_type,
   event_artists (
     artist_id,
     display_order,

@@ -1,12 +1,11 @@
 "use client";
 
-import { StationLink } from "@/components/server-station/station-nav";
-import { useEffect, useState, useTransition } from "react";
+import { StationLink, useStationEvents } from "@/components/server-station/station-nav";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarDaysIcon, ClapperboardIcon, Music2Icon } from "lucide-react";
 import { toast } from "sonner";
 import {
   listActiveServerStationItemsAction,
-  listServerStationEventsAction,
   removeServerStationItemAction,
 } from "@/actions/server-station";
 import { serverStationKindLabel, serverStationPlacement } from "@/lib/server-station/item-labels";
@@ -34,10 +33,10 @@ function tonightLabel(event: ServerStationEventCard) {
 }
 
 export function ServerStationPosRail() {
+  const { tonightEvents, error: eventsError } = useStationEvents();
+  const events = useMemo(() => tonightEvents.slice(0, 4), [tonightEvents]);
   const [items, setItems] = useState<RotationItem[]>([]);
-  const [events, setEvents] = useState<ServerStationEventCard[]>([]);
   const [rotationNote, setRotationNote] = useState<string | null>(null);
-  const [tonightNote, setTonightNote] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -56,26 +55,11 @@ export function ServerStationPosRail() {
       setItems(result.items as RotationItem[]);
     }
 
-    async function loadTonight(announce: boolean) {
-      const result = await listServerStationEventsAction({ bucket: "tonight" });
-      if (!alive) return;
-      if (!result.ok) {
-        setTonightNote(result.message);
-        if (announce) toast.error(result.message);
-        return;
-      }
-      setTonightNote(null);
-      setEvents(result.events.slice(0, 4));
-    }
-
     void loadRotation(true);
-    void loadTonight(true);
     const rotationTimer = window.setInterval(() => void loadRotation(false), 8000);
-    const tonightTimer = window.setInterval(() => void loadTonight(false), 20000);
     return () => {
       alive = false;
       window.clearInterval(rotationTimer);
-      window.clearInterval(tonightTimer);
     };
   }, []);
 
@@ -165,8 +149,10 @@ export function ServerStationPosRail() {
           </StationLink>
         </div>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-          {tonightNote ? <p className="text-sm text-amber-100">{tonightNote}</p> : null}
-          {!tonightNote && events.length === 0 ? (
+          {eventsError && events.length === 0 ? (
+            <p className="text-sm text-amber-100">{eventsError}</p>
+          ) : null}
+          {!eventsError && events.length === 0 ? (
             <p className="rounded-2xl border border-white/10 bg-black/25 px-3 py-4 text-sm text-[#e8d5c4]">
               No show listed tonight.
             </p>

@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
-import { listServerStationEventsAction } from "@/actions/server-station";
 import {
   ServerStationButton,
   ServerStationField,
   ServerStationShell,
   serverStationInputClass,
 } from "@/components/server-station/shell";
+import { useStationEvents } from "@/components/server-station/station-nav";
 import {
   isServerStationEventTonight,
   serverStationEventBandLabel,
@@ -24,25 +24,10 @@ export function ServerStationEventsExplorer({
   actorName: string;
   wall: ServerStationWallStatus;
 }) {
+  const { events, error, pending } = useStationEvents();
   const [query, setQuery] = useState("");
-  const [events, setEvents] = useState<ServerStationEventCard[]>([]);
   const [selected, setSelected] = useState<ServerStationEventCard | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    startTransition(async () => {
-      const result = await listServerStationEventsAction({ bucket: "upcoming" });
-      if (!result.ok) {
-        setError(result.message);
-        setEvents([]);
-        return;
-      }
-      setError(null);
-      setEvents(result.events);
-    });
-  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -91,8 +76,10 @@ export function ServerStationEventsExplorer({
         </ServerStationField>
       </div>
 
-      {error ? <p className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-amber-100">{error}</p> : null}
-      {pending ? <p className="mb-4 text-[#e8d5c4]">Loading events…</p> : null}
+      {error && events.length === 0 ? (
+        <p className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-amber-100">{error}</p>
+      ) : null}
+      {pending && events.length === 0 ? <p className="mb-4 text-[#e8d5c4]">Loading events…</p> : null}
 
       <div className="space-y-3 pb-6">
         {visible.length === 0 && !pending ? (
