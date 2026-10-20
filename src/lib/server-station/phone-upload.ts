@@ -67,6 +67,56 @@ export async function prepareServerStationPhoneUpload(input: {
   };
 }
 
+export async function submitServerStationYoutubeLink(input: {
+  token: string;
+  url: string;
+  title?: string | null;
+}) {
+  const resolved = await resolveServerStationUploadSession(input.token);
+  if (!resolved.ok) return resolved;
+
+  if (resolved.session.workflow !== "youtube") {
+    return { ok: false as const, message: "This QR is for photo upload, not YouTube." };
+  }
+  if (resolved.session.consumed_at || resolved.session.submitted_youtube_url) {
+    return { ok: false as const, message: "This link was already used. Scan a new QR." };
+  }
+
+  const { parseYoutubeVideoUrl } = await import("@/lib/screens/youtube");
+  const video = parseYoutubeVideoUrl(input.url);
+  if (!video) return { ok: false as const, message: "Paste a full YouTube video link." };
+
+  const title = (input.title?.trim() || video.title).slice(0, 160);
+  const { error } = await resolved.admin
+    .from("server_station_upload_sessions")
+    .update({
+      submitted_youtube_url: video.watchUrl,
+      submitted_youtube_video_id: video.videoId,
+      submitted_youtube_title: title,
+      uploaded_at: new Date().toISOString(),
+      consumed_at: new Date().toISOString(),
+    })
+    .eq("id", resolved.session.id)
+    .is("consumed_at", null);
+
+  if (error) {
+    if (/submitted_youtube|workflow/i.test(error.message)) {
+      return {
+        ok: false as const,
+        message: "YouTube link QR is not set up on this database yet. Ask an admin to apply the latest SQL.",
+      };
+    }
+    return { ok: false as const, message: error.message };
+  }
+  return {
+    ok: true as const,
+    message: "Link sent. Return to the Server Station to play it on the wall.",
+    videoId: video.videoId,
+    watchUrl: video.watchUrl,
+    title,
+  };
+}
+
 export async function completeServerStationPhoneUpload(input: {
   token: string;
   storagePath: string;

@@ -790,6 +790,7 @@ export type Database = {
           max_upload_bytes: number;
           business_night_end_hour: number;
           staff_idle_seconds: number;
+          menus_enabled: Json;
           created_at: string;
           updated_at: string;
         };
@@ -803,6 +804,7 @@ export type Database = {
           max_upload_bytes?: number;
           business_night_end_hour?: number;
           staff_idle_seconds?: number;
+          menus_enabled?: Json;
         };
         Update: {
           show_now_enabled?: boolean;
@@ -813,6 +815,49 @@ export type Database = {
           max_upload_bytes?: number;
           business_night_end_hour?: number;
           staff_idle_seconds?: number;
+          menus_enabled?: Json;
+        };
+        Relationships: [];
+      };
+      server_station_youtube_videos: {
+        Row: {
+          id: string;
+          venue_id: string;
+          video_id: string;
+          watch_url: string;
+          title: string;
+          thumbnail_url: string | null;
+          is_favorite: boolean;
+          play_count: number;
+          last_played_at: string | null;
+          favorited_at: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          video_id: string;
+          watch_url: string;
+          title: string;
+          thumbnail_url?: string | null;
+          is_favorite?: boolean;
+          play_count?: number;
+          last_played_at?: string | null;
+          favorited_at?: string | null;
+          created_by?: string | null;
+          created_by_name?: string | null;
+        };
+        Update: {
+          watch_url?: string;
+          title?: string;
+          thumbnail_url?: string | null;
+          is_favorite?: boolean;
+          play_count?: number;
+          last_played_at?: string | null;
+          favorited_at?: string | null;
         };
         Relationships: [];
       };
@@ -1060,7 +1105,7 @@ export type Database = {
           venue_id: string;
           device_id: string | null;
           created_by: string | null;
-          workflow: "upload" | "special" | "birthday" | "message";
+          workflow: "upload" | "special" | "birthday" | "message" | "youtube";
           token_hash: string;
           expires_at: string;
           consumed_at: string | null;
@@ -1069,6 +1114,9 @@ export type Database = {
           uploaded_media_kind: string | null;
           uploaded_content_hash: string | null;
           uploaded_at: string | null;
+          submitted_youtube_url: string | null;
+          submitted_youtube_video_id: string | null;
+          submitted_youtube_title: string | null;
           created_at: string;
         };
         Insert: {
@@ -1076,7 +1124,7 @@ export type Database = {
           venue_id: string;
           device_id?: string | null;
           created_by?: string | null;
-          workflow?: "upload" | "special" | "birthday" | "message";
+          workflow?: "upload" | "special" | "birthday" | "message" | "youtube";
           token_hash: string;
           expires_at: string;
           consumed_at?: string | null;
@@ -1085,6 +1133,9 @@ export type Database = {
           uploaded_media_kind?: string | null;
           uploaded_content_hash?: string | null;
           uploaded_at?: string | null;
+          submitted_youtube_url?: string | null;
+          submitted_youtube_video_id?: string | null;
+          submitted_youtube_title?: string | null;
         };
         Update: {
           consumed_at?: string | null;
@@ -1093,6 +1144,9 @@ export type Database = {
           uploaded_media_kind?: string | null;
           uploaded_content_hash?: string | null;
           uploaded_at?: string | null;
+          submitted_youtube_url?: string | null;
+          submitted_youtube_video_id?: string | null;
+          submitted_youtube_title?: string | null;
         };
         Relationships: [];
       };

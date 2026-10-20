@@ -18,36 +18,51 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { StationLink, useStationNav } from "@/components/server-station/station-nav";
+import {
+  isServerStationMenuEnabled,
+  type ServerStationMenuKey,
+} from "@/lib/server-station/features";
 import { cn } from "@/lib/utils";
 
 type SheetId = "create" | "more" | null;
 
-const CREATE_ITEMS: Array<{ href: string; label: string; hint: string; icon: LucideIcon }> = [
+const CREATE_ITEMS: Array<{
+  key: ServerStationMenuKey;
+  href: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+}> = [
   {
+    key: "specials",
     href: "/server/specials",
     label: "Food & drink",
     hint: "Promo slides for the wall",
     icon: UtensilsCrossedIcon,
   },
   {
+    key: "birthday",
     href: "/server/birthday",
     label: "Celebration",
     hint: "Birthday, anniversary, shout-out",
     icon: CakeIcon,
   },
   {
+    key: "message",
     href: "/server/message",
     label: "Message",
     hint: "Short announcement graphic",
     icon: MessageSquareTextIcon,
   },
   {
+    key: "upload",
     href: "/server/upload",
     label: "Phone upload",
     hint: "Guest photo via QR",
     icon: SmartphoneIcon,
   },
   {
+    key: "youtube",
     href: "/server/youtube",
     label: "YouTube",
     hint: "Play a link, then back to normal",
@@ -55,20 +70,29 @@ const CREATE_ITEMS: Array<{ href: string; label: string; hint: string; icon: Luc
   },
 ];
 
-const MORE_ITEMS: Array<{ href: string; label: string; hint: string; icon: LucideIcon }> = [
+const MORE_ITEMS: Array<{
+  key: ServerStationMenuKey;
+  href: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+}> = [
   {
+    key: "events",
     href: "/server/events",
     label: "Tonight",
     hint: "Schedules and guest questions",
     icon: CalendarDaysIcon,
   },
   {
+    key: "performances",
     href: "/server/performances",
     label: "Shows",
     hint: "Play published performances",
     icon: Music2Icon,
   },
   {
+    key: "active",
     href: "/server/active",
     label: "Rotation",
     hint: "What’s live or queued",
@@ -103,6 +127,7 @@ function useStandaloneDisplay() {
 export function ServerStationMobileDock() {
   const nav = useStationNav();
   const path = nav?.path ?? "/server";
+  const menus = nav?.session.menusEnabled;
   const standalone = useStandaloneDisplay();
   const [sheet, setSheet] = useState<SheetId>(null);
 
@@ -119,14 +144,18 @@ export function ServerStationMobileDock() {
     setSheet(null);
   }
 
+  const createItems = CREATE_ITEMS.filter((item) => isServerStationMenuEnabled(menus, item.key));
+  const moreItems = MORE_ITEMS.filter((item) => isServerStationMenuEnabled(menus, item.key));
+  const wallEnabled = isServerStationMenuEnabled(menus, "wall");
+
   const createOpen = sheet === "create";
   const moreOpen = sheet === "more";
-  const createActive = CREATE_ITEMS.some((item) => pathMatches(path, item.href));
-  const moreActive = MORE_ITEMS.some((item) => pathMatches(path, item.href));
+  const createActive = createItems.some((item) => pathMatches(path, item.href));
+  const moreActive = moreItems.some((item) => pathMatches(path, item.href));
   const homeActive = pathMatches(path, "/server", true);
   const wallActive = pathMatches(path, "/server/wall");
 
-  const sheetItems = sheet === "create" ? CREATE_ITEMS : sheet === "more" ? MORE_ITEMS : [];
+  const sheetItems = sheet === "create" ? createItems : sheet === "more" ? moreItems : [];
   const sheetTitle = sheet === "create" ? "Put something on the wall" : sheet === "more" ? "More" : "";
 
   return (
@@ -160,6 +189,11 @@ export function ServerStationMobileDock() {
               </button>
             </div>
             <div className="grid gap-1 p-2">
+              {sheetItems.length === 0 ? (
+                <p className="px-3 py-4 text-sm text-[#e8d5c4]">
+                  These menus are turned off in FloBama OS Settings.
+                </p>
+              ) : null}
               {sheetItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathMatches(path, item.href);
@@ -199,7 +233,7 @@ export function ServerStationMobileDock() {
             : "0.125rem",
         }}
       >
-        <div className="grid h-9 grid-cols-4">
+        <div className={cn("grid h-9", wallEnabled ? "grid-cols-4" : "grid-cols-3")}>
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
@@ -208,14 +242,24 @@ export function ServerStationMobileDock() {
             pressed={createOpen}
             onClick={() => setSheet(createOpen ? null : "create")}
             emphasize
+            disabled={createItems.length === 0}
           />
-          <DockLink href="/server/wall" label="Wall" icon={MonitorPlayIcon} active={wallActive} onNavigate={closeSheet} />
+          {wallEnabled ? (
+            <DockLink
+              href="/server/wall"
+              label="Wall"
+              icon={MonitorPlayIcon}
+              active={wallActive}
+              onNavigate={closeSheet}
+            />
+          ) : null}
           <DockButton
             label="More"
             icon={MoreHorizontalIcon}
             active={moreActive || moreOpen}
             pressed={moreOpen}
             onClick={() => setSheet(moreOpen ? null : "more")}
+            disabled={moreItems.length === 0}
           />
         </div>
       </nav>
@@ -260,6 +304,7 @@ function DockButton({
   pressed,
   onClick,
   emphasize,
+  disabled,
 }: {
   label: string;
   icon: LucideIcon;
@@ -267,15 +312,17 @@ function DockButton({
   pressed: boolean;
   onClick: () => void;
   emphasize?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
       aria-pressed={pressed}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex h-full min-w-0 flex-col items-center justify-end gap-0 text-[10px] font-semibold tracking-wide uppercase",
+        "flex h-full min-w-0 flex-col items-center justify-end gap-0 text-[10px] font-semibold tracking-wide uppercase disabled:opacity-40",
         pressed || active ? "text-[#f7efe6]" : emphasize ? "text-[#f0a58a]" : "text-[#e8d5c4]/75",
       )}
     >

@@ -25,7 +25,24 @@ import {
   getLedWallProtection,
 } from "@/lib/server-station/overrides";
 import { parseYoutubeVideoUrl, youtubeWallEndsAt } from "@/lib/screens/youtube";
-import { LED_YOUTUBE_WALL_SQL, SERVER_STATION_UPLOAD_TTL_SECONDS } from "@/lib/constants";
+import {
+  LED_YOUTUBE_WALL_SQL,
+  SERVER_STATION_UPLOAD_TTL_SECONDS,
+  SERVER_STATION_YOUTUBE_LIBRARY_SQL,
+} from "@/lib/constants";
+import {
+  DEFAULT_SERVER_STATION_MENUS_ENABLED,
+  normalizeServerStationMenusEnabled,
+  SERVER_STATION_MENU_KEYS,
+  type ServerStationMenuKey,
+} from "@/lib/server-station/features";
+import {
+  listYoutubeLibrary,
+  recordYoutubePlay,
+  setYoutubeFavorite,
+  youtubeThumbnailUrl,
+} from "@/lib/server-station/youtube-library";
+import type { Json } from "@/lib/database.types";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 import {
   isServerStationActivatableScene,
@@ -952,15 +969,22 @@ export async function prepareServerStationGraphicUploadAction(input?: {
 }
 
 export async function issueServerStationUploadSessionAction(input?: {
-  workflow?: "upload" | "special" | "birthday" | "message";
+  workflow?: "upload" | "special" | "birthday" | "message" | "youtube";
 }): Promise<ServerStationActionResult> {
   const gate = await getServerStationGate("content");
   if (!gate.ok) return { ok: false, message: gate.message };
 
+  const workflow = input?.workflow ?? "upload";
+  if (workflow === "youtube") {
+    const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+    if (!settings.menus_enabled.youtube) {
+      return { ok: false, message: "YouTube is turned off for Server Station." };
+    }
+  }
+
   const token = randomBytes(24).toString("base64url");
   const tokenHash = hashDisplaySecret(token);
   const expiresAt = new Date(Date.now() + SERVER_STATION_UPLOAD_TTL_SECONDS * 1000).toISOString();
-  const workflow = input?.workflow ?? "upload";
 
   const { data, error } = await gate.writeClient
     .from("server_station_upload_sessions")
@@ -974,12 +998,25 @@ export async function issueServerStationUploadSessionAction(input?: {
     })
     .select("id")
     .single();
-  if (error) return { ok: false, message: sqlMessage(error.message) };
+  if (error) {
+    if (workflow === "youtube" && /youtube|workflow/i.test(error.message)) {
+      return {
+        ok: false,
+        message: `Apply ${SERVER_STATION_YOUTUBE_LIBRARY_SQL} in the Supabase SQL editor, then try again.`,
+      };
+    }
+    return { ok: false, message: sqlMessage(error.message) };
+  }
 
-  const uploadUrl = joinPublicUrl(getPublicAppUrl(), `/server/upload/phone?t=${token}`);
+  const path =
+    workflow === "youtube" ? `/server/youtube/phone?t=${token}` : `/server/upload/phone?t=${token}`;
+  const uploadUrl = joinPublicUrl(getPublicAppUrl(), path);
   return {
     ok: true,
-    message: "Scan with your phone to upload a picture.",
+    message:
+      workflow === "youtube"
+        ? "Scan with your phone to paste a YouTube link."
+        : "Scan with your phone to upload a picture.",
     uploadUrl,
     sessionId: data.id,
     expiresAt,
@@ -995,25 +1032,40 @@ export async function pollServerStationUploadSessionAction(input: unknown) {
   const { data, error } = await gate.writeClient
     .from("server_station_upload_sessions")
     .select(
-      "id, expires_at, uploaded_url, uploaded_storage_path, uploaded_media_kind, uploaded_content_hash, uploaded_at, consumed_at",
+      "id, expires_at, uploaded_url, uploaded_storage_path, uploaded_media_kind, uploaded_content_hash, uploaded_at, consumed_at, submitted_youtube_url, submitted_youtube_video_id, submitted_youtube_title, workflow",
     )
     .eq("id", parsed.data.sessionId)
     .eq("venue_id", gate.venueId)
     .maybeSingle();
-  if (error) return { ok: false as const, message: sqlMessage(error.message) };
+  if (error) {
+    if (/submitted_youtube/i.test(error.message)) {
+      return {
+        ok: false as const,
+        message: `Apply ${SERVER_STATION_YOUTUBE_LIBRARY_SQL} in the Supabase SQL editor, then try again.`,
+      };
+    }
+    return { ok: false as const, message: sqlMessage(error.message) };
+  }
   if (!data) return { ok: false as const, message: "Upload session not found." };
-  if (Date.parse(data.expires_at) <= Date.now() && !data.uploaded_url) {
-    return { ok: false as const, message: "This upload QR expired. Create a new one." };
+  const hasYoutube = Boolean(data.submitted_youtube_url);
+  const hasUpload = Boolean(data.uploaded_url);
+  if (Date.parse(data.expires_at) <= Date.now() && !hasUpload && !hasYoutube) {
+    return { ok: false as const, message: "This QR expired. Create a new one." };
   }
 
   return {
     ok: true as const,
-    uploaded: Boolean(data.uploaded_url),
+    uploaded: hasUpload,
     url: data.uploaded_url,
     storagePath: data.uploaded_storage_path,
     mediaKind: data.uploaded_media_kind,
     contentHash: data.uploaded_content_hash,
     uploadedAt: data.uploaded_at,
+    youtubeSubmitted: hasYoutube,
+    youtubeUrl: data.submitted_youtube_url,
+    youtubeVideoId: data.submitted_youtube_video_id,
+    youtubeTitle: data.submitted_youtube_title,
+    workflow: data.workflow,
   };
 }
 
@@ -1021,6 +1073,12 @@ export async function updateServerStationSettingsAction(input: unknown): Promise
   const gate = await getServerStationGate("configure");
   if (!gate.ok) return { ok: false, message: gate.message };
 
+  const menusSchema = z.object(
+    Object.fromEntries(SERVER_STATION_MENU_KEYS.map((key) => [key, z.boolean()])) as Record<
+      ServerStationMenuKey,
+      z.ZodBoolean
+    >,
+  );
   const parsed = z
     .object({
       showNowEnabled: z.boolean(),
@@ -1031,25 +1089,45 @@ export async function updateServerStationSettingsAction(input: unknown): Promise
       maxUploadBytes: z.number().int().min(1_000_000).max(50_000_000),
       businessNightEndHour: z.number().int().min(0).max(6),
       staffIdleSeconds: z.number().int().min(30).max(3600),
+      menusEnabled: menusSchema.optional(),
       approvedSceneIds: z.array(z.string().uuid()).default([]),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "Check the Server Station settings." };
 
-  const { error } = await gate.writeClient.from("server_station_settings").upsert(
-    {
-      venue_id: gate.venueId,
-      show_now_enabled: parsed.data.showNowEnabled,
-      birthday_approval_required: parsed.data.birthdayApprovalRequired,
-      temporary_playlist_id: parsed.data.temporaryPlaylistId,
-      default_slide_seconds: parsed.data.defaultSlideSeconds,
-      default_override_minutes: parsed.data.defaultOverrideMinutes,
-      max_upload_bytes: parsed.data.maxUploadBytes,
-      business_night_end_hour: parsed.data.businessNightEndHour,
-      staff_idle_seconds: parsed.data.staffIdleSeconds,
-    },
-    { onConflict: "venue_id" },
+  const menusEnabled = normalizeServerStationMenusEnabled(
+    parsed.data.menusEnabled ?? DEFAULT_SERVER_STATION_MENUS_ENABLED,
   );
+
+  const payload = {
+    venue_id: gate.venueId,
+    show_now_enabled: parsed.data.showNowEnabled,
+    birthday_approval_required: parsed.data.birthdayApprovalRequired,
+    temporary_playlist_id: parsed.data.temporaryPlaylistId,
+    default_slide_seconds: parsed.data.defaultSlideSeconds,
+    default_override_minutes: parsed.data.defaultOverrideMinutes,
+    max_upload_bytes: parsed.data.maxUploadBytes,
+    business_night_end_hour: parsed.data.businessNightEndHour,
+    staff_idle_seconds: parsed.data.staffIdleSeconds,
+    menus_enabled: menusEnabled as unknown as Json,
+  };
+
+  let { error } = await gate.writeClient
+    .from("server_station_settings")
+    .upsert(payload, { onConflict: "venue_id" });
+  if (error && /menus_enabled/i.test(error.message)) {
+    const { menus_enabled: _drop, ...withoutMenus } = payload;
+    const retry = await gate.writeClient
+      .from("server_station_settings")
+      .upsert(withoutMenus, { onConflict: "venue_id" });
+    error = retry.error;
+    if (!error) {
+      return {
+        ok: false,
+        message: `Settings saved except menu toggles. Apply ${SERVER_STATION_YOUTUBE_LIBRARY_SQL}, then save again.`,
+      };
+    }
+  }
   if (error) return { ok: false, message: sqlMessage(error.message) };
 
   // Artist scenes are always available to servers; only house scenes use server_approved.
@@ -1085,6 +1163,11 @@ export async function playYoutubeOnWallAction(input: unknown): Promise<ServerSta
   const gate = await getServerStationGate("content");
   if (!gate.ok) return { ok: false, message: gate.message };
 
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  if (!settings.menus_enabled.youtube) {
+    return { ok: false, message: "YouTube is turned off for Server Station." };
+  }
+
   const parsed = z
     .object({
       url: z.string().trim().min(8).max(800),
@@ -1111,7 +1194,7 @@ export async function playYoutubeOnWallAction(input: unknown): Promise<ServerSta
   const title = (parsed.data.title?.trim() || video.title).slice(0, 120);
   const sceneId = randomUUID();
   const endsAt = youtubeWallEndsAt();
-  const thumbnailUrl = `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+  const thumbnailUrl = youtubeThumbnailUrl(video.videoId);
 
   const { error: sceneError } = await db.from("led_wall_scenes").insert({
     id: sceneId,
@@ -1219,6 +1302,14 @@ export async function playYoutubeOnWallAction(input: unknown): Promise<ServerSta
     detail: { itemId: item.id, kind: "youtube", videoId: video.videoId, title },
   });
 
+  await recordYoutubePlay(db, {
+    venueId: gate.venueId,
+    watchUrl: video.watchUrl,
+    title,
+    actorUserId: gate.actor.userId,
+    actorName: gate.actor.displayName,
+  });
+
   revalidateServerStation();
   return {
     ok: true,
@@ -1227,6 +1318,73 @@ export async function playYoutubeOnWallAction(input: unknown): Promise<ServerSta
       : "YouTube is on the wall. When the video ends, the wall goes back to normal programming.",
     itemId: item.id,
   };
+}
+
+export async function listServerStationYoutubeLibraryAction() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) {
+    return { ok: false as const, message: gate.message, recent: [], favorites: [] };
+  }
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  if (!settings.menus_enabled.youtube) {
+    return { ok: false as const, message: "YouTube is turned off for Server Station.", recent: [], favorites: [] };
+  }
+  const result = await listYoutubeLibrary(gate.writeClient, gate.venueId);
+  if (result.missingTable) {
+    return {
+      ok: false as const,
+      message: `Apply ${SERVER_STATION_YOUTUBE_LIBRARY_SQL} in the Supabase SQL editor, then try again.`,
+      recent: [],
+      favorites: [],
+    };
+  }
+  if (result.error) return { ok: false as const, message: result.error, recent: [], favorites: [] };
+  return { ok: true as const, recent: result.recent, favorites: result.favorites };
+}
+
+export async function toggleServerStationYoutubeFavoriteAction(
+  input: unknown,
+): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  if (!settings.menus_enabled.youtube) {
+    return { ok: false, message: "YouTube is turned off for Server Station." };
+  }
+
+  const parsed = z
+    .object({
+      videoId: z.string().trim().min(6).max(20),
+      favorite: z.boolean(),
+      url: z.string().trim().min(8).max(800).optional(),
+      title: z.string().trim().max(160).optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Pick a YouTube video." };
+
+  const dbGate = requireContentDb(gate);
+  if (!dbGate.ok) return { ok: false, message: dbGate.message };
+
+  const result = await setYoutubeFavorite(dbGate.db, {
+    venueId: gate.venueId,
+    videoId: parsed.data.videoId,
+    favorite: parsed.data.favorite,
+    watchUrl: parsed.data.url,
+    title: parsed.data.title,
+    actorUserId: gate.actor.userId,
+    actorName: gate.actor.displayName,
+  });
+  if (!result.ok) {
+    if (/missing|does not exist|schema cache/i.test(result.message)) {
+      return {
+        ok: false,
+        message: `Apply ${SERVER_STATION_YOUTUBE_LIBRARY_SQL} in the Supabase SQL editor, then try again.`,
+      };
+    }
+    return result;
+  }
+  revalidateServerStation();
+  return result;
 }
 
 /** Display / local wall player: YouTube finished → resume house ads. */

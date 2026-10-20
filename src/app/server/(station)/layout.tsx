@@ -16,6 +16,7 @@ export default async function ServerStationShellLayout({ children }: { children:
         houseScenes: loaded.approved.houseScenes,
         playlists: loaded.approved.playlists,
         defaultPlaylistId: loaded.approved.defaultPlaylistId,
+        menusEnabled: loaded.menusEnabled,
       }}
     >
       <StationScreen />
