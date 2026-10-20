@@ -21,8 +21,9 @@ export {
 
 export function isMissingServerStationRelation(message: string | null | undefined) {
   return (
-    /server_station_|led_server_items|led_wall_overrides|server_approved/i.test(message ?? "") &&
-    /does not exist|schema cache|could not find/i.test(message ?? "")
+    /server_station_|led_server_items|led_wall_overrides|server_approved|menus_enabled|submitted_youtube/i.test(
+      message ?? "",
+    ) && /does not exist|schema cache|could not find/i.test(message ?? "")
   );
 }
 

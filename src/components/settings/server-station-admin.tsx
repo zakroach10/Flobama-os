@@ -16,7 +16,16 @@ import { updateServerStationSettingsAction } from "@/actions/server-station";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SERVER_STATION_OPERATORS_SQL, SERVER_STATION_SQL } from "@/lib/constants";
+import {
+  SERVER_STATION_OPERATORS_SQL,
+  SERVER_STATION_SQL,
+  SERVER_STATION_YOUTUBE_LIBRARY_SQL,
+} from "@/lib/constants";
+import {
+  SERVER_STATION_MENU_KEYS,
+  SERVER_STATION_MENU_LABELS,
+  type ServerStationMenusEnabled,
+} from "@/lib/server-station/features";
 import type { ServerStationSettings } from "@/lib/server-station/settings";
 
 type SceneOption = { id: string; title: string; server_approved: boolean; artist_id: string | null };
@@ -63,6 +72,7 @@ export function ServerStationAdminPanel({
   const [maxUploadMb, setMaxUploadMb] = useState(String(Math.round(settings.max_upload_bytes / (1024 * 1024))));
   const [businessNightEndHour, setBusinessNightEndHour] = useState(String(settings.business_night_end_hour));
   const [staffIdleSeconds, setStaffIdleSeconds] = useState(String(settings.staff_idle_seconds));
+  const [menusEnabled, setMenusEnabled] = useState<ServerStationMenusEnabled>(settings.menus_enabled);
   const houseScenes = useMemo(() => scenes.filter((scene) => !scene.artist_id), [scenes]);
   const [approved, setApproved] = useState(
     () => new Set(houseScenes.filter((s) => s.server_approved).map((s) => s.id)),
@@ -167,6 +177,28 @@ export function ServerStationAdminPanel({
       </div>
 
       <div className="space-y-3">
+        <h3 className="font-semibold">Menus & features on Server Station</h3>
+        <p className="text-sm text-muted-foreground">
+          Uncheck anything floor staff should not see on the kiosk. Requires{" "}
+          <code>{SERVER_STATION_YOUTUBE_LIBRARY_SQL}</code> for YouTube library / menu flags.
+        </p>
+        <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
+          {SERVER_STATION_MENU_KEYS.map((key) => (
+            <label key={key} className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={menusEnabled[key]}
+                onChange={(event) =>
+                  setMenusEnabled((prev) => ({ ...prev, [key]: event.target.checked }))
+                }
+              />
+              {SERVER_STATION_MENU_LABELS[key]}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
         <h3 className="font-semibold">House scenes servers can activate</h3>
         <p className="text-sm text-muted-foreground">
           All artist LED graphics are available on Server Station automatically. Only pick extra house /
@@ -209,6 +241,7 @@ export function ServerStationAdminPanel({
               maxUploadBytes: Number(maxUploadMb) * 1024 * 1024,
               businessNightEndHour: Number(businessNightEndHour),
               staffIdleSeconds: Number(staffIdleSeconds),
+              menusEnabled,
               approvedSceneIds: approvedIds,
             });
             if (!result.ok) toast.error(result.message);

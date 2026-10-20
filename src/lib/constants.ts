@@ -63,6 +63,8 @@ export const WEEK_EVENTS_STORAGE_PATH = "dynamic/week_events";
 export const WEEK_EVENTS_DEFAULT_SECONDS = 20;
 export const LED_YOUTUBE_WALL_SQL =
   "supabase/migrations/20261020000059_led_youtube_wall.sql then 20261020000060_led_youtube_wall_constraints.sql";
+export const SERVER_STATION_YOUTUBE_LIBRARY_SQL =
+  "supabase/migrations/20261020000061_server_station_youtube_library_and_menus.sql";
 export const VERTICAL_PLAYLIST_POLL_MS = 4000;
 export const SCREEN_TAKEOVER_PRESETS = [15, 30, 60, 120, 240] as const;
 export const SCREEN_TAKEOVER_MAX_MINUTES = 480;

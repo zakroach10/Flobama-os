@@ -8,6 +8,8 @@ import type {
   ServerStationPlaylistCard,
   ServerStationSceneCard,
 } from "@/lib/server-station/scenes";
+import type { ServerStationMenusEnabled } from "@/lib/server-station/features";
+import { DEFAULT_SERVER_STATION_MENUS_ENABLED } from "@/lib/server-station/features";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
 
 export type StationSession = {
@@ -20,6 +22,7 @@ export type StationSession = {
   houseScenes: ServerStationSceneCard[];
   playlists: ServerStationPlaylistCard[];
   defaultPlaylistId: string | null;
+  menusEnabled: ServerStationMenusEnabled;
 };
 
 const STATION_HREFS = [
@@ -31,8 +34,11 @@ const STATION_HREFS = [
   "/server/birthday",
   "/server/message",
   "/server/upload",
+  "/server/youtube",
   "/server/active",
 ];
+
+export { DEFAULT_SERVER_STATION_MENUS_ENABLED };
 
 type StationNavValue = {
   session: StationSession;

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerStationGate } from "@/lib/server-station/context";
 import { listServerApprovedScenes } from "@/lib/server-station/scenes";
+import { getServerStationSettings } from "@/lib/server-station/settings";
 import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
 import {
   SERVER_STATION_HOME_PATH,
@@ -41,14 +42,16 @@ export async function loadServerStationShell() {
     redirect(`${SERVER_STATION_LOGIN_PATH}?reason=denied`);
   }
 
-  const [wall, approved] = await Promise.all([
+  const [wall, approved, settingsRes] = await Promise.all([
     getServerStationWallStatus(gate.writeClient, gate.venueId),
     listServerApprovedScenes(gate.writeClient, gate.venueId),
+    getServerStationSettings(gate.writeClient, gate.venueId),
   ]);
   return {
     gate,
     wall,
     approved,
+    menusEnabled: settingsRes.settings.menus_enabled,
     supabaseEnv: getPublicSupabaseEnv(),
     home: SERVER_STATION_HOME_PATH,
   };
