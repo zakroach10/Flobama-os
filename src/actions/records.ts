@@ -8,6 +8,8 @@ import { authorizeProgramming, authorizeVenueSettings } from "@/lib/auth/permiss
 import { eventFormSchema, artistFormSchema, profileSettingsSchema, venueSettingsSchema } from "@/lib/validation/schemas";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
+import { isMissingProductionRelation } from "@/lib/queries/production";
+import { isMissingLedWallRelation } from "@/lib/screens/led-wall";
 import { z } from "zod";
 
 export type ActionResult = {
@@ -338,35 +340,45 @@ export async function mergeArtistsAction(input: unknown): Promise<ActionResult> 
     .select("id, artist_id, title, enabled")
     .eq("venue_id", venueId)
     .in("artist_id", [keepArtistId, mergeArtistId]);
-  if (scenesError) return { ok: false, message: scenesError.message };
+  const scenesUnavailable =
+    Boolean(scenesError) &&
+    (isMissingLedWallRelation(scenesError!.message) ||
+      (/artist_id/i.test(scenesError!.message) && /does not exist|schema cache|could not find/i.test(scenesError!.message)));
+  if (scenesError && !scenesUnavailable) return { ok: false, message: scenesError.message };
 
-  const keepScene = (scenes ?? []).find((row) => row.artist_id === keepArtistId) ?? null;
-  const mergeScene = (scenes ?? []).find((row) => row.artist_id === mergeArtistId) ?? null;
+  const keepScene = scenesUnavailable
+    ? null
+    : ((scenes ?? []).find((row) => row.artist_id === keepArtistId) ?? null);
+  const mergeScene = scenesUnavailable
+    ? null
+    : ((scenes ?? []).find((row) => row.artist_id === mergeArtistId) ?? null);
 
   const preferMergeWall = wallFrom === "merge" ? Boolean(mergeScene) : !keepScene && Boolean(mergeScene);
 
-  if (preferMergeWall && mergeScene) {
-    if (keepScene) {
+  if (!scenesUnavailable) {
+    if (preferMergeWall && mergeScene) {
+      if (keepScene) {
+        const { error } = await gate.supabase
+          .from("led_wall_scenes")
+          .delete()
+          .eq("id", keepScene.id)
+          .eq("venue_id", venueId);
+        if (error) return { ok: false, message: error.message };
+      }
+      const { error } = await gate.supabase
+        .from("led_wall_scenes")
+        .update({ artist_id: keepArtistId })
+        .eq("id", mergeScene.id)
+        .eq("venue_id", venueId);
+      if (error) return { ok: false, message: error.message };
+    } else if (mergeScene) {
       const { error } = await gate.supabase
         .from("led_wall_scenes")
         .delete()
-        .eq("id", keepScene.id)
+        .eq("id", mergeScene.id)
         .eq("venue_id", venueId);
       if (error) return { ok: false, message: error.message };
     }
-    const { error } = await gate.supabase
-      .from("led_wall_scenes")
-      .update({ artist_id: keepArtistId })
-      .eq("id", mergeScene.id)
-      .eq("venue_id", venueId);
-    if (error) return { ok: false, message: error.message };
-  } else if (mergeScene) {
-    const { error } = await gate.supabase
-      .from("led_wall_scenes")
-      .delete()
-      .eq("id", mergeScene.id)
-      .eq("venue_id", venueId);
-    if (error) return { ok: false, message: error.message };
   }
 
   const { error: runtimeError } = await gate.supabase
@@ -374,25 +386,38 @@ export async function mergeArtistsAction(input: unknown): Promise<ActionResult> 
     .update({ auto_artist_id: keepArtistId })
     .eq("venue_id", venueId)
     .eq("auto_artist_id", mergeArtistId);
-  if (runtimeError) return { ok: false, message: runtimeError.message };
+  if (
+    runtimeError &&
+    !isMissingLedWallRelation(runtimeError.message) &&
+    !(/auto_artist_id/i.test(runtimeError.message) && /does not exist|schema cache|could not find/i.test(runtimeError.message))
+  ) {
+    return { ok: false, message: runtimeError.message };
+  }
 
+  // Optional: production desk may not be migrated on every venue yet.
   const { data: sessions, error: sessionsError } = await gate.supabase
     .from("production_sessions")
     .select("id, artist_ids")
     .eq("venue_id", venueId)
     .contains("artist_ids", [mergeArtistId]);
-  if (sessionsError) return { ok: false, message: sessionsError.message };
+  if (sessionsError && !isMissingProductionRelation(sessionsError.message)) {
+    return { ok: false, message: sessionsError.message };
+  }
 
-  for (const session of sessions ?? []) {
-    const nextIds = [
-      ...new Set(session.artist_ids.map((id) => (id === mergeArtistId ? keepArtistId : id))),
-    ];
-    const { error } = await gate.supabase
-      .from("production_sessions")
-      .update({ artist_ids: nextIds })
-      .eq("id", session.id)
-      .eq("venue_id", venueId);
-    if (error) return { ok: false, message: error.message };
+  if (!sessionsError) {
+    for (const session of sessions ?? []) {
+      const nextIds = [
+        ...new Set(session.artist_ids.map((id) => (id === mergeArtistId ? keepArtistId : id))),
+      ];
+      const { error } = await gate.supabase
+        .from("production_sessions")
+        .update({ artist_ids: nextIds })
+        .eq("id", session.id)
+        .eq("venue_id", venueId);
+      if (error && !isMissingProductionRelation(error.message)) {
+        return { ok: false, message: error.message };
+      }
+    }
   }
 
   if (preferredName && preferredName !== keep.name) {
@@ -418,13 +443,15 @@ export async function mergeArtistsAction(input: unknown): Promise<ActionResult> 
   revalidatePath("/display/led");
 
   const moved = toMove.length;
-  const wallNote = preferMergeWall
-    ? " LED wall graphic moved onto the kept artist."
-    : keepScene
-      ? " Kept the surviving artist's LED wall graphic."
-      : mergeScene
-        ? ""
-        : " Neither artist had an LED wall graphic.";
+  const wallNote = scenesUnavailable
+    ? " LED wall tables were unavailable, so graphics were left as-is."
+    : preferMergeWall
+      ? " LED wall graphic moved onto the kept artist."
+      : keepScene
+        ? " Kept the surviving artist's LED wall graphic."
+        : mergeScene
+          ? ""
+          : " Neither artist had an LED wall graphic.";
 
   return {
     ok: true,
