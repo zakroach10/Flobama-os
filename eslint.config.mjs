@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Guest Expo app + shared mobile types (linted separately under apps/mobile)
+    "apps/**",
+    "packages/**",
   ]),
 ]);
 
