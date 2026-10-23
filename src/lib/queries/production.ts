@@ -13,10 +13,17 @@ import type { EcammLiveSnapshot } from "@/lib/production/types";
 
 type Client = SupabaseClient<Database>;
 
-function missingProduction(message: string) {
-  return /production_settings|production_device_status|production_sessions|production_markers|production_commands|production_recording_events|production_audit/i.test(
-    message,
+export function isMissingProductionRelation(message: string | null | undefined) {
+  if (!message) return false;
+  return (
+    /production_settings|production_device_status|production_sessions|production_markers|production_commands|production_recording_events|production_audit/i.test(
+      message,
+    ) && /does not exist|schema cache|could not find/i.test(message)
   );
+}
+
+function missingProduction(message: string) {
+  return isMissingProductionRelation(message);
 }
 
 export async function getProductionSettings(client: Client, venueId: string) {
