@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { artistNamesEquivalent } from "@/lib/artists/names";
 import type { EventRow } from "@/lib/queries/events";
 
 type Client = SupabaseClient<Database>;
@@ -55,16 +56,41 @@ export async function getArtistById(client: Client, id: string) {
 }
 
 export async function artistNameMatches(client: Client, venueId: string, name: string, excludeId?: string) {
-  let query = client
-    .from("artists")
-    .select("id, name")
-    .eq("venue_id", venueId)
-    .ilike("name", name.trim());
+  const trimmed = name.trim();
+  if (!trimmed) return { matches: [] as Array<{ id: string; name: string }>, error: null };
 
+  let query = client.from("artists").select("id, name").eq("venue_id", venueId).is("archived_at", null);
   if (excludeId) query = query.neq("id", excludeId);
-  const { data, error } = await query.limit(5);
+  const { data, error } = await query.order("name", { ascending: true }).limit(500);
   if (error) return { matches: [], error: error.message };
-  return { matches: data ?? [], error: null };
+
+  const matches = (data ?? []).filter(
+    (artist) =>
+      artist.name.trim().toLowerCase() === trimmed.toLowerCase() || artistNamesEquivalent(artist.name, trimmed),
+  );
+  return { matches: matches.slice(0, 10), error: null };
+}
+
+export async function listArtistNameDuplicates(
+  client: Client,
+  venueId: string,
+  artistId: string,
+  artistName: string,
+) {
+  const { data, error } = await client
+    .from("artists")
+    .select("id, name, archived_at")
+    .eq("venue_id", venueId)
+    .neq("id", artistId)
+    .is("archived_at", null)
+    .order("name", { ascending: true })
+    .limit(500);
+  if (error) return { duplicates: [] as Array<{ id: string; name: string }>, error: error.message };
+
+  const duplicates = (data ?? [])
+    .filter((artist) => artistNamesEquivalent(artist.name, artistName))
+    .map((artist) => ({ id: artist.id, name: artist.name }));
+  return { duplicates, error: null };
 }
 
 export async function listArtistEvents(client: Client, venueId: string, artistId: string, nowIso: string) {
