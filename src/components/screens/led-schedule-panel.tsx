@@ -142,7 +142,9 @@ export function LedSchedulePanel({
           <h2 className="text-lg font-semibold">Today’s schedule</h2>
           <p className="text-sm text-muted-foreground">
             Shows already on the calendar for today. Artists with an active LED graphic can be put on the wall
-            here — logos live on the artist profile, not in this list.
+            here — logos live on the artist profile, not in this list. Local Runner preloads those graphics to
+            the wall cache as soon as they appear on today’s schedule, so Server Station and auto-roll cuts
+            land faster.
           </p>
         </div>
         {listings.length === 0 ? (
