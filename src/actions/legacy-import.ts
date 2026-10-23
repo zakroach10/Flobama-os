@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
+import { findArtistIdByName } from "@/lib/artists/names";
 import { parseLegacySheet, type ParsedLegacyEvent } from "@/lib/legacy/parser";
 import { loadMasterSheetCsv } from "@/lib/legacy/sheet";
 import { authorizeProgramming } from "@/lib/auth/permissions";
@@ -44,11 +45,6 @@ async function staffForImport() {
   return { ok: true as const, context, supabase };
 }
 
-function findArtistId(artists: Array<{ id: string; name: string }>, name: string) {
-  const key = name.trim().toLowerCase();
-  return artists.find((artist) => artist.name.trim().toLowerCase() === key)?.id;
-}
-
 function fail(message: string, counts: Omit<ImportLegacyResult, "ok" | "message">): ImportLegacyResult {
   return { ok: false, message, ...counts };
 }
@@ -86,7 +82,8 @@ export async function importLegacyEventsAction(): Promise<ImportLegacyResult> {
   const { data: existingArtists, error: artistError } = await gate.supabase
     .from("artists")
     .select("id, name")
-    .eq("venue_id", gate.context.venue.id);
+    .eq("venue_id", gate.context.venue.id)
+    .is("archived_at", null);
   if (artistError) {
     return fail(artistError.message, emptyResult);
   }
@@ -258,8 +255,9 @@ async function ensureLegacyArtist(
     return { ok: true, created: false, artist: null };
   }
 
-  let artistId = findArtistId(artists, row.artistName);
+  let artistId = findArtistIdByName(artists, row.artistName);
   let created = false;
+  let artistName = row.artistName;
   if (!artistId) {
     const { data, error } = await supabase
       .from("artists")
@@ -268,8 +266,12 @@ async function ensureLegacyArtist(
       .single();
     if (error || !data) return { ok: false, message: error?.message ?? "Could not create artist." };
     artistId = data.id;
+    artistName = data.name;
     created = true;
     artists.push(data);
+  } else {
+    const matched = artists.find((item) => item.id === artistId);
+    if (matched) artistName = matched.name;
   }
 
   const { error: linkError } = await supabase.from("event_artists").insert({
@@ -279,5 +281,5 @@ async function ensureLegacyArtist(
     display_order: 0,
   });
   if (linkError) return { ok: false, message: linkError.message };
-  return { ok: true, created, artist: { id: artistId, name: row.artistName } };
+  return { ok: true, created, artist: { id: artistId, name: artistName } };
 }

@@ -237,6 +237,202 @@ export async function archiveArtistAction(artistId: string): Promise<ActionResul
   return { ok: true, message: "Artist archived. Historical event links are unchanged.", id: artistId };
 }
 
+const mergeArtistsSchema = z.object({
+  keepArtistId: z.string().uuid(),
+  mergeArtistId: z.string().uuid(),
+  preferredName: z.string().trim().min(1).max(160).optional(),
+  /** Which artist's LED wall graphic wins when both have one. Default: keep. */
+  wallFrom: z.enum(["keep", "merge"]).default("keep"),
+});
+
+/**
+ * Merge a duplicate artist into a keeper: reassign event links, LED wall config,
+ * production session artist ids, then archive the duplicate.
+ */
+export async function mergeArtistsAction(input: unknown): Promise<ActionResult> {
+  const gate = await staffForMutation();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const allowed = authorizeProgramming(gate.context.role);
+  if (!allowed.allowed) return { ok: false, message: allowed.reason };
+
+  const parsed = mergeArtistsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "Check the highlighted fields.", fieldErrors: fieldErrorsFromZod(parsed.error) };
+  }
+
+  const { keepArtistId, mergeArtistId, preferredName, wallFrom } = parsed.data;
+  if (keepArtistId === mergeArtistId) {
+    return { ok: false, message: "Pick two different artists to merge." };
+  }
+
+  const venueId = gate.context.venue.id;
+  const { data: artists, error: artistsError } = await gate.supabase
+    .from("artists")
+    .select("id, name, venue_id, archived_at")
+    .eq("venue_id", venueId)
+    .in("id", [keepArtistId, mergeArtistId]);
+  if (artistsError) return { ok: false, message: artistsError.message };
+
+  const keep = artists?.find((row) => row.id === keepArtistId);
+  const merge = artists?.find((row) => row.id === mergeArtistId);
+  if (!keep || !merge) return { ok: false, message: "One or both artists were not found." };
+  if (keep.archived_at) return { ok: false, message: "The artist you want to keep is archived." };
+  if (merge.archived_at) return { ok: false, message: "That duplicate is already archived." };
+
+  const { data: mergeLinks, error: linksError } = await gate.supabase
+    .from("event_artists")
+    .select("event_id, display_order")
+    .eq("venue_id", venueId)
+    .eq("artist_id", mergeArtistId);
+  if (linksError) return { ok: false, message: linksError.message };
+
+  const { data: keepLinks, error: keepLinksError } = await gate.supabase
+    .from("event_artists")
+    .select("event_id")
+    .eq("venue_id", venueId)
+    .eq("artist_id", keepArtistId);
+  if (keepLinksError) return { ok: false, message: keepLinksError.message };
+
+  const keepEventIds = new Set((keepLinks ?? []).map((row) => row.event_id));
+  const toMove = (mergeLinks ?? []).filter((row) => !keepEventIds.has(row.event_id));
+  const toDrop = (mergeLinks ?? []).filter((row) => keepEventIds.has(row.event_id));
+
+  if (toDrop.length > 0) {
+    const { error } = await gate.supabase
+      .from("event_artists")
+      .delete()
+      .eq("venue_id", venueId)
+      .eq("artist_id", mergeArtistId)
+      .in(
+        "event_id",
+        toDrop.map((row) => row.event_id),
+      );
+    if (error) return { ok: false, message: error.message };
+  }
+
+  if (toMove.length > 0) {
+    const { error: deleteMoveError } = await gate.supabase
+      .from("event_artists")
+      .delete()
+      .eq("venue_id", venueId)
+      .eq("artist_id", mergeArtistId)
+      .in(
+        "event_id",
+        toMove.map((row) => row.event_id),
+      );
+    if (deleteMoveError) return { ok: false, message: deleteMoveError.message };
+
+    const { error: insertMoveError } = await gate.supabase.from("event_artists").insert(
+      toMove.map((row) => ({
+        venue_id: venueId,
+        event_id: row.event_id,
+        artist_id: keepArtistId,
+        display_order: row.display_order,
+      })),
+    );
+    if (insertMoveError) return { ok: false, message: insertMoveError.message };
+  }
+
+  const { data: scenes, error: scenesError } = await gate.supabase
+    .from("led_wall_scenes")
+    .select("id, artist_id, title, enabled")
+    .eq("venue_id", venueId)
+    .in("artist_id", [keepArtistId, mergeArtistId]);
+  if (scenesError) return { ok: false, message: scenesError.message };
+
+  const keepScene = (scenes ?? []).find((row) => row.artist_id === keepArtistId) ?? null;
+  const mergeScene = (scenes ?? []).find((row) => row.artist_id === mergeArtistId) ?? null;
+
+  const preferMergeWall = wallFrom === "merge" ? Boolean(mergeScene) : !keepScene && Boolean(mergeScene);
+
+  if (preferMergeWall && mergeScene) {
+    if (keepScene) {
+      const { error } = await gate.supabase
+        .from("led_wall_scenes")
+        .delete()
+        .eq("id", keepScene.id)
+        .eq("venue_id", venueId);
+      if (error) return { ok: false, message: error.message };
+    }
+    const { error } = await gate.supabase
+      .from("led_wall_scenes")
+      .update({ artist_id: keepArtistId })
+      .eq("id", mergeScene.id)
+      .eq("venue_id", venueId);
+    if (error) return { ok: false, message: error.message };
+  } else if (mergeScene) {
+    const { error } = await gate.supabase
+      .from("led_wall_scenes")
+      .delete()
+      .eq("id", mergeScene.id)
+      .eq("venue_id", venueId);
+    if (error) return { ok: false, message: error.message };
+  }
+
+  const { error: runtimeError } = await gate.supabase
+    .from("led_wall_runtime")
+    .update({ auto_artist_id: keepArtistId })
+    .eq("venue_id", venueId)
+    .eq("auto_artist_id", mergeArtistId);
+  if (runtimeError) return { ok: false, message: runtimeError.message };
+
+  const { data: sessions, error: sessionsError } = await gate.supabase
+    .from("production_sessions")
+    .select("id, artist_ids")
+    .eq("venue_id", venueId)
+    .contains("artist_ids", [mergeArtistId]);
+  if (sessionsError) return { ok: false, message: sessionsError.message };
+
+  for (const session of sessions ?? []) {
+    const nextIds = [
+      ...new Set(session.artist_ids.map((id) => (id === mergeArtistId ? keepArtistId : id))),
+    ];
+    const { error } = await gate.supabase
+      .from("production_sessions")
+      .update({ artist_ids: nextIds })
+      .eq("id", session.id)
+      .eq("venue_id", venueId);
+    if (error) return { ok: false, message: error.message };
+  }
+
+  if (preferredName && preferredName !== keep.name) {
+    const { error } = await gate.supabase
+      .from("artists")
+      .update({ name: preferredName })
+      .eq("id", keepArtistId)
+      .eq("venue_id", venueId);
+    if (error) return { ok: false, message: error.message };
+  }
+
+  const { error: archiveError } = await gate.supabase
+    .from("artists")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", mergeArtistId)
+    .eq("venue_id", venueId);
+  if (archiveError) return { ok: false, message: archiveError.message };
+
+  revalidateOps();
+  revalidatePath(`/artists/${keepArtistId}`);
+  revalidatePath(`/artists/${mergeArtistId}`);
+  revalidatePath("/screens");
+  revalidatePath("/display/led");
+
+  const moved = toMove.length;
+  const wallNote = preferMergeWall
+    ? " LED wall graphic moved onto the kept artist."
+    : keepScene
+      ? " Kept the surviving artist's LED wall graphic."
+      : mergeScene
+        ? ""
+        : " Neither artist had an LED wall graphic.";
+
+  return {
+    ok: true,
+    message: `Merged “${merge.name}” into “${preferredName?.trim() || keep.name}” (${moved} event link${moved === 1 ? "" : "s"}).${wallNote}`,
+    id: keepArtistId,
+  };
+}
+
 export async function updateProfileAction(input: unknown): Promise<ActionResult> {
   const gate = await staffForMutation();
   if (!gate.ok) return { ok: false, message: gate.message };

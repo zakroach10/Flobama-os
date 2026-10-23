@@ -39,8 +39,9 @@ export function ArtistForm({
     if (!name.trim()) return;
     const result = await checkDuplicateArtistNameAction(name, artist?.id);
     if (result.matches.length > 0) {
+      const names = result.matches.map((match) => `“${match.name}”`).join(", ");
       setWarning(
-        `Another artist is already named “${result.matches[0].name}”. They may still be different performers.`,
+        `Similar artist already exists (${names}). If this is the same band (e.g. with/without “Band”), open either profile and use Merge duplicate.`,
       );
     } else {
       setWarning(null);

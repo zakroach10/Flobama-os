@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getArtistById, listArtistEvents } from "@/lib/queries/artists";
+import { getArtistById, listArtistEvents, listArtistNameDuplicates } from "@/lib/queries/artists";
 import { getArtistLedScene } from "@/lib/queries/artist-led";
 import { ArtistForm } from "@/components/artists/artist-form";
 import { ArtistLedPanel } from "@/components/artists/artist-led-panel";
+import { ArtistMergePanel } from "@/components/artists/artist-merge-panel";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { getPublicSupabaseEnv } from "@/lib/env";
 import { ErrorState } from "@/components/states";
@@ -24,9 +25,11 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
   if (error) return <ErrorState title="Could not load artist" description={error} />;
   if (!artist || artist.venue_id !== context.venue.id) notFound();
 
-  const [{ upcoming, past, error: eventError }, ledRes] = await Promise.all([
+  const canEdit = canManageProgramming(context.role) && !artist.archived_at;
+  const [{ upcoming, past, error: eventError }, ledRes, dupRes] = await Promise.all([
     listArtistEvents(supabase, context.venue.id, artist.id, new Date().toISOString()),
     getArtistLedScene(supabase, context.venue.id, artist.id),
+    listArtistNameDuplicates(supabase, context.venue.id, artist.id, artist.name),
   ]);
 
   return (
@@ -38,13 +41,22 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
       </p>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.name}</h1>
       {artist.archived_at ? <p className="text-sm text-muted-foreground">This artist is archived.</p> : null}
-      <ArtistForm artist={artist} canEdit={canManageProgramming(context.role) && !artist.archived_at} />
+      <ArtistForm artist={artist} canEdit={canEdit} />
+      {canEdit ? (
+        <ArtistMergePanel
+          artistId={artist.id}
+          artistName={artist.name}
+          hasLedGraphic={Boolean(ledRes.scene)}
+          suggestedDuplicates={dupRes.duplicates}
+          canEdit={canEdit}
+        />
+      ) : null}
       <ArtistLedPanel
         artistId={artist.id}
         artistName={artist.name}
         scene={ledRes.scene}
         missingColumn={ledRes.missingColumn}
-        canEdit={canManageProgramming(context.role) && !artist.archived_at}
+        canEdit={canEdit}
         venueId={context.venue.id}
         supabaseEnv={getPublicSupabaseEnv()}
       />
