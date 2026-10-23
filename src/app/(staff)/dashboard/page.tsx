@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { loadDashboard } from "@/lib/queries/dashboard";
+import { loadDashboard, type MissingLogoArtist } from "@/lib/queries/dashboard";
 import { artistNames } from "@/lib/queries/events";
 import { getLedWallAgentStatus, getLedWallRuntime, listLedWallScenes } from "@/lib/queries/led-wall";
 import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
-import { formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
+import { formatVenueDate, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
 import { canConfigureLedWall, canManageProgramming, canManageScreensControls } from "@/lib/auth/permissions";
 import { LED_WALL_SQL, type EventStatus } from "@/lib/constants";
 import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 const TODAY_CAP = 5;
 const UPCOMING_CAP = 5;
 const ATTENTION_CAP = 2;
+const MISSING_LOGO_CAP = 8;
 
 export default async function DashboardPage() {
   const context = await getStaffContext();
@@ -63,7 +64,10 @@ export default async function DashboardPage() {
   const upcoming = data?.upcoming ?? [];
   const drafts = data?.draftEvents ?? [];
   const missingArtists = data?.liveMusicMissingArtists ?? [];
+  const missingLogos = data?.artistsMissingLogos ?? [];
   const attentionCount = drafts.length + missingArtists.length;
+  const thisWeekMissing = missingLogos.filter((row) => row.bucket === "this_week");
+  const upcomingMissing = missingLogos.filter((row) => row.bucket === "upcoming");
 
   return (
     <div className="flex flex-col gap-3 lg:h-full lg:min-h-0 lg:overflow-hidden">
@@ -90,11 +94,19 @@ export default async function DashboardPage() {
           Dashboard query failed. {error ?? "Unknown error"}
         </p>
       ) : (
-        <div className="grid shrink-0 grid-cols-3 gap-2">
-          <Stat label="Next 7 days" value={data.nextSevenCount} />
-          <Stat label="Upcoming drafts" value={data.upcomingDraftCount} />
-          <Stat label="Active artists" value={data.activeArtistCount} />
-        </div>
+        <>
+          <div className="grid shrink-0 grid-cols-3 gap-2">
+            <Stat label="Next 7 days" value={data.nextSevenCount} />
+            <Stat label="Upcoming drafts" value={data.upcomingDraftCount} />
+            <Stat label="Active artists" value={data.activeArtistCount} />
+          </div>
+          <MissingLogosPanel
+            thisWeek={thisWeekMissing}
+            upcoming={upcomingMissing}
+            timeZone={context.venue.timezone}
+            canEdit={canProgram}
+          />
+        </>
       )}
 
       <div className="grid min-h-0 gap-3 lg:flex-1 lg:grid-cols-12">
@@ -195,6 +207,81 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
     </div>
+  );
+}
+
+function MissingLogosPanel({
+  thisWeek,
+  upcoming,
+  timeZone,
+  canEdit,
+}: {
+  thisWeek: MissingLogoArtist[];
+  upcoming: MissingLogoArtist[];
+  timeZone: string;
+  canEdit: boolean;
+}) {
+  const total = thisWeek.length + upcoming.length;
+  const rows = [...thisWeek, ...upcoming].slice(0, MISSING_LOGO_CAP);
+  const extra = Math.max(0, total - MISSING_LOGO_CAP);
+
+  return (
+    <section
+      className={`shrink-0 rounded-xl border bg-card ${
+        total > 0 ? "border-amber-500/40 bg-amber-500/5" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+        <h2 className="text-sm font-semibold">Band logos needed</h2>
+        <span className="text-xs text-muted-foreground">
+          {total === 0
+            ? "This week & upcoming covered"
+            : `${total} artist${total === 1 ? "" : "s"} · this week & upcoming`}
+        </span>
+        <Link
+          href="/artists"
+          className="ml-auto text-xs font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Artists
+        </Link>
+      </div>
+      {total === 0 ? (
+        <p className="px-3 py-3 text-sm text-muted-foreground">
+          Every live act this week and upcoming has a logo on file.
+        </p>
+      ) : (
+        <ul className="divide-y">
+          {rows.map((row) => (
+            <li key={row.artistId}>
+              <Link
+                href={canEdit ? `/artists/${row.artistId}` : `/programming/${row.eventId}`}
+                className="flex items-center gap-3 px-3 py-1.5 hover:bg-muted/60"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{row.artistName}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {formatVenueDate(row.startsAt, timeZone)} · {formatVenueTime(row.startsAt, timeZone)}
+                    {` · ${row.eventTitle}`}
+                  </span>
+                </span>
+                <span
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+                    row.bucket === "this_week"
+                      ? "bg-amber-500/20 text-amber-900 dark:text-amber-100"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {row.bucket === "this_week" ? "This week" : "Upcoming"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {extra > 0 ? (
+        <p className="border-t px-3 py-2 text-xs text-muted-foreground">+{extra} more on artist profiles</p>
+      ) : null}
+    </section>
   );
 }
 
