@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth/staff";
 import { authorizeProgramming, authorizeVenueSettings } from "@/lib/auth/permissions";
-import { eventFormSchema, artistFormSchema, profileSettingsSchema, venueSettingsSchema } from "@/lib/validation/schemas";
+import { eventFormSchema, artistFormSchema, bulkEventActionSchema, profileSettingsSchema, venueSettingsSchema } from "@/lib/validation/schemas";
+import {
+  bulkEventUpdateFields,
+  planBulkEventUpdate,
+  summarizeBulkEventUpdate,
+  type BulkEventSnapshot,
+} from "@/lib/events/bulk";
 import { parseVenueLocalDateTime } from "@/lib/timezone";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { isMissingProductionRelation } from "@/lib/queries/production";
@@ -180,6 +186,68 @@ export async function archiveEventAction(eventId: string): Promise<ActionResult>
   revalidateOps();
   revalidatePath(`/programming/${eventId}`);
   return { ok: true, message: "Event archived.", id: eventId };
+}
+
+export async function bulkUpdateEventsAction(input: unknown): Promise<ActionResult & { updated?: number; skipped?: number }> {
+  const gate = await staffForMutation();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const allowed = authorizeProgramming(gate.context.role);
+  if (!allowed.allowed) return { ok: false, message: allowed.reason };
+
+  const parsed = bulkEventActionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Choose a bulk action and at least one event.",
+      fieldErrors: fieldErrorsFromZod(parsed.error),
+    };
+  }
+
+  const requestedIds = [...new Set(parsed.data.eventIds)];
+  const { data, error } = await gate.supabase
+    .from("events")
+    .select("id, status, archived_at, visibility, featured")
+    .eq("venue_id", gate.context.venue.id)
+    .in("id", requestedIds);
+  if (error) return { ok: false, message: error.message };
+
+  const snapshots: BulkEventSnapshot[] = (data ?? []).map((row) => ({
+    id: row.id,
+    status: row.status,
+    archivedAt: row.archived_at,
+    visibility: row.visibility,
+    featured: row.featured,
+  }));
+  const plan = planBulkEventUpdate(requestedIds, snapshots, parsed.data.action);
+  if (plan.updateIds.length === 0) {
+    return {
+      ok: true,
+      message: summarizeBulkEventUpdate(parsed.data.action, 0, plan.skipped.length),
+      updated: 0,
+      skipped: plan.skipped.length,
+    };
+  }
+
+  const fields = bulkEventUpdateFields(parsed.data.action, new Date().toISOString());
+  const base = gate.supabase.from("events").update(fields).eq("venue_id", gate.context.venue.id).in("id", plan.updateIds);
+  const filtered = parsed.data.action === "restore" ? base.not("archived_at", "is", null) : base.is("archived_at", null);
+  const { data: updatedRows, error: updateError } = await filtered.select("id");
+  if (updateError) return { ok: false, message: updateError.message };
+
+  const updated = updatedRows?.length ?? 0;
+  const skipped = plan.skipped.length + (plan.updateIds.length - updated);
+  revalidateOps();
+  for (const id of updatedRows ?? []) {
+    revalidatePath(`/programming/${id.id}`);
+    revalidatePath(`/programming/${id.id}/edit`);
+  }
+
+  return {
+    ok: true,
+    message: summarizeBulkEventUpdate(parsed.data.action, updated, skipped),
+    updated,
+    skipped,
+  };
 }
 
 export async function saveArtistAction(input: unknown, artistId?: string): Promise<ActionResult> {

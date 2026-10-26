@@ -43,6 +43,34 @@ export const EVENT_VISIBILITY_LABELS: Record<EventVisibility, string> = {
   private: "Private",
 };
 
+/** One page of the programming list, with headroom for a larger page size. */
+export const BULK_EVENT_ACTION_LIMIT = 100;
+
+export const BULK_EVENT_ACTIONS = [
+  "publish",
+  "draft",
+  "cancel",
+  "archive",
+  "restore",
+  "make_public",
+  "make_private",
+  "feature",
+  "unfeature",
+] as const;
+export type BulkEventAction = (typeof BULK_EVENT_ACTIONS)[number];
+
+export const BULK_EVENT_ACTION_LABELS: Record<BulkEventAction, string> = {
+  publish: "Publish",
+  draft: "Return to draft",
+  cancel: "Cancel",
+  archive: "Archive",
+  restore: "Restore",
+  make_public: "Make public",
+  make_private: "Make private",
+  feature: "Feature",
+  unfeature: "Unfeature",
+};
+
 export const SCREEN_TRANSITIONS = ["cut", "fade", "slide"] as const;
 export type ScreenTransition = (typeof SCREEN_TRANSITIONS)[number];
 

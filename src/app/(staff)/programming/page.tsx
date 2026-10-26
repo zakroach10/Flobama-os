@@ -10,8 +10,8 @@ import { canManageProgramming } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
-import { StatusBadge, TypeBadge } from "@/components/status-badge";
 import { ImportEventsCsvButton } from "@/components/events/import-events-csv";
+import { ProgrammingEventList } from "@/components/events/programming-list";
 import { ImportLegacyButton } from "@/components/events/import-legacy-button";
 import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
@@ -116,60 +116,21 @@ export default async function EventsPage({
         )
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">When</th>
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Artists</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => (
-                  <tr key={event.id} className="border-b last:border-0">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {formatVenueDateTime(event.starts_at, context.venue.timezone)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link className="font-medium underline-offset-4 hover:underline" href={`/programming/${event.id}`}>
-                        {event.title}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {artistNames(event).join(", ") || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <TypeBadge type={event.event_type} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={event.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="space-y-3 md:hidden">
-            {events.map((event) => (
-              <li key={event.id} className="rounded-xl border bg-card p-4">
-                <Link href={`/programming/${event.id}`} className="block space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-semibold">{event.title}</p>
-                    <StatusBadge status={event.status} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {formatVenueDateTime(event.starts_at, context.venue.timezone)}
-                  </p>
-                  <p className="text-sm">{artistNames(event).join(", ") || "No artists attached"}</p>
-                  <TypeBadge type={event.event_type} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <ProgrammingEventList
+            canEdit={canManageProgramming(context.role)}
+            archivedView={window === "archived"}
+            events={events.map((event) => ({
+              id: event.id,
+              title: event.title,
+              whenLabel: formatVenueDateTime(event.starts_at, context.venue.timezone),
+              artists: artistNames(event),
+              eventType: event.event_type,
+              status: event.status,
+              visibility: event.visibility,
+              featured: event.featured,
+              archived: Boolean(event.archived_at),
+            }))}
+          />
 
           {totalPages > 1 ? (
             <Pagination page={filters.page} totalPages={totalPages} params={params} />
