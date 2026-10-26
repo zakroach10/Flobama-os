@@ -47,6 +47,14 @@ describe("week social media URLs", () => {
       "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait",
       "https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait&page=2",
     ]);
+    expect(
+      weekSocialMediaUrls({
+        formatId: "ig-portrait",
+        templateId: "night",
+        pageCount: 1,
+        origin: PRODUCTION_SITE_URL,
+      }),
+    ).toEqual(["https://flobama-os.vercel.app/api/public/v1/screens/week/social?size=ig-portrait&template=night"]);
   });
 
   it("maps media items as image/png", () => {

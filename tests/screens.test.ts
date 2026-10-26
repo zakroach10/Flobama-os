@@ -27,12 +27,15 @@ import {
 } from "@/lib/screens/week";
 import {
   isWeekSocialFormatId,
+  isWeekSocialTemplateId,
   socialGraphicFileName,
   WEEK_SOCIAL_FORMATS,
+  WEEK_SOCIAL_TEMPLATES,
   weekSocialFormat,
   weekSocialExportPath,
   weekSocialPages,
   weekSocialStudioPath,
+  weekSocialTemplate,
 } from "@/lib/screens/social";
 import {
   englishOrdinal,
@@ -316,6 +319,26 @@ describe("this week slide", () => {
       "/api/public/v1/screens/week/social?size=ig-portrait&demo=1",
     );
     expect(weekSocialStudioPath({ formatId: "ig-portrait", demo: true })).toBe(
+      "/print/week/social?size=ig-portrait&demo=1",
+    );
+  });
+
+  it("offers extra Instagram portrait templates without changing the paper poster links", () => {
+    expect(WEEK_SOCIAL_TEMPLATES.map((template) => template.id)).toEqual(["paper", "night", "marquee", "ticket"]);
+    expect(isWeekSocialTemplateId("night")).toBe(true);
+    expect(isWeekSocialTemplateId("story")).toBe(false);
+    expect(weekSocialTemplate("nope").id).toBe("paper");
+    expect(weekSocialTemplate("paper").id).toBe("paper");
+    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-portrait", 1, 1, "night")).toBe(
+      "Flobama-this-week-Sep-6-12-2026-ig-portrait-night.png",
+    );
+    expect(socialGraphicFileName("Sep 6–12, 2026", "ig-portrait", 2, 3, "ticket")).toBe(
+      "Flobama-this-week-Sep-6-12-2026-ig-portrait-ticket-p2.png",
+    );
+    expect(weekSocialExportPath({ formatId: "ig-portrait", templateId: "marquee", demo: true })).toBe(
+      "/api/public/v1/screens/week/social?size=ig-portrait&template=marquee&demo=1",
+    );
+    expect(weekSocialStudioPath({ formatId: "ig-portrait", templateId: "paper", demo: true })).toBe(
       "/print/week/social?size=ig-portrait&demo=1",
     );
   });
