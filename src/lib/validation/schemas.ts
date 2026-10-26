@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  BULK_EVENT_ACTION_LIMIT,
+  BULK_EVENT_ACTIONS,
   EVENT_STATUSES,
   EVENT_TYPES,
   EVENT_VISIBILITIES,
@@ -82,6 +84,16 @@ export const eventFormSchema = z
 
 export type EventFormInput = z.input<typeof eventFormSchema>;
 export type EventFormValues = z.output<typeof eventFormSchema>;
+
+export const bulkEventActionSchema = z.object({
+  action: z.enum(BULK_EVENT_ACTIONS),
+  eventIds: z
+    .array(z.string().uuid())
+    .min(1, "Select at least one event.")
+    .max(BULK_EVENT_ACTION_LIMIT, `Select ${BULK_EVENT_ACTION_LIMIT} events or fewer.`),
+});
+
+export type BulkEventActionInput = z.output<typeof bulkEventActionSchema>;
 
 export const artistFormSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(160),
