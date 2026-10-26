@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState } from "@/components/states";
 import { StatusBadge, TypeBadge } from "@/components/status-badge";
+import { ImportEventsCsvButton } from "@/components/events/import-events-csv";
 import { ImportLegacyButton } from "@/components/events/import-legacy-button";
 import { ExportWeekSocialButton } from "@/components/print/export-week-social-button";
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
@@ -51,6 +52,7 @@ export default async function EventsPage({
           <ExportWeekSocialButton />
           {canManageProgramming(context.role) ? (
             <>
+              <ImportEventsCsvButton />
               <ImportLegacyButton />
               <Button className="w-full sm:w-auto" render={<Link href="/programming/new" />}>
                 Add event
