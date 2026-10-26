@@ -14,18 +14,20 @@ import {
   defaultSelectedAccountIds,
   type SocialAccount,
 } from "@/lib/ghl/social";
-import { weekSocialExportPath, weekSocialFormat, type WeekSocialFormatId } from "@/lib/screens/social";
+import { weekSocialExportPath, weekSocialFormat, weekSocialTemplate, type WeekSocialFormatId, type WeekSocialTemplateId } from "@/lib/screens/social";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { cn } from "@/lib/utils";
 
 export function SocialComposeForm({
   accounts,
   formatId: initialFormatId,
+  templateId: initialTemplateId,
   pageCountByFormat,
   publicOrigin,
 }: {
   accounts: SocialAccount[];
   formatId: WeekSocialFormatId;
+  templateId: WeekSocialTemplateId;
   pageCountByFormat: Record<WeekSocialFormatId, number>;
   publicOrigin: string;
 }) {
@@ -35,6 +37,7 @@ export function SocialComposeForm({
   const [selected, setSelected] = useState<string[]>(defaults);
   const [summary, setSummary] = useState(DEFAULT_WEEK_SOCIAL_CAPTION);
   const format = weekSocialFormat(initialFormatId);
+  const template = weekSocialTemplate(initialTemplateId);
   const formatId = format.id;
   const [status, setStatus] = useState<"draft" | "scheduled" | "published">("published");
   const [scheduleLocal, setScheduleLocal] = useState("");
@@ -43,9 +46,9 @@ export function SocialComposeForm({
   const mediaPreviewUrls = useMemo(
     () =>
       Array.from({ length: pageCount }, (_, index) =>
-        joinPublicUrl(publicOrigin, weekSocialExportPath({ formatId, page: index + 1 })),
+        joinPublicUrl(publicOrigin, weekSocialExportPath({ formatId, templateId: template.id, page: index + 1 })),
       ),
-    [formatId, pageCount, publicOrigin],
+    [formatId, pageCount, publicOrigin, template.id],
   );
 
   function toggleAccount(id: string) {
@@ -64,6 +67,7 @@ export function SocialComposeForm({
         status,
         scheduleDate,
         formatId,
+        templateId: template.id,
         pageCount,
       });
       if (!result.ok) {
@@ -77,7 +81,7 @@ export function SocialComposeForm({
     });
   }
 
-  const previewHref = weekSocialExportPath({ formatId, page: 1 });
+  const previewHref = weekSocialExportPath({ formatId, templateId: template.id, page: 1 });
   const submitLabel =
     status === "published" ? "Post now in GHL" : status === "scheduled" ? "Schedule in GHL" : "Save draft in GHL";
 
@@ -93,7 +97,7 @@ export function SocialComposeForm({
           <Label>Graphic</Label>
           <p className="text-sm">
             <span className="font-medium">{format.label}</span>
-            <span className="text-muted-foreground"> · {format.hint}</span>
+            <span className="text-muted-foreground"> · {template.label} · {format.hint}</span>
           </p>
           {pageCount > 1 ? (
             <p className="text-xs text-muted-foreground">

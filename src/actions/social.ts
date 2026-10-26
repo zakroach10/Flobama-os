@@ -10,7 +10,7 @@ import {
   weekSocialMediaItems,
   type CreateSocialPostInput,
 } from "@/lib/ghl/social";
-import { DEFAULT_WEEK_SOCIAL_FORMAT, isWeekSocialFormatId, type WeekSocialFormatId } from "@/lib/screens/social";
+import { DEFAULT_WEEK_SOCIAL_FORMAT, isWeekSocialFormatId, weekSocialTemplate, type WeekSocialFormatId } from "@/lib/screens/social";
 import type { ActionResult } from "@/actions/records";
 import { GhlError } from "@/lib/ghl/client";
 
@@ -35,12 +35,14 @@ export async function createWeekSocialPostAction(input: {
   status: "draft" | "scheduled" | "published";
   scheduleDate?: string | null;
   formatId?: string;
+  templateId?: string;
   pageCount?: number;
 }): Promise<ActionResult & { id?: string }> {
   const access = await staffForSocial();
   if (!access.ok) return access;
 
   const formatId: WeekSocialFormatId = isWeekSocialFormatId(input.formatId) ? input.formatId : DEFAULT_WEEK_SOCIAL_FORMAT;
+  const templateId = weekSocialTemplate(input.templateId).id;
   const summary = input.summary.trim() || "Live music this week at FloBama.";
   const accountIds = Array.isArray(input.accountIds) ? input.accountIds.filter(Boolean) : [];
   const status =
@@ -62,6 +64,7 @@ export async function createWeekSocialPostAction(input: {
     scheduleDate: status === "scheduled" ? input.scheduleDate : null,
     media: weekSocialMediaItems({
       formatId,
+      templateId,
       pageCount: Math.max(1, input.pageCount ?? 1),
       altText: summary,
     }),

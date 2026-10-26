@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import type { WeekSlideDay } from "@/lib/screens/week";
-import type { WeekSocialFormatId } from "@/lib/screens/social";
+import type { WeekSocialFormatId, WeekSocialTemplateId } from "@/lib/screens/social";
 
 export const SOCIAL_POSTER = {
   cream: "#e4e2dd",
@@ -22,7 +22,70 @@ export type SocialPosterRow = {
   ordinal: string;
   time: string;
   name: string;
+  weekday: string;
+  monthDay: string;
 };
+
+export type SocialStackTheme = {
+  canvas: string;
+  header: string;
+  kicker: string;
+  heading: string;
+  range: string;
+  rule: string;
+  date: string;
+  name: string;
+  muted: string;
+  align: "flex-start" | "center";
+  bar: number;
+  nameSize: number;
+};
+
+export const SOCIAL_STACK_THEMES = {
+  night: {
+    canvas: "#1b1612",
+    header: "#1b1612",
+    kicker: "#f4ebe3",
+    heading: "#d36b4a",
+    range: "#cbbbae",
+    rule: "#d36b4a",
+    date: "#d36b4a",
+    name: "#f4ebe3",
+    muted: "#cbbbae",
+    align: "flex-start",
+    bar: 16,
+    nameSize: 46,
+  },
+  marquee: {
+    canvas: "#0257e8",
+    header: "#e4e2dd",
+    kicker: "#0257e8",
+    heading: "#1b1612",
+    range: "#0257e8",
+    rule: "#1b1612",
+    date: "#e4e2dd",
+    name: "#ffffff",
+    muted: "#d6e4ff",
+    align: "center",
+    bar: 0,
+    nameSize: 52,
+  },
+} as const satisfies Record<"night" | "marquee", SocialStackTheme>;
+
+export const SOCIAL_TICKET_THEME = {
+  canvas: "#f4f1ea",
+  header: "#0257e8",
+  kicker: "#f4f1ea",
+  heading: "#f4f1ea",
+  range: "#d6e4ff",
+  chip: "#0257e8",
+  chipText: "#f4f1ea",
+  name: "#1b1612",
+  muted: "#5c534c",
+} as const;
+
+export const SOCIAL_TEMPLATE_HEADING = "LIVE MUSIC THIS WEEK";
+export const SOCIAL_TEMPLATE_KICKER = "FLO BAMA";
 
 export function englishOrdinal(day: number) {
   const teens = day % 100;
@@ -50,12 +113,22 @@ export function socialPosterDateParts(dateKey: string, time: string) {
 
 export function socialPosterRows(days: WeekSlideDay[]): SocialPosterRow[] {
   return days.flatMap((day) =>
-    day.events.map((event) => ({
-      id: event.id,
-      name: event.name.toUpperCase(),
-      ...socialPosterDateParts(day.dateKey, event.time),
-    })),
+    day.events.map((event) => {
+      const dt = DateTime.fromISO(day.dateKey);
+      return {
+        id: event.id,
+        name: event.name.toUpperCase(),
+        weekday: dt.toFormat("EEEE").toUpperCase(),
+        monthDay: `${dt.toFormat("MMMM").toUpperCase()} ${dt.day}`,
+        ...socialPosterDateParts(day.dateKey, event.time),
+      };
+    }),
   );
+}
+
+export function socialPosterStackTheme(id: WeekSocialTemplateId): SocialStackTheme | null {
+  if (id === "night" || id === "marquee") return SOCIAL_STACK_THEMES[id];
+  return null;
 }
 
 const PORTRAIT_SCALE = {

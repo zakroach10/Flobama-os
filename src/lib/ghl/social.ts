@@ -11,7 +11,9 @@ import {
   weekSocialExportPath,
   weekSocialFormat,
   weekSocialPages,
+  weekSocialTemplate,
   type WeekSocialFormatId,
+  type WeekSocialTemplateId,
 } from "@/lib/screens/social";
 import type { WeekSlideDay } from "@/lib/screens/week";
 import { joinPublicUrl } from "@/lib/public/urls";
@@ -274,20 +276,23 @@ export function buildListSocialPostsBody(input: ListSocialPostsInput): Record<st
 
 export function weekSocialMediaUrls(options: {
   formatId?: WeekSocialFormatId | string | null;
+  templateId?: WeekSocialTemplateId | string | null;
   pageCount?: number;
   origin?: string;
 }): string[] {
   const formatId = isWeekSocialFormatId(options.formatId) ? options.formatId : DEFAULT_WEEK_SOCIAL_FORMAT;
+  const templateId = weekSocialTemplate(options.templateId).id;
   const origin = options.origin ?? getPublicAppUrl();
   const pages = Math.max(1, options.pageCount ?? 1);
   return Array.from({ length: pages }, (_, index) => {
-    const path = weekSocialExportPath({ formatId, page: index + 1 });
+    const path = weekSocialExportPath({ formatId, templateId, page: index + 1 });
     return joinPublicUrl(origin, path);
   });
 }
 
 export function weekSocialMediaItems(options: {
   formatId?: WeekSocialFormatId | string | null;
+  templateId?: WeekSocialTemplateId | string | null;
   pageCount?: number;
   origin?: string;
   altText?: string;

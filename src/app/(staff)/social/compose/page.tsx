@@ -6,6 +6,7 @@ import {
   isWeekSocialFormatId,
   WEEK_SOCIAL_FORMATS,
   weekSocialFormat,
+  weekSocialTemplate,
   type WeekSocialFormatId,
 } from "@/lib/screens/social";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
@@ -18,10 +19,11 @@ export const dynamic = "force-dynamic";
 export default async function SocialComposePage({
   searchParams,
 }: {
-  searchParams: Promise<{ size?: string; page?: string }>;
+  searchParams: Promise<{ size?: string; page?: string; template?: string }>;
 }) {
   const params = await searchParams;
   const format = weekSocialFormat(isWeekSocialFormatId(params.size) ? params.size : undefined);
+  const template = weekSocialTemplate(params.template);
 
   if (!isGhlConfigured()) {
     return (
@@ -65,10 +67,11 @@ export default async function SocialComposePage({
       <SocialComposeForm
         accounts={accounts}
         formatId={format.id}
+        templateId={template.id}
         pageCountByFormat={pageCountByFormat}
         publicOrigin={publicOrigin}
       />
-      <p className="sr-only">{weekSocialMediaUrls({ formatId: format.id, pageCount, origin: publicOrigin }).join(" ")}</p>
+      <p className="sr-only">{weekSocialMediaUrls({ formatId: format.id, templateId: template.id, pageCount, origin: publicOrigin }).join(" ")}</p>
     </div>
   );
 }

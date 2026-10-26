@@ -3,11 +3,13 @@ import { ScaledPreview } from "@/components/print/scaled-preview";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import {
   socialGraphicFileName,
+  WEEK_SOCIAL_TEMPLATES,
   weekSocialComposePath,
   weekSocialExportPath,
   weekSocialFormat,
   weekSocialPages,
   weekSocialStudioPath,
+  weekSocialTemplate,
   type WeekSocialFormatId,
 } from "@/lib/screens/social";
 import type { WeekSlideDay } from "@/lib/screens/week";
@@ -17,23 +19,27 @@ export function WeekSocialStudio({
   rangeLabel,
   days,
   formatId,
+  templateId,
   page = 1,
   demo = false,
 }: {
   rangeLabel: string;
   days: WeekSlideDay[];
   formatId: WeekSocialFormatId;
+  templateId?: string | null;
   page?: number;
   demo?: boolean;
 }) {
   const format = weekSocialFormat(formatId);
+  const template = weekSocialTemplate(templateId);
   const pages = weekSocialPages(days, format);
   const currentPage = Math.min(Math.max(page, 1), Math.max(pages.length, 1));
   const current = pages[currentPage - 1] ?? [];
   const pageLabel = pages.length > 1 ? `${currentPage} / ${pages.length}` : null;
-  const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length);
-  const exportHref = weekSocialExportPath({ formatId: format.id, page: currentPage, demo });
-  const composeHref = weekSocialComposePath({ formatId: format.id, page: currentPage });
+  const link = { formatId: format.id, templateId: template.id, demo };
+  const filename = socialGraphicFileName(rangeLabel, format.id, currentPage, pages.length, template.id);
+  const exportHref = weekSocialExportPath({ ...link, page: currentPage });
+  const composeHref = weekSocialComposePath({ formatId: format.id, templateId: template.id, page: currentPage });
 
   return (
     <div className="mx-auto max-w-6xl space-y-3 px-4 py-3 sm:space-y-4 sm:py-4">
@@ -41,8 +47,8 @@ export function WeekSocialStudio({
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-[#111] sm:text-2xl">This week · {format.label}</h1>
           <p className="mt-1 max-w-xl text-xs text-[#444] sm:text-sm">
-            Instagram Portrait, 1080×1350. Download a PNG or post it through GoHighLevel Social Planner. Busy weeks
-            split across pages so the type stays readable.
+            Instagram Portrait, 1080×1350 · {template.label}. Download a PNG or post it through GoHighLevel Social
+            Planner. Busy weeks split across pages so the type stays readable.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -59,7 +65,7 @@ export function WeekSocialStudio({
               {currentPage > 1 ? (
                 <a
                   className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-                  href={weekSocialStudioPath({ formatId: format.id, page: currentPage - 1, demo })}
+                  href={weekSocialStudioPath({ ...link, page: currentPage - 1 })}
                 >
                   Previous page
                 </a>
@@ -71,7 +77,7 @@ export function WeekSocialStudio({
               {currentPage < pages.length ? (
                 <a
                   className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
-                  href={weekSocialStudioPath({ formatId: format.id, page: currentPage + 1, demo })}
+                  href={weekSocialStudioPath({ ...link, page: currentPage + 1 })}
                 >
                   Next page
                 </a>
@@ -85,12 +91,34 @@ export function WeekSocialStudio({
         </div>
       </div>
 
+      <nav aria-label="Portrait templates" className="flex flex-wrap gap-2">
+        {WEEK_SOCIAL_TEMPLATES.map((item) => {
+          const selected = item.id === template.id;
+          return (
+            <a
+              key={item.id}
+              href={weekSocialStudioPath({ ...link, templateId: item.id })}
+              aria-current={selected ? "page" : undefined}
+              className={cn(buttonVariants({ variant: selected ? "default" : "outline", size: "sm" }), "h-11 sm:h-7")}
+            >
+              {item.label}
+            </a>
+          );
+        })}
+      </nav>
+
       <figure className="overflow-hidden rounded-xl border bg-[#e4e2dd] p-2 sm:p-3">
         <ScaledPreview width={format.width} height={format.height} className="rounded-lg shadow-md">
-          <WeekSocialGraphic format={format} rangeLabel={rangeLabel} days={current} pageLabel={pageLabel} />
+          <WeekSocialGraphic
+            format={format}
+            rangeLabel={rangeLabel}
+            days={current}
+            pageLabel={pageLabel}
+            templateId={template.id}
+          />
         </ScaledPreview>
         <figcaption className="mt-2 text-center text-xs text-[#5c534c]">
-          On-screen preview · {format.label} · {format.width}×{format.height}
+          On-screen preview · {template.label} · {format.width}×{format.height}
           {pageLabel ? ` · page ${pageLabel}` : ""}
         </figcaption>
       </figure>

@@ -9,6 +9,7 @@ import {
   socialGraphicFileName,
   weekSocialFormat,
   weekSocialPages,
+  weekSocialTemplate,
 } from "@/lib/screens/social";
 import { WeekSocialOgGraphic } from "@/lib/screens/week-social-image";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
@@ -24,6 +25,7 @@ export function OPTIONS() {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const format = weekSocialFormat(url.searchParams.get("size"));
+  const template = weekSocialTemplate(url.searchParams.get("template"));
   const pageNumber = Math.max(1, Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
   const demo = process.env.NODE_ENV !== "production" && url.searchParams.get("demo") === "1";
 
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
   const pageIndex = Math.min(pageNumber, pages.length) - 1;
   const days = pages[pageIndex] ?? [];
   const pageLabel = pages.length > 1 ? `${pageIndex + 1} / ${pages.length}` : null;
-  const filename = socialGraphicFileName(week.rangeLabel, format.id, pageIndex + 1, pages.length);
+  const filename = socialGraphicFileName(week.rangeLabel, format.id, pageIndex + 1, pages.length, template.id);
   // Keep path strings literal in each readFile call so Next file tracing does not
   // include the whole repo (Local Runner DMGs / clients) and fail the Vercel build.
   const [paperSrc, tearSrc, stickerSrc, regular, bold] = await Promise.all([
@@ -53,6 +55,7 @@ export async function GET(request: Request) {
           rangeLabel={week.rangeLabel}
           days={days}
           pageLabel={pageLabel}
+          templateId={template.id}
           paperSrc={paperSrc}
           tearSrc={tearSrc}
           stickerSrc={stickerSrc}
