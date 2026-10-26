@@ -36,8 +36,9 @@ export type SocialStackTheme = {
   date: string;
   name: string;
   muted: string;
-  align: "flex-start" | "center";
+  align: "center";
   bar: number;
+  dateSize: number;
   nameSize: number;
 };
 
@@ -52,9 +53,10 @@ export const SOCIAL_STACK_THEMES = {
     date: "#d36b4a",
     name: "#f4ebe3",
     muted: "#cbbbae",
-    align: "flex-start",
+    align: "center",
     bar: 16,
-    nameSize: 46,
+    dateSize: 34,
+    nameSize: 60,
   },
   marquee: {
     canvas: "#0257e8",
@@ -68,7 +70,8 @@ export const SOCIAL_STACK_THEMES = {
     muted: "#d6e4ff",
     align: "center",
     bar: 0,
-    nameSize: 52,
+    dateSize: 34,
+    nameSize: 62,
   },
 } as const satisfies Record<"night" | "marquee", SocialStackTheme>;
 
@@ -85,7 +88,8 @@ export const SOCIAL_TICKET_THEME = {
 } as const;
 
 export const SOCIAL_TEMPLATE_HEADING = "LIVE MUSIC THIS WEEK";
-export const SOCIAL_TEMPLATE_KICKER = "FLO BAMA";
+/** Official wordmark. 1500×488, transparent. */
+export const SOCIAL_TEMPLATE_LOGO = { width: 520, height: 169 } as const;
 
 export function englishOrdinal(day: number) {
   const teens = day % 100;
@@ -133,14 +137,14 @@ export function socialPosterStackTheme(id: WeekSocialTemplateId): SocialStackThe
 
 const PORTRAIT_SCALE = {
   header: 430,
-  logo: 390,
-  title: 46,
-  date: 30,
-  name: 38,
-  ordinal: 18,
-  gap: 22,
+  logo: 420,
+  title: 52,
+  date: 36,
+  name: 48,
+  ordinal: 20,
+  gap: 18,
   padX: 48,
-  listTop: 32,
+  listTop: 16,
   columns: 1 as const,
 };
 

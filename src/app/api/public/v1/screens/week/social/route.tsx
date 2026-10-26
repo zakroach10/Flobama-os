@@ -39,10 +39,11 @@ export async function GET(request: Request) {
   const filename = socialGraphicFileName(week.rangeLabel, format.id, pageIndex + 1, pages.length, template.id);
   // Keep path strings literal in each readFile call so Next file tracing does not
   // include the whole repo (Local Runner DMGs / clients) and fail the Vercel build.
-  const [paperSrc, tearSrc, stickerSrc, regular, bold] = await Promise.all([
+  const [paperSrc, tearSrc, stickerSrc, logoSrc, regular, bold] = await Promise.all([
     readAsDataUri(join(process.cwd(), "public/social/paper-orange.jpg"), "image/jpeg"),
     readAsDataUri(join(process.cwd(), "public/social/paper-tear.png"), "image/png"),
     readAsDataUri(join(process.cwd(), "public/social/flobama-sticker.png"), "image/png"),
+    readAsDataUri(join(process.cwd(), "public/flobama-logo.png"), "image/png"),
     readFile(join(process.cwd(), "public/fonts/Roboto-Regular.ttf")),
     readFile(join(process.cwd(), "public/fonts/Roboto-Bold.ttf")),
   ]);
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
           paperSrc={paperSrc}
           tearSrc={tearSrc}
           stickerSrc={stickerSrc}
+          logoSrc={logoSrc}
         />
       </div>
     ),
