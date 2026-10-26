@@ -393,6 +393,10 @@ export const importTriviaCsvSchema = z.object({
   replace: z.boolean().default(true),
 });
 
+export const importEventsCsvSchema = z.object({
+  csvText: z.string().trim().min(1).max(500_000),
+});
+
 export const triviaJoinSchema = z.object({
   joinCode: z.string().trim().min(4).max(8),
   displayName: z.string().trim().min(1).max(24),
