@@ -105,7 +105,10 @@ export function ServerStationPhoneUploadForm({
               setError(completeJson.error ?? "Could not finish the upload.");
               return;
             }
-            setMessage(completeJson.message ?? "Upload received. Hand the phone back and approve on the kiosk.");
+            setMessage(
+              completeJson.message ??
+                "Upload received. It is in tonight’s temporary library — Set on Wall from the Server Station.",
+            );
             setFile(null);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Upload failed.");

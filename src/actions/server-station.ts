@@ -27,6 +27,7 @@ import {
 import { parseYoutubeVideoUrl, youtubeWallEndsAt } from "@/lib/screens/youtube";
 import {
   LED_YOUTUBE_WALL_SQL,
+  SERVER_STATION_UPLOAD_LIBRARY_SQL,
   SERVER_STATION_UPLOAD_TTL_SECONDS,
   SERVER_STATION_YOUTUBE_LIBRARY_SQL,
 } from "@/lib/constants";
@@ -42,6 +43,15 @@ import {
   setYoutubeFavorite,
   youtubeThumbnailUrl,
 } from "@/lib/server-station/youtube-library";
+import {
+  addUploadLibraryItem,
+  expireUploadLibraryItems,
+  getUploadLibraryItem,
+  listUploadLibrary,
+  markUploadLibrarySetOnWall,
+  removeUploadLibraryItem,
+  uploadLibraryMissingMessage,
+} from "@/lib/server-station/upload-library";
 import type { Json } from "@/lib/database.types";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 import {
@@ -927,6 +937,8 @@ export async function extendServerStationItemAction(input: unknown): Promise<Ser
  */
 export async function prepareServerStationGraphicUploadAction(input?: {
   prefix?: "server" | "server-upload";
+  /** Defaults to PNG for rendered graphics; use jpeg/webp for raw phone photos. */
+  contentType?: "image/png" | "image/jpeg" | "image/webp";
 }): Promise<
   | {
       ok: true;
@@ -950,8 +962,10 @@ export async function prepareServerStationGraphicUploadAction(input?: {
   }
 
   const prefix = input?.prefix === "server-upload" ? "server-upload" : "server";
+  const contentType = input?.contentType ?? "image/png";
+  const ext = contentType === "image/jpeg" ? "jpg" : contentType === "image/webp" ? "webp" : "png";
   const id = crypto.randomUUID();
-  const storagePath = `${gate.venueId}/led/${prefix}-${id}.png`;
+  const storagePath = `${gate.venueId}/led/${prefix}-${id}.${ext}`;
   const { data, error } = await admin.storage.from("screen-ads").createSignedUploadUrl(storagePath);
   if (error || !data) {
     return { ok: false, message: error?.message ?? "Could not prepare the graphic upload." };
@@ -964,7 +978,7 @@ export async function prepareServerStationGraphicUploadAction(input?: {
     path: data.path,
     token: data.token,
     publicUrl,
-    contentType: "image/png",
+    contentType,
   };
 }
 
@@ -1433,14 +1447,171 @@ export async function cancelServerStationOverrideAction(): Promise<ServerStation
 /** Called from LED cron — expires overrides and temporary slides. */
 export async function runServerStationMaintenance(venueId: string) {
   const admin = createServiceRoleClient();
-  if (!admin) return { overridesCleared: false, itemsExpired: 0 };
+  if (!admin) return { overridesCleared: false, itemsExpired: 0, libraryExpired: 0 };
   const cleared = await clearExpiredLedOverride(admin, venueId);
   const { expireServerStationItems } = await import("@/lib/server-station/overrides");
   const { promoteDueServerStationOverride } = await import("@/lib/server-station/overrides");
   await promoteDueServerStationOverride(admin, venueId);
   const expired = await expireServerStationItems(admin, venueId);
+  const libraryExpired = await expireUploadLibraryItems(admin, venueId);
   return {
     overridesCleared: Boolean(cleared.cleared),
     itemsExpired: expired.removed,
+    libraryExpired: libraryExpired.removed,
   };
+}
+
+export async function listServerStationUploadLibraryAction() {
+  const gate = await getServerStationGate("access");
+  if (!gate.ok) {
+    return { ok: false as const, message: gate.message, items: [] };
+  }
+  const result = await listUploadLibrary(gate.writeClient, gate.venueId);
+  if (result.missingTable) {
+    return {
+      ok: false as const,
+      message: `Apply ${SERVER_STATION_UPLOAD_LIBRARY_SQL} in the Supabase SQL editor, then try again.`,
+      items: [],
+    };
+  }
+  if (result.error) {
+    return { ok: false as const, message: result.error, items: [] };
+  }
+  return { ok: true as const, message: "ok", items: result.items };
+}
+
+export async function saveServerStationUploadToLibraryAction(input: unknown) {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false as const, message: gate.message, itemId: undefined as string | undefined };
+
+  const parsed = z
+    .object({
+      title: z.string().trim().min(1).max(120).optional(),
+      publicUrl: z.string().url(),
+      storagePath: z.string().trim().min(1).max(400),
+      mediaKind: z.enum(["image", "video"]).default("image"),
+      contentHash: z.string().trim().max(128).optional().nullable(),
+      templateId: z.string().trim().max(40).optional().nullable(),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      message: parsed.error.issues[0]?.message ?? "Check the upload and try again.",
+      itemId: undefined,
+    };
+  }
+
+  if (!parsed.data.storagePath.startsWith(`${gate.venueId}/led/`)) {
+    return { ok: false as const, message: "Upload path is invalid.", itemId: undefined };
+  }
+
+  const { settings } = await getServerStationSettings(gate.writeClient, gate.venueId);
+  const endsAt = resolveServerStationEndsAt({
+    preset: "tonight",
+    timeZone: gate.timeZone,
+    businessNightEndHour: settings.business_night_end_hour,
+  });
+
+  const content = requireContentDb(gate);
+  if (!content.ok) return { ok: false as const, message: content.message, itemId: undefined };
+
+  const saved = await addUploadLibraryItem(content.db, {
+    venueId: gate.venueId,
+    title: parsed.data.title || "Phone upload",
+    publicUrl: parsed.data.publicUrl,
+    storagePath: parsed.data.storagePath,
+    mediaKind: parsed.data.mediaKind,
+    contentHash: parsed.data.contentHash ?? null,
+    templateId: parsed.data.templateId ?? "classic",
+    createdBy: gate.actor.userId,
+    createdByName: gate.actor.displayName,
+    deviceId: gate.actor.deviceId,
+    endsAt,
+  });
+
+  if (!saved.ok) {
+    return { ok: false as const, message: saved.message, itemId: undefined };
+  }
+
+  await writeServerStationAudit(content.db, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "upload_library_saved",
+    detail: { itemId: saved.item?.id, title: parsed.data.title || "Phone upload" },
+  });
+
+  revalidateServerStation();
+  return {
+    ok: true as const,
+    message: saved.message,
+    itemId: saved.item?.id,
+  };
+}
+
+export async function setUploadLibraryItemOnWallAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = z
+    .object({
+      itemId: z.string().uuid(),
+      title: z.string().trim().min(1).max(120).optional(),
+      templateId: z.string().trim().max(40).optional(),
+      durationPreset: durationSchema.default(15),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Choose an upload from the library." };
+  }
+
+  const content = requireContentDb(gate);
+  if (!content.ok) return { ok: false, message: content.message };
+
+  const loaded = await getUploadLibraryItem(content.db, gate.venueId, parsed.data.itemId);
+  if (!loaded.ok || !loaded.item) {
+    return { ok: false, message: loaded.message };
+  }
+
+  const published = await publishServerStationGraphicAction({
+    kind: "upload",
+    title: parsed.data.title?.trim() || loaded.item.title,
+    templateId: parsed.data.templateId || loaded.item.templateId,
+    publicUrl: loaded.item.publicUrl,
+    storagePath: loaded.item.storagePath,
+    contentHash: loaded.item.contentHash,
+    durationPreset: parsed.data.durationPreset,
+    mode: "show_now",
+    photoUrl: loaded.item.publicUrl,
+  });
+
+  if (published.ok) {
+    await markUploadLibrarySetOnWall(content.db, gate.venueId, parsed.data.itemId);
+  }
+  return published;
+}
+
+export async function removeServerStationUploadLibraryItemAction(input: unknown): Promise<ServerStationActionResult> {
+  const gate = await getServerStationGate("content");
+  if (!gate.ok) return { ok: false, message: gate.message };
+
+  const parsed = z.object({ itemId: z.string().uuid() }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Choose an upload to remove." };
+
+  const content = requireContentDb(gate);
+  if (!content.ok) return { ok: false, message: content.message };
+
+  const removed = await removeUploadLibraryItem(content.db, gate.venueId, parsed.data.itemId);
+  if (!removed.ok) {
+    return { ok: false, message: uploadLibraryMissingMessage(removed.message) };
+  }
+
+  await writeServerStationAudit(content.db, {
+    venueId: gate.venueId,
+    actor: gate.actor,
+    action: "upload_library_removed",
+    detail: { itemId: parsed.data.itemId },
+  });
+  revalidateServerStation();
+  return removed;
 }

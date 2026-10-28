@@ -58,7 +58,7 @@ const CREATE_ITEMS: Array<{
     key: "upload",
     href: "/server/upload",
     label: "Phone upload",
-    hint: "Guest photo via QR",
+    hint: "Temp library · Set on Wall",
     icon: SmartphoneIcon,
   },
   {

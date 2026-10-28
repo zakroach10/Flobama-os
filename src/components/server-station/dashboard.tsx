@@ -80,7 +80,7 @@ const TILES: Array<{
     key: "upload",
     href: "/server/upload",
     title: "Phone Upload",
-    description: "Show a QR code for a guest photo.",
+    description: "QR photos go to a temporary library for Set on Wall.",
     icon: SmartphoneIcon,
     accent: "warm",
   },
