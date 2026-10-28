@@ -5,17 +5,19 @@ import { toast } from "sonner";
 import QRCode from "qrcode";
 import {
   issueServerStationUploadSessionAction,
+  listServerStationUploadLibraryAction,
   pollServerStationUploadSessionAction,
   prepareServerStationGraphicUploadAction,
-  publishServerStationGraphicAction,
+  removeServerStationUploadLibraryItemAction,
+  saveServerStationUploadToLibraryAction,
+  setUploadLibraryItemOnWallAction,
 } from "@/actions/server-station";
 import { ServerStationButton, ServerStationShell } from "@/components/server-station/shell";
 import { StationLink } from "@/components/server-station/station-nav";
-import { renderServerStationGraphicBlob } from "@/lib/server-station/graphics";
 import type { ServerStationWallStatus } from "@/lib/server-station/wall-status-shared";
+import type { ServerStationUploadLibraryItem } from "@/lib/server-station/upload-library";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { PublicSupabaseEnv } from "@/lib/env";
-import { SERVER_STATION_TEMPLATES, type ServerStationTemplateId } from "@/lib/server-station/templates";
 import { cn } from "@/lib/utils";
 
 export function ServerStationPhoneUploadPanel({
@@ -32,18 +34,47 @@ export function ServerStationPhoneUploadPanel({
   void _venueId;
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
-  const [uploadedPath, setUploadedPath] = useState<string | null>(null);
-  const [contentHash, setContentHash] = useState<string | null>(null);
-  const [templateId, setTemplateId] = useState<ServerStationTemplateId>(SERVER_STATION_TEMPLATES[0].id);
-  const [headline, setHeadline] = useState("FLOBAMA");
+  const [library, setLibrary] = useState<ServerStationUploadLibraryItem[]>([]);
+  const [libraryMessage, setLibraryMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const localObjectUrlRef = useRef<string | null>(null);
 
-  function chooseLocalPhoto(file: File | null) {
-    if (!file) return;
+  function reloadLibrary() {
+    startTransition(async () => {
+      const result = await listServerStationUploadLibraryAction();
+      if (!result.ok) {
+        setLibraryMessage(result.message);
+        return;
+      }
+      setLibraryMessage(null);
+      setLibrary(result.items);
+    });
+  }
+
+  useEffect(() => {
+    reloadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const timer = setInterval(() => {
+      void (async () => {
+        const result = await pollServerStationUploadSessionAction({ sessionId });
+        if (result.ok && result.uploaded && result.url) {
+          setSessionId(null);
+          setQrDataUrl(null);
+          toast.success("Upload received — saved to tonight’s temporary library.");
+          reloadLibrary();
+        }
+      })();
+    }, 2000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  async function uploadLocalPhotoToLibrary(file: File) {
     if (!file.type.startsWith("image/")) {
       toast.error("Choose a photo.");
       return;
@@ -52,31 +83,17 @@ export function ServerStationPhoneUploadPanel({
       toast.error("Photo must be 10 MB or smaller.");
       return;
     }
-    if (localObjectUrlRef.current) URL.revokeObjectURL(localObjectUrlRef.current);
-    const objectUrl = URL.createObjectURL(file);
-    localObjectUrlRef.current = objectUrl;
-    setUploadedUrl(objectUrl);
-    setUploadedPath(null);
-    setContentHash(null);
-    setQrDataUrl(null);
-    setSessionId(null);
-  }
-
-  async function publishRendered(mode: "show_now" | "add_rotation") {
-    if (!uploadedUrl) return;
-    const blob = await renderServerStationGraphicBlob({
-      kind: "message",
-      templateId,
-      headline: headline || "FLOBAMA",
-      photoUrl: uploadedUrl,
-    });
     const supabase = createBrowserSupabaseClient(supabaseEnv);
     if (!supabase) {
       toast.error("Upload is not configured.");
       return;
     }
-    const file = new File([blob], `server-upload.png`, { type: "image/png" });
-    const prepared = await prepareServerStationGraphicUploadAction({ prefix: "server-upload" });
+    const contentType =
+      file.type === "image/webp" ? "image/webp" : file.type === "image/png" ? "image/png" : "image/jpeg";
+    const prepared = await prepareServerStationGraphicUploadAction({
+      prefix: "server-upload",
+      contentType,
+    });
     if (!prepared.ok) {
       toast.error(prepared.message);
       return;
@@ -88,46 +105,36 @@ export function ServerStationPhoneUploadPanel({
       toast.error(error.message);
       return;
     }
-    const result = await publishServerStationGraphicAction({
-      kind: "upload",
-      title: headline || "Phone upload",
-      templateId,
+    let contentHash: string | null = null;
+    try {
+      const { sha256HexFromBlob } = await import("@/lib/display-devices/hashes");
+      contentHash = await sha256HexFromBlob(file);
+    } catch {
+      contentHash = null;
+    }
+    const saved = await saveServerStationUploadToLibraryAction({
+      title: file.name.replace(/\.[^.]+$/, "") || "Phone upload",
       publicUrl: prepared.publicUrl,
       storagePath: prepared.storagePath,
+      mediaKind: "image",
       contentHash,
-      durationPreset: mode === "show_now" ? 15 : "tonight",
-      mode,
-      photoUrl: prepared.publicUrl,
     });
-    setMessage(result.message);
-    if (result.ok) toast.success(result.message);
-    else toast.error(result.message);
+    setMessage(saved.message);
+    if (saved.ok) {
+      toast.success(saved.message);
+      reloadLibrary();
+    } else {
+      toast.error(saved.message);
+    }
   }
-
-  useEffect(() => {
-    if (!sessionId) return;
-    const timer = setInterval(() => {
-      void (async () => {
-        const result = await pollServerStationUploadSessionAction({ sessionId });
-        if (result.ok && result.uploaded && result.url) {
-          setUploadedUrl(result.url);
-          setUploadedPath(result.storagePath ?? null);
-          setContentHash(result.contentHash ?? null);
-          setSessionId(null);
-          toast.success("Upload received. Preview it, then approve.");
-        }
-      })();
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [sessionId]);
 
   return (
     <ServerStationShell actorName={actorName} wall={wall} title="Upload from Phone">
       <div className="mb-4 space-y-1 lg:mb-5 lg:space-y-2">
-        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">Upload a picture</h1>
+        <h1 className="text-2xl font-bold text-[#f7efe6] lg:text-3xl">Temporary upload library</h1>
         <p className="text-base text-[#e8d5c4]/90 lg:text-lg">
-          On a phone, choose a photo from this device. On the kiosk, show a QR code and approve the upload here
-          before it goes on the wall.
+          Guest QR uploads land here for tonight. Set on Wall puts one on the LED — they are not added to the
+          house ad rotation unless you choose that elsewhere.
         </p>
       </div>
 
@@ -136,17 +143,26 @@ export function ServerStationPhoneUploadPanel({
           {message}
         </p>
       ) : null}
+      {libraryMessage ? (
+        <p className="mb-5 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-amber-50">
+          {libraryMessage}
+        </p>
+      ) : null}
 
-      {!uploadedUrl ? (
-        <div className="mx-auto max-w-md space-y-5 text-center">
+      <div className="mb-6 grid gap-5 lg:grid-cols-[minmax(0,22rem)_1fr]">
+        <div className="space-y-4 text-center lg:text-left">
           <input
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
             className="sr-only"
             onChange={(event) => {
-              chooseLocalPhoto(event.target.files?.[0] ?? null);
+              const file = event.target.files?.[0] ?? null;
               event.target.value = "";
+              if (!file) return;
+              startTransition(async () => {
+                await uploadLocalPhotoToLibrary(file);
+              });
             }}
           />
           <ServerStationButton disabled={pending} onClick={() => fileInputRef.current?.click()} className="w-full">
@@ -164,13 +180,13 @@ export function ServerStationPhoneUploadPanel({
                   return;
                 }
                 setSessionId(result.sessionId);
-                setUploadedUrl(null);
                 const dataUrl = await QRCode.toDataURL(result.uploadUrl, {
                   width: 640,
                   margin: 1,
                   color: { dark: "#1a1410", light: "#ffffff" },
                 });
                 setQrDataUrl(dataUrl);
+                toast.success(result.message);
               });
             }}
           >
@@ -184,108 +200,121 @@ export function ServerStationPhoneUploadPanel({
               <p className="mt-4 text-lg font-semibold text-[#1a1410]">
                 Scan with your phone to upload a picture.
               </p>
-              <p className="mt-2 text-sm text-[#5c4a3d]">Waiting for upload…</p>
+              <p className="mt-2 text-sm text-[#5c4a3d]">
+                {sessionId ? "Waiting for upload…" : "Ready"}
+              </p>
             </div>
           ) : null}
         </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4">
-            <p className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Uploaded photo</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={uploadedUrl} alt="Uploaded" className="max-h-64 w-full rounded-[24px] object-contain" />
-            <label className="block space-y-2">
-              <span className="text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Headline</span>
-              <input
-                className="min-h-16 w-full rounded-2xl border border-white/15 bg-black/30 px-4 text-xl text-[#f7efe6]"
-                value={headline}
-                maxLength={48}
-                onChange={(event) => setHeadline(event.target.value)}
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {SERVER_STATION_TEMPLATES.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => setTemplateId(template.id)}
-                  className={cn(
-                    "min-h-14 rounded-2xl border px-3 text-left font-semibold",
-                    templateId === template.id ? "border-[#d36b4a] bg-[#d36b4a]/20" : "border-white/15",
-                  )}
+
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-[#f7efe6]">Tonight’s library</h2>
+              <p className="text-sm text-[#e8d5c4]/80">
+                Clears after close. Live takes are managed in{" "}
+                <StationLink href="/server/active" className="font-semibold underline">
+                  Your rotation
+                </StationLink>
+                .
+              </p>
+            </div>
+            <ServerStationButton
+              variant="secondary"
+              disabled={pending}
+              onClick={() => reloadLibrary()}
+              className="min-h-11 px-4 text-sm"
+            >
+              Refresh
+            </ServerStationButton>
+          </div>
+
+          {library.length === 0 ? (
+            <div className="rounded-[24px] border border-white/10 bg-black/20 p-6 text-[#e8d5c4]">
+              No phone uploads yet tonight. Show a QR or choose a photo to add one.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {library.map((item) => (
+                <div
+                  key={item.id}
+                  className="overflow-hidden rounded-2xl border border-white/10 bg-black/25"
                 >
-                  {template.label}
-                </button>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.publicUrl}
+                    alt=""
+                    className="aspect-video w-full bg-black/40 object-contain"
+                  />
+                  <div className="space-y-2 p-3">
+                    <p className="truncate text-sm font-semibold text-[#f7efe6]">{item.title}</p>
+                    <p className="text-xs text-[#e8d5c4]/80">
+                      {item.lastSetOnWallAt ? "Previously set on wall · " : ""}
+                      expires tonight
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <ServerStationButton
+                        type="button"
+                        disabled={pending}
+                        className="min-h-11 px-4 text-sm"
+                        onClick={() => {
+                          startTransition(async () => {
+                            const result = await setUploadLibraryItemOnWallAction({
+                              itemId: item.id,
+                              title: item.title,
+                              durationPreset: 15,
+                            });
+                            setMessage(result.message);
+                            if (result.ok) {
+                              toast.success(result.message);
+                              reloadLibrary();
+                            } else {
+                              toast.error(result.message);
+                            }
+                          });
+                        }}
+                      >
+                        Set on Wall
+                      </ServerStationButton>
+                      <ServerStationButton
+                        type="button"
+                        variant="secondary"
+                        disabled={pending}
+                        className="min-h-11 px-4 text-sm"
+                        onClick={() => {
+                          startTransition(async () => {
+                            const result = await removeServerStationUploadLibraryItemAction({
+                              itemId: item.id,
+                            });
+                            setMessage(result.message);
+                            if (result.ok) {
+                              toast.success(result.message);
+                              reloadLibrary();
+                            } else {
+                              toast.error(result.message);
+                            }
+                          });
+                        }}
+                      >
+                        Remove
+                      </ServerStationButton>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-            <div className="flex flex-wrap justify-end gap-3">
-              <ServerStationButton
-                disabled={pending}
-                onClick={() => {
-                  startTransition(async () => {
-                    await publishRendered("show_now");
-                  });
-                }}
-              >
-                Show Now
-              </ServerStationButton>
-              <ServerStationButton
-                variant="secondary"
-                disabled={pending}
-                onClick={() => {
-                  startTransition(async () => {
-                    if (uploadedPath && uploadedUrl) {
-                      const result = await publishServerStationGraphicAction({
-                        kind: "upload",
-                        title: headline || "Phone upload",
-                        templateId,
-                        publicUrl: uploadedUrl,
-                        storagePath: uploadedPath,
-                        contentHash,
-                        durationPreset: "tonight",
-                        mode: "add_rotation",
-                        photoUrl: uploadedUrl,
-                      });
-                      setMessage(result.message);
-                      if (result.ok) toast.success(result.message);
-                      else toast.error(result.message);
-                      return;
-                    }
-                    await publishRendered("add_rotation");
-                  });
-                }}
-              >
-                Add to Rotation
-              </ServerStationButton>
-              <ServerStationButton
-                variant="secondary"
-                onClick={() => {
-                  if (localObjectUrlRef.current) {
-                    URL.revokeObjectURL(localObjectUrlRef.current);
-                    localObjectUrlRef.current = null;
-                  }
-                  setUploadedUrl(null);
-                  setUploadedPath(null);
-                  setQrDataUrl(null);
-                }}
-              >
-                Start over
-              </ServerStationButton>
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-semibold tracking-wide text-[#e8d5c4] uppercase">Approve before publishing</p>
-            <p className="text-[#e8d5c4]">
-              Nothing goes on the LED wall until you tap Show Now or Add to Rotation on this kiosk.
-              The ad already playing finishes first.{" "}
-              <StationLink href="/server/active" className="font-semibold underline">
-                Your rotation
-              </StationLink>{" "}
-              is where you take a slide down.
-            </p>
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
+      <p
+        className={cn(
+          "rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#e8d5c4]",
+        )}
+      >
+        Set on Wall waits for the current ad to finish, then takes over the LED. It does not insert the
+        photo into the ongoing house ad rotation.
+      </p>
     </ServerStationShell>
   );
 }

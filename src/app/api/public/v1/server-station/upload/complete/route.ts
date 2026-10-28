@@ -29,5 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.message }, { status });
   }
 
-  return NextResponse.json({ ok: true, message: result.message });
+  return NextResponse.json({
+    ok: true,
+    message: result.message,
+    libraryItemId: "libraryItemId" in result ? result.libraryItemId : null,
+  });
 }

@@ -861,6 +861,56 @@ export type Database = {
         };
         Relationships: [];
       };
+      server_station_upload_library: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          public_url: string;
+          storage_path: string;
+          media_kind: "image" | "video";
+          content_hash: string | null;
+          template_id: string;
+          upload_session_id: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          device_id: string | null;
+          ends_at: string;
+          last_set_on_wall_at: string | null;
+          removed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          title: string;
+          public_url: string;
+          storage_path: string;
+          media_kind?: "image" | "video";
+          content_hash?: string | null;
+          template_id?: string;
+          upload_session_id?: string | null;
+          created_by?: string | null;
+          created_by_name?: string | null;
+          device_id?: string | null;
+          ends_at: string;
+          last_set_on_wall_at?: string | null;
+          removed_at?: string | null;
+        };
+        Update: {
+          title?: string;
+          public_url?: string;
+          storage_path?: string;
+          media_kind?: "image" | "video";
+          content_hash?: string | null;
+          template_id?: string;
+          ends_at?: string;
+          last_set_on_wall_at?: string | null;
+          removed_at?: string | null;
+        };
+        Relationships: [];
+      };
       server_station_devices: {
         Row: {
           id: string;

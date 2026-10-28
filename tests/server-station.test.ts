@@ -36,6 +36,8 @@ import {
 } from "@/lib/server-station/events";
 import { buildServerStationGraphicModel, celebrationBadge } from "@/lib/server-station/templates";
 import { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
+import { uploadLibraryMissingMessage } from "@/lib/server-station/upload-library";
+import { SERVER_STATION_UPLOAD_LIBRARY_SQL } from "@/lib/constants";
 import { DateTime } from "luxon";
 import { ledScenePosterStoragePath } from "@/lib/screens/led-poster";
 import {
@@ -197,6 +199,14 @@ describe("server station content validation", () => {
     expect(detectServerStationUploadKind({ type: "image/webp", name: "a.webp" })).toBe("image");
     expect(detectServerStationUploadKind({ type: "video/mp4", name: "a.mp4" })).toBe("video");
     expect(detectServerStationUploadKind({ type: "application/pdf", name: "a.pdf" })).toBeNull();
+  });
+
+  it("points staff at the temporary upload library SQL when the table is missing", () => {
+    expect(
+      uploadLibraryMissingMessage(
+        'relation "public.server_station_upload_library" does not exist',
+      ),
+    ).toContain(SERVER_STATION_UPLOAD_LIBRARY_SQL);
   });
 
   it("flags venue-local tonight events and prefers artist names", () => {

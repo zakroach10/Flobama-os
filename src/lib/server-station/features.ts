@@ -33,7 +33,7 @@ export const SERVER_STATION_MENU_LABELS: Record<ServerStationMenuKey, string> = 
   specials: "Food & Drink",
   birthday: "Celebration",
   message: "Custom Message",
-  upload: "Phone Upload",
+  upload: "Phone Upload Library",
   youtube: "YouTube",
   active: "Your Rotation",
 };

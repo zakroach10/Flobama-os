@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { hashDisplaySecret } from "@/lib/display-devices/crypto";
+import { resolveServerStationEndsAt } from "@/lib/server-station/expiration";
 import { getServerStationSettings } from "@/lib/server-station/settings";
+import { addUploadLibraryItem } from "@/lib/server-station/upload-library";
 import { isMissingServerStationRelation } from "@/lib/auth/server-station";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/constants";
 
 export { detectServerStationUploadKind } from "@/lib/server-station/upload-kinds";
 
@@ -146,7 +149,47 @@ export async function completeServerStationPhoneUpload(input: {
     .is("consumed_at", null);
 
   if (error) return { ok: false as const, message: error.message };
-  return { ok: true as const, message: "Upload received. Return to the Server Station to approve it." };
+
+  const { settings } = await getServerStationSettings(resolved.admin, resolved.session.venue_id);
+  const { data: venue } = await resolved.admin
+    .from("venues")
+    .select("timezone")
+    .eq("id", resolved.session.venue_id)
+    .maybeSingle();
+  const endsAt = resolveServerStationEndsAt({
+    preset: "tonight",
+    timeZone: venue?.timezone?.trim() || DEFAULT_VENUE_TIMEZONE,
+    businessNightEndHour: settings.business_night_end_hour,
+  });
+
+  const library = await addUploadLibraryItem(resolved.admin, {
+    venueId: resolved.session.venue_id,
+    title: "Phone upload",
+    publicUrl: input.publicUrl,
+    storagePath: input.storagePath,
+    mediaKind: input.mediaKind,
+    contentHash: input.sha256 ?? null,
+    uploadSessionId: resolved.session.id,
+    createdBy: resolved.session.created_by,
+    deviceId: resolved.session.device_id,
+    endsAt,
+  });
+
+  if (!library.ok) {
+    // Upload itself succeeded; library table may not be migrated yet.
+    return {
+      ok: true as const,
+      message: "Upload received. Return to the Server Station to put it on the wall.",
+      libraryItemId: null,
+      libraryWarning: library.message,
+    };
+  }
+
+  return {
+    ok: true as const,
+    message: "Upload received. It is in tonight’s temporary library — Set on Wall from the Server Station.",
+    libraryItemId: library.item?.id ?? null,
+  };
 }
 
 export function hashUploadToken(token: string) {
