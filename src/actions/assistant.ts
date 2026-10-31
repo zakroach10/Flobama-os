@@ -5,7 +5,7 @@ import { saveArtistAction, saveEventAction, type ActionResult } from "@/actions/
 import { activateDefaultAdRollAction } from "@/actions/artist-led";
 import { activateLedWallSceneAction } from "@/actions/led-wall";
 import { activateLedPlaylistAction } from "@/actions/led-playlists";
-import { playYoutubeOnWallAction } from "@/actions/server-station";
+import { activateServerStationSceneAction, playYoutubeOnWallAction } from "@/actions/server-station";
 import { getStaffContext } from "@/lib/auth/staff";
 import { showStaffAssistant } from "@/lib/assistant/access";
 import { completeAssistantPlan } from "@/lib/assistant/openai";
@@ -29,6 +29,10 @@ import { artistNameMatches } from "@/lib/queries/artists";
 import { artistNames, getEventById, searchEvents } from "@/lib/queries/events";
 import { listStaffLedPlaylists } from "@/lib/queries/led-playlists";
 import { getLedWallRuntime, listLedWallScenes } from "@/lib/queries/led-wall";
+import { getServerStationGate } from "@/lib/server-station/context";
+import { listServerApprovedScenes } from "@/lib/server-station/scenes";
+import { getServerStationSettings } from "@/lib/server-station/settings";
+import { getServerStationWallStatus } from "@/lib/server-station/wall-status";
 import { getOpenAiConfig } from "@/lib/env";
 import { formatVenueDateTime } from "@/lib/timezone";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -175,11 +179,33 @@ async function resolveArtistIds(
   return { ok: true, ids, created };
 }
 
+type WallCommands = {
+  showScene: (sceneId: string) => Promise<{ ok: boolean; message: string }>;
+  showPlaylist: (playlistId: string) => Promise<{ ok: boolean; message: string }>;
+  resumeHouseAds: () => Promise<{ ok: boolean; message: string }>;
+  playYoutube: (url: string) => Promise<{ ok: boolean; message: string }>;
+};
+
+const staffWallCommands: WallCommands = {
+  showScene: (sceneId) => activateLedWallSceneAction({ sceneId }),
+  showPlaylist: (playlistId) => activateLedPlaylistAction({ playlistId }),
+  resumeHouseAds: () => activateDefaultAdRollAction(),
+  playYoutube: (url) => playYoutubeOnWallAction({ url }),
+};
+
+const stationWallCommands: WallCommands = {
+  showScene: (sceneId) => activateServerStationSceneAction({ sceneId }),
+  showPlaylist: (playlistId) => activateServerStationSceneAction({ playlistId }),
+  resumeHouseAds: () => activateServerStationSceneAction({ resumeNormal: true }),
+  playYoutube: (url) => playYoutubeOnWallAction({ url }),
+};
+
 async function executePlan(
   plan: AssistantPlan,
   catalog: AssistantCatalog,
   supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
   venueId: string,
+  wall: WallCommands,
 ): Promise<AssistantActionResult> {
   if (
     (plan.action === "create_artist" || plan.action === "create_event" || plan.action === "update_listing") &&
@@ -343,7 +369,7 @@ async function executePlan(
     if (!plan.wallName) return { ok: false, reply: "Tell me which LED scene to put on the wall." };
     const scene = matchCatalogItem(catalog.scenes, plan.wallName, "scene");
     if (!scene.ok) return { ok: false, reply: scene.message };
-    const result = await activateLedWallSceneAction({ sceneId: scene.item.id });
+    const result = await wall.showScene(scene.item.id);
     return { ok: result.ok, reply: result.message, changed: result.ok };
   }
 
@@ -351,12 +377,12 @@ async function executePlan(
     if (!plan.wallName) return { ok: false, reply: "Tell me which playlist to put on the wall." };
     const playlist = matchCatalogItem(catalog.playlists, plan.wallName, "playlist");
     if (!playlist.ok) return { ok: false, reply: playlist.message };
-    const result = await activateLedPlaylistAction({ playlistId: playlist.item.id });
+    const result = await wall.showPlaylist(playlist.item.id);
     return { ok: result.ok, reply: result.message, changed: result.ok };
   }
 
   if (plan.action === "resume_house_ads") {
-    const result = await activateDefaultAdRollAction();
+    const result = await wall.resumeHouseAds();
     return { ok: result.ok, reply: result.message, changed: result.ok };
   }
 
@@ -364,29 +390,49 @@ async function executePlan(
     if (!plan.youtubeUrl || !parseYoutubeVideoUrl(plan.youtubeUrl)) {
       return { ok: false, reply: "Paste a YouTube video link to play it on the wall." };
     }
-    const result = await playYoutubeOnWallAction({ url: plan.youtubeUrl });
+    const result = await wall.playYoutube(plan.youtubeUrl);
     return { ok: result.ok, reply: result.message, changed: result.ok };
   }
 
   return { ok: true, reply: plan.reply, changed: false };
 }
 
-export async function askStaffAssistantAction(input: unknown): Promise<AssistantActionResult> {
-  const context = await getStaffContext();
-  if (context.status === "unconfigured") return { ok: false, reply: "Supabase is not configured." };
-  if (context.status === "unauthenticated") return { ok: false, reply: "Sign in required." };
-  if (context.status === "denied") return { ok: false, reply: "You do not have staff access." };
-  if (context.status === "error") return { ok: false, reply: context.message };
-  if (!showStaffAssistant(context.menus, context.role)) {
-    return { ok: false, reply: "The assistant is not available on this console." };
-  }
+async function loadStationCatalog(
+  client: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+  venueId: string,
+  timeZone: string,
+  permissions: { canProgram: boolean; canChangeWall: boolean; canPlayYoutube: boolean },
+): Promise<AssistantCatalog> {
+  const now = new Date().toISOString();
+  const [approved, wall, settingsRes] = await Promise.all([
+    listServerApprovedScenes(client, venueId),
+    getServerStationWallStatus(client, venueId),
+    getServerStationSettings(client, venueId),
+  ]);
+  const notes: string[] = [];
+  if (approved.error) notes.push(approved.error);
+  return {
+    timeZone,
+    nowLabel: formatVenueDateTime(now, timeZone, "cccc, LLL d, yyyy • h:mm a"),
+    ...permissions,
+    canPlayYoutube: permissions.canPlayYoutube && settingsRes.settings.menus_enabled.youtube,
+    wall: { scene: wall.currentlyPlaying || null, playlist: null },
+    scenes: approved.scenes.map((scene) => ({ id: scene.id, name: scene.title })),
+    playlists: approved.playlists.map((playlist) => ({ id: playlist.id, name: playlist.name })),
+    artists: [],
+    events: [],
+    notes,
+  };
+}
 
-  const parsed = requestSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, reply: "Send a short message." };
-  const turns = sanitizeConversation(parsed.data.messages);
-  const userText = latestUserText(turns);
-  if (!userText) return { ok: false, reply: "Send a message to the assistant." };
-
+async function completeAndExecute(
+  catalog: AssistantCatalog,
+  turns: ReturnType<typeof sanitizeConversation>,
+  userText: string,
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>>>,
+  venueId: string,
+  wall: WallCommands,
+): Promise<AssistantActionResult> {
   const openAi = getOpenAiConfig();
   if (!openAi) {
     return {
@@ -394,19 +440,46 @@ export async function askStaffAssistantAction(input: unknown): Promise<Assistant
       reply: "The assistant is off until OPENAI_API_KEY is set on the server. Band-fit analysis uses the same key.",
     };
   }
-
-  const supabase = await createServerSupabaseClient();
-  if (!supabase) return { ok: false, reply: "Supabase is not configured." };
-
-  const catalog = await loadCatalog(supabase, context.venue.id, context.venue.timezone, {
-    canProgram: canManageProgramming(context.role),
-    canChangeWall: authorizeLedWallActivate(context.role).allowed,
-    canPlayYoutube: canManageProgramming(context.role),
-  });
-
   const completed = await completeAssistantPlan(catalog, turns, { config: openAi });
   if (!completed.ok) return { ok: false, reply: completed.message };
-
   const plan = prepareAssistantPlan(completed.plan, userText);
-  return executePlan(plan, catalog, supabase, context.venue.id);
+  return executePlan(plan, catalog, supabase, venueId, wall);
+}
+
+export async function askStaffAssistantAction(input: unknown): Promise<AssistantActionResult> {
+  const parsed = requestSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, reply: "Send a short message." };
+  const turns = sanitizeConversation(parsed.data.messages);
+  const userText = latestUserText(turns);
+  if (!userText) return { ok: false, reply: "Send a message to the assistant." };
+
+  const context = await getStaffContext();
+  const station = await getServerStationGate("access");
+
+  if (context.status === "ok" && showStaffAssistant(context.menus, context.role)) {
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) return { ok: false, reply: "Supabase is not configured." };
+    const catalog = await loadCatalog(supabase, context.venue.id, context.venue.timezone, {
+      canProgram: canManageProgramming(context.role),
+      canChangeWall: authorizeLedWallActivate(context.role).allowed,
+      canPlayYoutube: canManageProgramming(context.role),
+    });
+    return completeAndExecute(catalog, turns, userText, supabase, context.venue.id, staffWallCommands);
+  }
+
+  if (station.ok) {
+    const canProgram = context.status === "ok" && canManageProgramming(context.role);
+    const catalog = await loadStationCatalog(station.writeClient, station.venueId, station.timeZone, {
+      canProgram,
+      canChangeWall: true,
+      canPlayYoutube: true,
+    });
+    return completeAndExecute(catalog, turns, userText, station.writeClient, station.venueId, stationWallCommands);
+  }
+
+  if (context.status === "unconfigured") return { ok: false, reply: "Supabase is not configured." };
+  if (context.status === "unauthenticated") return { ok: false, reply: "Sign in required." };
+  if (context.status === "denied") return { ok: false, reply: "You do not have staff access." };
+  if (context.status === "error") return { ok: false, reply: context.message };
+  return { ok: false, reply: "The assistant is not available on this console." };
 }

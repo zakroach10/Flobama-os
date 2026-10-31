@@ -36,6 +36,9 @@ export type StationSession = {
   playlists: ServerStationPlaylistCard[];
   defaultPlaylistId: string | null;
   menusEnabled: ServerStationMenusEnabled;
+  /** Admin and manager logins can add artists and events from the assistant. */
+  canProgram: boolean;
+  assistantConfigured: boolean;
   /** Preloaded on shell install so Events does not wait on first open. */
   events: ServerStationEventCard[];
   eventsError: string | null;

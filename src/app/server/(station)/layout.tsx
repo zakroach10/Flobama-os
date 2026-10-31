@@ -1,5 +1,7 @@
 import { StationProvider } from "@/components/server-station/station-nav";
 import { StationScreen } from "@/components/server-station/station-screen";
+import { canManageProgramming } from "@/lib/auth/permissions";
+import { isOpenAiConfigured } from "@/lib/env";
 import { loadServerStationShell } from "@/lib/server-station/load-page";
 
 export default async function ServerStationShellLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +19,8 @@ export default async function ServerStationShellLayout({ children }: { children:
         playlists: loaded.approved.playlists,
         defaultPlaylistId: loaded.approved.defaultPlaylistId,
         menusEnabled: loaded.menusEnabled,
+        canProgram: canManageProgramming(loaded.gate.actor.role),
+        assistantConfigured: isOpenAiConfigured(),
         events: loaded.events,
         eventsError: loaded.eventsError,
       }}

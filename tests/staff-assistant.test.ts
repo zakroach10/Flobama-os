@@ -6,6 +6,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => undefined }),
 }));
 import { StaffAssistant } from "@/components/assistant/staff-assistant";
+import { speechTranscript } from "@/lib/assistant/speech";
 import { showStaffAssistant } from "@/lib/assistant/access";
 import { completeAssistantPlan } from "@/lib/assistant/openai";
 import {
@@ -45,6 +46,31 @@ describe("staff assistant panel", () => {
     );
     expect(html).toContain("Ask");
     expect(html).toContain("aria-expanded=\"false\"");
+  });
+
+  it("offers a microphone in the open assistant", () => {
+    const html = renderToStaticMarkup(
+      createElement(StaffAssistant, {
+        canProgram: true,
+        canChangeWall: true,
+        configured: true,
+        placement: "dock",
+        initialOpen: true,
+      }),
+    );
+    expect(html).toContain("Speak to the assistant");
+    expect(html).toContain("Speak or type");
+  });
+});
+
+describe("speech transcript", () => {
+  it("joins final and interim words into one request", () => {
+    expect(
+      speechTranscript([
+        { transcript: " put house ads ", isFinal: true },
+        { transcript: " on the wall", isFinal: false },
+      ]),
+    ).toBe("put house ads on the wall");
   });
 });
 
