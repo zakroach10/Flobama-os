@@ -11,12 +11,14 @@ import {
   MoreHorizontalIcon,
   Music2Icon,
   PlusIcon,
+  SparklesIcon,
   SmartphoneIcon,
   UtensilsCrossedIcon,
   XIcon,
   TvMinimalPlayIcon,
   type LucideIcon,
 } from "lucide-react";
+import { StaffAssistant } from "@/components/assistant/staff-assistant";
 import { StationLink, useStationNav } from "@/components/server-station/station-nav";
 import {
   isServerStationMenuEnabled,
@@ -130,11 +132,15 @@ export function ServerStationMobileDock() {
   const menus = nav?.session.menusEnabled;
   const standalone = useStandaloneDisplay();
   const [sheet, setSheet] = useState<SheetId>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   useEffect(() => {
     if (!sheet) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSheet(null);
+      if (event.key === "Escape") {
+      setSheet(null);
+      setAssistantOpen(false);
+    }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -142,11 +148,14 @@ export function ServerStationMobileDock() {
 
   function closeSheet() {
     setSheet(null);
+    setAssistantOpen(false);
   }
 
   const createItems = CREATE_ITEMS.filter((item) => isServerStationMenuEnabled(menus, item.key));
   const moreItems = MORE_ITEMS.filter((item) => isServerStationMenuEnabled(menus, item.key));
   const wallEnabled = isServerStationMenuEnabled(menus, "wall");
+  const canProgram = nav?.session.canProgram ?? false;
+  const assistantConfigured = nav?.session.assistantConfigured ?? false;
 
   const createOpen = sheet === "create";
   const moreOpen = sheet === "more";
@@ -159,7 +168,15 @@ export function ServerStationMobileDock() {
   const sheetTitle = sheet === "create" ? "Put something on the wall" : sheet === "more" ? "More" : "";
 
   return (
-    <div className="relative z-50 shrink-0 lg:hidden">
+    <div className="relative z-50 shrink-0 pt-7 lg:hidden">
+      <StaffAssistant
+        placement="dock"
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+        canProgram={canProgram}
+        canChangeWall
+        configured={assistantConfigured}
+      />
       {sheet ? (
         <button
           type="button"
@@ -225,7 +242,7 @@ export function ServerStationMobileDock() {
 
       <nav
         aria-label="Server Station"
-        className="border-t border-white/10 bg-[#100e0c] pt-1"
+        className="overflow-visible border-t border-white/10 bg-[#100e0c] pt-1"
         style={{
           // Sit almost on the home indicator — only a couple pixels of clearance.
           paddingBottom: standalone
@@ -233,17 +250,40 @@ export function ServerStationMobileDock() {
             : "0.125rem",
         }}
       >
-        <div className={cn("grid h-9", wallEnabled ? "grid-cols-4" : "grid-cols-3")}>
+        <div className="grid h-11 grid-cols-5 items-end overflow-visible">
           <DockLink href="/server" label="Home" icon={HomeIcon} active={homeActive} onNavigate={closeSheet} />
           <DockButton
             label="Create"
             icon={PlusIcon}
             active={createActive || createOpen}
             pressed={createOpen}
-            onClick={() => setSheet(createOpen ? null : "create")}
-            emphasize
+            onClick={() => {
+              setAssistantOpen(false);
+              setSheet(createOpen ? null : "create");
+            }}
             disabled={createItems.length === 0}
           />
+          <button
+            type="button"
+            aria-label="Assistant"
+            aria-expanded={assistantOpen}
+            aria-controls={assistantOpen ? "staff-assistant-panel" : undefined}
+            onClick={() => {
+              setSheet(null);
+              setAssistantOpen((value) => !value);
+            }}
+            className="relative flex h-full flex-col items-center justify-end text-[10px] font-semibold tracking-wide text-[#f7efe6] uppercase"
+          >
+            <span
+              className={cn(
+                "absolute -top-6 inline-flex size-[3.35rem] items-center justify-center rounded-full border-4 border-[#100e0c] bg-[#d36b4a] text-white shadow-[0_10px_22px_rgba(0,0,0,0.45)]",
+                assistantOpen && "ring-2 ring-white",
+              )}
+            >
+              <SparklesIcon className="size-6" aria-hidden />
+            </span>
+            Ask
+          </button>
           {wallEnabled ? (
             <DockLink
               href="/server/wall"
@@ -252,13 +292,18 @@ export function ServerStationMobileDock() {
               active={wallActive}
               onNavigate={closeSheet}
             />
-          ) : null}
+          ) : (
+            <span aria-hidden />
+          )}
           <DockButton
             label="More"
             icon={MoreHorizontalIcon}
             active={moreActive || moreOpen}
             pressed={moreOpen}
-            onClick={() => setSheet(moreOpen ? null : "more")}
+            onClick={() => {
+              setAssistantOpen(false);
+              setSheet(moreOpen ? null : "more");
+            }}
             disabled={moreItems.length === 0}
           />
         </div>
