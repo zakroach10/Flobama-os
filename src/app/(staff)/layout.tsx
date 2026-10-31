@@ -1,11 +1,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
-import { isSupabaseConfigured, missingPublicEnvNames } from "@/lib/env";
+import { isOpenAiConfigured, isSupabaseConfigured, missingPublicEnvNames } from "@/lib/env";
 import { SetupRequired } from "@/components/states";
 import { ErrorState } from "@/components/states";
 import { AppShell } from "@/components/layout/app-shell";
+import { StaffAssistant } from "@/components/assistant/staff-assistant";
 import { WallOpsPwaRegister } from "@/components/pwa/wall-ops-pwa-register";
+import { showStaffAssistant } from "@/lib/assistant/access";
+import { authorizeLedWallActivate, canManageProgramming } from "@/lib/auth/permissions";
 import { STAFF_ROLE_LABELS } from "@/lib/constants";
 import { firstMenuHref, isWallOpsShell } from "@/lib/auth/menus";
 import { WALL_OPS_HOME_PATH, WALL_OPS_LOGIN_PATH } from "@/lib/auth/wall-ops";
@@ -59,6 +62,13 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     >
       {wallOps ? <WallOpsPwaRegister /> : null}
       {children}
+      {showStaffAssistant(context.menus, context.role) ? (
+        <StaffAssistant
+          canProgram={canManageProgramming(context.role)}
+          canChangeWall={authorizeLedWallActivate(context.role).allowed}
+          configured={isOpenAiConfigured()}
+        />
+      ) : null}
     </AppShell>
   );
 }
