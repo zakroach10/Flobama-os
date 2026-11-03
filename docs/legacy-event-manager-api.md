@@ -70,34 +70,32 @@ The default mint grants all four. `GET` by id is `events:read`. The SQL read use
 
 ### Generate, rotate, and revoke
 
-Run this on a trusted machine that already has the FloBama OS server environment (`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`). Run it only after the migration is applied. The script prints the token once. It does not print the service-role key or the token hash.
+**Preferred:** FloBama OS → **Settings → Integrations → Legacy event manager API** (admins only).
 
-```bash
-node scripts/integration-credential.mjs create --name "HighLevel AI Studio"
+1. Name the credential (for example `HighLevel AI Studio`).
+2. Choose permissions. For AI Studio today, use `events:read`, `events:write`, and `artists:read`. Leave `artwork:write` off unless you need signed artwork uploads.
+3. Click **Generate token**. Copy the token immediately — FloBama OS stores only a hash and will not show the full token again.
+4. Put these on the AI Studio **server** only:
+
+```text
+FLOBAMA_OS_API_BASE_URL=https://flobama-os.vercel.app
+FLOBAMA_OS_INTEGRATION_TOKEN=<paste the generated token>
 ```
 
-Optional flags:
+5. To rotate: generate a second credential, switch AI Studio to the new token, confirm a `GET /api/integrations/v1/events?limit=1`, then click **Revoke** on the old row.
+6. Revocation is immediate. The next request with the old token is 401. There is no way to recover a token from the hash; mint a new one.
+
+Optional CLI (trusted machine with `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`; never print those values into chat or tickets):
 
 ```bash
 node scripts/integration-credential.mjs create \
   --name "HighLevel AI Studio" \
   --venue 11111111-1111-4111-8111-111111111111 \
-  --scopes events:read,events:write,artists:read,artwork:write
-```
+  --scopes events:read,events:write,artists:read
 
-Copy the printed `FLOBAMA_OS_INTEGRATION_TOKEN` into the AI Studio **server** secret store, then clear the shell scrollback. `list` shows id, name, prefix, scopes, venue, `revoked_at`, and `last_used_at`. It does not show the token or the hash.
-
-```bash
 node scripts/integration-credential.mjs list
-```
-
-Rotation: mint a second credential, switch the AI Studio server to the new token, confirm a `GET /api/integrations/v1/events?limit=1`, then revoke the old id.
-
-```bash
 node scripts/integration-credential.mjs revoke --id <credential-uuid>
 ```
-
-Revocation is immediate. The next request with the old token is 401. There is no way to recover a token from the hash; mint a new one.
 
 ## Routes
 

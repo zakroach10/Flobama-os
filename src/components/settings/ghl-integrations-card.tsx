@@ -1,8 +1,22 @@
 import { getGhlConnectionStatus } from "@/lib/ghl/booking";
 import { isOpenAiConfigured, DEFAULT_OPENAI_MODEL, getOpenAiConfig } from "@/lib/env";
 import { Badge } from "@/components/ui/badge";
+import { IntegrationCredentialsCard } from "@/components/settings/integration-credentials-card";
+import type { StaffIntegrationCredential } from "@/lib/integrations/credentials-admin";
 
-export async function GhlIntegrationsCard() {
+export async function GhlIntegrationsCard({
+  integrationCredentials,
+  canManageIntegrationCredentials,
+  serviceRoleConfigured,
+  apiBaseUrl,
+  integrationCredentialsError,
+}: {
+  integrationCredentials: StaffIntegrationCredential[];
+  canManageIntegrationCredentials: boolean;
+  serviceRoleConfigured: boolean;
+  apiBaseUrl: string;
+  integrationCredentialsError: string | null;
+}) {
   const status = await getGhlConnectionStatus();
   const openAi = getOpenAiConfig();
   const openAiConfigured = isOpenAiConfigured();
@@ -10,6 +24,13 @@ export async function GhlIntegrationsCard() {
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Integrations</h2>
+      <IntegrationCredentialsCard
+        credentials={integrationCredentials}
+        canManage={canManageIntegrationCredentials}
+        serviceRoleConfigured={serviceRoleConfigured}
+        apiBaseUrl={apiBaseUrl}
+        loadError={integrationCredentialsError}
+      />
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-medium">GoHighLevel</h3>
