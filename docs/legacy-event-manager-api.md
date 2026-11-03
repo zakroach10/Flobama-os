@@ -121,45 +121,47 @@ Send `X-Request-Id` as 8–80 characters matching `[A-Za-z0-9_-]+` to correlate 
 
 Times in `startDate`, `startTime`, `endDate`, and `endTime` are America/Chicago wall times (`HH:mm`, 24-hour). `startsAt` and `endsAt` are timezone-aware instants (ISO-8601, typically `Z`). Storage is `timestamptz`. `timeZone` is always `America/Chicago`.
 
+`POST` returns 201. `GET` by id and `PATCH` return 200. All three use this envelope:
+
 ```json
 {
-  "id": "55555555-5555-4555-8555-555555555555",
-  "venueId": "11111111-1111-4111-8111-111111111111",
-  "title": "Late set",
-  "publicDescription": "Doors at 8.",
-  "internalNotes": "Load-in at 5.",
-  "eventType": "live_music",
-  "startsAt": "2026-06-13T02:00:00.000Z",
-  "endsAt": "2026-06-13T06:30:00.000Z",
-  "startDate": "2026-06-12",
-  "startTime": "21:00",
-  "endDate": "2026-06-13",
-  "endTime": "01:30",
-  "timeZone": "America/Chicago",
-  "locationLabel": "Main room",
-  "status": "published",
-  "visibility": "public",
-  "featured": false,
-  "archivedAt": null,
-  "isTicketed": true,
-  "ticketUrl": "https://tickets.example.test/late-set",
-  "coverLabel": "$10",
-  "artists": [
-    {
-      "id": "33333333-3333-4333-8333-333333333333",
-      "name": "The Steel Woods",
-      "displayOrder": 0,
-      "artwork": null
-    }
-  ],
-  "createdAt": "2026-06-01T18:00:00.000Z",
-  "updatedAt": "2026-06-01T18:00:00.000Z",
-  "publiclyListed": true,
+  "event": {
+    "id": "55555555-5555-4555-8555-555555555555",
+    "venueId": "11111111-1111-4111-8111-111111111111",
+    "title": "Late set",
+    "publicDescription": "Doors at 8.",
+    "internalNotes": "Load-in at 5.",
+    "eventType": "live_music",
+    "startsAt": "2026-06-13T02:00:00.000Z",
+    "endsAt": "2026-06-13T06:30:00.000Z",
+    "startDate": "2026-06-12",
+    "startTime": "21:00",
+    "endDate": "2026-06-13",
+    "endTime": "01:30",
+    "timeZone": "America/Chicago",
+    "locationLabel": "Main room",
+    "status": "published",
+    "visibility": "public",
+    "featured": false,
+    "archivedAt": null,
+    "isTicketed": true,
+    "ticketUrl": "https://tickets.example.test/late-set",
+    "coverLabel": "$10",
+    "artists": [
+      {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "name": "The Steel Woods",
+        "displayOrder": 0,
+        "artwork": null
+      }
+    ],
+    "createdAt": "2026-06-01T18:00:00.000Z",
+    "updatedAt": "2026-06-01T18:00:00.000Z",
+    "publiclyListed": true
+  },
   "requestId": "req_create_1"
 }
 ```
-
-`POST` and `PATCH` return `{ "event": { ... }, "requestId": "..." }`. `GET` by id returns the same shape. The example above is one event object; wrap it in `event` for a single-event response.
 
 `publiclyListed` is computed. It is true only when `status` is `published`, `visibility` is `public`, and `archivedAt` is null. That is the same rule as the public `event_listings` view. It is not writable.
 
