@@ -6,6 +6,7 @@ import { authorizeLedWallActivate, authorizeProgramming } from "@/lib/auth/permi
 import { getStaffContext } from "@/lib/auth/staff";
 import { ARTIST_LED_WALL_SQL, LED_WALL_SQL } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { upsertArtistLedMedia } from "@/lib/events/artwork";
 import { endTriviaSession } from "@/lib/trivia/runtime";
 
 export type ArtistLedActionResult = { ok: boolean; message: string; sceneId?: string };
@@ -70,50 +71,17 @@ export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLe
   if (!artist || artist.archived_at) return { ok: false, message: "Artist not found." };
 
   const title = parsed.data.title?.trim() || artist.name;
-  const { data: existing } = await g.supabase
-    .from("led_wall_scenes")
-    .select("id, storage_path")
-    .eq("venue_id", g.context.venue.id)
-    .eq("artist_id", artist.id)
-    .maybeSingle();
-
-  if (existing) {
-    const { error } = await g.supabase
-      .from("led_wall_scenes")
-      .update({
-        title,
-        kind: "media",
-        media_kind: parsed.data.mediaKind,
-        storage_path: parsed.data.storagePath,
-        public_url: parsed.data.publicUrl,
-        obs_scene_name: null,
-        enabled: true,
-      })
-      .eq("id", existing.id)
-      .eq("venue_id", g.context.venue.id);
-    if (error) return { ok: false, message: sqlHint(error.message) };
-    revalidateArtistLed(artist.id);
-    return { ok: true, message: "Artist LED graphic saved.", sceneId: existing.id };
-  }
-
-  const { data, error } = await g.supabase
-    .from("led_wall_scenes")
-    .insert({
-      venue_id: g.context.venue.id,
-      title,
-      kind: "media",
-      media_kind: parsed.data.mediaKind,
-      storage_path: parsed.data.storagePath,
-      public_url: parsed.data.publicUrl,
-      artist_id: artist.id,
-      enabled: true,
-      sort_order: 9999,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, message: sqlHint(error.message) };
+  const saved = await upsertArtistLedMedia(g.supabase, {
+    venueId: g.context.venue.id,
+    artistId: artist.id,
+    title,
+    mediaKind: parsed.data.mediaKind,
+    storagePath: parsed.data.storagePath,
+    publicUrl: parsed.data.publicUrl,
+  });
+  if (!saved.ok) return { ok: false, message: sqlHint(saved.message) };
   revalidateArtistLed(artist.id);
-  return { ok: true, message: "Artist LED graphic saved.", sceneId: data.id };
+  return { ok: true, message: "Artist LED graphic saved.", sceneId: saved.sceneId };
 }
 
 export async function setArtistLedEnabledAction(input: unknown): Promise<ArtistLedActionResult> {

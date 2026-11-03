@@ -12,7 +12,7 @@ import {
   summarizeBulkEventUpdate,
   type BulkEventSnapshot,
 } from "@/lib/events/bulk";
-import { parseVenueLocalDateTime } from "@/lib/timezone";
+import { eventWriteFieldsFromForm, syncEventArtists } from "@/lib/events/persist";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { isMissingProductionRelation } from "@/lib/queries/production";
 import { isMissingLedWallRelation } from "@/lib/screens/led-wall";
@@ -75,26 +75,9 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
   }
 
   const values = parsed.data;
-  const start = parseVenueLocalDateTime(values.startDate, values.startTime, values.timeZone);
-  const end = parseVenueLocalDateTime(values.endDate, values.endTime, values.timeZone);
-  if (!start.ok) return { ok: false, message: start.message };
-  if (!end.ok) return { ok: false, message: end.message };
-
-  const fields = {
-    title: values.title,
-    event_type: values.eventType,
-    starts_at: start.iso,
-    ends_at: end.iso,
-    location_label: values.locationLabel,
-    public_description: values.publicDescription,
-    internal_notes: values.internalNotes,
-    status: values.status,
-    visibility: values.visibility,
-    featured: values.featured,
-    is_ticketed: values.isTicketed,
-    ticket_url: values.ticketUrl,
-    cover_label: values.coverLabel,
-  };
+  const built = eventWriteFieldsFromForm(values);
+  if (!built.ok) return { ok: false, message: built.message };
+  const fields = built.fields;
 
   let id = eventId;
   if (eventId) {
@@ -110,32 +93,8 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
     id = data.id;
   }
 
-  const { error: deleteLinksError } = await gate.supabase
-    .from("event_artists")
-    .delete()
-    .eq("event_id", id!)
-    .eq("venue_id", gate.context.venue.id);
-  if (deleteLinksError) return { ok: false, message: deleteLinksError.message };
-
-  if (values.artistIds.length > 0) {
-    const { data: artists, error: artistError } = await gate.supabase
-      .from("artists")
-      .select("id, venue_id")
-      .in("id", values.artistIds);
-    if (artistError) return { ok: false, message: artistError.message };
-    const invalid = (artists ?? []).some((artist) => artist.venue_id !== gate.context.venue.id);
-    if (invalid || (artists ?? []).length !== values.artistIds.length) {
-      return { ok: false, message: "One or more artists do not belong to this venue." };
-    }
-    const rows = values.artistIds.map((artistId, index) => ({
-      venue_id: gate.context.venue.id,
-      event_id: id!,
-      artist_id: artistId,
-      display_order: index,
-    }));
-    const { error: insertLinksError } = await gate.supabase.from("event_artists").insert(rows);
-    if (insertLinksError) return { ok: false, message: insertLinksError.message };
-  }
+  const artists = await syncEventArtists(gate.supabase, gate.context.venue.id, id!, values.artistIds);
+  if (!artists.ok) return { ok: false, message: artists.message };
 
   revalidateOps();
   revalidatePath(`/programming/${id}`);
