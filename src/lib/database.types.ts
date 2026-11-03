@@ -225,6 +225,114 @@ export type Database = {
           },
         ];
       };
+      integration_credentials: {
+        Row: {
+          id: string;
+          venue_id: string;
+          name: string;
+          token_hash: string;
+          token_prefix: string;
+          scopes: string[];
+          revoked_at: string | null;
+          last_used_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          name: string;
+          token_hash: string;
+          token_prefix: string;
+          scopes: string[];
+          revoked_at?: string | null;
+          last_used_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          name?: string;
+          scopes?: string[];
+          revoked_at?: string | null;
+          last_used_at?: string | null;
+        };
+        Relationships: [];
+      };
+      integration_idempotency_keys: {
+        Row: {
+          id: string;
+          credential_id: string;
+          venue_id: string;
+          idempotency_key: string;
+          request_hash: string;
+          status: "pending" | "completed";
+          response_status: number | null;
+          response_parts: Json | null;
+          event_id: string | null;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          credential_id: string;
+          venue_id: string;
+          idempotency_key: string;
+          request_hash: string;
+          status: "pending" | "completed";
+          response_status?: number | null;
+          response_parts?: Json | null;
+          event_id?: string | null;
+        };
+        Update: {
+          status?: "pending" | "completed";
+          response_status?: number | null;
+          response_parts?: Json | null;
+          event_id?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      integration_audit_log: {
+        Row: {
+          id: string;
+          venue_id: string | null;
+          credential_id: string | null;
+          action: string;
+          event_id: string | null;
+          request_id: string;
+          reported_actor: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          venue_id?: string | null;
+          credential_id?: string | null;
+          action: string;
+          event_id?: string | null;
+          request_id: string;
+          reported_actor?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
+      integration_rate_buckets: {
+        Row: {
+          bucket_key: string;
+          window_start: string;
+          request_count: number;
+        };
+        Insert: {
+          bucket_key: string;
+          window_start: string;
+          request_count?: number;
+        };
+        Update: {
+          request_count?: number;
+        };
+        Relationships: [];
+      };
       booth_state: {
         Row: {
           venue_id: string;
@@ -2640,6 +2748,64 @@ export type Database = {
           email: string | null;
           created_at: string;
         }[];
+      };
+      integration_consume_rate_limit: {
+        Args: { p_bucket_key: string; p_limit: number; p_window_seconds: number };
+        Returns: Json;
+      };
+      integration_list_events: {
+        Args: {
+          p_credential_id: string;
+          p_venue_id: string;
+          p_from: string | null;
+          p_to: string | null;
+          p_statuses: string[] | null;
+          p_visibility: string | null;
+          p_include_archived: boolean;
+          p_limit: number;
+          p_cursor_starts_at: string | null;
+          p_cursor_id: string | null;
+          p_request_id: string;
+          p_reported_actor: string | null;
+        };
+        Returns: Json;
+      };
+      integration_get_event: {
+        Args: {
+          p_credential_id: string;
+          p_venue_id: string;
+          p_event_id: string;
+          p_request_id: string;
+          p_reported_actor: string | null;
+        };
+        Returns: Json;
+      };
+      integration_commit_event_create: {
+        Args: {
+          p_credential_id: string;
+          p_venue_id: string;
+          p_idempotency_key: string;
+          p_request_hash: string;
+          p_fields: Json;
+          p_artist_ids: string[];
+          p_request_id: string;
+          p_reported_actor: string | null;
+        };
+        Returns: Json;
+      };
+      integration_commit_event_update: {
+        Args: {
+          p_credential_id: string;
+          p_venue_id: string;
+          p_event_id: string;
+          p_expected_updated_at: string;
+          p_patch: Json;
+          p_artist_ids: string[];
+          p_replace_artists: boolean;
+          p_request_id: string;
+          p_reported_actor: string | null;
+        };
+        Returns: Json;
       };
     };
     Enums: {
