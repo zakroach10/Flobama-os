@@ -785,3 +785,26 @@ export const revokeDisplayDeviceSchema = z.object({
 export const requestDisplaySafeRefreshSchema = z.object({
   deviceId: z.string().uuid(),
 });
+
+export const INTEGRATION_CREDENTIAL_SCOPES = [
+  "events:read",
+  "events:write",
+  "artists:read",
+  "artwork:write",
+] as const;
+
+export const createIntegrationCredentialSchema = z.object({
+  name: z.string().trim().min(1, "Name is required.").max(120),
+  scopes: z
+    .array(z.enum(INTEGRATION_CREDENTIAL_SCOPES))
+    .min(1, "Select at least one permission.")
+    .superRefine((scopes, ctx) => {
+      if (new Set(scopes).size !== scopes.length) {
+        ctx.addIssue({ code: "custom", message: "Duplicate permissions are not allowed." });
+      }
+    }),
+});
+
+export const revokeIntegrationCredentialSchema = z.object({
+  credentialId: z.string().uuid(),
+});

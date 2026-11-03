@@ -153,6 +153,7 @@ export const HOSTED_PUBLIC_PLAYBACK_SQL =
 export const CAMERA_CONNECTOR_SQL = "supabase/migrations/20260929000018_camera_connector.sql";
 export const MEDIA_CONTENT_HASHES_SQL = "supabase/migrations/20261013000040_media_content_hashes.sql";
 export const DISPLAY_DEVICES_SQL = "supabase/migrations/20261013000041_display_devices.sql";
+export const EVENT_INTEGRATION_SQL = "supabase/migrations/20261103000063_event_integration.sql";
 export const CAMERA_INVENTORY_SQL = "supabase/migrations/20260929000019_camera_inventory.sql";
 export const CAMERA_DELETE_SQL = "supabase/migrations/20260929000021_camera_delete_hidden.sql";
 export const CAMERA_DISCOVERED_NDI_SQL = "supabase/migrations/20260929000022_camera_discovered_ndi.sql";

@@ -14,6 +14,11 @@ import { isMissingServerStationRelation } from "@/lib/auth/server-station";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 import { ErrorState } from "@/components/states";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  listIntegrationCredentialsForVenue,
+  type StaffIntegrationCredential,
+} from "@/lib/integrations/credentials-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +92,20 @@ export default async function SettingsPage() {
     Boolean(scenesRes.error && isMissingServerStationRelation(scenesRes.error.message)) ||
     Boolean(devicesRes.error && isMissingServerStationRelation(devicesRes.error.message));
 
+  const canManageIntegrationCredentials = canManageStaff(context.role);
+  let integrationCredentials: StaffIntegrationCredential[] = [];
+  let integrationCredentialsError: string | null = null;
+  if (canManageIntegrationCredentials && isServiceRoleConfigured()) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const listed = await listIntegrationCredentialsForVenue(admin, context.venue.id);
+      if (listed.ok) integrationCredentials = listed.credentials;
+      else integrationCredentialsError = listed.message;
+    } else {
+      integrationCredentialsError = "Set SUPABASE_SERVICE_ROLE_KEY before managing integration tokens.";
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div>
@@ -140,7 +159,13 @@ export default async function SettingsPage() {
         />
       )}
       <WebsiteEmbedCard siteUrl={getPublicAppUrl()} />
-      <GhlIntegrationsCard />
+      <GhlIntegrationsCard
+        integrationCredentials={integrationCredentials}
+        canManageIntegrationCredentials={canManageIntegrationCredentials}
+        serviceRoleConfigured={isServiceRoleConfigured()}
+        apiBaseUrl={getPublicAppUrl()}
+        integrationCredentialsError={integrationCredentialsError}
+      />
       <SettingsForms
         displayName={context.profile?.display_name ?? ""}
         venueName={context.venue.name}
