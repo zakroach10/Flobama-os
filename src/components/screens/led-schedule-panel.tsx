@@ -74,7 +74,8 @@ export function LedSchedulePanel({
             <p className="text-sm text-muted-foreground">
               Everyday at 4:00 AM the wall clears leftover shows and resets to this playlist. Artists
               auto-roll {ARTIST_LED_AUTO_ROLL_MINUTES} minutes before showtime (with catch-up after
-              start).
+              start). Their graphics warm on the wall browser earlier and stay off the air until that roll
+              or until someone puts them on the wall.
             </p>
           </div>
           <Button
