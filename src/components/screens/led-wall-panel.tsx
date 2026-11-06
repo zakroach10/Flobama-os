@@ -24,6 +24,7 @@ import { uploadLedMediaFromBrowser } from "@/lib/screens/led-upload";
 import { MAX_SCREEN_AD_BYTES } from "@/lib/screens/upload";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
 import { LocalRunnerDownload } from "@/components/screens/local-runner-download";
+import { TriviaWallShareCard } from "@/components/screens/trivia-wall-share-card";
 
 export function LedWallPanel({
   scenes,
@@ -36,6 +37,7 @@ export function LedWallPanel({
   displayUrl,
   supabaseEnv,
   hasTriviaScene = false,
+  triviaWallUrl = null,
 }: {
   scenes: LedWallSceneRow[];
   activeSceneId: string | null;
@@ -47,6 +49,7 @@ export function LedWallPanel({
   displayUrl: string;
   supabaseEnv: PublicSupabaseEnv | null;
   hasTriviaScene?: boolean;
+  triviaWallUrl?: string | null;
 }) {
   // Artist logos/loops live on artist profiles — keep this list to house scenes only.
   const houseScenes = houseLedScenes(scenes);
@@ -120,6 +123,7 @@ export function LedWallPanel({
           displayUrl={displayUrl}
           supabaseEnv={supabaseEnv}
           setupOpen={setupOpen}
+          triviaWallUrl={triviaWallUrl}
         />
       ) : null}
     </div>
@@ -252,6 +256,7 @@ function AdminLedWall({
   displayUrl,
   supabaseEnv,
   setupOpen,
+  triviaWallUrl,
 }: {
   agent: LedWallAgentSnapshot;
   mediaObsSceneName: string;
@@ -260,6 +265,7 @@ function AdminLedWall({
   displayUrl: string;
   supabaseEnv: PublicSupabaseEnv | null;
   setupOpen: boolean;
+  triviaWallUrl: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -449,14 +455,16 @@ function AdminLedWall({
                 />
               )}
               <p className="text-sm text-muted-foreground">
-                In that OBS scene, add a Browser Source pointed at {displayUrl}. Uploaded media and Shoals Trivia both
-                use this browser source — the page swaps between loops and the live trivia UI.
+                In that OBS scene, add a Browser Source pointed at {displayUrl}. Uploaded media plays here. When the
+                trivia scene is active, this page also switches to the live trivia UI. For a scene that shows only
+                trivia, use the link below.
               </p>
             </div>
             <Button type="submit" variant="outline" disabled={pending}>
               Save media scene
             </Button>
           </form>
+          <TriviaWallShareCard shareUrl={triviaWallUrl} />
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {tokenIssuedAt ? "A booth token is already issued. Issuing another replaces it." : "No booth token yet."}{" "}

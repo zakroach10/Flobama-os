@@ -153,7 +153,8 @@ This repository does not change flobamadowntown.com.
 1. In OBS: **Tools → WebSocket Server Settings**. Enable the v5 server. Note host (usually `127.0.0.1`), port (`4455`), and password.
 2. Add a **Browser Source** at `{origin}/overlay`, width **1920**, height **1080**, for the lower third.
 3. For uploaded LED media, add another scene whose **Browser Source** is `{origin}/display/led` at the wall’s pixel size.
-4. On the booth PC, install the local client (below). OBS host, port, and password stay in that machine’s config file. They are never stored in git or the database.
+4. For a scene that shows **only** the trivia LED wall, open **Screens → Trivia** (or **Screens → LED wall → OBS Setup**), copy the trivia wall link, or download `flobama-led-wall-trivia.json`. In OBS: **Scene Collection → Import**, choose that file, then switch to the collection **FloBama LED Wall**. The scene **LED Wall - Trivia** has a Browser Source at 1920×1080. Set **Settings → Video → Base (Canvas) Resolution** to 1920×1080 if it is not already. Full steps: [`docs/trivia-led-wall-obs.md`](./docs/trivia-led-wall-obs.md).
+5. On the booth PC, install the local client (below). OBS host, port, and password stay in that machine’s config file. They are never stored in git or the database.
 
 This cloud preview cannot reach a booth PC on your LAN. Staff activate scenes in FloBama OS. The booth client pulls the desired scene and calls OBS.
 

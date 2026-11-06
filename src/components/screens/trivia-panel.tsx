@@ -9,6 +9,7 @@ import {
   startTriviaAction,
   updateTriviaPackBrandAction,
 } from "@/actions/trivia";
+import { TriviaWallShareCard } from "@/components/screens/trivia-wall-share-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,7 @@ export function TriviaPanel({
   joinBaseUrl,
   venueId,
   supabaseEnv,
+  shareUrl,
 }: {
   packs: TriviaPackSummary[];
   session: TriviaStaffSession | null;
@@ -43,6 +45,7 @@ export function TriviaPanel({
   joinBaseUrl: string;
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  shareUrl: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -62,12 +65,15 @@ export function TriviaPanel({
 
   if (missingTable) {
     return (
-      <section className="space-y-3 rounded-xl border bg-card p-5">
-        <h2 className="text-lg font-semibold">Trivia</h2>
-        <p className="text-sm text-muted-foreground">
-          Apply <code className="text-xs">supabase/migrations/20260929000012_trivia.sql</code> in Supabase, then reload.
-        </p>
-      </section>
+      <div className="space-y-8">
+        <TriviaWallShareCard shareUrl={shareUrl} />
+        <section className="space-y-3 rounded-xl border bg-card p-5">
+          <h2 className="text-lg font-semibold">Trivia</h2>
+          <p className="text-sm text-muted-foreground">
+            Apply <code className="text-xs">supabase/migrations/20260929000012_trivia.sql</code> in Supabase, then reload.
+          </p>
+        </section>
+      </div>
     );
   }
 
@@ -175,6 +181,7 @@ export function TriviaPanel({
 
   return (
     <div className="space-y-8">
+      <TriviaWallShareCard shareUrl={shareUrl} />
       <section className="space-y-4 rounded-xl border bg-card p-5">
         <div>
           <h2 className="text-lg font-semibold">Trivia</h2>
