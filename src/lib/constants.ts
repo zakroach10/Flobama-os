@@ -147,6 +147,17 @@ export const TRIVIA_DEFAULT_PACK_ID = "22222222-2222-4222-8222-222222222222";
 export const TRIVIA_DEFAULT_LOBBY_SECONDS = 60;
 export const TRIVIA_DEFAULT_QUESTION_SECONDS = 20;
 export const TRIVIA_DEFAULT_QUESTION_COUNT = 10;
+/**
+ * Browser-source size for the trivia-only LED wall.
+ * The app does not store a separate wall pixel size. Booth overlay and
+ * server-station graphics are already 1920×1080, so that is the OBS default.
+ */
+export const TRIVIA_WALL_WIDTH = 1920;
+export const TRIVIA_WALL_HEIGHT = 1080;
+export const TRIVIA_OBS_SCENE_NAME = "LED Wall - Trivia";
+export const TRIVIA_OBS_BROWSER_SOURCE_NAME = "Trivia LED Browser";
+export const TRIVIA_OBS_COLLECTION_NAME = "FloBama LED Wall";
+export const TRIVIA_OBS_COLLECTION_FILENAME = "flobama-led-wall-trivia.json";
 
 export const SCREEN_PLAYLISTS_SQL = "supabase/migrations/20260929000014_screen_playlists.sql";
 export const LED_WALL_PLAYLISTS_SQL = "supabase/migrations/20260929000016_led_wall_playlists.sql";

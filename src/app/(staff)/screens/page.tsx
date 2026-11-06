@@ -36,6 +36,7 @@ import {
 import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
 import { isAgentStale } from "@/lib/screens/led-wall";
 import { authorizePerformanceConfigure, authorizePerformancePlayback } from "@/lib/auth/permissions";
+import { triviaWallShareUrl } from "@/lib/trivia/wall-share";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,7 @@ export default async function ScreensPage({
   const supabaseEnv = getPublicSupabaseEnv();
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
   const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
+  const triviaWallUrl = triviaWallShareUrl(getPublicAppUrl(), context.venue.id);
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
   const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
   const freshestRunner = freshestLedRunner(displayDevicesRes.devices);
@@ -207,6 +209,7 @@ export default async function ScreensPage({
         timeZone={context.venue.timezone}
         venueId={context.venue.id}
         supabaseEnv={supabaseEnv}
+        triviaWallUrl={triviaWallUrl}
       />
     );
   }
@@ -255,6 +258,7 @@ export default async function ScreensPage({
               displayUrl={displayUrl}
               supabaseEnv={supabaseEnv}
               hasTriviaScene={scenes.some((scene) => scene.kind === "trivia")}
+              triviaWallUrl={triviaWallUrl}
             />
             <LedPlaylistsPanel
               playlists={ledPlaylistsRes.playlists}
@@ -344,6 +348,7 @@ export default async function ScreensPage({
             joinBaseUrl={joinBaseUrl}
             venueId={context.venue.id}
             supabaseEnv={supabaseEnv}
+            shareUrl={triviaWallUrl}
           />
         }
       />

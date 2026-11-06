@@ -18,6 +18,7 @@ import { refreshWallDisplaysAction } from "@/actions/display-signals";
 import { signOutWallOpsAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { WallOpsInstallCard } from "@/components/pwa/wall-ops-install-card";
+import { TriviaWallShareCard } from "@/components/screens/trivia-wall-share-card";
 import { WallOpsSceneUpload } from "@/components/screens/wall-ops-scene-upload";
 import { Button } from "@/components/ui/button";
 import { useWallOpsSync } from "@/hooks/use-wall-ops-sync";
@@ -75,6 +76,7 @@ export function WallOpsControlCenter({
   timeZone,
   venueId,
   supabaseEnv,
+  triviaWallUrl = null,
 }: {
   scenes: LedWallSceneRow[];
   activeSceneId: string | null;
@@ -90,6 +92,7 @@ export function WallOpsControlCenter({
   timeZone: string;
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  triviaWallUrl?: string | null;
 }) {
   const router = useRouter();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -510,6 +513,10 @@ export function WallOpsControlCenter({
                   </p>
                 </div>
 
+                <div className="my-2 border-t border-border" />
+                <div className="px-1 py-1">
+                  <TriviaWallShareCard shareUrl={triviaWallUrl} compact />
+                </div>
                 <div className="my-2 border-t border-border" />
                 <div className="space-y-2 px-1 py-1">
                   <WallOpsInstallCard />

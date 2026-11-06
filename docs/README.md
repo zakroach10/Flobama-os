@@ -39,3 +39,4 @@ Output: `docs/flobama-os-v1.pdf`
 ## Other
 
 - [cameras-mac-connector.md](./cameras-mac-connector.md) — Mac Camera connector (pairing, LaunchAgent patterns reused by Local Runner plans)
+- [trivia-led-wall-obs.md](./trivia-led-wall-obs.md) — Shareable trivia LED wall link and OBS scene collection import

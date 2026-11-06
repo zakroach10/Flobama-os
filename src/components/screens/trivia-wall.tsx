@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import QRCode from "qrcode";
 import { TRIVIA_POLL_MS } from "@/lib/constants";
 import { triviaAccentRgba, triviaBrandCssVars } from "@/lib/trivia/brand";
@@ -17,9 +17,15 @@ function remainingLabel(phaseEndsAt: string | null, serverNow: string) {
 export function TriviaWall({
   initial,
   lockDemo = false,
+  pollPath = "/api/public/v1/trivia/wall",
+  empty = null,
 }: {
   initial: TriviaWallState | null;
   lockDemo?: boolean;
+  /** Same-origin poll URL. The share page passes a token-scoped path. */
+  pollPath?: string;
+  /** Shown only while no game is on the wall. The in-app LED display leaves this unset. */
+  empty?: ReactNode;
 }) {
   const [wall, setWall] = useState<TriviaWallState | null>(initial);
   const [qr, setQr] = useState<string | null>(null);
@@ -33,13 +39,15 @@ export function TriviaWall({
     let cancelled = false;
     async function refresh() {
       try {
-        const response = await fetch("/api/public/v1/trivia/wall", { cache: "no-store" });
+        const response = await fetch(pollPath, { cache: "no-store" });
+        if (!response.ok) return;
         const json = (await response.json()) as { trivia?: TriviaWallState | null };
         if (!cancelled) setWall(json.trivia ?? null);
       } catch {
         // keep current frame
       }
     }
+    void refresh();
     const timer = window.setInterval(() => void refresh(), TRIVIA_POLL_MS);
     const clock = window.setInterval(() => setTick((value) => value + 1), 250);
     return () => {
@@ -47,7 +55,7 @@ export function TriviaWall({
       window.clearInterval(timer);
       window.clearInterval(clock);
     };
-  }, [lockDemo]);
+  }, [lockDemo, pollPath]);
 
   const joinUrl = useMemo(() => {
     if (!wall) return null;
@@ -79,7 +87,7 @@ export function TriviaWall({
 
   const qrSrc = joinUrl ? qr : null;
 
-  if (!wall) return null;
+  if (!wall) return empty;
 
   const timer = remainingLabel(wall.phaseEndsAt, wall.serverNow);
   void tick;
