@@ -52,7 +52,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/t/") ||
     pathname.startsWith("/play") ||
     pathname.startsWith("/live") ||
-    pathname.startsWith("/api/public");
+    pathname.startsWith("/api/public") ||
+    pathname === "/api/integrations/spoton/webhook";
   if (isPublic) {
     return response;
   }

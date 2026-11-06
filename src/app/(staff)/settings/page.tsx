@@ -3,6 +3,7 @@ import { getStaffContext } from "@/lib/auth/staff";
 import { SettingsForms } from "@/components/settings/settings-forms";
 import { WebsiteEmbedCard } from "@/components/settings/website-embed-card";
 import { GhlIntegrationsCard } from "@/components/settings/ghl-integrations-card";
+import { SpotOnIntegrationsCard } from "@/components/settings/spoton-integrations-card";
 import { RolePermissionGuide, StaffDirectory } from "@/components/settings/staff-admin";
 import { ServerStationAdminPanel } from "@/components/settings/server-station-admin";
 import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
@@ -19,6 +20,8 @@ import {
   listIntegrationCredentialsForVenue,
   type StaffIntegrationCredential,
 } from "@/lib/integrations/credentials-admin";
+import { deriveCapabilityStatuses, loadSpotOnSettings, webhookUrlForOrigin } from "@/lib/spoton/status";
+import type { SpotOnApiProduct, SpotOnCapabilityStatus } from "@/lib/spoton/types";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +109,79 @@ export default async function SettingsPage() {
     }
   }
 
+  let spotonSettings = null as Awaited<ReturnType<typeof loadSpotOnSettings>>;
+  let spotonRuns: Array<{
+    id: string;
+    kind: string;
+    status: string;
+    createdAt: string;
+    errorSafe: string | null;
+  }> = [];
+  let spotonWebhooks: Array<{
+    id: string;
+    eventId: string;
+    category: string;
+    status: string;
+    createdAt: string;
+    error: string | null;
+  }> = [];
+  try {
+    spotonSettings = await loadSpotOnSettings(supabase, context.venue.id);
+  } catch {
+    spotonSettings = null;
+  }
+  if (canManageIntegrationCredentials) {
+    const runsRes = await supabase
+      .from("spoton_sync_runs")
+      .select("id, kind, status, created_at, error_safe")
+      .eq("venue_id", context.venue.id)
+      .order("created_at", { ascending: false })
+      .limit(12);
+    spotonRuns = (runsRes.data ?? []).map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      status: row.status,
+      createdAt: row.created_at,
+      errorSafe: row.error_safe,
+    }));
+    const hooksRes = await supabase
+      .from("spoton_webhook_inbox")
+      .select("id, event_id, event_category, processing_status, created_at, processing_error")
+      .eq("venue_id", context.venue.id)
+      .order("created_at", { ascending: false })
+      .limit(12);
+    // Webhook inbox has no authenticated SELECT — expect empty unless service role used.
+    if (!hooksRes.error) {
+      spotonWebhooks = (hooksRes.data ?? []).map((row) => ({
+        id: row.id,
+        eventId: row.event_id,
+        category: row.event_category,
+        status: row.processing_status,
+        createdAt: row.created_at,
+        error: row.processing_error,
+      }));
+    } else if (isServiceRoleConfigured()) {
+      const admin = createServiceRoleClient();
+      if (admin) {
+        const adminHooks = await admin
+          .from("spoton_webhook_inbox")
+          .select("id, event_id, event_category, processing_status, created_at, processing_error")
+          .eq("venue_id", context.venue.id)
+          .order("created_at", { ascending: false })
+          .limit(12);
+        spotonWebhooks = (adminHooks.data ?? []).map((row) => ({
+          id: row.id,
+          eventId: row.event_id,
+          category: row.event_category,
+          status: row.processing_status,
+          createdAt: row.created_at,
+          error: row.processing_error,
+        }));
+      }
+    }
+  }
+  const spotonCapabilities = deriveCapabilityStatuses(spotonSettings);
+
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div>
@@ -166,6 +242,40 @@ export default async function SettingsPage() {
         apiBaseUrl={getPublicAppUrl()}
         integrationCredentialsError={integrationCredentialsError}
       />
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Integrations · SpotOn</h2>
+        <SpotOnIntegrationsCard
+          canManage={canManageIntegrationCredentials}
+          webhookUrl={webhookUrlForOrigin(getPublicAppUrl())}
+          settings={{
+            apiProduct: (spotonSettings?.api_product ?? "none") as SpotOnApiProduct,
+            locationId: spotonSettings?.location_id ?? null,
+            businessDayCutoffLocal: spotonSettings?.business_day_cutoff_local ?? "04:00:00",
+            eventWindowPreMinutes: spotonSettings?.event_window_pre_minutes ?? 0,
+            eventWindowPostMinutes: spotonSettings?.event_window_post_minutes ?? 0,
+            syncEnabled: spotonSettings?.sync_enabled ?? false,
+            publishMappedMenu: spotonSettings?.publish_mapped_menu ?? false,
+            notes: spotonSettings?.notes ?? null,
+            lastWebhookAt: spotonSettings?.last_webhook_at ?? null,
+            lastWebhookEventId: spotonSettings?.last_webhook_event_id ?? null,
+            lastProcessedEventId: spotonSettings?.last_processed_event_id ?? null,
+            lastProcessedEventAt: spotonSettings?.last_processed_event_at ?? null,
+            lastSuccessfulSyncAt: spotonSettings?.last_successful_sync_at ?? null,
+            coverageThrough: spotonSettings?.coverage_through ?? null,
+            lastConnectionTestAt: spotonSettings?.last_connection_test_at ?? null,
+            lastConnectionTestOk: spotonSettings?.last_connection_test_ok ?? null,
+            lastConnectionTestMessage: spotonSettings?.last_connection_test_message ?? null,
+          }}
+          capabilities={{
+            webhook: spotonCapabilities.webhook as SpotOnCapabilityStatus,
+            reporting: spotonCapabilities.reporting as SpotOnCapabilityStatus,
+            menu: spotonCapabilities.menu as SpotOnCapabilityStatus,
+          }}
+          credentials={spotonCapabilities.credentials}
+          recentRuns={spotonRuns}
+          recentWebhooks={spotonWebhooks}
+        />
+      </section>
       <SettingsForms
         displayName={context.profile?.display_name ?? ""}
         venueName={context.venue.name}

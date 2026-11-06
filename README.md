@@ -4,6 +4,8 @@ Public FloBama Music Hall site plus the staff operations platform. `/` serves th
 
 **Product overview:** see [`docs/flobama-os-v1.pdf`](./docs/flobama-os-v1.pdf) for V1 features, APIs, architecture, and database diagrams (regenerate with `python3 scripts/generate-flobama-os-v1-pdf.py`).
 
+**SpotOn POS (read-only):** sales sync, webhook inbox, and event-window reporting — see [`docs/spoton-setup.md`](./docs/spoton-setup.md). Configure under Settings → Integrations → SpotOn; staff Sales UI is `/sales`.
+
 ## Stack
 
 - Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
