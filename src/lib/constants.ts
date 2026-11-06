@@ -101,6 +101,10 @@ export const SCREEN_TAKEOVER_MAX_MINUTES = 480;
 export const SCREEN_TAKEOVER_SQL = "supabase/migrations/20260908000007_screen_takeover.sql";
 export const LED_WALL_SQL = "supabase/migrations/20260928000011_led_wall.sql";
 export const ARTIST_LED_WALL_SQL = "supabase/migrations/20260930000028_artist_led_wall.sql";
+export const ARTIST_LED_MULTI_VISUALIZER_SQL =
+  "supabase/migrations/20261106000065_artist_led_multi_visualizer.sql";
+export const TRIVIA_PACK_BRAND_SQL =
+  "supabase/migrations/20261106000064_trivia_pack_brand_and_answer_fix.sql";
 export const LED_TRIVIA_SCENE_SQL = "supabase/migrations/20260929000013_led_trivia_scene.sql";
 export const LED_TRIVIA_SCENE_SEED_SQL = "supabase/migrations/20260929000015_led_trivia_scene_seed.sql";
 export const LED_TRIVIA_SCENE_ID = "33333333-3333-4333-8333-333333333333";

@@ -126,6 +126,8 @@ export function parseTriviaCsv(text: string): TriviaCsvParseResult {
 }
 
 export const TRIVIA_CSV_TEMPLATE = `question,a,b,c,d,correct,points
-Who founded FAME Studios in Muscle Shoals?,Rick Hall,Sam Phillips,Berry Gordy,Ahmet Ertegun,A,1000
-Muscle Shoals Sound Studio was started by which house band?,The Swampers,The Funk Brothers,Booker T. & the M.G.'s,The Wrecking Crew,A,1000
+Who founded FAME Studios in Muscle Shoals?,Sam Phillips,Rick Hall,Berry Gordy,Ahmet Ertegun,B,1000
+Muscle Shoals Sound Studio was started by which house band?,The Funk Brothers,Booker T. & the M.G.'s,The Swampers,The Wrecking Crew,C,1000
+The Rolling Stones recorded which classic at Muscle Shoals Sound?,Satisfaction,Paint It Black,Angie,Wild Horses,D,1000
+FAME originally stood for?,Florence Alabama Music Enterprises,Famous American Music Exchange,Federal Audio Mixing Engineers,First Avenue Music Ensemble,A,1000
 `;

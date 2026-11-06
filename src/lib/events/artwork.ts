@@ -54,8 +54,10 @@ function escapeRegExp(value: string) {
 }
 
 /**
- * Same artist LED scene write the staff artist page uses.
- * The caller has already checked the artist belongs to the venue.
+ * Staff artist page + integration artwork write.
+ * - With sceneId: replace that scene's media.
+ * - Without sceneId: insert a new scene (first becomes default; later uploads are non-default).
+ * Integration callers without sceneId still replace the default scene when one exists (backward compatible).
  */
 export async function upsertArtistLedMedia(
   client: Client,
@@ -66,17 +68,12 @@ export async function upsertArtistLedMedia(
     mediaKind: "image" | "video";
     storagePath: string;
     publicUrl: string;
+    sceneId?: string;
+    /** When true (integration path), replace the default scene instead of always inserting. */
+    replaceDefaultIfPresent?: boolean;
   },
 ): Promise<{ ok: true; sceneId: string } | { ok: false; message: string }> {
-  const { data: existing, error: existingError } = await client
-    .from("led_wall_scenes")
-    .select("id")
-    .eq("venue_id", input.venueId)
-    .eq("artist_id", input.artistId)
-    .maybeSingle();
-  if (existingError) return { ok: false, message: existingError.message };
-
-  if (existing) {
+  if (input.sceneId) {
     const { error } = await client
       .from("led_wall_scenes")
       .update({
@@ -88,27 +85,88 @@ export async function upsertArtistLedMedia(
         obs_scene_name: null,
         enabled: true,
       })
-      .eq("id", existing.id)
+      .eq("id", input.sceneId)
+      .eq("venue_id", input.venueId)
+      .eq("artist_id", input.artistId);
+    if (error) return { ok: false, message: error.message };
+    return { ok: true, sceneId: input.sceneId };
+  }
+
+  const { data: existingScenes, error: existingError } = await client
+    .from("led_wall_scenes")
+    .select("id, is_default")
+    .eq("venue_id", input.venueId)
+    .eq("artist_id", input.artistId);
+  if (existingError && /is_default/i.test(existingError.message)) {
+    // Pre-migration: fall back to singular upsert.
+    const { data: existing, error } = await client
+      .from("led_wall_scenes")
+      .select("id")
+      .eq("venue_id", input.venueId)
+      .eq("artist_id", input.artistId)
+      .maybeSingle();
+    if (error) return { ok: false, message: error.message };
+    if (existing) {
+      const { error: updateError } = await client
+        .from("led_wall_scenes")
+        .update({
+          title: input.title,
+          kind: "media",
+          media_kind: input.mediaKind,
+          storage_path: input.storagePath,
+          public_url: input.publicUrl,
+          obs_scene_name: null,
+          enabled: true,
+        })
+        .eq("id", existing.id)
+        .eq("venue_id", input.venueId);
+      if (updateError) return { ok: false, message: updateError.message };
+      return { ok: true, sceneId: existing.id };
+    }
+  } else if (existingError) {
+    return { ok: false, message: existingError.message };
+  }
+
+  const scenes = (existingScenes ?? []) as Array<{ id: string; is_default: boolean | null }>;
+  if (input.replaceDefaultIfPresent && scenes.length > 0) {
+    const target =
+      scenes.find((row) => row.is_default) ?? scenes[0]!;
+    const { error } = await client
+      .from("led_wall_scenes")
+      .update({
+        title: input.title,
+        kind: "media",
+        media_kind: input.mediaKind,
+        storage_path: input.storagePath,
+        public_url: input.publicUrl,
+        obs_scene_name: null,
+        enabled: true,
+      })
+      .eq("id", target.id)
       .eq("venue_id", input.venueId);
     if (error) return { ok: false, message: error.message };
-    return { ok: true, sceneId: existing.id };
+    return { ok: true, sceneId: target.id };
   }
+
+  const makeDefault = scenes.length === 0;
+  const insertPayload: Record<string, unknown> = {
+    venue_id: input.venueId,
+    title: input.title,
+    kind: "media",
+    media_kind: input.mediaKind,
+    storage_path: input.storagePath,
+    public_url: input.publicUrl,
+    artist_id: input.artistId,
+    enabled: true,
+    sort_order: 9999,
+    is_default: makeDefault,
+  };
 
   const { data, error } = await client
     .from("led_wall_scenes")
-    .insert({
-      venue_id: input.venueId,
-      title: input.title,
-      kind: "media",
-      media_kind: input.mediaKind,
-      storage_path: input.storagePath,
-      public_url: input.publicUrl,
-      artist_id: input.artistId,
-      enabled: true,
-      sort_order: 9999,
-    })
+    .insert(insertPayload as never)
     .select("id")
     .single();
   if (error || !data) return { ok: false, message: error?.message ?? "Could not save artist artwork." };
-  return { ok: true, sceneId: data.id };
+  return { ok: true, sceneId: (data as { id: string }).id };
 }

@@ -110,6 +110,7 @@ export function buildWallState(input: {
   status: Exclude<TriviaSessionStatus, "ended">;
   packTitle: string;
   packTheme: string;
+  brand: TriviaWallState["brand"];
   currentQuestionIndex: number;
   questionCount: number;
   phaseEndsAt: string | null;
@@ -127,6 +128,7 @@ export function buildWallState(input: {
     status: input.status,
     packTitle: input.packTitle,
     packTheme: input.packTheme,
+    brand: input.brand,
     currentQuestionIndex: input.currentQuestionIndex,
     questionCount: input.questionCount,
     phaseEndsAt: input.phaseEndsAt,

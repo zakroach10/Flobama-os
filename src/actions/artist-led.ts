@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authorizeLedWallActivate, authorizeProgramming } from "@/lib/auth/permissions";
 import { getStaffContext } from "@/lib/auth/staff";
-import { ARTIST_LED_WALL_SQL, LED_WALL_SQL } from "@/lib/constants";
+import { ARTIST_LED_MULTI_VISUALIZER_SQL, ARTIST_LED_WALL_SQL, LED_WALL_SQL } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { upsertArtistLedMedia } from "@/lib/events/artwork";
+import { pickDefaultArtistScene } from "@/lib/screens/artist-led";
 import { endTriviaSession } from "@/lib/trivia/runtime";
 
 export type ArtistLedActionResult = { ok: boolean; message: string; sceneId?: string };
@@ -16,6 +17,9 @@ function fieldMessage(error: z.ZodError) {
 }
 
 function sqlHint(message: string) {
+  if (/is_default/i.test(message) && /does not exist|schema cache|could not find/i.test(message)) {
+    return `Apply ${ARTIST_LED_MULTI_VISUALIZER_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (/artist_id|default_playlist_id|activation_source/i.test(message)) {
     return `Apply ${ARTIST_LED_WALL_SQL} in the Supabase SQL editor, then try again.`;
   }
@@ -49,6 +53,7 @@ function revalidateArtistLed(artistId?: string) {
 
 const saveArtistLedMediaSchema = z.object({
   artistId: z.string().uuid(),
+  sceneId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(160).optional(),
   mediaKind: z.enum(["image", "video"]),
   storagePath: z.string().trim().min(1).max(500),
@@ -78,43 +83,142 @@ export async function saveArtistLedMediaAction(input: unknown): Promise<ArtistLe
     mediaKind: parsed.data.mediaKind,
     storagePath: parsed.data.storagePath,
     publicUrl: parsed.data.publicUrl,
+    sceneId: parsed.data.sceneId,
   });
   if (!saved.ok) return { ok: false, message: sqlHint(saved.message) };
   revalidateArtistLed(artist.id);
-  return { ok: true, message: "Artist LED graphic saved.", sceneId: saved.sceneId };
+  return {
+    ok: true,
+    message: parsed.data.sceneId ? "Artist LED graphic updated." : "Artist LED graphic added.",
+    sceneId: saved.sceneId,
+  };
 }
 
 export async function setArtistLedEnabledAction(input: unknown): Promise<ArtistLedActionResult> {
   const g = await gate("program");
   if (!g.ok) return { ok: false, message: g.message };
   const parsed = z
-    .object({ artistId: z.string().uuid(), enabled: z.boolean() })
+    .object({
+      artistId: z.string().uuid(),
+      sceneId: z.string().uuid().optional(),
+      enabled: z.boolean(),
+    })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
 
-  const { error } = await g.supabase
+  let query = g.supabase
     .from("led_wall_scenes")
     .update({ enabled: parsed.data.enabled })
     .eq("venue_id", g.context.venue.id)
     .eq("artist_id", parsed.data.artistId);
+  if (parsed.data.sceneId) query = query.eq("id", parsed.data.sceneId);
+  const { error } = await query;
   if (error) return { ok: false, message: sqlHint(error.message) };
   revalidateArtistLed(parsed.data.artistId);
-  return { ok: true, message: parsed.data.enabled ? "Artist LED graphic enabled." : "Artist LED graphic disabled." };
+  return {
+    ok: true,
+    message: parsed.data.enabled ? "Artist LED graphic enabled." : "Artist LED graphic disabled.",
+  };
 }
 
-export async function clearArtistLedMediaAction(artistId: string): Promise<ArtistLedActionResult> {
+export async function setArtistLedDefaultAction(input: unknown): Promise<ArtistLedActionResult> {
   const g = await gate("program");
   if (!g.ok) return { ok: false, message: g.message };
-  if (!z.string().uuid().safeParse(artistId).success) return { ok: false, message: "Invalid artist." };
+  const parsed = z
+    .object({ artistId: z.string().uuid(), sceneId: z.string().uuid() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const venueId = g.context.venue.id;
+  const { data: scene, error: sceneError } = await g.supabase
+    .from("led_wall_scenes")
+    .select("id")
+    .eq("id", parsed.data.sceneId)
+    .eq("venue_id", venueId)
+    .eq("artist_id", parsed.data.artistId)
+    .maybeSingle();
+  if (sceneError) return { ok: false, message: sqlHint(sceneError.message) };
+  if (!scene) return { ok: false, message: "Visualizer not found." };
+
+  const { error: clearError } = await g.supabase
+    .from("led_wall_scenes")
+    .update({ is_default: false } as never)
+    .eq("venue_id", venueId)
+    .eq("artist_id", parsed.data.artistId)
+    .neq("id", parsed.data.sceneId);
+  if (clearError) return { ok: false, message: sqlHint(clearError.message) };
 
   const { error } = await g.supabase
     .from("led_wall_scenes")
+    .update({ is_default: true, enabled: true } as never)
+    .eq("id", parsed.data.sceneId)
+    .eq("venue_id", venueId);
+  if (error) return { ok: false, message: sqlHint(error.message) };
+
+  revalidateArtistLed(parsed.data.artistId);
+  return { ok: true, message: "Default LED visualizer updated.", sceneId: parsed.data.sceneId };
+}
+
+export async function clearArtistLedMediaAction(input: unknown): Promise<ArtistLedActionResult> {
+  const g = await gate("program");
+  if (!g.ok) return { ok: false, message: g.message };
+
+  // Backward compatible: string artistId clears all; object can target one scene.
+  if (typeof input === "string") {
+    if (!z.string().uuid().safeParse(input).success) return { ok: false, message: "Invalid artist." };
+    const { error } = await g.supabase
+      .from("led_wall_scenes")
+      .delete()
+      .eq("venue_id", g.context.venue.id)
+      .eq("artist_id", input);
+    if (error) return { ok: false, message: sqlHint(error.message) };
+    revalidateArtistLed(input);
+    return { ok: true, message: "Artist LED graphics removed." };
+  }
+
+  const parsed = z
+    .object({
+      artistId: z.string().uuid(),
+      sceneId: z.string().uuid().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  let query = g.supabase
+    .from("led_wall_scenes")
     .delete()
     .eq("venue_id", g.context.venue.id)
-    .eq("artist_id", artistId);
+    .eq("artist_id", parsed.data.artistId);
+  if (parsed.data.sceneId) query = query.eq("id", parsed.data.sceneId);
+  const { error } = await query;
   if (error) return { ok: false, message: sqlHint(error.message) };
-  revalidateArtistLed(artistId);
-  return { ok: true, message: "Artist LED graphic removed." };
+
+  if (parsed.data.sceneId) {
+    const { data: remaining } = await g.supabase
+      .from("led_wall_scenes")
+      .select("id, is_default, enabled")
+      .eq("venue_id", g.context.venue.id)
+      .eq("artist_id", parsed.data.artistId);
+    const rows = (remaining ?? []) as Array<{ id: string; is_default: boolean | null; enabled: boolean }>;
+    if (rows.length > 0 && !rows.some((row) => row.is_default)) {
+      const nextDefault = pickDefaultArtistScene(
+        rows.map((row) => ({ id: row.id, enabled: row.enabled, is_default: false })),
+      );
+      if (nextDefault) {
+        await g.supabase
+          .from("led_wall_scenes")
+          .update({ is_default: true } as never)
+          .eq("id", nextDefault.id)
+          .eq("venue_id", g.context.venue.id);
+      }
+    }
+  }
+
+  revalidateArtistLed(parsed.data.artistId);
+  return {
+    ok: true,
+    message: parsed.data.sceneId ? "Visualizer removed." : "Artist LED graphics removed.",
+  };
 }
 
 export async function activateArtistLedAction(input: unknown): Promise<ArtistLedActionResult> {
@@ -123,18 +227,61 @@ export async function activateArtistLedAction(input: unknown): Promise<ArtistLed
   const parsed = z
     .object({
       artistId: z.string().uuid(),
+      sceneId: z.string().uuid().optional(),
       eventId: z.string().uuid().optional(),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
 
-  const { data: scene, error: sceneError } = await g.supabase
-    .from("led_wall_scenes")
-    .select("id, title, enabled")
-    .eq("venue_id", g.context.venue.id)
-    .eq("artist_id", parsed.data.artistId)
-    .maybeSingle();
-  if (sceneError) return { ok: false, message: sqlHint(sceneError.message) };
+  let scene: { id: string; title: string; enabled: boolean } | null = null;
+
+  if (parsed.data.sceneId) {
+    const { data, error } = await g.supabase
+      .from("led_wall_scenes")
+      .select("id, title, enabled")
+      .eq("venue_id", g.context.venue.id)
+      .eq("artist_id", parsed.data.artistId)
+      .eq("id", parsed.data.sceneId)
+      .maybeSingle();
+    if (error) return { ok: false, message: sqlHint(error.message) };
+    scene = data;
+  } else {
+    const { data, error } = await g.supabase
+      .from("led_wall_scenes")
+      .select("id, title, enabled, is_default, sort_order")
+      .eq("venue_id", g.context.venue.id)
+      .eq("artist_id", parsed.data.artistId);
+    if (error && /is_default/i.test(error.message)) {
+      const legacy = await g.supabase
+        .from("led_wall_scenes")
+        .select("id, title, enabled")
+        .eq("venue_id", g.context.venue.id)
+        .eq("artist_id", parsed.data.artistId)
+        .maybeSingle();
+      if (legacy.error) return { ok: false, message: sqlHint(legacy.error.message) };
+      scene = legacy.data;
+    } else if (error) {
+      return { ok: false, message: sqlHint(error.message) };
+    } else {
+      const picked = pickDefaultArtistScene(
+        ((data ?? []) as Array<{
+          id: string;
+          title: string;
+          enabled: boolean;
+          is_default?: boolean | null;
+          sort_order?: number | null;
+        }>).map((row) => ({
+          id: row.id,
+          title: row.title,
+          enabled: row.enabled,
+          is_default: row.is_default,
+          sort_order: row.sort_order,
+        })),
+      );
+      scene = picked ? { id: picked.id, title: picked.title, enabled: picked.enabled } : null;
+    }
+  }
+
   if (!scene || !scene.enabled) {
     return { ok: false, message: "That artist does not have an active LED graphic yet." };
   }

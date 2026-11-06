@@ -9,8 +9,13 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { parseTriviaCsv } from "@/lib/trivia/csv";
 import { isMissingTriviaRelation, normalizeDisplayName } from "@/lib/trivia/engine";
 import { endTriviaSession, startTriviaSession } from "@/lib/trivia/runtime";
-import { importTriviaCsvSchema, startTriviaSchema } from "@/lib/validation/schemas";
+import {
+  importTriviaCsvSchema,
+  startTriviaSchema,
+  updateTriviaPackBrandSchema,
+} from "@/lib/validation/schemas";
 import { listLedWallScenes } from "@/lib/queries/led-wall";
+import { isTriviaBrandHex } from "@/lib/trivia/brand";
 
 export type TriviaActionResult = { ok: boolean; message: string; joinCode?: string; sessionId?: string };
 
@@ -170,4 +175,87 @@ export async function importTriviaCsvAction(input: unknown): Promise<TriviaActio
 
 export async function ensureTriviaDisplayName(raw: string) {
   return normalizeDisplayName(raw);
+}
+
+export async function updateTriviaPackBrandAction(input: unknown): Promise<TriviaActionResult> {
+  const gate = await triviaGate("configure");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = updateTriviaPackBrandSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+
+  const venueId = gate.context.venue.id;
+  const colors = {
+    brand_background: parsed.data.background.toLowerCase(),
+    brand_text: parsed.data.text.toLowerCase(),
+    brand_accent: parsed.data.accent.toLowerCase(),
+    brand_muted: parsed.data.muted.toLowerCase(),
+    brand_muted_strong: parsed.data.mutedStrong.toLowerCase(),
+  };
+  for (const value of Object.values(colors)) {
+    if (!isTriviaBrandHex(value)) return { ok: false, message: "Use #RRGGBB colors." };
+  }
+
+  const { data: pack, error: packError } = await gate.supabase
+    .from("trivia_packs" as never)
+    .select("id, brand_logo_path")
+    .eq("id", parsed.data.packId)
+    .eq("venue_id", venueId)
+    .maybeSingle();
+  if (packError) {
+    if (isMissingTriviaRelation(packError.message) || /brand_/i.test(packError.message)) {
+      return {
+        ok: false,
+        message: "Apply the trivia pack brand SQL migration, then try again.",
+      };
+    }
+    return { ok: false, message: packError.message };
+  }
+  if (!pack) return { ok: false, message: "Pack not found." };
+
+  const previousPath = (pack as { brand_logo_path?: string | null }).brand_logo_path ?? null;
+  const clearLogo = parsed.data.logoPath === "" || parsed.data.logoPath === null;
+  const nextPath =
+    clearLogo
+      ? null
+      : typeof parsed.data.logoPath === "string" && parsed.data.logoPath.length > 0
+        ? parsed.data.logoPath
+        : undefined;
+  const nextUrl =
+    clearLogo
+      ? null
+      : typeof parsed.data.logoUrl === "string" && parsed.data.logoUrl.length > 0
+        ? parsed.data.logoUrl
+        : undefined;
+
+  if (nextPath && !nextPath.startsWith(`${venueId}/trivia/`)) {
+    return { ok: false, message: "Logo path is not valid for this venue." };
+  }
+
+  const patch: Record<string, string | null> = { ...colors };
+  if (nextPath !== undefined) {
+    patch.brand_logo_path = nextPath;
+    patch.brand_logo_url = nextUrl ?? null;
+  }
+
+  const { error } = await gate.supabase
+    .from("trivia_packs" as never)
+    .update(patch as never)
+    .eq("id", parsed.data.packId)
+    .eq("venue_id", venueId);
+  if (error) {
+    if (/brand_/i.test(error.message)) {
+      return { ok: false, message: "Apply the trivia pack brand SQL migration, then try again." };
+    }
+    return { ok: false, message: error.message };
+  }
+
+  if (nextPath && previousPath && previousPath !== nextPath) {
+    await gate.supabase.storage.from("screen-ads").remove([previousPath]);
+  }
+  if (clearLogo && previousPath) {
+    await gate.supabase.storage.from("screen-ads").remove([previousPath]);
+  }
+
+  revalidateTrivia();
+  return { ok: true, message: "Pack branding saved." };
 }

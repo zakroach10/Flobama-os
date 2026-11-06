@@ -1,3 +1,4 @@
+import { DEFAULT_TRIVIA_BRAND } from "@/lib/trivia/brand";
 import type { TriviaWallState } from "@/lib/trivia/types";
 
 export function demoTriviaWall(origin = "https://flobama-os.vercel.app"): TriviaWallState {
@@ -9,6 +10,7 @@ export function demoTriviaWall(origin = "https://flobama-os.vercel.app"): Trivia
     status: "lobby",
     packTitle: "Shoals Music History",
     packTheme: "Shoals music history",
+    brand: DEFAULT_TRIVIA_BRAND,
     currentQuestionIndex: 0,
     questionCount: 10,
     phaseEndsAt: ends,

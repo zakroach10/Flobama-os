@@ -1,4 +1,7 @@
 import type { WallJoinNotice } from "@/lib/screens/join-notices";
+import type { TriviaPackBrand } from "@/lib/trivia/brand";
+
+export type { TriviaPackBrand };
 
 export const TRIVIA_SESSION_STATUSES = [
   "lobby",
@@ -57,6 +60,7 @@ export type TriviaWallState = {
   status: Exclude<TriviaSessionStatus, "ended">;
   packTitle: string;
   packTheme: string;
+  brand: TriviaPackBrand;
   currentQuestionIndex: number;
   questionCount: number;
   phaseEndsAt: string | null;
@@ -75,6 +79,7 @@ export type TriviaPlayerState = {
   sessionId: string;
   joinCode: string;
   status: Exclude<TriviaSessionStatus, "ended">;
+  brand: TriviaPackBrand;
   currentQuestionIndex: number;
   questionCount: number;
   phaseEndsAt: string | null;
@@ -92,6 +97,7 @@ export type TriviaPackSummary = {
   theme: string;
   enabled: boolean;
   questionCount: number;
+  brand: TriviaPackBrand;
 };
 
 export type TriviaStaffSession = {

@@ -342,6 +342,8 @@ export default async function ScreensPage({
             missingTable={packsRes.missingTable || triviaSessionRes.missingTable}
             canConfigure={canProgram}
             joinBaseUrl={joinBaseUrl}
+            venueId={context.venue.id}
+            supabaseEnv={supabaseEnv}
           />
         }
       />
