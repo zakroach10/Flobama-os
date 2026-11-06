@@ -143,8 +143,8 @@ describe("trivia wall layout", () => {
     expect(source).not.toContain("left-1/2");
     expect(source).not.toContain("scale(");
     expect(source).toContain("h-full w-full overflow-hidden");
-    expect(source).toContain("data-above-chairs");
-    expect(source).toContain("TRIVIA_WALL_CLEAR_HEIGHT");
+    expect(source).not.toContain("data-chair-line");
+    expect(source).not.toContain("LowerBand");
   });
 });
 

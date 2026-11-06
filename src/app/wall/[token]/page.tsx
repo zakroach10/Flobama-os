@@ -12,7 +12,7 @@ export default async function TriviaWallSharePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ demo?: string; phase?: string; logo?: string; safe?: string }>;
+  searchParams: Promise<{ demo?: string; phase?: string; logo?: string }>;
 }) {
   const { token: rawToken } = await params;
   const token = normalizeTriviaWallToken(rawToken);
@@ -33,9 +33,8 @@ export default async function TriviaWallSharePage({
             : query.demo === "1" || query.phase === "lobby"
               ? "lobby"
               : null;
-  const showSafeLine = query.safe === "1";
   if (demoPhase === "standby") {
-    return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo showSafeLine={showSafeLine} />;
+    return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo />;
   }
   if (demoPhase) {
     const origin = getTriviaPublicUrl();
@@ -49,7 +48,7 @@ export default async function TriviaWallSharePage({
       query.logo === "1"
         ? { ...base, brand: { ...base.brand, logoUrl: "/flobama-logo.png" } }
         : base;
-    return <TriviaWallStage initial={trivia} pollPath={pollPath} lockDemo showSafeLine={showSafeLine} />;
+    return <TriviaWallStage initial={trivia} pollPath={pollPath} lockDemo />;
   }
 
   const loaded = await loadSharedTriviaWall(token);
