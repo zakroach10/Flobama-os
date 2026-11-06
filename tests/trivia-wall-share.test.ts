@@ -206,7 +206,13 @@ describe("trivia wall stage", () => {
         }),
       );
     });
-    expect(document.body.textContent).toContain("Next game shows up here");
+    expect(document.body.textContent).not.toContain("Next game shows up here");
+    expect(document.body.textContent).not.toContain("Live trivia");
     expect(document.body.textContent).not.toContain("Sign in");
+    const logo = document.querySelector("img");
+    expect(logo?.getAttribute("width")).toBe("1500");
+    expect(logo?.getAttribute("height")).toBe("488");
+    expect(logo?.className).toContain("object-contain");
+    expect(document.querySelector("[role='status']")).toBeTruthy();
   });
 });

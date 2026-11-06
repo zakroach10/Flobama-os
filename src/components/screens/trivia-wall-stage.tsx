@@ -1,5 +1,5 @@
-import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { TriviaWall } from "@/components/screens/trivia-wall";
+import { FLOBAMA_LOGO_ALT, FLOBAMA_LOGO_SRC } from "@/lib/brand";
 import { triviaDisplayFont } from "@/lib/trivia/display-font";
 import type { TriviaWallState } from "@/lib/trivia/types";
 
@@ -31,13 +31,22 @@ export function TriviaWallMessage({ title }: { title: string }) {
 
 function TriviaWallStandby() {
   return (
-    <div className="flex h-full flex-col justify-center bg-[radial-gradient(ellipse_at_top,#3a241c_0%,#100e0c_62%)] px-16 pb-28 text-[#f7efe6]">
-      <FlobamaLogo className="h-[170px] w-auto" priority />
-      <p className="mt-8 text-[22px] tracking-[0.32em] text-[#d36b4a] uppercase">Live trivia</p>
-      <p className="mt-3 max-w-[1200px] text-[80px] leading-none">Next game shows up here</p>
-      <p className="mt-5 max-w-[900px] font-sans text-[30px] leading-snug text-[#cbb7a8]">
-        Have your phone ready. The join code and QR appear when the game starts.
-      </p>
+    <div className="flex h-full flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,#3a241c_0%,#100e0c_62%)] px-16 pb-28">
+      {/* Intrinsic 1500×488. Width is capped; height follows so the wordmark is not stretched. */}
+      <img
+        src={FLOBAMA_LOGO_SRC}
+        alt={FLOBAMA_LOGO_ALT}
+        width={1500}
+        height={488}
+        draggable={false}
+        fetchPriority="high"
+        className="h-auto w-[640px] max-w-[78%] object-contain"
+      />
+      <div
+        className="mt-12 size-[72px] rounded-full border-4 border-white/15 border-t-[#e7a15a] motion-safe:animate-spin"
+        role="status"
+        aria-label="Waiting for the next game"
+      />
     </div>
   );
 }
