@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import QRCode from "qrcode";
 import { DEFAULT_TRIVIA_BRAND, triviaBrandCssVars, type TriviaPackBrand } from "@/lib/trivia/brand";
+import { triviaDisplayFont } from "@/lib/trivia/display-font";
 
 export type TriviaKioskPromo = {
   joinCode: string;
@@ -33,8 +34,8 @@ export function TriviaKioskSlide({ promo }: { promo: TriviaKioskPromo }) {
 
   return (
     <div
-      className="flex h-full w-full flex-col items-center justify-between bg-[var(--trivia-bg)] px-16 py-20 text-center text-[var(--trivia-text)]"
-      style={triviaBrandCssVars(brand) as CSSProperties}
+      className={`${triviaDisplayFont.className} flex h-full w-full flex-col items-center justify-between bg-[var(--trivia-bg)] px-16 py-20 text-center text-[var(--trivia-text)]`}
+      style={{ ...triviaBrandCssVars(brand), fontSynthesis: "none" } as CSSProperties}
     >
       <div className="space-y-6">
         {brand.logoUrl ? (
@@ -42,13 +43,13 @@ export function TriviaKioskSlide({ promo }: { promo: TriviaKioskPromo }) {
           <img
             src={brand.logoUrl}
             alt=""
-            className="mx-auto h-24 w-auto max-w-[420px] object-contain"
+            className="mx-auto h-[240px] w-auto max-w-[720px] object-contain"
           />
         ) : null}
         <p className="text-[34px] font-semibold tracking-[0.28em] text-[var(--trivia-accent)] uppercase">
           Live trivia
         </p>
-        <h2 className="text-[64px] leading-none font-black tracking-tight">{promo.packTitle}</h2>
+        <h2 className="text-[92px] leading-none">{promo.packTitle}</h2>
         <p className="text-[34px] text-[var(--trivia-muted)]">Scan to join on your phone</p>
       </div>
       <div className="flex w-full max-w-[760px] flex-col items-center gap-10">

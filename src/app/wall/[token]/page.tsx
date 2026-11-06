@@ -12,7 +12,7 @@ export default async function TriviaWallSharePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ demo?: string; phase?: string }>;
+  searchParams: Promise<{ demo?: string; phase?: string; logo?: string }>;
 }) {
   const { token: rawToken } = await params;
   const token = normalizeTriviaWallToken(rawToken);
@@ -24,21 +24,30 @@ export default async function TriviaWallSharePage({
   const demoPhase =
     process.env.NODE_ENV === "production"
       ? null
-      : query.phase === "question" || query.demo === "question"
-        ? "question"
-        : query.phase === "podium" || query.demo === "podium"
-          ? "podium"
-          : query.demo === "1" || query.phase === "lobby"
-            ? "lobby"
-            : null;
+      : query.demo === "standby"
+        ? "standby"
+        : query.phase === "question" || query.demo === "question"
+          ? "question"
+          : query.phase === "podium" || query.demo === "podium"
+            ? "podium"
+            : query.demo === "1" || query.phase === "lobby"
+              ? "lobby"
+              : null;
+  if (demoPhase === "standby") {
+    return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo />;
+  }
   if (demoPhase) {
     const origin = getPublicAppUrl();
-    const trivia =
+    const base =
       demoPhase === "question"
         ? demoTriviaQuestionWall(origin)
         : demoPhase === "podium"
           ? demoTriviaPodiumWall(origin)
           : demoTriviaWall(origin);
+    const trivia =
+      query.logo === "1"
+        ? { ...base, brand: { ...base.brand, logoUrl: "/flobama-logo.png" } }
+        : base;
     return <TriviaWallStage initial={trivia} pollPath={pollPath} lockDemo />;
   }
 

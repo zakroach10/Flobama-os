@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, type CSSProperties } from "react";
 import { TRIVIA_POLL_MS } from "@/lib/constants";
 import { DEFAULT_TRIVIA_BRAND, triviaAccentRgba, triviaBrandCssVars, type TriviaPackBrand } from "@/lib/trivia/brand";
+import { triviaDisplayFont } from "@/lib/trivia/display-font";
 import type { TriviaPlayerState, TriviaWallState } from "@/lib/trivia/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,14 +97,14 @@ export function TriviaPlayClient({ joinCode }: { joinCode: string }) {
   if (!player) {
     return (
       <div
-        className="min-h-dvh bg-[var(--trivia-bg)] text-[var(--trivia-text)]"
+        className={`${triviaDisplayFont.className} min-h-dvh bg-[var(--trivia-bg)] text-[var(--trivia-text)]`}
         style={brandStyle}
       >
         <div className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-5 py-10">
           <div>
             {brand.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={brand.logoUrl} alt="" className="mb-4 h-12 w-auto max-w-[200px] object-contain" />
+              <img src={brand.logoUrl} alt="" className="mb-4 h-20 w-auto max-w-[280px] object-contain" />
             ) : null}
             <p className="text-xs font-semibold tracking-[0.24em] text-[var(--trivia-accent)] uppercase">
               Live Trivia
@@ -147,7 +148,7 @@ export function TriviaPlayClient({ joinCode }: { joinCode: string }) {
       : null;
 
   return (
-    <div className="min-h-dvh bg-[var(--trivia-bg)] text-[var(--trivia-text)]" style={brandStyle}>
+    <div className={`${triviaDisplayFont.className} min-h-dvh bg-[var(--trivia-bg)] text-[var(--trivia-text)]`} style={brandStyle}>
       <div className="mx-auto flex min-h-full max-w-lg flex-col gap-6 px-5 py-8">
         <header className="flex items-start justify-between gap-3">
           <div>

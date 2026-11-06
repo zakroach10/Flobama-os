@@ -7,6 +7,10 @@ import { FLO_BAMA_VENUE_ID, TRIVIA_OBS_SCENE_NAME, TRIVIA_WALL_HEIGHT, TRIVIA_WA
 vi.mock("qrcode", () => ({
   default: { toDataURL: vi.fn(async () => "data:image/png;base64,abc") },
 }));
+
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-trivia-display", variable: "--font-trivia-display", style: {} }),
+}));
 import { demoTriviaQuestionWall } from "@/lib/trivia/demo";
 import { buildTriviaObsSceneCollection } from "@/lib/trivia/obs-collection";
 import {
@@ -171,7 +175,7 @@ describe("trivia wall stage", () => {
         }),
       );
     });
-    expect(document.body.textContent).toContain("Waiting for the next game");
+    expect(document.body.textContent).toContain("Next game shows up here");
     expect(document.body.textContent).not.toContain("Sign in");
   });
 });

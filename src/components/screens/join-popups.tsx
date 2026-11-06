@@ -2,10 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { takeUnseenJoins, type WallJoinNotice } from "@/lib/screens/join-notices";
+import { cn } from "@/lib/utils";
 
 const JOIN_POPUP_MS = 4500;
 
-export function JoinPopups({ joins }: { joins?: readonly WallJoinNotice[] }) {
+export function JoinPopups({
+  joins,
+  className,
+}: {
+  joins?: readonly WallJoinNotice[];
+  className?: string;
+}) {
   const seen = useRef<Set<string> | null>(null);
   const alive = useRef(true);
   const [popups, setPopups] = useState<WallJoinNotice[]>([]);
@@ -39,7 +46,12 @@ export function JoinPopups({ joins }: { joins?: readonly WallJoinNotice[] }) {
   if (popups.length === 0) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-8 z-40 flex justify-center px-8">
+    <div
+      className={cn(
+        "pointer-events-none absolute z-40 flex px-8",
+        className ?? "inset-x-0 bottom-8 justify-center",
+      )}
+    >
       <div className="flex max-w-6xl flex-wrap items-center justify-center gap-3">
         {popups.map((join) => (
           <div
