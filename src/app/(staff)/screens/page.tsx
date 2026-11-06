@@ -14,6 +14,7 @@ import { listStaffMenuSpecials, listStaffPlaylistItems, listStaffPlaylists } fro
 import { getStaffTakeover, listStaffScreenAds } from "@/lib/queries/screens";
 import { getStaffTriviaSession, listTriviaPacks } from "@/lib/queries/trivia";
 import { LedPlaylistsPanel } from "@/components/screens/led-playlists-panel";
+import { LedPreloadPanel } from "@/components/screens/led-preload-panel";
 import { LedSchedulePanel } from "@/components/screens/led-schedule-panel";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
 import { PlaylistsPanel } from "@/components/screens/playlists-panel";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/queries/performance-library";
 import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
 import { isAgentStale } from "@/lib/screens/led-wall";
+import { listPreloadPins, listPreloadReports, preloadReportSummary } from "@/lib/screens/led-preload-data";
 import { authorizePerformanceConfigure, authorizePerformancePlayback } from "@/lib/auth/permissions";
 import { triviaWallShareUrl } from "@/lib/trivia/wall-share";
 
@@ -81,6 +83,8 @@ export default async function ScreensPage({
     todayLedRes,
     artistLedRes,
     displayDevicesRes,
+    preloadPinsRes,
+    preloadReportsRes,
     performanceRecordingsRes,
     performanceSettingsRes,
   ] = await Promise.all([
@@ -103,6 +107,8 @@ export default async function ScreensPage({
     listTodayLedListings(supabase, context.venue.id, context.venue.timezone),
     listArtistLedConfigs(supabase, context.venue.id),
     listStaffDisplayDevices(supabase, context.venue.id),
+    listPreloadPins(supabase, context.venue.id),
+    listPreloadReports(supabase, context.venue.id),
     canProgram
       ? listStaffPerformanceRecordings(supabase, context.venue.id)
       : Promise.resolve({ recordings: [], missingTable: false, error: null }),
@@ -192,6 +198,15 @@ export default async function ScreensPage({
     wallOpsUserId: context.venue.wall_ops_user_id,
   }).allowed;
 
+  const preloadScenes = scenes.flatMap((scene) => {
+    if (!scene.enabled || scene.kind !== "media") return [];
+    if (scene.media_kind !== "image" && scene.media_kind !== "video") return [];
+    if (!scene.public_url) return [];
+    return [{ id: scene.id, title: scene.title, mediaKind: scene.media_kind }];
+  });
+  const preloadReports = preloadReportSummary(preloadReportsRes.reports);
+  const preloadMissingTable = preloadPinsRes.missingTable || preloadReportsRes.missingTable;
+
   if (wallOps) {
     return (
       <WallOpsControlCenter
@@ -210,6 +225,10 @@ export default async function ScreensPage({
         venueId={context.venue.id}
         supabaseEnv={supabaseEnv}
         triviaWallUrl={triviaWallUrl}
+        preloadScenes={preloadScenes}
+        preloadPinnedIds={preloadPinsRes.sceneIds}
+        preloadReports={preloadReports}
+        preloadMissingTable={preloadMissingTable}
       />
     );
   }
@@ -236,6 +255,12 @@ export default async function ScreensPage({
         showTrivia
         led={
           <>
+            <LedPreloadPanel
+              scenes={preloadScenes}
+              pinnedIds={preloadPinsRes.sceneIds}
+              reports={preloadReports}
+              missingTable={preloadMissingTable}
+            />
             <LedSchedulePanel
               listings={todayLedRes.listings}
               artistConfigs={artistLedRes.configs}

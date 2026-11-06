@@ -18,6 +18,7 @@ import { refreshWallDisplaysAction } from "@/actions/display-signals";
 import { signOutWallOpsAction } from "@/actions/records";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { WallOpsInstallCard } from "@/components/pwa/wall-ops-install-card";
+import { LedPreloadPanel, type PreloadSceneChoice } from "@/components/screens/led-preload-panel";
 import { TriviaWallShareCard } from "@/components/screens/trivia-wall-share-card";
 import { WallOpsSceneUpload } from "@/components/screens/wall-ops-scene-upload";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
   writeWallOpsStation,
   type WallOpsStation,
 } from "@/lib/screens/wall-ops-station";
+import type { PreloadReportState } from "@/lib/screens/led-preload";
 import { formatVenueDateTime } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +79,10 @@ export function WallOpsControlCenter({
   venueId,
   supabaseEnv,
   triviaWallUrl = null,
+  preloadScenes = [],
+  preloadPinnedIds = [],
+  preloadReports = {},
+  preloadMissingTable = false,
 }: {
   scenes: LedWallSceneRow[];
   activeSceneId: string | null;
@@ -93,6 +99,10 @@ export function WallOpsControlCenter({
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
   triviaWallUrl?: string | null;
+  preloadScenes?: PreloadSceneChoice[];
+  preloadPinnedIds?: string[];
+  preloadReports?: Record<string, { state: PreloadReportState; message: string | null }>;
+  preloadMissingTable?: boolean;
 }) {
   const router = useRouter();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -386,6 +396,12 @@ export function WallOpsControlCenter({
             ) : null}
           </div>
         </div>
+        <LedPreloadPanel
+          scenes={preloadScenes}
+          pinnedIds={preloadPinnedIds}
+          reports={preloadReports}
+          missingTable={preloadMissingTable}
+        />
       </div>
     </section>
   );

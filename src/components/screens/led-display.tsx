@@ -15,6 +15,8 @@ import type { AudienceWallState } from "@/lib/audience/types";
 import { TriviaWall } from "@/components/screens/trivia-wall";
 import { AudienceWall } from "@/components/audience/audience-wall";
 import { LedYoutubePlayer } from "@/components/screens/led-youtube-player";
+import { LedPreloadPool } from "@/components/screens/led-preload-pool";
+import { visibleWhileLoading } from "@/lib/screens/led-preload";
 
 type LedApiPayload = {
   active?: PublicLedMedia | null;
@@ -26,6 +28,7 @@ type LedApiPayload = {
   reloadNonce?: number;
   disabled?: boolean;
   error?: string;
+  preload?: Array<PublicLedMedia & { source?: string }>;
 };
 
 export function LedDisplay({
@@ -52,6 +55,11 @@ export function LedDisplay({
   lockPlaylist?: boolean;
 }) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
+  const [shown, setShown] = useState<PublicLedMedia | null>(initial);
+  const [preload, setPreload] = useState<PublicLedMedia[]>([]);
+  const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(
+    () => new Set(initial?.url ? [initial.url] : []),
+  );
   const [playlist, setPlaylist] = useState<PublicLedPlaylistItem[]>(initialPlaylist);
   const [mode, setMode] = useState<"idle" | "scene" | "playlist">(initialMode);
   const [startedAt, setStartedAt] = useState<string | null>(initialStartedAt);
@@ -66,8 +74,11 @@ export function LedDisplay({
   const playlistRef = useRef(initialPlaylist);
   const startedAtRef = useRef<string | null>(initialStartedAt);
   const overlayKeyRef = useRef(overlayStateKey(initialTrivia, initialAudience));
-  playlistRef.current = playlist;
-  startedAtRef.current = startedAt;
+
+  useEffect(() => {
+    playlistRef.current = playlist;
+    startedAtRef.current = startedAt;
+  }, [playlist, startedAt]);
 
   useEffect(() => {
     if (lockTriviaDemo || lockPlaylist) return;
@@ -99,6 +110,7 @@ export function LedDisplay({
           setPlaylist([]);
           setStartedAt(null);
           setMedia(null);
+          setPreload([]);
           setTrivia(null);
           setAudience(null);
           return;
@@ -127,6 +139,15 @@ export function LedDisplay({
               )
             : nextStartedAt;
 
+        const overlayCover = Boolean(nextTrivia || nextAudience?.tool);
+        const warm = (ledJson.preload ?? []).filter((item) => {
+          if (!item.url || (item.mediaKind !== "image" && item.mediaKind !== "video")) return false;
+          // The playlist stage already mounts the next slide. Don't decode it a second time.
+          if (!overlayCover && nextMode === "playlist" && item.source === "playlist") return false;
+          return true;
+        });
+        setPreload((current) => (samePreloadList(current, warm) ? current : warm));
+
         const samePlaylist =
           nextMode === "playlist" &&
           modeRef.current === "playlist" &&
@@ -149,12 +170,34 @@ export function LedDisplay({
         /* keep current frame on network errors */
       }
     }
+    void refresh();
     const timer = window.setInterval(() => void refresh(), LED_DISPLAY_POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
   }, [lockTriviaDemo, lockPlaylist]);
+
+  const visible =
+    media?.mediaKind === "youtube" ? media : visibleWhileLoading({ requested: media, showing: shown, readyUrls });
+  if ((visible?.url ?? null) !== (shown?.url ?? null)) {
+    setShown(visible);
+  }
+
+  function markReady(url: string) {
+    setReadyUrls((current) => {
+      if (current.has(url)) return current;
+      const next = new Set(current);
+      next.add(url);
+      return next;
+    });
+  }
+
+  const warmItems = preload.filter((item) => item.url !== shown?.url && item.url !== media?.url);
+  const incoming =
+    media && media.url !== shown?.url && !readyUrls.has(media.url) && media.mediaKind !== "youtube"
+      ? [media]
+      : [];
 
   // Keep display + OBS agent on the same time-based playlist slot (wraps / loops).
   useEffect(() => {
@@ -168,41 +211,91 @@ export function LedDisplay({
     return () => window.clearInterval(timer);
   }, [mode, playlist, startedAt, trivia, audience?.tool]);
 
+  const pool =
+    lockTriviaDemo || lockPlaylist ? null : (
+      <LedPreloadPool items={[...warmItems, ...incoming]} onReady={markReady} />
+    );
+
   // Trivia takes precedence if both somehow live; otherwise show audience wall only when a tool is up.
-  if (trivia) return <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />;
-  if (audience?.tool) return <AudienceWall initial={audience} />;
+  if (trivia) {
+    return (
+      <>
+        {pool}
+        <TriviaWall initial={trivia} lockDemo={lockTriviaDemo} />
+      </>
+    );
+  }
+  if (audience?.tool) {
+    return (
+      <>
+        {pool}
+        <AudienceWall initial={audience} />
+      </>
+    );
+  }
 
   if (mode === "playlist" && playlist.length > 0) {
-    return <LedPlaylistStage playlist={playlist} index={index} />;
+    return (
+      <>
+        {pool}
+        <LedPlaylistStage playlist={playlist} index={index} />
+      </>
+    );
   }
 
   // Audience lobby (session live, nothing on wall) only when LED is not running an ad-roll playlist.
-  if (audience) return <AudienceWall initial={audience} />;
-
-  if (!media) return <LedHoldCard />;
-
-  if (media.mediaKind === "youtube") {
-    return <LedYoutubePlayer key={media.id} sceneId={media.id} url={media.url} />;
+  if (audience) {
+    return (
+      <>
+        {pool}
+        <AudienceWall initial={audience} />
+      </>
+    );
   }
 
-  if (media.mediaKind === "video") {
+  const frame = visible;
+  if (!frame) {
     return (
-      <video
-        key={media.id}
-        src={media.url}
-        className="h-full w-full bg-[#100e0c] object-contain"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-      />
+      <>
+        {pool}
+        <LedHoldCard />
+      </>
+    );
+  }
+
+  if (frame.mediaKind === "youtube") {
+    return (
+      <>
+        {pool}
+        <LedYoutubePlayer key={frame.id} sceneId={frame.id} url={frame.url} />
+      </>
+    );
+  }
+
+  if (frame.mediaKind === "video") {
+    return (
+      <>
+        {pool}
+        <video
+          key={frame.id}
+          src={frame.url}
+          className="h-full w-full bg-[#100e0c] object-contain"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
+      </>
     );
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img key={media.id} src={media.url} alt="" className="h-full w-full bg-[#100e0c] object-contain" />
+    <>
+      {pool}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img key={frame.id} src={frame.url} alt="" className="h-full w-full bg-[#100e0c] object-contain" />
+    </>
   );
 }
 
@@ -311,4 +404,12 @@ function LedMediaSurface({
 
 function overlayStateKey(trivia: TriviaWallState | null, audience: AudienceWallState | null) {
   return JSON.stringify({ trivia, audience });
+}
+
+function samePreloadList(current: PublicLedMedia[], next: PublicLedMedia[]) {
+  if (current.length !== next.length) return false;
+  return current.every(
+    (item, index) =>
+      item.id === next[index]?.id && item.url === next[index]?.url && item.mediaKind === next[index]?.mediaKind,
+  );
 }

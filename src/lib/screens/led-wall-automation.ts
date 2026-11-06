@@ -12,6 +12,7 @@ import {
   shouldRunAdRollReset,
   venueLocalDateString,
 } from "@/lib/screens/artist-led";
+import { LED_PRELOAD_LEAD_MS } from "@/lib/screens/led-preload";
 import { endTriviaSession } from "@/lib/trivia/runtime";
 
 type Client = SupabaseClient<Database>;
@@ -19,6 +20,9 @@ type Client = SupabaseClient<Database>;
 export type LedWallAutomationResult = {
   adRollReset: boolean;
   artistAutoActivated: Array<{ eventId: string; artistId: string; sceneId: string }>;
+  /** Scene ids inside the preload lead. Listed only. This job does not put them on the wall. */
+  preloadSceneIds: string[];
+  preloadLeadMinutes: number;
   skipped: string[];
 };
 
@@ -114,6 +118,8 @@ export async function runLedWallAutomation(
   const result: LedWallAutomationResult = {
     adRollReset: false,
     artistAutoActivated: [],
+    preloadSceneIds: [],
+    preloadLeadMinutes: LED_PRELOAD_LEAD_MS / 60_000,
     skipped: [],
   };
 
@@ -285,6 +291,22 @@ export async function runLedWallAutomation(
     }
     result.artistAutoActivated.push({ eventId: event.id, artistId, sceneId });
     break;
+  }
+
+  // Advance warming only. Shows inside the lead stay off the wall until auto-roll or a person asks.
+  for (const event of events ?? []) {
+    const start = Date.parse(event.starts_at);
+    if (!Number.isFinite(start) || start - now.getTime() > LED_PRELOAD_LEAD_MS) continue;
+    const artists = ((event.event_artists ?? []) as Array<{ artist_id: string; display_order: number }>).map(
+      (row) => ({
+        artist_id: row.artist_id,
+        display_order: row.display_order,
+        hasLedConfig: sceneByArtist.has(row.artist_id),
+      }),
+    );
+    const artistId = pickPrimaryArtistId(artists);
+    const sceneId = artistId ? sceneByArtist.get(artistId) : undefined;
+    if (sceneId && !result.preloadSceneIds.includes(sceneId)) result.preloadSceneIds.push(sceneId);
   }
 
   return result;

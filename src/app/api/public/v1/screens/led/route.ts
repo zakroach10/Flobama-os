@@ -6,7 +6,9 @@ import {
   hostedPublicDisabledLedPayload,
   isHostedPublicPlaybackEnabled,
 } from "@/lib/screens/hosted-public-playback";
+import { loadLedPreloadItems, publicPreloadMedia, venueTimezone } from "@/lib/screens/led-preload-data";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,19 @@ export async function GET() {
 
   const { playback, error } = await getPublicLedPlayback(client, FLO_BAMA_VENUE_ID);
   if (error) return publicJson({ error }, 500);
+
+  let preload: ReturnType<typeof publicPreloadMedia> = [];
+  const admin = createServiceRoleClient();
+  if (admin) {
+    try {
+      const timeZone = await venueTimezone(admin, FLO_BAMA_VENUE_ID);
+      const warmed = await loadLedPreloadItems(admin, FLO_BAMA_VENUE_ID, { timeZone, playback });
+      preload = publicPreloadMedia(warmed.items);
+    } catch {
+      preload = [];
+    }
+  }
+
   return publicJson(
     {
       active: playback.active,
@@ -39,6 +54,7 @@ export async function GET() {
       revision: playback.revision,
       reloadNonce: signalRes.signal.reloadNonce,
       disabled: false,
+      preload,
     },
     200,
     PUBLIC_NO_STORE,
