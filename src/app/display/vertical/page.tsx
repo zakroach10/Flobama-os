@@ -59,6 +59,7 @@ export default async function VerticalDisplayPage({
         packTitle: wall.wall.packTitle,
         playerCount: wall.wall.playerCount,
         status: wall.wall.status,
+        brand: wall.wall.brand,
       };
     }
   }

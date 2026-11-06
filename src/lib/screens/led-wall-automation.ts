@@ -7,6 +7,7 @@ import {
   ARTIST_LED_AUTO_ROLL_MINUTES,
   canAutoReplaceLedWall,
   isWithinArtistLedAutoWindow,
+  pickDefaultArtistScene,
   pickPrimaryArtistId,
   shouldRunAdRollReset,
   venueLocalDateString,
@@ -186,18 +187,58 @@ export async function runLedWallAutomation(
     return result;
   }
 
-  const { data: artistScenes } = await client
+  const artistScenesRes = await client
     .from("led_wall_scenes")
-    .select("id, artist_id, enabled")
+    .select("id, artist_id, enabled, is_default, sort_order, title")
     .eq("venue_id", venueId)
     .eq("enabled", true)
     .not("artist_id", "is", null);
 
-  const sceneByArtist = new Map(
-    ((artistScenes ?? []) as Array<{ id: string; artist_id: string | null; enabled: boolean }>)
-      .filter((row) => row.artist_id)
-      .map((row) => [row.artist_id!, row.id]),
-  );
+  let artistSceneRows = (artistScenesRes.data ?? []) as Array<{
+    id: string;
+    artist_id: string | null;
+    enabled: boolean;
+    is_default?: boolean | null;
+    sort_order?: number | null;
+    title?: string;
+  }>;
+  if (artistScenesRes.error && /is_default/i.test(artistScenesRes.error.message)) {
+    const legacy = await client
+      .from("led_wall_scenes")
+      .select("id, artist_id, enabled, sort_order, title")
+      .eq("venue_id", venueId)
+      .eq("enabled", true)
+      .not("artist_id", "is", null);
+    artistSceneRows = ((legacy.data ?? []) as Array<{
+      id: string;
+      artist_id: string | null;
+      enabled: boolean;
+      sort_order?: number | null;
+      title?: string;
+    }>).map((row) => ({ ...row, is_default: true }));
+  }
+
+  const scenesByArtist = new Map<string, typeof artistSceneRows>();
+  for (const row of artistSceneRows) {
+    if (!row.artist_id) continue;
+    const list = scenesByArtist.get(row.artist_id) ?? [];
+    list.push(row);
+    scenesByArtist.set(row.artist_id, list);
+  }
+
+  const sceneByArtist = new Map<string, string>();
+  for (const [artistId, scenes] of scenesByArtist) {
+    const picked = pickDefaultArtistScene(
+      scenes.map((row) => ({
+        id: row.id,
+        enabled: row.enabled,
+        is_default: row.is_default,
+        sort_order: row.sort_order,
+        title: row.title,
+      })),
+    );
+    if (picked) sceneByArtist.set(artistId, picked.id);
+  }
 
   // Prefer the soonest/current event still in its auto-roll window.
   for (const event of events ?? []) {

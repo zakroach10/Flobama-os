@@ -41,12 +41,16 @@ export function LedSchedulePanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pickArtistId, setPickArtistId] = useState("");
+  const [pickSceneId, setPickSceneId] = useState("");
   const [defaultId, setDefaultId] = useState(defaultPlaylistId ?? "");
+  const [scenePickByArtist, setScenePickByArtist] = useState<Record<string, string>>({});
 
   const activeConfigs = useMemo(
     () => artistConfigs.filter((config) => config.enabled),
     [artistConfigs],
   );
+  const pickConfig = activeConfigs.find((config) => config.artistId === pickArtistId) ?? null;
+  const pickScenes = (pickConfig?.scenes ?? []).filter((scene) => scene.enabled);
   const defaultPlaylist = playlists.find((playlist) => playlist.id === defaultPlaylistId) ?? null;
 
   if (missingColumn) {
@@ -168,16 +172,29 @@ export function LedSchedulePanel({
                   {listing.artists.length === 0 ? (
                     <li className="text-sm text-muted-foreground">No artists linked.</li>
                   ) : (
-                    listing.artists.map((artist) => (
+                    listing.artists.map((artist) => {
+                      const artistKey = `${listing.eventId}-${artist.artistId}`;
+                      const selectedSceneId =
+                        scenePickByArtist[artistKey] ||
+                        artist.defaultSceneId ||
+                        artist.scenes[0]?.sceneId ||
+                        "";
+                      const selectedScene =
+                        artist.scenes.find((scene) => scene.sceneId === selectedSceneId) ?? null;
+                      return (
                       <li
-                        key={`${listing.eventId}-${artist.artistId}`}
+                        key={artistKey}
                         className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2"
                       >
                         <div className="flex min-w-0 items-center gap-3">
                           <div className="flex size-10 items-center justify-center overflow-hidden rounded-md bg-white">
-                            {artist.publicUrl ? (
+                            {(selectedScene?.publicUrl ?? artist.publicUrl) ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={artist.publicUrl} alt="" className="max-h-full max-w-full object-contain" />
+                              <img
+                                src={selectedScene?.publicUrl ?? artist.publicUrl!}
+                                alt=""
+                                className="max-h-full max-w-full object-contain"
+                              />
                             ) : (
                               <span className="text-[10px] text-muted-foreground">—</span>
                             )}
@@ -189,17 +206,41 @@ export function LedSchedulePanel({
                                 ? `Auto ${ARTIST_LED_AUTO_ROLL_MINUTES} min before showtime`
                                 : "No active LED graphic — set one on the artist profile"}
                             </p>
+                            {artist.scenes.length > 1 ? (
+                              <select
+                                className="mt-1 h-8 max-w-full rounded-md border bg-background px-2 text-xs"
+                                value={selectedSceneId}
+                                onChange={(event) =>
+                                  setScenePickByArtist((prev) => ({
+                                    ...prev,
+                                    [artistKey]: event.target.value,
+                                  }))
+                                }
+                              >
+                                {artist.scenes.map((scene) => (
+                                  <option key={scene.sceneId} value={scene.sceneId}>
+                                    {scene.title}
+                                    {scene.isDefault ? " (default)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : null}
                           </div>
                         </div>
                         <Button
                           type="button"
                           size="sm"
-                          disabled={pending || !artist.sceneId || artist.sceneId === activeSceneId}
+                          disabled={
+                            pending ||
+                            !selectedSceneId ||
+                            selectedSceneId === activeSceneId
+                          }
                           onClick={() => {
                             startTransition(async () => {
                               const result = await activateArtistLedAction({
                                 artistId: artist.artistId,
                                 eventId: listing.eventId,
+                                sceneId: selectedSceneId,
                               });
                               if (!result.ok) toast.error(result.message);
                               else {
@@ -209,10 +250,11 @@ export function LedSchedulePanel({
                             });
                           }}
                         >
-                          {artist.sceneId === activeSceneId ? "On wall" : "Put on wall"}
+                          {selectedSceneId === activeSceneId ? "On wall" : "Put on wall"}
                         </Button>
                       </li>
-                    ))
+                      );
+                    })
                   )}
                 </ul>
               </li>
@@ -244,7 +286,10 @@ export function LedSchedulePanel({
                 id="active-artist-led"
                 className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
                 value={pickArtistId}
-                onChange={(event) => setPickArtistId(event.target.value)}
+                onChange={(event) => {
+                  setPickArtistId(event.target.value);
+                  setPickSceneId("");
+                }}
               >
                 <option value="">Select an artist</option>
                 {activeConfigs.map((config) => (
@@ -254,12 +299,38 @@ export function LedSchedulePanel({
                 ))}
               </select>
             </div>
+            {pickScenes.length > 1 ? (
+              <div className="min-w-56 flex-1 space-y-2">
+                <Label htmlFor="active-artist-scene">Visualizer</Label>
+                <select
+                  id="active-artist-scene"
+                  className="h-11 min-h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+                  value={pickSceneId || pickConfig?.defaultSceneId || pickScenes[0]?.sceneId || ""}
+                  onChange={(event) => setPickSceneId(event.target.value)}
+                >
+                  {pickScenes.map((scene) => (
+                    <option key={scene.sceneId} value={scene.sceneId}>
+                      {scene.title}
+                      {scene.isDefault ? " (default)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <Button
               type="button"
               disabled={pending || !pickArtistId}
               onClick={() => {
                 startTransition(async () => {
-                  const result = await activateArtistLedAction({ artistId: pickArtistId });
+                  const sceneId =
+                    pickSceneId ||
+                    pickConfig?.defaultSceneId ||
+                    pickScenes[0]?.sceneId ||
+                    undefined;
+                  const result = await activateArtistLedAction({
+                    artistId: pickArtistId,
+                    sceneId,
+                  });
                   if (!result.ok) toast.error(result.message);
                   else {
                     toast.success(result.message);

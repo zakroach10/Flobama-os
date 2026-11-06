@@ -8,6 +8,7 @@ import {
   houseLedScenes,
   isWithinArtistLedAutoWindow,
   MAX_ARTIST_LED_BYTES,
+  pickDefaultArtistScene,
   pickPrimaryArtistId,
   shouldRunAdRollReset,
   venueLocalDateString,
@@ -62,6 +63,23 @@ describe("artist LED helpers", () => {
         { artist_id: "c", display_order: 2, hasLedConfig: true },
       ]),
     ).toBe("b");
+  });
+
+  it("picks the default enabled visualizer for an artist", () => {
+    expect(
+      pickDefaultArtistScene([
+        { id: "1", enabled: true, is_default: false, title: "A" },
+        { id: "2", enabled: true, is_default: true, title: "B" },
+        { id: "3", enabled: false, is_default: false, title: "C" },
+      ])?.id,
+    ).toBe("2");
+    expect(
+      pickDefaultArtistScene([
+        { id: "1", enabled: false, is_default: true, title: "A" },
+        { id: "2", enabled: true, is_default: false, sort_order: 2, title: "Z" },
+        { id: "3", enabled: true, is_default: false, sort_order: 1, title: "Y" },
+      ])?.id,
+    ).toBe("3");
   });
 
   it("does not auto-replace trivia or audience", () => {

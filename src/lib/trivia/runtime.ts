@@ -10,6 +10,7 @@ import {
   wallQuestionFromRow,
 } from "@/lib/trivia/engine";
 import { buildLeaderboard, playerRank, scoreAnswer } from "@/lib/trivia/scoring";
+import { DEFAULT_TRIVIA_BRAND, triviaBrandFromPackRow } from "@/lib/trivia/brand";
 import type { TriviaPlayerState, TriviaWallState } from "@/lib/trivia/types";
 import { mapJoinRows } from "@/lib/screens/join-notices";
 
@@ -61,14 +62,48 @@ async function loadActiveSession(client: AnyClient, venueId: string) {
 async function loadPackMeta(client: AnyClient, packId: string) {
   const { data, error } = await client
     .from("trivia_packs" as never)
-    .select("title, theme")
+    .select(
+      "title, theme, brand_background, brand_text, brand_accent, brand_muted, brand_muted_strong, brand_logo_url",
+    )
     .eq("id", packId)
     .maybeSingle();
-  if (error) return { title: "Trivia", theme: "Shoals music history", error: error.message };
-  const row = data as { title?: string; theme?: string } | null;
+  if (error) {
+    // Brand columns may be missing before migration — fall back to title/theme only.
+    const legacy = await client
+      .from("trivia_packs" as never)
+      .select("title, theme")
+      .eq("id", packId)
+      .maybeSingle();
+    if (!legacy.error) {
+      const row = legacy.data as { title?: string; theme?: string } | null;
+      return {
+        title: row?.title ?? "Trivia",
+        theme: row?.theme ?? "Shoals music history",
+        brand: DEFAULT_TRIVIA_BRAND,
+        error: null as string | null,
+      };
+    }
+    return {
+      title: "Trivia",
+      theme: "Shoals music history",
+      brand: DEFAULT_TRIVIA_BRAND,
+      error: error.message,
+    };
+  }
+  const row = data as {
+    title?: string;
+    theme?: string;
+    brand_background?: string | null;
+    brand_text?: string | null;
+    brand_accent?: string | null;
+    brand_muted?: string | null;
+    brand_muted_strong?: string | null;
+    brand_logo_url?: string | null;
+  } | null;
   return {
     title: row?.title ?? "Trivia",
     theme: row?.theme ?? "Shoals music history",
+    brand: triviaBrandFromPackRow(row),
     error: null as string | null,
   };
 }
@@ -215,6 +250,7 @@ export async function buildPublicWallState(
       status: session.status,
       packTitle: pack.title,
       packTheme: pack.theme,
+      brand: pack.brand,
       currentQuestionIndex: session.current_question_index,
       questionCount: session.question_count,
       phaseEndsAt: session.phase_ends_at,
@@ -522,7 +558,7 @@ export async function getPlayerState(
   current = advanced.session;
   if (!isActiveTriviaStatus(current.status)) return { state: null, error: null };
 
-  const [playersRes, questionRes, answerRes] = await Promise.all([
+  const [playersRes, questionRes, answerRes, pack] = await Promise.all([
     loadPlayers(client, current.id),
     current.status === "lobby" || current.status === "final"
       ? Promise.resolve({ question: null as QuestionSnap | null, error: null as string | null })
@@ -534,6 +570,7 @@ export async function getPlayerState(
       .eq("player_id", playerRow.id)
       .eq("question_index", current.current_question_index)
       .maybeSingle(),
+    loadPackMeta(client, current.pack_id),
   ]);
 
   if (playersRes.error) return { state: null, error: playersRes.error };
@@ -551,6 +588,7 @@ export async function getPlayerState(
       sessionId: current.id,
       joinCode: current.join_code,
       status: current.status,
+      brand: pack.brand,
       currentQuestionIndex: current.current_question_index,
       questionCount: current.question_count,
       phaseEndsAt: current.phase_ends_at,

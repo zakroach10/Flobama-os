@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth/staff";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getArtistById, listArtistEvents, listArtistNameDuplicates } from "@/lib/queries/artists";
-import { getArtistLedScene } from "@/lib/queries/artist-led";
+import { listArtistLedScenes } from "@/lib/queries/artist-led";
 import { ArtistForm } from "@/components/artists/artist-form";
 import { ArtistLedPanel } from "@/components/artists/artist-led-panel";
 import { ArtistMergePanel } from "@/components/artists/artist-merge-panel";
@@ -28,7 +28,7 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
   const canEdit = canManageProgramming(context.role) && !artist.archived_at;
   const [{ upcoming, past, error: eventError }, ledRes, dupRes] = await Promise.all([
     listArtistEvents(supabase, context.venue.id, artist.id, new Date().toISOString()),
-    getArtistLedScene(supabase, context.venue.id, artist.id),
+    listArtistLedScenes(supabase, context.venue.id, artist.id),
     listArtistNameDuplicates(supabase, context.venue.id, artist.id, artist.name),
   ]);
 
@@ -46,7 +46,7 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
         <ArtistMergePanel
           artistId={artist.id}
           artistName={artist.name}
-          hasLedGraphic={Boolean(ledRes.scene)}
+          hasLedGraphic={ledRes.scenes.length > 0}
           suggestedDuplicates={dupRes.duplicates}
           canEdit={canEdit}
         />
@@ -54,7 +54,7 @@ export default async function ArtistDetailPage({ params }: { params: Promise<{ i
       <ArtistLedPanel
         artistId={artist.id}
         artistName={artist.name}
-        scene={ledRes.scene}
+        scenes={ledRes.scenes}
         missingColumn={ledRes.missingColumn}
         canEdit={canEdit}
         venueId={context.venue.id}

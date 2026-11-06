@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseTriviaCsv } from "@/lib/trivia/csv";
+import { parseTriviaCsv, TRIVIA_CSV_TEMPLATE } from "@/lib/trivia/csv";
 import {
+  DEFAULT_TRIVIA_BRAND,
+  triviaBrandCssVars,
+  triviaBrandFromPackRow,
+} from "@/lib/trivia/brand";
+import {
+  buildWallState,
   createJoinCode,
   nextPhase,
   phaseDurationSeconds,
@@ -112,5 +118,51 @@ Q?,A1,B1,C1,D1,E
 `);
     expect(parsed.questions).toHaveLength(0);
     expect(parsed.errors[0]).toMatch(/correct/i);
+  });
+
+  it("ships a template with mixed correct letters, not all A", () => {
+    const parsed = parseTriviaCsv(TRIVIA_CSV_TEMPLATE);
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.questions.length).toBeGreaterThan(1);
+    const indexes = new Set(parsed.questions.map((question) => question.correctIndex));
+    expect(indexes.has(0)).toBe(true);
+    expect(indexes.size).toBeGreaterThan(1);
+  });
+});
+
+describe("trivia pack brand", () => {
+  it("falls back to FloBama defaults and exposes CSS vars", () => {
+    expect(triviaBrandFromPackRow(null)).toEqual(DEFAULT_TRIVIA_BRAND);
+    const branded = triviaBrandFromPackRow({
+      brand_background: "#112233",
+      brand_text: "#ffffff",
+      brand_accent: "#ff6600",
+      brand_muted: "#aabbcc",
+      brand_muted_strong: "#8899aa",
+      brand_logo_url: "https://example.com/logo.png",
+    });
+    expect(branded.accent).toBe("#ff6600");
+    expect(branded.logoUrl).toBe("https://example.com/logo.png");
+    expect(triviaBrandCssVars(branded)["--trivia-accent"]).toBe("#ff6600");
+  });
+
+  it("includes brand on wall state payloads", () => {
+    const wall = buildWallState({
+      sessionId: "s",
+      joinCode: "ABCD",
+      joinPath: "/play/ABCD",
+      status: "lobby",
+      packTitle: "Festival",
+      packTheme: "Songwriters",
+      brand: { ...DEFAULT_TRIVIA_BRAND, accent: "#004466" },
+      currentQuestionIndex: 0,
+      questionCount: 5,
+      phaseEndsAt: null,
+      playerCount: 0,
+      question: null,
+      top3: [],
+      leaderboard: [],
+    });
+    expect(wall.brand.accent).toBe("#004466");
   });
 });

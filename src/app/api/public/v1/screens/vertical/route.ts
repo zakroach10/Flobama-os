@@ -14,6 +14,7 @@ import { displayRevision, normalizePublicTakeover } from "@/lib/screens/takeover
 import { buildWeekSlidePayload } from "@/lib/screens/week";
 import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import type { TriviaPackBrand } from "@/lib/trivia/brand";
 import { isMissingTriviaRelation } from "@/lib/trivia/engine";
 import { buildPublicWallState } from "@/lib/trivia/runtime";
 
@@ -52,6 +53,7 @@ export async function GET() {
     playerCount: number;
     status: string;
     sessionId: string;
+    brand: TriviaPackBrand;
   };
   const admin = createServiceRoleClient();
   if (admin) {
@@ -70,6 +72,7 @@ export async function GET() {
         playerCount: wall.wall.playerCount,
         status: wall.wall.status,
         sessionId: wall.wall.sessionId,
+        brand: wall.wall.brand,
       };
     }
   }

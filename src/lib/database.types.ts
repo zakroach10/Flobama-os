@@ -609,6 +609,7 @@ export type Database = {
           storage_path: string | null;
           public_url: string | null;
           artist_id: string | null;
+          is_default: boolean;
           sort_order: number;
           enabled: boolean;
           server_approved: boolean;
@@ -625,6 +626,7 @@ export type Database = {
           storage_path?: string | null;
           public_url?: string | null;
           artist_id?: string | null;
+          is_default?: boolean;
           sort_order?: number;
           enabled?: boolean;
           server_approved?: boolean;
@@ -637,6 +639,7 @@ export type Database = {
           storage_path?: string | null;
           public_url?: string | null;
           artist_id?: string | null;
+          is_default?: boolean;
           sort_order?: number;
           enabled?: boolean;
           server_approved?: boolean;
@@ -652,7 +655,7 @@ export type Database = {
           {
             foreignKeyName: "led_wall_scenes_artist_id_fkey";
             columns: ["artist_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "artists";
             referencedColumns: ["id"];
           },

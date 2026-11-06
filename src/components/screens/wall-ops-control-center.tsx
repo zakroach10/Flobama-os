@@ -134,20 +134,42 @@ export function WallOpsControlCenter({
       sceneId: string | null;
       publicUrl: string | null;
       enabled: boolean;
+      sceneLabel: string | null;
     }> = [];
     for (const listing of listings) {
       for (const artist of listing.artists) {
-        rows.push({
-          key: `${listing.eventId}-${artist.artistId}`,
-          artistId: artist.artistId,
-          name: artist.name,
-          eventId: listing.eventId,
-          title: listing.title,
-          startsAt: listing.startsAt,
-          sceneId: artist.sceneId,
-          publicUrl: artist.publicUrl,
-          enabled: artist.enabled,
-        });
+        const scenes = artist.scenes.length > 0 ? artist.scenes : artist.sceneId
+          ? [{ sceneId: artist.sceneId, title: artist.name, publicUrl: artist.publicUrl, enabled: artist.enabled, isDefault: true, mediaKind: null }]
+          : [];
+        if (scenes.length === 0) {
+          rows.push({
+            key: `${listing.eventId}-${artist.artistId}`,
+            artistId: artist.artistId,
+            name: artist.name,
+            eventId: listing.eventId,
+            title: listing.title,
+            startsAt: listing.startsAt,
+            sceneId: null,
+            publicUrl: null,
+            enabled: false,
+            sceneLabel: null,
+          });
+          continue;
+        }
+        for (const scene of scenes) {
+          rows.push({
+            key: `${listing.eventId}-${artist.artistId}-${scene.sceneId}`,
+            artistId: artist.artistId,
+            name: artist.name,
+            eventId: listing.eventId,
+            title: listing.title,
+            startsAt: listing.startsAt,
+            sceneId: scene.sceneId,
+            publicUrl: scene.publicUrl,
+            enabled: scene.enabled,
+            sceneLabel: scenes.length > 1 ? scene.title : null,
+          });
+        }
       }
     }
     return rows;
@@ -248,7 +270,11 @@ export function WallOpsControlCenter({
                     disabled={controlsDisabled || !artist.sceneId || !artist.enabled}
                     onClick={() =>
                       run(`artist-${artist.key}`, () =>
-                        activateArtistLedAction({ artistId: artist.artistId, eventId: artist.eventId }),
+                        activateArtistLedAction({
+                          artistId: artist.artistId,
+                          eventId: artist.eventId,
+                          sceneId: artist.sceneId ?? undefined,
+                        }),
                       )
                     }
                     className={cn(
@@ -278,7 +304,9 @@ export function WallOpsControlCenter({
                           ? "Sending…"
                           : active
                             ? "On the wall"
-                            : `${formatVenueDateTime(artist.startsAt, timeZone)} · ${artist.title}`}
+                            : artist.sceneLabel
+                              ? `${artist.sceneLabel} · ${formatVenueDateTime(artist.startsAt, timeZone)}`
+                              : `${formatVenueDateTime(artist.startsAt, timeZone)} · ${artist.title}`}
                       </span>
                     </span>
                   </button>

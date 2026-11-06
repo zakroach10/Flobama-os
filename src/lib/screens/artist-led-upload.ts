@@ -19,6 +19,7 @@ export async function uploadArtistLedMediaFromBrowser(input: {
   venueId: string;
   artistId: string;
   title: string;
+  sceneId?: string;
   supabaseEnv: PublicSupabaseEnv | null;
   onProgress?: (progress: StorageUploadProgress) => void;
   onPhase?: (phase: ArtistLedUploadPhase) => void;
@@ -85,6 +86,7 @@ export async function uploadArtistLedMediaFromBrowser(input: {
     mediaKind,
     storagePath,
     publicUrl,
+    sceneId: input.sceneId,
   });
   if (!result.ok) {
     const removePaths = posterPath ? [storagePath, posterPath] : [storagePath];

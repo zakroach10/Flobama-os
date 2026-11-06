@@ -405,6 +405,22 @@ export const importTriviaCsvSchema = z.object({
   replace: z.boolean().default(true),
 });
 
+const triviaBrandHex = z
+  .string()
+  .trim()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Use a #RRGGBB color.");
+
+export const updateTriviaPackBrandSchema = z.object({
+  packId: z.string().uuid(),
+  background: triviaBrandHex,
+  text: triviaBrandHex,
+  accent: triviaBrandHex,
+  muted: triviaBrandHex,
+  mutedStrong: triviaBrandHex,
+  logoPath: z.union([z.string().trim().min(3).max(400), z.literal(""), z.null()]).optional(),
+  logoUrl: z.union([z.string().trim().url().max(800), z.literal(""), z.null()]).optional(),
+});
+
 export const importEventsCsvSchema = z.object({
   csvText: z.string().trim().min(1).max(500_000),
 });

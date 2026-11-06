@@ -122,3 +122,20 @@ export function pickPrimaryArtistId(
     .sort((a, b) => a.display_order - b.display_order);
   return withConfig[0]?.artist_id ?? null;
 }
+
+/**
+ * Among an artist's enabled LED scenes, prefer the default; otherwise earliest by sort/title.
+ */
+export function pickDefaultArtistScene<
+  T extends { id: string; enabled: boolean; is_default?: boolean | null; sort_order?: number | null; title?: string },
+>(scenes: T[]): T | null {
+  const enabled = scenes.filter((scene) => scene.enabled);
+  if (enabled.length === 0) return null;
+  const defaults = enabled.filter((scene) => scene.is_default);
+  if (defaults.length > 0) return defaults[0]!;
+  return [...enabled].sort((a, b) => {
+    const sort = (a.sort_order ?? 9999) - (b.sort_order ?? 9999);
+    if (sort !== 0) return sort;
+    return (a.title ?? "").localeCompare(b.title ?? "");
+  })[0]!;
+}

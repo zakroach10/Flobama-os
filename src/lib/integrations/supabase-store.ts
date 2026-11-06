@@ -275,6 +275,7 @@ export class SupabaseIntegrationStore implements IntegrationStore {
       mediaKind: spec.mediaKind,
       storagePath: input.storagePath,
       publicUrl,
+      replaceDefaultIfPresent: true,
     });
     if (!saved.ok) return { ok: false, code: "server_error", logMessage: saved.message };
     await this.writeAudit({

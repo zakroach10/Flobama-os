@@ -364,46 +364,65 @@ export async function mergeArtistsAction(input: unknown): Promise<ActionResult> 
 
   const { data: scenes, error: scenesError } = await gate.supabase
     .from("led_wall_scenes")
-    .select("id, artist_id, title, enabled")
+    .select("id, artist_id, title, enabled, is_default")
     .eq("venue_id", venueId)
     .in("artist_id", [keepArtistId, mergeArtistId]);
   const scenesUnavailable =
     Boolean(scenesError) &&
     (isMissingLedWallRelation(scenesError!.message) ||
-      (/artist_id/i.test(scenesError!.message) && /does not exist|schema cache|could not find/i.test(scenesError!.message)));
+      (/artist_id|is_default/i.test(scenesError!.message) &&
+        /does not exist|schema cache|could not find/i.test(scenesError!.message)));
   if (scenesError && !scenesUnavailable) return { ok: false, message: scenesError.message };
 
-  const keepScene = scenesUnavailable
-    ? null
-    : ((scenes ?? []).find((row) => row.artist_id === keepArtistId) ?? null);
-  const mergeScene = scenesUnavailable
-    ? null
-    : ((scenes ?? []).find((row) => row.artist_id === mergeArtistId) ?? null);
+  const keepScenes = scenesUnavailable
+    ? []
+    : ((scenes ?? []).filter((row) => row.artist_id === keepArtistId) as Array<{
+        id: string;
+        artist_id: string | null;
+        is_default?: boolean | null;
+      }>);
+  const mergeScenes = scenesUnavailable
+    ? []
+    : ((scenes ?? []).filter((row) => row.artist_id === mergeArtistId) as Array<{
+        id: string;
+        artist_id: string | null;
+        is_default?: boolean | null;
+      }>);
 
-  const preferMergeWall = wallFrom === "merge" ? Boolean(mergeScene) : !keepScene && Boolean(mergeScene);
+  const preferMergeWall =
+    wallFrom === "merge" ? mergeScenes.length > 0 : keepScenes.length === 0 && mergeScenes.length > 0;
 
   if (!scenesUnavailable) {
-    if (preferMergeWall && mergeScene) {
-      if (keepScene) {
+    if (preferMergeWall && mergeScenes.length > 0) {
+      if (keepScenes.length > 0) {
         const { error } = await gate.supabase
           .from("led_wall_scenes")
           .delete()
-          .eq("id", keepScene.id)
-          .eq("venue_id", venueId);
+          .eq("venue_id", venueId)
+          .eq("artist_id", keepArtistId);
         if (error) return { ok: false, message: error.message };
       }
       const { error } = await gate.supabase
         .from("led_wall_scenes")
         .update({ artist_id: keepArtistId })
-        .eq("id", mergeScene.id)
-        .eq("venue_id", venueId);
+        .eq("venue_id", venueId)
+        .eq("artist_id", mergeArtistId);
       if (error) return { ok: false, message: error.message };
-    } else if (mergeScene) {
+    } else if (mergeScenes.length > 0) {
+      // Keep keeper scenes; move merge scenes over as non-default extras.
+      const { error: clearDefaultsError } = await gate.supabase
+        .from("led_wall_scenes")
+        .update({ is_default: false } as never)
+        .eq("venue_id", venueId)
+        .eq("artist_id", mergeArtistId);
+      if (clearDefaultsError && !/is_default/i.test(clearDefaultsError.message)) {
+        return { ok: false, message: clearDefaultsError.message };
+      }
       const { error } = await gate.supabase
         .from("led_wall_scenes")
-        .delete()
-        .eq("id", mergeScene.id)
-        .eq("venue_id", venueId);
+        .update({ artist_id: keepArtistId })
+        .eq("venue_id", venueId)
+        .eq("artist_id", mergeArtistId);
       if (error) return { ok: false, message: error.message };
     }
   }
@@ -473,10 +492,12 @@ export async function mergeArtistsAction(input: unknown): Promise<ActionResult> 
   const wallNote = scenesUnavailable
     ? " LED wall tables were unavailable, so graphics were left as-is."
     : preferMergeWall
-      ? " LED wall graphic moved onto the kept artist."
-      : keepScene
-        ? " Kept the surviving artist's LED wall graphic."
-        : mergeScene
+      ? " LED wall visualizers moved onto the kept artist."
+      : keepScenes.length > 0
+        ? mergeScenes.length > 0
+          ? " Kept the surviving artist's default visualizer and added the merged artist's files."
+          : " Kept the surviving artist's LED wall visualizer(s)."
+        : mergeScenes.length > 0
           ? ""
           : " Neither artist had an LED wall graphic.";
 
