@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { canConfigureLedWall, canManageScreensControls } from "@/lib/auth/permissions";
 import { isWallOpsShell } from "@/lib/auth/menus";
 import { LED_WALL_SQL, TRIVIA_SQL } from "@/lib/constants";
-import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
+import { getPublicAppUrl, getPublicSupabaseEnv, getTriviaPublicUrl } from "@/lib/env";
 import { joinPublicUrl } from "@/lib/public/urls";
 import { listArtistLedConfigs, listTodayLedListings } from "@/lib/queries/artist-led";
 import { getLedWallAgentStatus, getLedWallRuntime, getLedWallSettings, listLedWallScenes } from "@/lib/queries/led-wall";
@@ -174,8 +174,8 @@ export default async function ScreensPage({
 
   const supabaseEnv = getPublicSupabaseEnv();
   const displayUrl = joinPublicUrl(getPublicAppUrl(), "/display/led");
-  const joinBaseUrl = joinPublicUrl(getPublicAppUrl(), "/play");
-  const triviaWallUrl = triviaWallShareUrl(getPublicAppUrl(), context.venue.id);
+  const joinBaseUrl = joinPublicUrl(getTriviaPublicUrl(), "/play");
+  const triviaWallUrl = triviaWallShareUrl(getTriviaPublicUrl(), context.venue.id);
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
   const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
   const freshestRunner = freshestLedRunner(displayDevicesRes.devices);

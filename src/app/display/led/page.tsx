@@ -1,7 +1,7 @@
 import { LedDisplay } from "@/components/screens/led-display";
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { getPublicAppUrl } from "@/lib/env";
-import { joinPublicUrl } from "@/lib/public/urls";
+import { getTriviaPublicUrl } from "@/lib/env";
+import { triviaPlayUrl } from "@/lib/public/urls";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
 import { DEMO_LED_AD_ROLL } from "@/lib/screens/demo";
@@ -33,7 +33,7 @@ export default async function LedDisplayPage({
     );
   }
   if (process.env.NODE_ENV !== "production" && params.demo === "1") {
-    const origin = getPublicAppUrl();
+    const origin = getTriviaPublicUrl();
     const trivia =
       params.phase === "question"
         ? demoTriviaQuestionWall(origin)
@@ -73,9 +73,8 @@ export default async function LedDisplayPage({
   let audience = null;
   const admin = createServiceRoleClient();
   if (admin) {
-    const origin = getPublicAppUrl();
     const wall = await buildPublicWallState(admin, FLO_BAMA_VENUE_ID, (code) =>
-      joinPublicUrl(origin, `/play/${code}`),
+      triviaPlayUrl(code, getTriviaPublicUrl()),
     );
     trivia = wall.wall;
     const audienceWall = await getAudienceWallState(admin, FLO_BAMA_VENUE_ID);

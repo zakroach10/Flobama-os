@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { TriviaWallMessage, TriviaWallStage } from "@/components/screens/trivia-wall-stage";
-import { getPublicAppUrl } from "@/lib/env";
+import { getTriviaPublicUrl } from "@/lib/env";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
 import { loadSharedTriviaWall } from "@/lib/trivia/shared-wall";
 import { normalizeTriviaWallToken, triviaWallPollPath, verifyTriviaWallShareToken } from "@/lib/trivia/wall-share";
@@ -37,7 +37,7 @@ export default async function TriviaWallSharePage({
     return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo />;
   }
   if (demoPhase) {
-    const origin = getPublicAppUrl();
+    const origin = getTriviaPublicUrl();
     const base =
       demoPhase === "question"
         ? demoTriviaQuestionWall(origin)

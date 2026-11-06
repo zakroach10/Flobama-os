@@ -4,6 +4,8 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FLO_BAMA_VENUE_ID, TRIVIA_OBS_SCENE_NAME, TRIVIA_WALL_HEIGHT, TRIVIA_WALL_WIDTH } from "@/lib/constants";
+import { getPublicAppUrl, getTriviaPublicUrl } from "@/lib/env";
+import { triviaPlayUrl, TRIVIA_PUBLIC_ORIGIN } from "@/lib/public/urls";
 
 vi.mock("qrcode", () => ({
   default: { toDataURL: vi.fn(async () => "data:image/png;base64,abc") },
@@ -49,6 +51,22 @@ describe("trivia wall share token", () => {
     expect(verifyTriviaWallShareToken(`${body}~aaaaaaaa`)).toEqual({ ok: false });
     expect(verifyTriviaWallShareToken(FLO_BAMA_VENUE_ID)).toEqual({ ok: false });
     expect(verifyTriviaWallShareToken("")).toEqual({ ok: false });
+  });
+
+  it("uses the admin host for wall, OBS, and join links even when the public site URL is vercel", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://flobama-os.vercel.app");
+    const token = issueTriviaWallShareToken(FLO_BAMA_VENUE_ID)!;
+    const wall = triviaWallShareUrl(getTriviaPublicUrl(), FLO_BAMA_VENUE_ID);
+    expect(getTriviaPublicUrl()).toBe(TRIVIA_PUBLIC_ORIGIN);
+    expect(getTriviaPublicUrl()).toBe("https://admin.flobamadowntown.com");
+    expect(getPublicAppUrl()).toBe("https://flobama-os.vercel.app");
+    expect(wall).toBe(`https://admin.flobamadowntown.com/wall/${token}`);
+    expect(wall).not.toContain("vercel.app");
+    expect(triviaPlayUrl("SHOAL")).toBe("https://admin.flobamadowntown.com/play/SHOAL");
+    const collection = buildTriviaObsSceneCollection({ url: wall, sceneUuid: "a", sourceUuid: "b" });
+    const browser = collection.sources.find((source) => source.id === "browser_source");
+    expect(browser?.settings.url).toBe(wall);
+    expect(String(browser?.settings.url)).not.toContain("vercel.app");
   });
 
   it("builds a public path and poll path from the token", () => {
@@ -125,6 +143,8 @@ describe("trivia wall layout", () => {
     expect(source).not.toContain("left-1/2");
     expect(source).not.toContain("scale(");
     expect(source).toContain("h-full w-full overflow-hidden");
+    expect(source).not.toContain("data-chair-line");
+    expect(source).not.toContain("LowerBand");
   });
 });
 

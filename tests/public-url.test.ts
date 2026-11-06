@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildPublicSurfaceUrls, joinPublicUrl, normalizeOrigin, PRODUCTION_SITE_URL } from "@/lib/public/urls";
+import {
+  buildPublicSurfaceUrls,
+  joinPublicUrl,
+  normalizeOrigin,
+  PRODUCTION_SITE_URL,
+  triviaPlayUrl,
+  TRIVIA_PUBLIC_ORIGIN,
+} from "@/lib/public/urls";
 
 describe("public site URLs", () => {
   it("normalizes trailing slashes and missing protocols", () => {
@@ -24,6 +31,15 @@ describe("public site URLs", () => {
     expect(surfaces.embedSnippet).toContain("https://flobama-os.vercel.app/embed/events.js");
     expect(joinPublicUrl("https://flobama-os.vercel.app/", "overlay")).toBe(
       "https://flobama-os.vercel.app/overlay",
+    );
+  });
+
+  it("keeps trivia play links on the admin host and marketing embeds on the public site", () => {
+    expect(TRIVIA_PUBLIC_ORIGIN).toBe("https://admin.flobamadowntown.com");
+    expect(PRODUCTION_SITE_URL).toBe("https://flobama-os.vercel.app");
+    expect(triviaPlayUrl("SHOAL")).toBe("https://admin.flobamadowntown.com/play/SHOAL");
+    expect(buildPublicSurfaceUrls(PRODUCTION_SITE_URL).embed).toBe(
+      "https://flobama-os.vercel.app/embed/events",
     );
   });
 });

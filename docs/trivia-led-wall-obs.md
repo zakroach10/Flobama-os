@@ -6,7 +6,7 @@ The trivia output can run as its own OBS scene, separate from the mixed `/displa
 
 Route: `/wall/<token>`
 
-Example shape: `https://flobama-os.vercel.app/wall/<token>`
+Example shape: `https://admin.flobamadowntown.com/wall/<token>`
 
 The token is a signed venue capability, not an event id, pack id, or staff session.
 

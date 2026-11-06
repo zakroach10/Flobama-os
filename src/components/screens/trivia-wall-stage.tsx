@@ -31,11 +31,11 @@ export function TriviaWallMessage({ title }: { title: string }) {
 
 function TriviaWallStandby() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,#3a241c_0%,#100e0c_62%)] px-16 text-center text-[#f7efe6]">
-      <FlobamaLogo className="h-[200px] w-auto" priority />
-      <p className="mt-10 text-[28px] tracking-[0.32em] text-[#d36b4a] uppercase">Live trivia</p>
-      <p className="mt-4 text-[92px] leading-none">Next game shows up here</p>
-      <p className="mt-6 max-w-[1100px] font-sans text-[36px] leading-snug text-[#cbb7a8]">
+    <div className="flex h-full flex-col justify-center bg-[radial-gradient(ellipse_at_top,#3a241c_0%,#100e0c_62%)] px-16 pb-28 text-[#f7efe6]">
+      <FlobamaLogo className="h-[170px] w-auto" priority />
+      <p className="mt-8 text-[22px] tracking-[0.32em] text-[#d36b4a] uppercase">Live trivia</p>
+      <p className="mt-3 max-w-[1200px] text-[80px] leading-none">Next game shows up here</p>
+      <p className="mt-5 max-w-[900px] font-sans text-[30px] leading-snug text-[#cbb7a8]">
         Have your phone ready. The join code and QR appear when the game starts.
       </p>
     </div>
