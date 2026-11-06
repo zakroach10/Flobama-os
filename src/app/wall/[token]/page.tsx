@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { TriviaWallMessage, TriviaWallStage } from "@/components/screens/trivia-wall-stage";
-import { getPublicAppUrl } from "@/lib/env";
+import { getTriviaPublicUrl } from "@/lib/env";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
 import { loadSharedTriviaWall } from "@/lib/trivia/shared-wall";
 import { normalizeTriviaWallToken, triviaWallPollPath, verifyTriviaWallShareToken } from "@/lib/trivia/wall-share";
@@ -12,7 +12,7 @@ export default async function TriviaWallSharePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ demo?: string; phase?: string; logo?: string }>;
+  searchParams: Promise<{ demo?: string; phase?: string; logo?: string; safe?: string }>;
 }) {
   const { token: rawToken } = await params;
   const token = normalizeTriviaWallToken(rawToken);
@@ -33,11 +33,12 @@ export default async function TriviaWallSharePage({
             : query.demo === "1" || query.phase === "lobby"
               ? "lobby"
               : null;
+  const showSafeLine = query.safe === "1";
   if (demoPhase === "standby") {
-    return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo />;
+    return <TriviaWallStage initial={null} pollPath={pollPath} lockDemo showSafeLine={showSafeLine} />;
   }
   if (demoPhase) {
-    const origin = getPublicAppUrl();
+    const origin = getTriviaPublicUrl();
     const base =
       demoPhase === "question"
         ? demoTriviaQuestionWall(origin)
@@ -48,7 +49,7 @@ export default async function TriviaWallSharePage({
       query.logo === "1"
         ? { ...base, brand: { ...base.brand, logoUrl: "/flobama-logo.png" } }
         : base;
-    return <TriviaWallStage initial={trivia} pollPath={pollPath} lockDemo />;
+    return <TriviaWallStage initial={trivia} pollPath={pollPath} lockDemo showSafeLine={showSafeLine} />;
   }
 
   const loaded = await loadSharedTriviaWall(token);

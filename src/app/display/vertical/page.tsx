@@ -1,9 +1,9 @@
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { getPublicAppUrl } from "@/lib/env";
+import { getTriviaPublicUrl } from "@/lib/env";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
 import { listPublicWeekEvents } from "@/lib/public/queries";
-import { joinPublicUrl } from "@/lib/public/urls";
+import { triviaPlayUrl } from "@/lib/public/urls";
 import { DEMO_VERTICAL_ADS, DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import { isHostedPublicPlaybackEnabled } from "@/lib/screens/hosted-public-playback";
 import { buildWeekSlidePayload } from "@/lib/screens/week";
@@ -48,14 +48,13 @@ export default async function VerticalDisplayPage({
   let trivia = null;
   const admin = createServiceRoleClient();
   if (admin) {
-    const origin = getPublicAppUrl();
     const wall = await buildPublicWallState(admin, FLO_BAMA_VENUE_ID, (code) =>
-      joinPublicUrl(origin, `/play/${code}`),
+      triviaPlayUrl(code, getTriviaPublicUrl()),
     );
     if (wall.wall) {
       trivia = {
         joinCode: wall.wall.joinCode,
-        joinUrl: joinPublicUrl(origin, `/play/${wall.wall.joinCode}`),
+        joinUrl: triviaPlayUrl(wall.wall.joinCode, getTriviaPublicUrl()),
         packTitle: wall.wall.packTitle,
         playerCount: wall.wall.playerCount,
         status: wall.wall.status,

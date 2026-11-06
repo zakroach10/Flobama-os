@@ -154,6 +154,11 @@ export const TRIVIA_DEFAULT_QUESTION_COUNT = 10;
  */
 export const TRIVIA_WALL_WIDTH = 1920;
 export const TRIVIA_WALL_HEIGHT = 1080;
+/**
+ * On the physical wall, chairs and mic stands cover roughly the bottom third.
+ * Essential trivia stays in this top band of a 1080-tall frame (20px above y=720).
+ */
+export const TRIVIA_WALL_CLEAR_HEIGHT = 700;
 export const TRIVIA_OBS_SCENE_NAME = "LED Wall - Trivia";
 export const TRIVIA_OBS_BROWSER_SOURCE_NAME = "Trivia LED Browser";
 export const TRIVIA_OBS_COLLECTION_NAME = "FloBama LED Wall";

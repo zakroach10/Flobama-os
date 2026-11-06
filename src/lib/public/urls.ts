@@ -1,5 +1,16 @@
 export const PRODUCTION_SITE_URL = "https://flobama-os.vercel.app";
 
+/**
+ * Canonical host for the trivia wall, its OBS Browser Source, and phone join links.
+ * Independent of NEXT_PUBLIC_SITE_URL so marketing embeds stay on the public site origin.
+ * The share token does not include the host, so older flobama-os.vercel.app/wall links still open.
+ */
+export const TRIVIA_PUBLIC_ORIGIN = "https://admin.flobamadowntown.com";
+
+export function triviaPlayUrl(code: string, origin = TRIVIA_PUBLIC_ORIGIN) {
+  return joinPublicUrl(origin, `/play/${code}`);
+}
+
 export function normalizeOrigin(raw: string | null | undefined): string | null {
   if (!raw) return null;
   let value = raw.trim();

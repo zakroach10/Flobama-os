@@ -1,8 +1,8 @@
 import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
-import { getPublicAppUrl } from "@/lib/env";
+import { getTriviaPublicUrl } from "@/lib/env";
 import { PUBLIC_NO_STORE, publicJson, publicOptions } from "@/lib/public/http";
 import { listPublicWeekEvents } from "@/lib/public/queries";
-import { joinPublicUrl } from "@/lib/public/urls";
+import { triviaPlayUrl } from "@/lib/public/urls";
 import { getPublicDisplayReloadSignal } from "@/lib/queries/display-signals";
 import { getPublicTakeover, listPublicVerticalAds } from "@/lib/queries/screens";
 import {
@@ -57,9 +57,8 @@ export async function GET() {
   };
   const admin = createServiceRoleClient();
   if (admin) {
-    const origin = getPublicAppUrl();
     const wall = await buildPublicWallState(admin, FLO_BAMA_VENUE_ID, (code) =>
-      joinPublicUrl(origin, `/play/${code}`),
+      triviaPlayUrl(code, getTriviaPublicUrl()),
     );
     if (wall.error && !isMissingTriviaRelation(wall.error)) {
       return publicJson({ error: wall.error }, 500);
@@ -67,7 +66,7 @@ export async function GET() {
     if (wall.wall) {
       trivia = {
         joinCode: wall.wall.joinCode,
-        joinUrl: joinPublicUrl(origin, `/play/${wall.wall.joinCode}`),
+        joinUrl: triviaPlayUrl(wall.wall.joinCode, getTriviaPublicUrl()),
         packTitle: wall.wall.packTitle,
         playerCount: wall.wall.playerCount,
         status: wall.wall.status,

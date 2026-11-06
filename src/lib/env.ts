@@ -1,5 +1,5 @@
 import type { RequiredPublicEnvName } from "@/lib/constants";
-import { normalizeOrigin, PRODUCTION_SITE_URL } from "@/lib/public/urls";
+import { normalizeOrigin, PRODUCTION_SITE_URL, TRIVIA_PUBLIC_ORIGIN } from "@/lib/public/urls";
 
 export type PublicSupabaseEnv = {
   url: string;
@@ -63,6 +63,11 @@ export function getSiteUrl(): string {
 
 export function getPublicAppUrl(): string {
   return normalizeOrigin(readEnv("NEXT_PUBLIC_SITE_URL")) ?? PRODUCTION_SITE_URL;
+}
+
+/** Trivia wall, OBS export, and /play join links. Not the marketing site origin. */
+export function getTriviaPublicUrl(): string {
+  return TRIVIA_PUBLIC_ORIGIN;
 }
 
 export const DEFAULT_GHL_API_VERSION = "2021-07-28";

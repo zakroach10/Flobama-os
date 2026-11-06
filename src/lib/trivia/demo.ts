@@ -1,7 +1,8 @@
+import { TRIVIA_PUBLIC_ORIGIN } from "@/lib/public/urls";
 import { DEFAULT_TRIVIA_BRAND } from "@/lib/trivia/brand";
 import type { TriviaWallState } from "@/lib/trivia/types";
 
-export function demoTriviaWall(origin = "https://flobama-os.vercel.app"): TriviaWallState {
+export function demoTriviaWall(origin = TRIVIA_PUBLIC_ORIGIN): TriviaWallState {
   const ends = new Date(Date.now() + 45_000).toISOString();
   return {
     sessionId: "demo-trivia-session",
@@ -23,7 +24,7 @@ export function demoTriviaWall(origin = "https://flobama-os.vercel.app"): Trivia
   };
 }
 
-export function demoTriviaQuestionWall(origin = "https://flobama-os.vercel.app"): TriviaWallState {
+export function demoTriviaQuestionWall(origin = TRIVIA_PUBLIC_ORIGIN): TriviaWallState {
   return {
     ...demoTriviaWall(origin),
     status: "question",
@@ -37,7 +38,7 @@ export function demoTriviaQuestionWall(origin = "https://flobama-os.vercel.app")
   };
 }
 
-export function demoTriviaPodiumWall(origin = "https://flobama-os.vercel.app"): TriviaWallState {
+export function demoTriviaPodiumWall(origin = TRIVIA_PUBLIC_ORIGIN): TriviaWallState {
   return {
     ...demoTriviaWall(origin),
     status: "podium",
