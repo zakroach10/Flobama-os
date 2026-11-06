@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from "node:fs";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,6 +115,16 @@ describe("trivia OBS scene collection", () => {
 
     const roundTrip = JSON.parse(JSON.stringify(collection)) as typeof collection;
     expect(roundTrip.sources.find((source) => source.id === "browser_source")?.settings.url).toBe(url);
+  });
+});
+
+describe("trivia wall layout", () => {
+  it("fills the viewport instead of offsetting a scaled 1920 stage", () => {
+    const source = readFileSync("src/components/screens/trivia-wall.tsx", "utf8");
+    expect(source).not.toContain("cqw");
+    expect(source).not.toContain("left-1/2");
+    expect(source).not.toContain("scale(");
+    expect(source).toContain("h-full w-full overflow-hidden");
   });
 });
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import QRCode from "qrcode";
 import { FlobamaLogo } from "@/components/brand/flobama-logo";
 import { JoinPopups } from "@/components/screens/join-popups";
-import { TRIVIA_POLL_MS, TRIVIA_WALL_HEIGHT, TRIVIA_WALL_WIDTH } from "@/lib/constants";
+import { TRIVIA_POLL_MS } from "@/lib/constants";
 import { triviaDisplayFont } from "@/lib/trivia/display-font";
 import { triviaAccentRgba, triviaBrandCssVars } from "@/lib/trivia/brand";
 import type { TriviaWallState } from "@/lib/trivia/types";
@@ -103,24 +103,11 @@ export function TriviaWall({
   void tick;
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ containerType: "size" }}>
-      <div
-        className={`${triviaDisplayFont.className} absolute left-1/2 top-1/2`}
-        style={{
-          width: TRIVIA_WALL_WIDTH,
-          height: TRIVIA_WALL_HEIGHT,
-          fontSynthesis: "none",
-          transform:
-            "translate(-50%, -50%) scale(min(100cqw / 1920px, 100cqh / 1080px))",
-          transformOrigin: "center center",
-        }}
-      >
-        {wall ? (
-          <LiveTrivia wall={wall} qr={qrSrc} joinUrl={joinUrl} timer={timer} />
-        ) : (
-          empty
-        )}
-      </div>
+    // Fill the browser viewport in normal flow. A fixed 1920×1080 box positioned
+    // at 50%/50% and recentered with a transform is clipped to the lower-right in
+    // OBS 32 when that browser drops the transform value.
+    <div className={`${triviaDisplayFont.className} h-full w-full overflow-hidden`} style={{ fontSynthesis: "none" }}>
+      {wall ? <LiveTrivia wall={wall} qr={qrSrc} joinUrl={joinUrl} timer={timer} /> : empty}
     </div>
   );
 }
