@@ -6,7 +6,12 @@ import { artistNames } from "@/lib/queries/events";
 import { getLedWallAgentStatus, getLedWallRuntime, listLedWallScenes } from "@/lib/queries/led-wall";
 import { listStaffDisplayDevices } from "@/lib/queries/display-devices";
 import { formatVenueDate, formatVenueTime, formatVenueTodayHeading } from "@/lib/timezone";
-import { canConfigureLedWall, canManageProgramming, canManageScreensControls } from "@/lib/auth/permissions";
+import {
+  canConfigureLedWall,
+  canManageProgramming,
+  canManageScreensControls,
+  canManageStaff,
+} from "@/lib/auth/permissions";
 import { LED_WALL_SQL, type EventStatus } from "@/lib/constants";
 import { describeLedRunnerLink, freshestLedRunner } from "@/lib/display-devices/types";
 import { isAgentStale, ledSceneKindLabel } from "@/lib/screens/led-wall";
@@ -16,6 +21,9 @@ import { ExportWeekSocialButton } from "@/components/print/export-week-social-bu
 import { PrintWeekFlyerButton } from "@/components/print/print-week-flyer-button";
 import { StatusBadge } from "@/components/status-badge";
 import { redirect } from "next/navigation";
+import { deriveCapabilityStatuses, loadSpotOnSettings, unavailableOrCents } from "@/lib/spoton/status";
+import { loadSalesDashboard } from "@/lib/spoton/queries";
+import { hasMenu } from "@/lib/auth/menus";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +67,29 @@ export default async function DashboardPage() {
     wallOpsUserId: context.venue.wall_ops_user_id,
   });
   const canProgram = canManageProgramming(context.role);
+  const canViewSales = canManageStaff(context.role) && hasMenu(context.menus, "spoton");
+  let salesSummary: { netLabel: string; ordersLabel: string; age: string | null } | null = null;
+  if (canViewSales) {
+    try {
+      const settings = await loadSpotOnSettings(supabase, context.venue.id);
+      const caps = deriveCapabilityStatuses(settings);
+      const sales = await loadSalesDashboard({
+        client: supabase,
+        venueId: context.venue.id,
+        cutoffLocal: settings?.business_day_cutoff_local?.slice(0, 5) ?? "04:00",
+        coverageThrough: settings?.coverage_through ?? null,
+        reportingAvailable: caps.reporting === "verified",
+      });
+      salesSummary = {
+        netLabel: unavailableOrCents(sales.totals?.netSalesCents, caps.reporting === "verified"),
+        ordersLabel:
+          caps.reporting === "verified" && sales.totals ? String(sales.totals.orderCount) : "Unavailable",
+        age: sales.totals?.dataAgeLabel ?? null,
+      };
+    } catch {
+      salesSummary = { netLabel: "Unavailable", ordersLabel: "Unavailable", age: null };
+    }
+  }
 
   const today = data?.today ?? [];
   const upcoming = data?.upcoming ?? [];
@@ -100,6 +131,19 @@ export default async function DashboardPage() {
             <Stat label="Upcoming drafts" value={data.upcomingDraftCount} />
             <Stat label="Active artists" value={data.activeArtistCount} />
           </div>
+          {salesSummary ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm">
+              <span className="font-medium">Today’s POS net</span>
+              <span className="tabular-nums">{salesSummary.netLabel}</span>
+              <span className="text-muted-foreground">Orders {salesSummary.ordersLabel}</span>
+              {salesSummary.age ? (
+                <span className="text-xs text-muted-foreground">{salesSummary.age}</span>
+              ) : null}
+              <Link href="/sales" className="ml-auto text-sm underline-offset-4 hover:underline">
+                Sales
+              </Link>
+            </div>
+          ) : null}
           <MissingLogosPanel
             thisWeek={thisWeekMissing}
             upcoming={upcomingMissing}

@@ -165,7 +165,8 @@ describe("staff menu access", () => {
     expect(menuForPath("/programming/123/tables")).toBe("programming");
     expect(menuForPath("/admin/ticketing/check-in/1")).toBe("ticketing");
     expect(menuForPath("/booth")).toBeNull();
-    expect(firstMenuHref(["spoton", "settings"])).toBe("/settings");
+    expect(firstMenuHref(["spoton", "settings"])).toBe("/sales");
+    expect(menuForPath("/sales")).toBe("spoton");
     expect(firstMenuHref([])).toBeNull();
     expect(sameMenus(["settings", "programming"], ["programming", "settings"])).toBe(true);
   });

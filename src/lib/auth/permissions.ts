@@ -22,6 +22,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Start and end Shoals trivia; upload question spreadsheets",
     "Run Live Audience Interactor tools on the wall",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
+    "Configure SpotOn POS integration, sales sync, and financial sales reports",
     "View the calendar and settings",
   ],
   manager: [
