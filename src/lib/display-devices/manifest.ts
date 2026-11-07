@@ -5,6 +5,7 @@ import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
 import { listPublicVerticalAds } from "@/lib/queries/playlists";
 import { getPublicTakeover } from "@/lib/queries/screens";
 import { displayRevision } from "@/lib/screens/takeover";
+import { loadLedPreloadAssetIds } from "@/lib/screens/led-preload-data";
 import type { DisplayDeviceKind } from "@/lib/display-devices/types";
 
 type Client = SupabaseClient<Database>;
@@ -49,6 +50,8 @@ export type DeviceManifest = {
   reloadNonce: number;
   items: ManifestItem[];
   assets: ManifestAsset[];
+  /** Downloaded ahead of time. Never part of `items`, so they do not go live by themselves. */
+  preloadAssetIds?: string[];
   overlays: {
     triviaEnabled: boolean;
     audienceEnabled: boolean;
@@ -175,6 +178,20 @@ export async function buildDeviceManifest(
       });
     }
 
+    let preloadAssetIds: string[] = [];
+    try {
+      preloadAssetIds = await loadLedPreloadAssetIds(client, input.venueId, { liveIds: assetIds });
+    } catch {
+      preloadAssetIds = [];
+    }
+    preloadAssetIds = preloadAssetIds.filter((id) => !assetIds.includes(id));
+    for (const id of preloadAssetIds) {
+      assetIds.push(id);
+      if (!storageByAsset.has(id)) {
+        storageByAsset.set(id, { storagePath: null, mediaKind: null, duration: null });
+      }
+    }
+
     const streamByAsset = new Map<string, string>();
     if (assetIds.length > 0) {
       const { data: scenes } = await client
@@ -228,6 +245,7 @@ export async function buildDeviceManifest(
       playback.revision,
       reloadNonce,
       ...assets.map((asset) => `${asset.id}:${asset.sha256 ?? "pending"}`),
+      ...preloadAssetIds,
     ]);
 
     return {
@@ -244,6 +262,7 @@ export async function buildDeviceManifest(
       reloadNonce,
       items,
       assets,
+      preloadAssetIds,
       overlays: { triviaEnabled: true, audienceEnabled: true },
     };
   }

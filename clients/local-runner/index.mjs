@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import OBSWebSocket from "obs-websocket-js";
 import { openCache, cacheBytesUsed, listAssets, setMeta, getMeta, evictIfNeeded } from "./lib/cache-db.mjs";
 import { syncManifestAssets } from "./lib/downloader.mjs";
+import { runnerPreloadReports, shouldSendPreloadReport } from "./lib/preload-status.mjs";
 import { startHttpServer } from "./lib/http-server.mjs";
 import { startMenubarHelper, writeMenubarStatus } from "./lib/menubar.mjs";
 import {
@@ -434,6 +435,9 @@ async function main() {
     performanceRevision: getPerformanceState(recordingsCatalog).revision || 1,
     acknowledgedCommandIds: new Set(),
     ecammController,
+    playerReady: new Map(),
+    preloadReportSignature: "",
+    preloadReportSentAt: 0,
   };
 
   try {
@@ -665,7 +669,17 @@ async function main() {
     runtime.obsConnected = snapshot.connected;
     runtime.programScene = snapshot.programScene;
     const perf = getPerformanceState(runtime.recordingsCatalog);
-
+    const preloadReports = runnerPreloadReports({
+      preloadAssetIds: runtime.manifest?.preloadAssetIds || [],
+      getAsset: (assetId) => listAssets(db).find((row) => row.assetId === assetId) || null,
+      playerReady: runtime.playerReady,
+    });
+    const preloadSend = shouldSendPreloadReport(
+      runtime.preloadReportSignature,
+      preloadReports,
+      Date.now(),
+      runtime.preloadReportSentAt,
+    );
     const response = await fetch(`${config.apiBase}/api/agent/v1/display-devices/heartbeat`, {
       method: "POST",
       headers: {
@@ -712,6 +726,7 @@ async function main() {
         },
         ecamm: ecammController.getHeartbeatEcammPayload(),
         lastError: state.lastError,
+        ...(preloadSend.send ? { preload: preloadReports } : {}),
       }),
     });
 
@@ -731,6 +746,10 @@ async function main() {
     }
 
     runtime.connected = true;
+    if (preloadSend.send) {
+      runtime.preloadReportSignature = preloadSend.signature;
+      runtime.preloadReportSentAt = Date.now();
+    }
     const desired = await response.json();
     if (desired.manifestChanged) {
       void maybeSyncMedia();

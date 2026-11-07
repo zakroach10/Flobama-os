@@ -21,6 +21,7 @@ import {
   reportLocalProgress,
 } from "./performance-controller.mjs";
 import { createShortcutsHandler } from "./ecamm/shortcuts.mjs";
+import { runnerPreloadReports } from "./preload-status.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WALL_DIR = join(__dirname, "..", "wall-player");
@@ -54,6 +55,16 @@ function safeAssetId(raw) {
   if (!raw || typeof raw !== "string") return null;
   if (!/^[a-zA-Z0-9._-]{1,120}$/.test(raw)) return null;
   return raw;
+}
+
+function localMediaUrl(assetId, sha256) {
+  const version = sha256 ? String(sha256).slice(0, 16) : "pending";
+  return `/media/${assetId}?v=${version}`;
+}
+
+function isLoopback(req) {
+  const address = req.socket?.remoteAddress || "";
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
 }
 
 async function sendFile(res, filePath, mediaType, request) {
@@ -115,6 +126,7 @@ export function playbackPayload(runtime) {
       reloadNonce: Number(runtime.reloadNonce) || 1,
       items: [],
       playlist: [],
+      preload: [],
       active: null,
       apiBase: runtime.config?.apiBase || "",
       performance: runtime.recordingsCatalog ? getPerformanceState(runtime.recordingsCatalog) : null,
@@ -162,13 +174,34 @@ export function playbackPayload(runtime) {
       sceneId: item.assetId,
       kind: "media",
       mediaKind: ready ? mediaKind : null,
-      url: ready ? `/media/${item.assetId}` : null,
+      url: ready ? localMediaUrl(item.assetId, cached.sha256) : null,
       obsSceneName: item.obsSceneName,
       durationSeconds: item.durationSeconds,
     };
   });
 
   const mediaItems = items.filter((item) => item.kind === "media" && item.url);
+  const preloadReports = runnerPreloadReports({
+    preloadAssetIds: manifest.preloadAssetIds || [],
+    getAsset: (assetId) => getAsset(runtime.db, assetId),
+    playerReady: runtime.playerReady,
+  });
+  const preload = (manifest.preloadAssetIds || []).map((assetId) => {
+    const cached = getAsset(runtime.db, assetId);
+    const manifestAsset = (manifest.assets || []).find((asset) => asset.id === assetId);
+    const mediaType = cached?.mediaType || manifestAsset?.mediaType || "";
+    const mediaKind = mediaType.startsWith("image/") ? "image" : mediaType.startsWith("video/") ? "video" : null;
+    const ready = cached?.state === "ready" && cached.sha256 && (mediaKind === "image" || mediaKind === "video");
+    const report = preloadReports.find((row) => row.assetId === assetId);
+    return {
+      id: assetId,
+      sceneId: assetId,
+      mediaKind: ready ? mediaKind : null,
+      url: ready ? localMediaUrl(assetId, cached.sha256) : null,
+      state: report?.state || (ready ? "loading" : "loading"),
+      message: report?.message || null,
+    };
+  });
   return {
     mode: manifest.mode === "scene" ? "scene" : manifest.mode === "playlist" ? "playlist" : items.length ? "playlist" : "idle",
     revision: manifest.revision,
@@ -177,6 +210,7 @@ export function playbackPayload(runtime) {
     reloadNonce: manifest.reloadNonce ?? 1,
     items,
     playlist: items,
+    preload,
     active: mediaItems[0]
       ? {
           id: mediaItems[0].sceneId,
@@ -217,7 +251,7 @@ function safeRecordingId(raw) {
 
 export function startHttpServer(runtime) {
   const host = runtime.config.bindHost || "127.0.0.1";
-  const port = Number(runtime.config.bindPort || 4173);
+  const port = Number(runtime.config.bindPort ?? 4173);
 
   const shortcutsHandler = createShortcutsHandler({
     recordingsRootResolver: async () => {
@@ -304,6 +338,29 @@ export function startHttpServer(runtime) {
 
       if (path === "/api/playback") {
         sendJson(res, 200, playbackPayload(runtime));
+        return;
+      }
+
+      if (path === "/api/preload" && method === "POST") {
+        if (!isLoopback(req)) {
+          sendJson(res, 403, { error: "Local wall player only." });
+          return;
+        }
+        const body = await readJsonBody(req);
+        const reports = Array.isArray(body.reports) ? body.reports.slice(0, 12) : [];
+        if (!runtime.playerReady) runtime.playerReady = new Map();
+        for (const report of reports) {
+          const assetId = safeAssetId(typeof report?.assetId === "string" ? report.assetId : "");
+          const state = report?.state;
+          if (!assetId || (state !== "loading" && state !== "ready" && state !== "error")) continue;
+          const cached = getAsset(runtime.db, assetId);
+          runtime.playerReady.set(assetId, {
+            state,
+            message: typeof report.message === "string" ? report.message.slice(0, 180) : null,
+            sha256: cached?.sha256 || null,
+          });
+        }
+        sendJson(res, 200, { ok: true });
         return;
       }
 

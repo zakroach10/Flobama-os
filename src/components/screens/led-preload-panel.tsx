@@ -15,11 +15,11 @@ export type PreloadSceneChoice = {
 
 const LEAD_MINUTES = LED_PRELOAD_LEAD_MS / 60_000;
 
-function statusLabel(state: PreloadReportState | null) {
-  if (state === "ready") return "Ready on the wall";
-  if (state === "loading") return "Loading on the wall";
-  if (state === "error") return "Wall could not load it";
-  return "Not reported yet";
+function statusLabel(state: PreloadReportState | null, message: string | null) {
+  if (state === "ready") return "Ready on the Local Runner";
+  if (state === "loading") return message || "Downloading on the Local Runner";
+  if (state === "error") return message ? `Local Runner could not load it · ${message}` : "Local Runner could not load it";
+  return "Not on the Local Runner yet";
 }
 
 export function LedPreloadPanel({
@@ -65,16 +65,17 @@ export function LedPreloadPanel({
       <div>
         <h2 className="text-lg font-semibold">Preload visuals</h2>
         <p className="text-sm text-muted-foreground">
-          The wall browser decodes image and video files before they go live. Today’s shows start warming{" "}
-          {LEAD_MINUTES} minutes before showtime. Preload does not change what is on the wall. Auto-roll still waits
-          until its own window, and Put on wall is unchanged.
+          The Local Runner downloads image and video files onto the booth Mac before they go live. Today’s shows start{" "}
+          {LEAD_MINUTES} minutes before showtime. Preload does not change what is on the wall. Status is from that Mac,
+          after the wall player at <span className="whitespace-nowrap">127.0.0.1:4173/wall</span> has the file. The
+          hosted wall player is not used. Auto-roll still waits until its own window.
         </p>
       </div>
       {missingTable ? (
         <p className="text-sm text-muted-foreground">
           Apply <code className="text-xs">supabase/migrations/20261107000066_led_wall_preload.sql</code> to pin extra
-          visuals and to store booth ready/loading/error reports. Scheduled warming still runs on the wall browser
-          without that file.
+          visuals. Scheduled shows are still added to the Local Runner manifest without that file. Status needs the
+          table and Local Runner 1.3.3.
         </p>
       ) : null}
       {scenes.length === 0 ? (
@@ -95,8 +96,7 @@ export function LedPreloadPanel({
                     {scene.mediaKind === "video" ? "Video" : "Image"}
                     {isPinned ? " · pinned" : ""}
                     {" · "}
-                    {statusLabel(report?.state ?? null)}
-                    {report?.state === "error" && report.message ? ` · ${report.message}` : ""}
+                    {statusLabel(report?.state ?? null, report?.message ?? null)}
                   </p>
                 </div>
                 <Button

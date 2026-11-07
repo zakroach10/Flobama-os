@@ -3,8 +3,13 @@ import { LED_DISPLAY_POLL_MS } from "@/lib/constants";
 import {
   LED_PRELOAD_LEAD_MS,
   LED_PRELOAD_MAX_IMAGES,
+  LED_PRELOAD_MAX_VIDEO_BYTES,
+  LOCAL_RUNNER_HEARTBEAT_MS,
+  LOCAL_WALL_POLL_MS,
   capPreloadItems,
+  choosePreloadAssetIds,
   commandToVisibleMs,
+  localCommandToVisibleMs,
   mergePreloadItems,
   playlistPreloadItems,
   scheduledPreloadItems,
@@ -127,6 +132,42 @@ describe("preload limits and the live frame", () => {
         readyUrls: new Set([current.url]),
       }),
     ).toEqual(current);
+  });
+});
+
+describe("local runner preload selection", () => {
+  it("downloads upcoming files without treating the live scene as a preload", () => {
+    const ids = choosePreloadAssetIds({
+      liveIds: ["live"],
+      candidates: [
+        { id: "live", mediaKind: "image" },
+        { id: "next", mediaKind: "image" },
+        { id: "clip", mediaKind: "youtube" },
+        { id: "huge", mediaKind: "video", sizeBytes: LED_PRELOAD_MAX_VIDEO_BYTES + 1 },
+        { id: "loop", mediaKind: "video", sizeBytes: 1000 },
+      ],
+    });
+    expect(ids).toEqual(["next", "loop"]);
+  });
+
+  it("counts the runner heartbeat and the localhost poll", () => {
+    const cold = localCommandToVisibleMs({
+      heartbeatMs: LOCAL_RUNNER_HEARTBEAT_MS,
+      pollMs: LOCAL_WALL_POLL_MS,
+      downloadMs: 12_000,
+      decodeMs: 40,
+      fileOnDisk: false,
+    });
+    const warm = localCommandToVisibleMs({
+      heartbeatMs: LOCAL_RUNNER_HEARTBEAT_MS,
+      pollMs: LOCAL_WALL_POLL_MS,
+      downloadMs: 12_000,
+      decodeMs: 40,
+      fileOnDisk: true,
+    });
+    expect(cold).toEqual({ ms: 15_040, waitsForDownload: true });
+    expect(warm).toEqual({ ms: 3_040, waitsForDownload: false });
+    expect(warm.ms).toBeLessThan(cold.ms);
   });
 });
 

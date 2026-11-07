@@ -1,23 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import type { PublicLedMedia } from "@/lib/screens/led-wall";
 import type { PreloadReportState } from "@/lib/screens/led-preload";
-
-const CLIENT_KEY = "flobama-led-renderer";
-
-function rendererKey() {
-  if (typeof window === "undefined") return "server";
-  try {
-    const existing = window.sessionStorage.getItem(CLIENT_KEY);
-    if (existing && existing.length >= 8) return existing;
-    const next = crypto.randomUUID();
-    window.sessionStorage.setItem(CLIENT_KEY, next);
-    return next;
-  } catch {
-    return "led-renderer";
-  }
-}
 
 export function LedPreloadPool({
   items,
@@ -27,11 +12,6 @@ export function LedPreloadPool({
   onReady: (url: string) => void;
 }) {
   const reported = useRef<Map<string, PreloadReportState>>(new Map());
-  const clientKey = useRef<string>("");
-
-  useEffect(() => {
-    clientKey.current = rendererKey();
-  }, []);
 
   function reportKey(item: PublicLedMedia) {
     return `${item.id}\n${item.url}`;
@@ -46,17 +26,8 @@ export function LedPreloadPool({
     }
     reported.current.set(reportKey(item), state);
     if (state === "ready") onReady(item.url);
-    const key = clientKey.current || rendererKey();
-    void fetch("/api/public/v1/screens/led/preload", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        clientKey: key,
-        reports: [{ sceneId: item.id, state, message: message ?? null }],
-      }),
-    }).catch(() => {
-      /* status is optional; the decoded file still stays in this browser */
-    });
+    void message;
+    // The hosted player is not the booth wall. Do not write preload status from this browser.
   }
 
   return (
