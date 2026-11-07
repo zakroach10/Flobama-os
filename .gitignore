@@ -40,6 +40,17 @@ clients/local-runner/node_modules
 tmp/
 clients/led-obs/led-obs.config.json
 
+# Expo guest app
+apps/mobile/node_modules
+apps/mobile/.expo
+apps/mobile/dist
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/*.jks
+apps/mobile/*.p8
+apps/mobile/*.p12
+apps/mobile/*.mobileprovision
+
 # vercel
 .vercel
 
