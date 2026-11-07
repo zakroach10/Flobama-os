@@ -4,10 +4,12 @@ import {
   SOCIAL_TEMPLATE_HEADING,
   SOCIAL_TEMPLATE_LOGO,
   SOCIAL_TICKET_THEME,
+  socialLineupLayout,
   socialPosterColumns,
   socialPosterRows,
   socialPosterScale,
   socialPosterStackTheme,
+  type SocialLineupLayout,
   type SocialPosterRow,
   type SocialStackTheme,
 } from "@/lib/screens/social-poster";
@@ -31,8 +33,23 @@ export function WeekSocialGraphic({
 }) {
   const template = weekSocialTemplate(templateId);
   const rows = socialPosterRows(days);
+  const layout = socialLineupLayout({
+    templateId: template.id,
+    names: rows.map((row) => row.name),
+    width: format.width,
+    height: format.height,
+  });
   if (template.id === "ticket") {
-    return <TicketSocialGraphic format={format} rows={rows} pageLabel={pageLabel} rangeLabel={rangeLabel} templateId={template.id} />;
+    return (
+      <TicketSocialGraphic
+        format={format}
+        rows={rows}
+        pageLabel={pageLabel}
+        rangeLabel={rangeLabel}
+        templateId={template.id}
+        layout={layout}
+      />
+    );
   }
   const stack = socialPosterStackTheme(template.id);
   if (stack) {
@@ -44,10 +61,11 @@ export function WeekSocialGraphic({
         rangeLabel={rangeLabel}
         templateId={template.id}
         theme={stack}
+        layout={layout}
       />
     );
   }
-  return <PaperSocialGraphic format={format} rows={rows} pageLabel={pageLabel} templateId={template.id} />;
+  return <PaperSocialGraphic format={format} rows={rows} pageLabel={pageLabel} templateId={template.id} layout={layout} />;
 }
 
 function PaperSocialGraphic({
@@ -55,11 +73,13 @@ function PaperSocialGraphic({
   rows,
   pageLabel,
   templateId,
+  layout,
 }: {
   format: WeekSocialFormat;
   rows: SocialPosterRow[];
   pageLabel: string | null;
   templateId: WeekSocialTemplateId;
+  layout: SocialLineupLayout;
 }) {
   const scale = socialPosterScale(format.id);
   const columns = socialPosterColumns(rows, scale.columns);
@@ -122,32 +142,34 @@ function PaperSocialGraphic({
         </p>
       ) : (
         <div
-          className={cn("flex min-h-0 flex-1", columns.length === 2 ? "flex-row" : "flex-col")}
+          className={cn("flex shrink-0 overflow-hidden", columns.length === 2 ? "flex-row" : "flex-col")}
           style={{
-            paddingLeft: scale.padX,
-            paddingRight: scale.padX,
-            paddingTop: scale.listTop,
-            paddingBottom: pageLabel ? 28 : 36,
+            height: layout.listHeight,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
             justifyContent: "center",
-            gap: columns.length === 2 ? 32 : scale.gap,
+            alignItems: "center",
+            gap: columns.length === 2 ? 32 : layout.gap,
           }}
         >
           {columns.map((column, index) => (
             <ul
               key={index}
-              className="flex flex-1 flex-col justify-center items-center"
-              style={{ gap: scale.gap }}
+              className="flex flex-col items-center justify-center"
+              style={{ gap: layout.gap, width: "100%" }}
             >
               {column.map((row) => (
-                <li key={row.id} className="text-center">
+                <li key={row.id} className="w-full text-center">
                   <p
-                    className="uppercase"
-                    style={{ color: SOCIAL_POSTER.ink, fontSize: scale.date, lineHeight: 1.15 }}
+                    className="uppercase whitespace-nowrap"
+                    style={{ color: SOCIAL_POSTER.ink, fontSize: layout.dateSize, lineHeight: layout.lineHeight }}
                   >
                     <span>{row.lead}</span>
                     <sup
                       className="relative -top-1 font-normal"
-                      style={{ fontSize: scale.ordinal, marginLeft: 1 }}
+                      style={{ fontSize: layout.ordinalSize, marginLeft: 1 }}
                     >
                       {row.ordinal}
                     </sup>
@@ -157,9 +179,9 @@ function PaperSocialGraphic({
                     className="font-bold uppercase"
                     style={{
                       color: SOCIAL_POSTER.blue,
-                      fontSize: scale.name,
-                      lineHeight: 1.15,
-                      marginTop: 2,
+                      fontSize: layout.nameSize,
+                      lineHeight: layout.lineHeight,
+                      marginTop: layout.nameGap,
                     }}
                   >
                     {row.name}
@@ -190,6 +212,7 @@ function StackSocialGraphic({
   rangeLabel,
   templateId,
   theme,
+  layout,
 }: {
   format: WeekSocialFormat;
   rows: SocialPosterRow[];
@@ -197,6 +220,7 @@ function StackSocialGraphic({
   rangeLabel?: string;
   templateId: WeekSocialTemplateId;
   theme: SocialStackTheme;
+  layout: SocialLineupLayout;
 }) {
   return (
     <div
@@ -210,7 +234,7 @@ function StackSocialGraphic({
         color: theme.name,
       }}
     >
-      <header className="relative flex shrink-0 flex-col" style={{ height: 360, backgroundColor: theme.header }}>
+      <header className="relative z-10 flex shrink-0 flex-col overflow-hidden" style={{ height: layout.header, backgroundColor: theme.header }}>
         {theme.bar > 0 ? (
           <div style={{ height: theme.bar, backgroundColor: theme.rule }} />
         ) : null}
@@ -249,23 +273,27 @@ function StackSocialGraphic({
         </p>
       ) : (
         <ul
-          className="flex min-h-0 flex-1 flex-col items-center text-center"
+          className="flex shrink-0 flex-col items-center overflow-hidden text-center"
           style={{
-            gap: 14,
-            padding: "24px 56px 36px",
+            height: layout.listHeight,
+            gap: layout.gap,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
             justifyContent: "center",
           }}
         >
           {rows.map((row) => (
             <li key={row.id} style={{ width: "100%" }}>
-              <p className="uppercase" style={{ color: theme.date, fontSize: theme.dateSize, lineHeight: 1.1 }}>
+              <p className="uppercase whitespace-nowrap" style={{ color: theme.date, fontSize: layout.dateSize, lineHeight: layout.lineHeight }}>
                 <span>{row.lead}</span>
-                <sup className="relative -top-1 font-normal" style={{ fontSize: Math.round(theme.dateSize * 0.55), marginLeft: 1 }}>
+                <sup className="relative -top-1 font-normal" style={{ fontSize: layout.ordinalSize, marginLeft: 1 }}>
                   {row.ordinal}
                 </sup>
                 <span className="font-bold"> {row.time}</span>
               </p>
-              <p className="font-bold uppercase" style={{ color: theme.name, fontSize: theme.nameSize, lineHeight: 1.02, marginTop: 4 }}>
+              <p className="font-bold uppercase" style={{ color: theme.name, fontSize: layout.nameSize, lineHeight: layout.lineHeight, marginTop: layout.nameGap }}>
                 {row.name}
               </p>
             </li>
@@ -287,12 +315,14 @@ function TicketSocialGraphic({
   pageLabel,
   rangeLabel,
   templateId,
+  layout,
 }: {
   format: WeekSocialFormat;
   rows: SocialPosterRow[];
   pageLabel: string | null;
   rangeLabel?: string;
   templateId: WeekSocialTemplateId;
+  layout: SocialLineupLayout;
 }) {
   const theme = SOCIAL_TICKET_THEME;
   return (
@@ -307,8 +337,8 @@ function TicketSocialGraphic({
       }}
     >
       <header
-        className="flex shrink-0 flex-col items-center justify-center text-center"
-        style={{ height: 360, backgroundColor: theme.header, padding: "0 48px" }}
+        className="relative z-10 flex shrink-0 flex-col items-center justify-center overflow-hidden text-center"
+        style={{ height: layout.header, backgroundColor: theme.header, padding: "0 48px" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -332,20 +362,37 @@ function TicketSocialGraphic({
           No public shows this week
         </p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col items-center text-center" style={{ gap: 16, padding: "24px 48px 36px", justifyContent: "center" }}>
+        <ul
+          className="flex shrink-0 flex-col items-center overflow-hidden text-center"
+          style={{
+            height: layout.listHeight,
+            gap: layout.gap,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
+            justifyContent: "center",
+          }}
+        >
           {rows.map((row) => (
-            <li key={row.id} className="flex w-full flex-col items-center" style={{ gap: 8 }}>
+            <li key={row.id} className="flex w-full flex-col items-center" style={{ gap: layout.nameGap }}>
               <p
-                className="font-bold uppercase"
-                style={{ backgroundColor: theme.chip, color: theme.chipText, fontSize: 28, lineHeight: 1.1, padding: "10px 22px" }}
+                className="font-bold uppercase whitespace-nowrap"
+                style={{
+                  backgroundColor: theme.chip,
+                  color: theme.chipText,
+                  fontSize: layout.chipFont,
+                  lineHeight: layout.lineHeight,
+                  padding: `${layout.chipPadY}px ${layout.chipPadX}px`,
+                }}
               >
                 {row.lead}
-                <sup className="relative -top-1 font-normal" style={{ fontSize: 14, marginLeft: 1 }}>
+                <sup className="relative -top-1 font-normal" style={{ fontSize: layout.ordinalSize, marginLeft: 1 }}>
                   {row.ordinal}
                 </sup>
                 <span> {row.time}</span>
               </p>
-              <p className="font-bold uppercase" style={{ color: theme.name, fontSize: 58, lineHeight: 1.02 }}>
+              <p className="font-bold uppercase" style={{ color: theme.name, fontSize: layout.nameSize, lineHeight: layout.lineHeight }}>
                 {row.name}
               </p>
             </li>
