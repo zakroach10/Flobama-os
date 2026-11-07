@@ -788,6 +788,17 @@ export const displayDeviceHeartbeatSchema = z.object({
     .optional(),
   diskFreeBytes: softNonNegIntNullable,
   lastError: z.string().trim().max(500).optional().nullable(),
+  /** Present only when Local Runner preload state changed, or on a slow keepalive. */
+  preload: z
+    .array(
+      z.object({
+        assetId: z.string().uuid(),
+        state: z.enum(["loading", "ready", "error"]),
+        message: z.string().trim().max(180).nullable().optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 
 export const createDisplayPairingCodeSchema = z.object({
