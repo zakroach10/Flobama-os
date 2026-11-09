@@ -8,12 +8,16 @@ import { ServerStationAdminPanel } from "@/components/settings/server-station-ad
 import { getPublicAppUrl, isServiceRoleConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listVenueStaff, withWallOpsMenus } from "@/lib/queries/staff";
-import { canManageStaff, canConfigureServerStation } from "@/lib/auth/permissions";
+import { canManageStaff, canConfigureServerStation, canManageVenueSettings } from "@/lib/auth/permissions";
 import { isMissingWallOpsColumn } from "@/lib/auth/wall-ops";
 import { isMissingServerStationRelation } from "@/lib/auth/server-station";
 import { getServerStationSettings } from "@/lib/server-station/settings";
 import { ErrorState } from "@/components/states";
 import { ObsClientDownload } from "@/components/screens/obs-client-download";
+import { McpAccessCard, type McpAccessCardStatus } from "@/components/settings/mcp-access-card";
+import { loadActiveMcpKey } from "@/lib/mcp/access-store";
+import { TRIVIA_PUBLIC_ORIGIN } from "@/lib/public/urls";
+import { joinPublicUrl } from "@/lib/public/urls";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   listIntegrationCredentialsForVenue,
@@ -106,12 +110,44 @@ export default async function SettingsPage() {
     }
   }
 
+  const canManageMcp = canManageVenueSettings(context.role);
+  let mcpStatus: McpAccessCardStatus = {
+    configured: false,
+    last4: null,
+    createdAt: null,
+    createdByName: null,
+    lastUsedAt: null,
+    missingTable: false,
+  };
+  if (canManageMcp && isServiceRoleConfigured()) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const loaded = await loadActiveMcpKey(admin, context.venue.id);
+      const creator = members.find((member) => member.userId === loaded.key?.createdBy);
+      mcpStatus = {
+        configured: Boolean(loaded.key),
+        last4: loaded.key?.last4 ?? null,
+        createdAt: loaded.key?.createdAt ?? null,
+        createdByName: creator?.displayName || creator?.email || null,
+        lastUsedAt: loaded.key?.lastUsedAt ?? null,
+        missingTable: loaded.missingTable,
+      };
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">Account, roles, and venue defaults for this staff workspace.</p>
       </div>
+      {canManageMcp ? (
+        <McpAccessCard
+          endpointUrl={joinPublicUrl(TRIVIA_PUBLIC_ORIGIN, "/api/mcp")}
+          status={mcpStatus}
+          serviceRoleConfigured={isServiceRoleConfigured()}
+        />
+      ) : null}
       <ServerStationAdminPanel
         settings={serverStationSettings}
         scenes={(scenesRes.data ?? []).map((scene) => ({

@@ -16,7 +16,7 @@ describe("MCP auth", () => {
     expect(authorizeMcpRequest("Bearer nope", TOKEN)).toMatchObject({ ok: false, status: 401 });
     expect(authorizeMcpRequest("Bearer ", TOKEN)).toMatchObject({ ok: false, status: 401 });
     expect(authorizeMcpRequest(`Bearer ${TOKEN}`, null)).toMatchObject({ ok: false, status: 503 });
-    expect(authorizeMcpRequest(`Bearer ${TOKEN}`, TOKEN)).toEqual({ ok: true });
+    expect(authorizeMcpRequest(`Bearer ${TOKEN}`, TOKEN)).toMatchObject({ ok: true, touchLastUsed: false });
   });
 
   it("rejects the HTTP endpoint when the bearer is absent or wrong", async () => {

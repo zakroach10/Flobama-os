@@ -1,5 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { authorizeMcpRequest } from "@/lib/mcp/auth";
+import { FLO_BAMA_VENUE_ID } from "@/lib/constants";
+import { loadActiveMcpKey, touchMcpKeyLastUsed } from "@/lib/mcp/access-store";
+import { resolveMcpBearer } from "@/lib/mcp/auth";
 import { createFlobamaMcpServer } from "@/lib/mcp/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -11,11 +13,32 @@ function denied(status: number, message: string) {
 }
 
 async function handle(request: Request) {
-  const auth = authorizeMcpRequest(request.headers.get("authorization"), process.env.FLOBAMA_MCP_TOKEN ?? null);
-  if (!auth.ok) return denied(auth.status, auth.message);
-
+  const envToken = process.env.FLOBAMA_MCP_TOKEN ?? null;
   const client = createServiceRoleClient();
+  let activeKey: { hash: string; lastUsedAt: string | null } | null = null;
+  let activeKeyId: string | null = null;
+  if (client) {
+    try {
+      const loaded = await loadActiveMcpKey(client, FLO_BAMA_VENUE_ID);
+      if (loaded.key) {
+        activeKey = { hash: loaded.key.hash, lastUsedAt: loaded.key.lastUsedAt };
+        activeKeyId = loaded.key.id;
+      }
+    } catch {
+      activeKey = null;
+    }
+  }
+
+  const auth = resolveMcpBearer({
+    authorizationHeader: request.headers.get("authorization"),
+    envToken,
+    activeKey,
+  });
+  if (!auth.ok) return denied(auth.status, auth.message);
   if (!client) return denied(503, "Supabase is not configured.");
+  if (auth.touchLastUsed && activeKeyId) {
+    await touchMcpKeyLastUsed(client, activeKeyId);
+  }
 
   const server = createFlobamaMcpServer({ client });
   const transport = new WebStandardStreamableHTTPServerTransport({
