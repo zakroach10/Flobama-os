@@ -363,6 +363,16 @@ export function authorizeVenueSettings(role: StaffRole | null): AuthzDecision {
   return { allowed: true };
 }
 
+/** Settings → MCP access. Admins are the venue owners in this role model. */
+export function authorizeMcpSettings(role: StaffRole | null): AuthzDecision {
+  const access = requireRole(role);
+  if (!access.allowed) return access;
+  if (!canManageVenueSettings(role!)) {
+    return { allowed: false, reason: "Only admins can manage the Grok Bot MCP key." };
+  }
+  return { allowed: true };
+}
+
 export function authorizeStaffAdmin(role: StaffRole | null): AuthzDecision {
   const access = requireRole(role);
   if (!access.allowed) return access;
