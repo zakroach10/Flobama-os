@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { WeekSocialGraphic } from "@/components/print/week-social-graphic";
 import { DEMO_WEEK_SLIDE } from "@/lib/screens/demo";
 import { WeekSocialOgGraphic } from "@/lib/screens/week-social-image";
-import { weekSocialFormat } from "@/lib/screens/social";
+import { socialLineupBlockHeight, socialLineupLayout, socialLineupLimit } from "@/lib/screens/social-poster";
+import { weekSocialFormat, type WeekSocialTemplateId } from "@/lib/screens/social";
 
 const format = weekSocialFormat("ig-portrait");
 
@@ -68,5 +69,46 @@ describe("instagram portrait templates", () => {
     expect(html).toContain("LATE SET");
     expect(html).not.toContain("paper-orange");
     expect(html).not.toContain("FLO BAMA");
+  });
+});
+
+const FULL_WEEK = [
+  "SLAW DOGS",
+  "ALL THE THINGS - PODCAST WITH NATASHA NIX AND KENSIE COPPIN",
+  "BOO BALL BY SALVATION ARMY",
+  "JIMINEM",
+  "DJ & KARAOKE",
+  "DEJA VU",
+  "AUSTIN BOHANNON",
+];
+
+describe("portrait lineup fit", () => {
+  it("keeps a short week at the design size", () => {
+    const night = socialLineupLayout({ templateId: "night", names: ["SLAW DOGS", "KARAOKE", "LATE SET"] });
+    expect(night.nameSize).toBe(60);
+    expect(night.dateSize).toBe(34);
+    const paper = socialLineupLayout({ templateId: "paper", names: ["SLAW DOGS", "KARAOKE", "LATE SET"] });
+    expect(paper.nameSize).toBe(48);
+  });
+
+  it("shrinks a full week so the lineup stays under the header", () => {
+    const templates: WeekSocialTemplateId[] = ["paper", "night", "marquee", "ticket"];
+    for (const templateId of templates) {
+      const layout = socialLineupLayout({ templateId, names: FULL_WEEK, width: 1080, height: 1350 });
+      expect(socialLineupBlockHeight(layout, FULL_WEEK)).toBeLessThanOrEqual(socialLineupLimit(layout));
+    }
+    const night = socialLineupLayout({ templateId: "night", names: FULL_WEEK });
+    expect(night.nameSize).toBeLessThan(60);
+    expect(night.nameSize).toBeGreaterThanOrEqual(48);
+    const ticket = socialLineupLayout({ templateId: "ticket", names: FULL_WEEK });
+    expect(ticket.nameSize).toBeLessThan(58);
+  });
+
+  it("fits eight one-line shows under the header", () => {
+    const names = Array.from({ length: 8 }, (_, index) => `SHOW ${index + 1}`);
+    for (const templateId of ["paper", "night", "marquee", "ticket"] as const) {
+      const layout = socialLineupLayout({ templateId, names, width: 1080, height: 1350 });
+      expect(socialLineupBlockHeight(layout, names)).toBeLessThanOrEqual(socialLineupLimit(layout));
+    }
   });
 });
