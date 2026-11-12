@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/led-wall",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/photo-booth",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

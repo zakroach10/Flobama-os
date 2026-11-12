@@ -39,6 +39,7 @@ export function buildPublicSurfaceUrls(origin: string) {
   const eventsApi = joinPublicUrl(base, "/api/public/v1/events");
   const nowApi = joinPublicUrl(base, "/api/public/v1/now");
   const verticalDisplay = joinPublicUrl(base, "/display/vertical");
+  const photoBooth = joinPublicUrl(base, "/display/photo-booth");
   const verticalApi = joinPublicUrl(base, "/api/public/v1/screens/vertical");
   const weekApi = joinPublicUrl(base, "/api/public/v1/screens/week");
   const weekFlyer = joinPublicUrl(base, "/print/week");
@@ -53,6 +54,7 @@ export function buildPublicSurfaceUrls(origin: string) {
     eventsApi,
     nowApi,
     verticalDisplay,
+    photoBooth,
     verticalApi,
     weekApi,
     weekFlyer,

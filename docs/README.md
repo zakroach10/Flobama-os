@@ -38,5 +38,6 @@ Output: `docs/flobama-os-v1.pdf`
 
 ## Other
 
+- [photo-booth.md](./photo-booth.md) — Guest photo booth on the portrait kiosks (Mevo UVC webcam, QR share, 48-hour retention)
 - [cameras-mac-connector.md](./cameras-mac-connector.md) — Mac Camera connector (pairing, LaunchAgent patterns reused by Local Runner plans)
 - [trivia-led-wall-obs.md](./trivia-led-wall-obs.md) — Shareable trivia LED wall link and OBS scene collection import

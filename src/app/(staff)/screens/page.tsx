@@ -17,6 +17,7 @@ import { LedPlaylistsPanel } from "@/components/screens/led-playlists-panel";
 import { LedPreloadPanel } from "@/components/screens/led-preload-panel";
 import { LedSchedulePanel } from "@/components/screens/led-schedule-panel";
 import { LedWallPanel } from "@/components/screens/led-wall-panel";
+import { PhotoBoothLink } from "@/components/screens/photo-booth-link";
 import { PlaylistsPanel } from "@/components/screens/playlists-panel";
 import { RefreshWallButton } from "@/components/screens/refresh-wall-button";
 import { ScreensWorkspace, type ScreensTab } from "@/components/screens/screens-workspace";
@@ -183,6 +184,7 @@ export default async function ScreensPage({
   const joinBaseUrl = joinPublicUrl(getTriviaPublicUrl(), "/play");
   const triviaWallUrl = triviaWallShareUrl(getTriviaPublicUrl(), context.venue.id);
   const verticalDisplayUrl = joinPublicUrl(getPublicAppUrl(), "/display/vertical");
+  const photoBoothUrl = joinPublicUrl(getPublicAppUrl(), "/display/photo-booth");
   const activeSceneId = activeLedPlaylistId ? null : (runtimeRes.runtime?.active_scene_id ?? null);
   const freshestRunner = freshestLedRunner(displayDevicesRes.devices);
   const runner = describeLedRunnerLink(freshestRunner, {
@@ -330,6 +332,7 @@ export default async function ScreensPage({
         vertical={
           canProgram && adsRes && takeoverRes ? (
             <>
+              <PhotoBoothLink url={photoBoothUrl} />
               <TakeoverPanel
                 ads={adsRes.ads}
                 takeover={takeoverRes.takeover}

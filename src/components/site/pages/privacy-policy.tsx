@@ -26,6 +26,17 @@ const PrivacyPolicy = () => {
             </p>
 
             <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground mb-4 mt-8">
+              Photo booth
+            </h2>
+            <p className="mb-6">
+              Photos taken at the FloBama photo booth are stored so you can open
+              them from the QR code on the kiosk. We don&apos;t ask for your name
+              or phone number. The link is unlisted, anyone with the link can
+              view that photo, and the photo is deleted about 48 hours after it
+              is taken. There is no public gallery of booth photos.
+            </p>
+
+            <h2 className="text-2xl font-heading font-bold uppercase tracking-wider text-foreground mb-4 mt-8">
               2. How We Use Your Information
             </h2>
             <p className="mb-6">
