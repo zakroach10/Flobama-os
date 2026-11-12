@@ -23,6 +23,7 @@ describe("public site URLs", () => {
     expect(surfaces.overlay).toBe("https://flobama-os.vercel.app/overlay");
     expect(surfaces.eventsApi).toBe("https://flobama-os.vercel.app/api/public/v1/events");
     expect(surfaces.verticalDisplay).toBe("https://flobama-os.vercel.app/display/vertical");
+    expect(surfaces.photoBooth).toBe("https://flobama-os.vercel.app/display/photo-booth");
     expect(surfaces.verticalApi).toBe("https://flobama-os.vercel.app/api/public/v1/screens/vertical");
     expect(surfaces.weekApi).toBe("https://flobama-os.vercel.app/api/public/v1/screens/week");
     expect(surfaces.weekFlyer).toBe("https://flobama-os.vercel.app/print/week");

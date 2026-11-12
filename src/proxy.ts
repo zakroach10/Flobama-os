@@ -47,6 +47,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/embed") ||
     pathname.startsWith("/overlay") ||
     pathname.startsWith("/display") ||
+    pathname.startsWith("/p/") ||
     pathname.startsWith("/print") ||
     pathname.startsWith("/tickets") ||
     pathname.startsWith("/t/") ||

@@ -1345,6 +1345,53 @@ export type Database = {
           },
         ];
       };
+      photo_booth_captures: {
+        Row: {
+          id: string;
+          venue_id: string;
+          storage_path: string;
+          token_hash: string;
+          byte_size: number;
+          content_type: string;
+          event_label: string | null;
+          created_at: string;
+          expires_at: string;
+          purged_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          storage_path: string;
+          token_hash: string;
+          byte_size: number;
+          content_type?: string;
+          event_label?: string | null;
+          created_at?: string;
+          expires_at: string;
+          purged_at?: string | null;
+        };
+        Update: {
+          purged_at?: string | null;
+          event_label?: string | null;
+        };
+        Relationships: [];
+      };
+      photo_booth_rate_hits: {
+        Row: {
+          id: number;
+          bucket_key: string;
+          created_at: string;
+        };
+        Insert: {
+          bucket_key: string;
+          created_at?: string;
+        };
+        Update: {
+          bucket_key?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       event_listings: {
