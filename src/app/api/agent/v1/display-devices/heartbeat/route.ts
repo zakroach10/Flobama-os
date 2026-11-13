@@ -8,6 +8,7 @@ import { getPublicLedPlayback, resolvePlaylistActiveScene } from "@/lib/queries/
 import { listPendingPerformanceCommands } from "@/lib/performance/commands";
 import { listPendingProductionCommands } from "@/lib/production/commands";
 import { upsertProductionDeviceStatus } from "@/lib/production/status";
+import { runnerPreloadClientKey } from "@/lib/screens/led-preload";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,47 @@ export async function POST(request: Request) {
     { onConflict: "device_id" },
   );
   if (statusError) return NextResponse.json({ error: "Could not record device status." }, { status: 500 });
+
+  if (auth.device.kind === "led_runner" && parsed.data.preload) {
+    const clientKey = runnerPreloadClientKey(auth.device.id);
+    const rows = parsed.data.preload.map((report) => ({
+      venue_id: auth.device.venue_id,
+      scene_id: report.assetId,
+      client_key: clientKey,
+      state: report.state,
+      message: report.message?.trim() || null,
+      updated_at: now,
+    }));
+    const sceneIds = new Set(rows.map((row) => row.scene_id));
+    const { data: existing, error: existingError } = await auth.admin
+      .from("led_wall_preload_reports" as never)
+      .select("scene_id")
+      .eq("venue_id" as never, auth.device.venue_id as never)
+      .eq("client_key" as never, clientKey as never);
+    if (existingError && !/does not exist|schema cache|could not find/i.test(existingError.message)) {
+      console.error("local runner preload read failed", existingError.message);
+    }
+    const staleIds = ((existing ?? []) as unknown as Array<{ scene_id: string }>)
+      .map((row) => row.scene_id)
+      .filter((id) => !sceneIds.has(id));
+    if (staleIds.length > 0) {
+      const { error: clearError } = await auth.admin
+        .from("led_wall_preload_reports" as never)
+        .delete()
+        .eq("venue_id" as never, auth.device.venue_id as never)
+        .eq("client_key" as never, clientKey as never)
+        .in("scene_id" as never, staleIds as never);
+      if (clearError) console.error("local runner preload clear failed", clearError.message);
+    }
+    if (rows.length > 0) {
+      const { error: preloadError } = await auth.admin
+        .from("led_wall_preload_reports" as never)
+        .upsert(rows as never, { onConflict: "venue_id,scene_id,client_key" });
+      if (preloadError && !/does not exist|schema cache|could not find/i.test(preloadError.message)) {
+        console.error("local runner preload report failed", preloadError.message);
+      }
+    }
+  }
 
   const manifest = await buildDeviceManifest(auth.admin, {
     deviceId: auth.device.id,

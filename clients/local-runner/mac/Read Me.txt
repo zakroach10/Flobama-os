@@ -1,7 +1,9 @@
-FloBama Local Runner 1.0.7
+FloBama Local Runner 1.3.3
 
 Caches LED wall media on this Mac and serves the OBS Browser Source from localhost
-so playback does not stream from Supabase.
+so playback does not stream from Supabase. Today’s show graphics, and any visual you
+preload in Screens, download before they go live. The wall keeps the current picture
+until the next file is ready.
 
 Install
 1. Drag FloBama Local Runner into Applications, then open it.
