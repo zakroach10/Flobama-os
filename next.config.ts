@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
     "*": [
       "./public/downloads/**",
       "./clients/**",
+      "./apps/**",
+      "./packages/**",
       "./tmp/**",
       "./scripts/**",
       "./tests/**",

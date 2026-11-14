@@ -11,6 +11,7 @@
     "start": "next start --port 43123",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "typecheck:mobile": "npm --prefix apps/mobile run typecheck",
     "test": "vitest run",
     "supabase:start": "supabase start -x realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor",
     "supabase:stop": "supabase stop",

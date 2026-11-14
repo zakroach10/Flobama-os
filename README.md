@@ -9,6 +9,7 @@ Public FloBama Music Hall site plus the staff operations platform. `/` serves th
 - Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
 - Supabase Postgres + Auth with `@supabase/ssr` cookie sessions
 - Zod validation, Luxon for America/Chicago scheduling
+- Guest iPhone app (Expo): [`apps/mobile`](./apps/mobile) — preview via EAS Build → TestFlight (see that README)
 
 ## Defaults chosen for this milestone
 
