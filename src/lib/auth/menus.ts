@@ -2,7 +2,7 @@ import type { StaffRole } from "@/lib/constants";
 import { isMasterAdminEmail } from "@/lib/auth/permissions";
 import { isWallOpsAccount, WALL_OPS_MENUS } from "@/lib/auth/wall-ops";
 
-export const STAFF_MENUS_SQL = "supabase/migrations/20261019000058_production_ecamm.sql";
+export const STAFF_MENUS_SQL = "supabase/migrations/20261114000070_customer_app.sql";
 
 export const STAFF_MENU_IDS = [
   "dashboard",
@@ -18,6 +18,7 @@ export const STAFF_MENU_IDS = [
   "artists",
   "settings",
   "server",
+  "customer",
 ] as const;
 
 export type StaffMenuId = (typeof STAFF_MENU_IDS)[number];
@@ -41,6 +42,7 @@ export const STAFF_MENUS: {
   { id: "artists", label: "Artists", href: "/artists" },
   { id: "settings", label: "Settings", href: "/settings" },
   { id: "server", label: "Server Station", href: "/server" },
+  { id: "customer", label: "Customer app", href: "/customer" },
 ];
 
 const MENU_PREFIXES: { prefix: string; id: StaffMenuId }[] = [
@@ -58,6 +60,7 @@ const MENU_PREFIXES: { prefix: string; id: StaffMenuId }[] = [
   { prefix: "/artists", id: "artists" },
   { prefix: "/settings", id: "settings" },
   { prefix: "/server", id: "server" },
+  { prefix: "/customer", id: "customer" },
 ];
 
 export function isMissingMenusColumn(message: string | null | undefined) {

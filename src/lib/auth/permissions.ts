@@ -22,6 +22,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Start and end Shoals trivia; upload question spreadsheets",
     "Run Live Audience Interactor tools on the wall",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
+    "Manage the customer app menu, merch, recordings, and orders",
     "View the calendar and settings",
   ],
   manager: [
@@ -36,6 +37,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "Start and end Shoals trivia; upload question spreadsheets",
     "Run Live Audience Interactor tools on the wall",
     "Configure FloBama Ticketing, table maps, comps, blocks, and refunds",
+    "Manage the customer app menu, merch, recordings, and orders",
     "View the staff directory",
     "View the calendar and settings",
   ],
@@ -54,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
     "View Production status, sessions, and markers (read-only)",
     "View and run Shoals trivia",
     "View ticketing sales, orders, and check-in status without selling or refunding",
+    "View the customer app menu, merch, recordings, and orders",
     "View settings (read-only)",
   ],
   server: [

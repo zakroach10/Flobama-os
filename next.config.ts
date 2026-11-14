@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
       "./scripts/**",
       "./tests/**",
       "./supabase/**",
+      "./apps/**",
     ],
   },
   async headers() {

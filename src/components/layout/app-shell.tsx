@@ -13,6 +13,7 @@ import {
   RadioIcon,
   SettingsIcon,
   Share2Icon,
+  SmartphoneIcon,
   StoreIcon,
   TicketIcon,
   UsersIcon,
@@ -41,6 +42,7 @@ const MENU_ICONS = {
   artists: UsersIcon,
   settings: SettingsIcon,
   server: StoreIcon,
+  customer: SmartphoneIcon,
 } as const;
 
 function NavLinks({
