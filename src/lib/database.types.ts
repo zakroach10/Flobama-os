@@ -1392,6 +1392,201 @@ export type Database = {
         };
         Relationships: [];
       };
+      menu_items: {
+        Row: {
+          id: string;
+          venue_id: string;
+          category: string;
+          name: string;
+          description: string | null;
+          price_label: string;
+          sort_order: number;
+          available: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          category: string;
+          name: string;
+          description?: string | null;
+          price_label: string;
+          sort_order?: number;
+          available?: boolean;
+          archived_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          category?: string;
+          name?: string;
+          description?: string | null;
+          price_label?: string;
+          sort_order?: number;
+          available?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [];
+      };
+      merch_products: {
+        Row: {
+          id: string;
+          venue_id: string;
+          name: string;
+          description: string | null;
+          price_cents: number;
+          currency: string;
+          image_url: string | null;
+          sku: string | null;
+          active: boolean;
+          sort_order: number;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          name: string;
+          description?: string | null;
+          price_cents: number;
+          currency?: string;
+          image_url?: string | null;
+          sku?: string | null;
+          active?: boolean;
+          sort_order?: number;
+          archived_at?: string | null;
+        };
+        Update: {
+          name?: string;
+          description?: string | null;
+          price_cents?: number;
+          image_url?: string | null;
+          sku?: string | null;
+          active?: boolean;
+          sort_order?: number;
+          archived_at?: string | null;
+        };
+        Relationships: [];
+      };
+      merch_orders: {
+        Row: {
+          id: string;
+          venue_id: string;
+          status: "pending" | "paid" | "fulfilled" | "cancelled" | "refunded";
+          customer_email: string;
+          customer_name: string | null;
+          total_cents: number;
+          currency: string;
+          access_token: string;
+          checkout_mode: "test" | "stripe";
+          checkout_url: string | null;
+          stripe_checkout_session_id: string | null;
+          stripe_payment_intent_id: string | null;
+          idempotency_key: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          status?: "pending" | "paid" | "fulfilled" | "cancelled" | "refunded";
+          customer_email: string;
+          customer_name?: string | null;
+          total_cents: number;
+          currency?: string;
+          access_token: string;
+          checkout_mode: "test" | "stripe";
+          checkout_url?: string | null;
+          stripe_checkout_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          idempotency_key?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          status?: "pending" | "paid" | "fulfilled" | "cancelled" | "refunded";
+          stripe_payment_intent_id?: string | null;
+          checkout_url?: string | null;
+        };
+        Relationships: [];
+      };
+      merch_order_items: {
+        Row: {
+          id: string;
+          order_id: string;
+          venue_id: string;
+          product_id: string | null;
+          name_snapshot: string;
+          quantity: number;
+          unit_price_cents: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          venue_id: string;
+          product_id?: string | null;
+          name_snapshot: string;
+          quantity: number;
+          unit_price_cents: number;
+        };
+        Update: {
+          name_snapshot?: string;
+        };
+        Relationships: [];
+      };
+      customer_recordings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          provider: string;
+          provider_asset_id: string | null;
+          playback_id: string | null;
+          title: string;
+          description: string | null;
+          event_id: string | null;
+          artist_id: string | null;
+          duration_seconds: number | null;
+          thumbnail_url: string | null;
+          recorded_at: string | null;
+          published: boolean;
+          archived_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          provider?: string;
+          provider_asset_id?: string | null;
+          playback_id?: string | null;
+          title: string;
+          description?: string | null;
+          event_id?: string | null;
+          artist_id?: string | null;
+          duration_seconds?: number | null;
+          thumbnail_url?: string | null;
+          recorded_at?: string | null;
+          published?: boolean;
+          archived_at?: string | null;
+        };
+        Update: {
+          provider_asset_id?: string | null;
+          playback_id?: string | null;
+          title?: string;
+          description?: string | null;
+          event_id?: string | null;
+          artist_id?: string | null;
+          duration_seconds?: number | null;
+          thumbnail_url?: string | null;
+          recorded_at?: string | null;
+          published?: boolean;
+          archived_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       event_listings: {
@@ -1416,6 +1611,101 @@ export type Database = {
           venue_id: string;
           display_order: number;
           name: string;
+        };
+        Relationships: [];
+      };
+      customer_event_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          public_description: string | null;
+          event_type: "live_music" | "karaoke" | "dj" | "sports" | "private_event" | "other";
+          starts_at: string;
+          ends_at: string;
+          location_label: string | null;
+          featured: boolean;
+          is_ticketed: boolean;
+          ticket_url: string | null;
+          cover_label: string | null;
+        };
+        Relationships: [];
+      };
+      customer_event_artists: {
+        Row: {
+          event_id: string;
+          venue_id: string;
+          display_order: number;
+          artist_id: string;
+          name: string;
+          genre: string | null;
+        };
+        Relationships: [];
+      };
+      customer_artist_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          name: string;
+          genre: string | null;
+          bio: string | null;
+          website_url: string | null;
+        };
+        Relationships: [];
+      };
+      customer_menu_special_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          title: string;
+          subtitle: string | null;
+          category: string;
+          price_label: string | null;
+          image_url: string;
+        };
+        Relationships: [];
+      };
+      customer_menu_item_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          category: string;
+          name: string;
+          description: string | null;
+          price_label: string;
+          sort_order: number;
+        };
+        Relationships: [];
+      };
+      customer_merch_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          name: string;
+          description: string | null;
+          price_cents: number;
+          currency: string;
+          image_url: string | null;
+          sku: string | null;
+          sort_order: number;
+        };
+        Relationships: [];
+      };
+      customer_recording_listings: {
+        Row: {
+          id: string;
+          venue_id: string;
+          provider: string;
+          playback_id: string | null;
+          title: string;
+          description: string | null;
+          duration_seconds: number | null;
+          thumbnail_url: string | null;
+          recorded_at: string | null;
+          event_id: string | null;
+          event_title: string | null;
+          artist_id: string | null;
+          artist_name: string | null;
         };
         Relationships: [];
       };

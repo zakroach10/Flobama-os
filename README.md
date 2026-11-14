@@ -218,7 +218,11 @@ Public:
 - Ticket pass: `/t/[token]` (the QR is a random token; door staff resolve it server-side)
 - Door: `/ticketing/check-in/[eventId]` (alias `/admin/ticketing/check-in/[eventId]`)
 
-Checkout uses a labeled mock payment adapter. Do not set `STRIPE_SECRET_KEY` until Stripe is wired; V1 will refuse a live Stripe charge rather than pretend.
+Checkout uses a labeled mock payment adapter. Do not set `STRIPE_SECRET_KEY` until Stripe is wired; V1 will refuse a live Stripe charge rather than pretend. The customer app merch checkout uses a separate `STRIPE_MERCH_SECRET_KEY` so this ticket adapter stays unchanged.
+
+## Customer app
+
+The iOS and Android app lives in `apps/customer` (Expo). It reads the public customer API on this server. Staff manage the menu, merch, recordings, and orders under **Customer app**. Setup, store submission, Mux, and Stripe are in [`docs/customer-app-setup.md`](./docs/customer-app-setup.md). Apply `supabase/migrations/20261114000070_customer_app.sql` before using those screens. That migration is not applied to production by the app change itself.
 
 Holds last 10 minutes. Table inventory uses `UPDATE … WHERE status = 'available'` (and the demo store’s equivalent) so two buyers cannot take the same table.
 
