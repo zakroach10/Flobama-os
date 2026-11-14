@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { DEFAULT_VENUE_TIMEZONE } from "@/lib/constants";
 import { getPublicLedPlayback } from "@/lib/queries/led-playlists";
 import { listPublicVerticalAds } from "@/lib/queries/playlists";
 import { getPublicTakeover } from "@/lib/queries/screens";
+import {
+  listScheduledLedWarmupSceneIds,
+  mergeLedWarmupAssetIds,
+} from "@/lib/screens/led-schedule-preload";
 import { displayRevision } from "@/lib/screens/takeover";
 import type { DisplayDeviceKind } from "@/lib/display-devices/types";
 
@@ -129,13 +134,15 @@ export async function buildDeviceManifest(
   }
 
   if (input.kind === "led_runner") {
-    const [{ playback }, settingsRes] = await Promise.all([
+    const [{ playback }, settingsRes, venueRes] = await Promise.all([
       getPublicLedPlayback(client, input.venueId),
       client.from("led_wall_settings").select("default_playlist_id").eq("venue_id", input.venueId).maybeSingle(),
+      client.from("venues").select("timezone").eq("id", input.venueId).maybeSingle(),
     ]);
 
+    const timeZone = venueRes.data?.timezone?.trim() || DEFAULT_VENUE_TIMEZONE;
     const items: ManifestItem[] = [];
-    const assetIds: string[] = [];
+    const activeAssetIds: string[] = [];
     const storageByAsset = new Map<string, { storagePath: string | null; mediaKind: string | null; duration: number | null }>();
 
     if (playback.mode === "playlist") {
@@ -150,7 +157,7 @@ export async function buildDeviceManifest(
           obsSceneName: item.obsSceneName,
         });
         if (!isObs && item.sceneId) {
-          assetIds.push(item.sceneId);
+          activeAssetIds.push(item.sceneId);
           storageByAsset.set(item.sceneId, {
             storagePath: null,
             mediaKind: item.mediaKind,
@@ -167,13 +174,23 @@ export async function buildDeviceManifest(
         transition: "cut",
         obsSceneName: null,
       });
-      assetIds.push(playback.active.id);
+      activeAssetIds.push(playback.active.id);
       storageByAsset.set(playback.active.id, {
         storagePath: null,
         mediaKind: playback.active.mediaKind,
         duration: null,
       });
     }
+
+    // Warm cache for tonight's scheduled artist logos/loops so Server Station /
+    // auto-roll cuts do not wait on a first download to the wall.
+    const warmupIds = await listScheduledLedWarmupSceneIds(client, input.venueId, timeZone);
+    for (const id of warmupIds) {
+      if (!storageByAsset.has(id)) {
+        storageByAsset.set(id, { storagePath: null, mediaKind: null, duration: null });
+      }
+    }
+    const assetIds = mergeLedWarmupAssetIds(activeAssetIds, warmupIds);
 
     const streamByAsset = new Map<string, string>();
     if (assetIds.length > 0) {
@@ -227,6 +244,7 @@ export async function buildDeviceManifest(
       playback.startedAt,
       playback.revision,
       reloadNonce,
+      `warmup:${warmupIds.join(",")}`,
       ...assets.map((asset) => `${asset.id}:${asset.sha256 ?? "pending"}`),
     ]);
 
