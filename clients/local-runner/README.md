@@ -11,7 +11,7 @@ Booth Mac agent that:
 
 ## Install (venue Mac)
 
-1. Build or download `FloBama-Local-Runner-1.3.0.dmg`
+1. Build or download `FloBama-Local-Runner-1.3.3.dmg`
 2. Drag **FloBama Local Runner** into Applications and open it
 3. In FloBama → Screens → Display devices, create an **LED Local Runner** and/or **Production Local Runner** pairing code
 4. Enter API base + code + OBS WebSocket settings (OBS optional on a dedicated Production Mac)
