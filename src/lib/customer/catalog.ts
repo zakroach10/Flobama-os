@@ -23,6 +23,47 @@ export function isMissingCustomerRelation(message: string | null | undefined) {
 
 export const CUSTOMER_MIGRATION = "supabase/migrations/20261114000070_customer_app.sql";
 
+/** Keep a show that started earlier tonight in the upcoming query. */
+export const UPCOMING_LOOKBACK_MS = 12 * 60 * 60 * 1000;
+export const UPCOMING_SHOW_LIMIT = 100;
+export const PAST_SHOW_LIMIT = 60;
+
+export function customerShowCutoff(now: Date): string {
+  return new Date(now.getTime() - UPCOMING_LOOKBACK_MS).toISOString();
+}
+
+/** Upcoming rows stay first (ascending). Recent past rows follow. Duplicate ids are dropped. */
+export function mergeCustomerShows<T extends { id: string }>(upcoming: readonly T[], past: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+  for (const row of [...upcoming, ...past]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    merged.push(row);
+  }
+  return merged;
+}
+
+/**
+ * Same window the database queries use. A single oldest-first limit drops future
+ * shows once published history is longer than that limit.
+ */
+export function selectCustomerShowWindow<T extends { id: string; starts_at: string }>(
+  rows: readonly T[],
+  now: Date,
+): T[] {
+  const cutoff = customerShowCutoff(now);
+  const upcoming = rows
+    .filter((row) => row.starts_at >= cutoff)
+    .sort((left, right) => left.starts_at.localeCompare(right.starts_at))
+    .slice(0, UPCOMING_SHOW_LIMIT);
+  const past = rows
+    .filter((row) => row.starts_at < cutoff)
+    .sort((left, right) => right.starts_at.localeCompare(left.starts_at))
+    .slice(0, PAST_SHOW_LIMIT);
+  return mergeCustomerShows(upcoming, past);
+}
+
 export async function loadCustomerCatalog(now: Date = new Date()): Promise<{
   catalog: CustomerCatalog;
   sample: boolean;
@@ -38,23 +79,56 @@ export async function loadCustomerCatalog(now: Date = new Date()): Promise<{
   }
 
   const venueId = FLO_BAMA_VENUE_ID;
-  const [shows, artists, specials, menu, merch, recordings, showArtists] = await Promise.all([
-    client.from("customer_event_listings").select("*").eq("venue_id", venueId).order("starts_at", { ascending: true }).limit(80),
+  const cutoff = customerShowCutoff(now);
+  const [upcomingShows, pastShows, artists, specials, menu, merch, recordings] = await Promise.all([
+    client
+      .from("customer_event_listings")
+      .select("*")
+      .eq("venue_id", venueId)
+      .gte("starts_at", cutoff)
+      .order("starts_at", { ascending: true })
+      .limit(UPCOMING_SHOW_LIMIT),
+    client
+      .from("customer_event_listings")
+      .select("*")
+      .eq("venue_id", venueId)
+      .lt("starts_at", cutoff)
+      .order("starts_at", { ascending: false })
+      .limit(PAST_SHOW_LIMIT),
     client.from("customer_artist_listings").select("*").eq("venue_id", venueId).order("name", { ascending: true }).limit(200),
     client.from("customer_menu_special_listings").select("*").eq("venue_id", venueId),
     client.from("customer_menu_item_listings").select("*").eq("venue_id", venueId).order("sort_order", { ascending: true }),
     client.from("customer_merch_listings").select("*").eq("venue_id", venueId).order("sort_order", { ascending: true }),
     client.from("customer_recording_listings").select("*").eq("venue_id", venueId).order("recorded_at", { ascending: false }),
-    client.from("customer_event_artists").select("*").eq("venue_id", venueId).order("display_order", { ascending: true }),
   ]);
 
-  const firstError = [shows, artists, specials, menu, merch, recordings, showArtists].find((result) => result.error)?.error;
+  const firstError = [upcomingShows, pastShows, artists, specials, menu, merch, recordings].find((result) => result.error)?.error;
   if (firstError) {
     return {
       catalog: emptyCatalog(),
       sample: false,
       error: firstError.message,
       missing: isMissingCustomerRelation(firstError.message),
+    };
+  }
+
+  const showRows = mergeCustomerShows(upcomingShows.data ?? [], pastShows.data ?? []);
+  const showIds = showRows.map((row) => row.id);
+  const showArtists =
+    showIds.length === 0
+      ? { data: [], error: null }
+      : await client
+          .from("customer_event_artists")
+          .select("*")
+          .eq("venue_id", venueId)
+          .in("event_id", showIds)
+          .order("display_order", { ascending: true });
+  if (showArtists.error) {
+    return {
+      catalog: emptyCatalog(),
+      sample: false,
+      error: showArtists.error.message,
+      missing: isMissingCustomerRelation(showArtists.error.message),
     };
   }
 
@@ -70,7 +144,7 @@ export async function loadCustomerCatalog(now: Date = new Date()): Promise<{
     error: null,
     missing: false,
     catalog: {
-      shows: (shows.data ?? []).map((row) => mapShow({ ...row, artists: artistsByEvent.get(row.id) ?? [] })),
+      shows: showRows.map((row) => mapShow({ ...row, artists: artistsByEvent.get(row.id) ?? [] })),
       artists: (artists.data ?? []).map(mapArtist),
       specials: (specials.data ?? []).map(mapSpecial).filter((row) => row !== null),
       menu: (menu.data ?? []).map(mapMenuItem),
