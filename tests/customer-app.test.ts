@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { customerShowCutoff, PAST_SHOW_LIMIT, selectCustomerShowWindow, UPCOMING_SHOW_LIMIT } from "@/lib/customer/catalog";
 import { buildFixtureCatalog, SEEDED_MERCH } from "@/lib/customer/fixtures";
 import { dollarsToCents, formatUsd, priceCart } from "@/lib/customer/money";
 import { mapShow, publicHttpUrl, showHasOnlyPublicKeys } from "@/lib/customer/public-map";
@@ -50,6 +51,57 @@ describe("customer catalog safety", () => {
     expect(catalog.menu.map((item) => item.name)).toContain("FloBama Wings");
     expect(catalog.merch.map((item) => item.priceCents)).toEqual([2800, 2400, 600]);
     expect(catalog.recordings[0]?.playbackUrl).toContain(".m3u8");
+  });
+});
+
+describe("customer show window", () => {
+  it("keeps future shows when more than 80 past shows would fill an oldest-first page", () => {
+    const now = new Date("2026-11-14T18:00:00.000Z");
+    const hour = 60 * 60 * 1000;
+    const past = Array.from({ length: 88 }, (_, index) => {
+      const starts = new Date(now.getTime() - (20 + index) * 24 * hour);
+      return {
+        id: `past-${index}`,
+        title: `Past ${index}`,
+        starts_at: starts.toISOString(),
+        ends_at: new Date(starts.getTime() + 3 * hour).toISOString(),
+        artistId: "artist-past",
+      };
+    });
+    const inProgressStart = new Date(now.getTime() - 2 * hour);
+    const inProgress = {
+      id: "tonight",
+      title: "On stage now",
+      starts_at: inProgressStart.toISOString(),
+      ends_at: new Date(now.getTime() + 2 * hour).toISOString(),
+      artistId: "artist-live",
+    };
+    const future = Array.from({ length: 18 }, (_, index) => {
+      const starts = new Date(now.getTime() + (index + 1) * 24 * hour);
+      return {
+        id: `future-${index}`,
+        title: `Future ${index}`,
+        starts_at: starts.toISOString(),
+        ends_at: new Date(starts.getTime() + 3 * hour).toISOString(),
+        artistId: "artist-live",
+      };
+    });
+    const rows = [...past, ...future, inProgress];
+
+    const oldestPage = [...rows].sort((left, right) => left.starts_at.localeCompare(right.starts_at)).slice(0, 80);
+    expect(oldestPage.some((row) => row.starts_at >= now.toISOString())).toBe(false);
+    expect(oldestPage.some((row) => row.id === "tonight")).toBe(false);
+
+    const windowed = selectCustomerShowWindow(rows, now);
+    const nowIso = now.toISOString();
+    const stillOn = windowed.filter((row) => row.ends_at > nowIso);
+    expect(stillOn.map((row) => row.id)).toEqual(["tonight", ...future.map((row) => row.id)]);
+    expect(stillOn[0]?.id).toBe("tonight");
+    expect(windowed.filter((row) => row.starts_at < customerShowCutoff(now)).length).toBe(PAST_SHOW_LIMIT);
+    expect(windowed.some((row) => row.id === "past-87")).toBe(false);
+    expect(windowed.find((row) => row.id === "future-0")).toBeTruthy();
+    expect(windowed.filter((row) => row.artistId === "artist-live" && row.ends_at > nowIso)).toHaveLength(19);
+    expect(UPCOMING_SHOW_LIMIT).toBeGreaterThanOrEqual(stillOn.length);
   });
 });
 
