@@ -1,6 +1,9 @@
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import { api, type MenuItem, type Special } from "../../src/api";
-import { BrandHeader, Card, ErrorText, Muted, SampleNote, Screen, SectionTitle, Title } from "../../src/ui";
+import { BrandHeader, Card, ErrorText, GoldButton, Muted, SampleNote, Screen, SectionTitle, Title } from "../../src/ui";
+
+const ONLINE_ORDER_URL = "https://order.spoton.com/so-flobama-1346/florence-alabama/5e850eff9adef353aa477611";
 
 export default function MenuScreen() {
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -36,6 +39,7 @@ export default function MenuScreen() {
       }}
     >
       <BrandHeader kicker="Food and drinks" />
+      <GoldButton label="Order online" onPress={() => void WebBrowser.openBrowserAsync(ONLINE_ORDER_URL)} />
       <SampleNote show={sample} />
       <ErrorText message={error} />
       {specials.length ? (
