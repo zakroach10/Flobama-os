@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { api, type Recording } from "../../src/api";
 import { LivePlayer } from "../../src/LivePlayer";
 import { formatWhen } from "../../src/theme";
-import { ErrorText, Muted, Screen, Title } from "../../src/ui";
+import { Detail, Display, ErrorText, Muted } from "../../src/ui";
 
 export default function RecordingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,11 +19,11 @@ export default function RecordingScreen() {
   }, [id]);
 
   return (
-    <Screen>
+    <Detail>
       <ErrorText message={error} />
       {recording ? (
         <>
-          <Title>{recording.title}</Title>
+          <Display>{recording.title}</Display>
           <Muted>
             {[
               recording.artistName,
@@ -37,6 +37,6 @@ export default function RecordingScreen() {
           <LivePlayer uri={recording.playbackUrl} />
         </>
       ) : null}
-    </Screen>
+    </Detail>
   );
 }

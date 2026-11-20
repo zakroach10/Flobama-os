@@ -1,8 +1,20 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { api, type Recording, type Show } from "../../src/api";
-import { formatWhen } from "../../src/theme";
-import { BrandHeader, Card, ErrorText, Muted, SampleNote, Screen, SectionTitle, Title } from "../../src/ui";
+import { colors, dayKey, fonts, formatClock, formatDayMarker, formatDayLabel, space, type as typeScale } from "../../src/theme";
+import { Card, ErrorText, Eyebrow, Muted, Reveal, SampleNote, Screen, Title } from "../../src/ui";
+
+function groupByDay(shows: Show[]) {
+  const groups: { key: string; show: Show; items: Show[] }[] = [];
+  for (const show of shows) {
+    const key = dayKey(show.startsAt);
+    const last = groups[groups.length - 1];
+    if (!last || last.key !== key) groups.push({ key, show, items: [show] });
+    else last.items.push(show);
+  }
+  return groups;
+}
 
 export default function ShowsScreen() {
   const router = useRouter();
@@ -28,6 +40,9 @@ export default function ShowsScreen() {
     void load();
   }, [load]);
 
+  const groups = groupByDay(shows);
+  let revealIndex = 0;
+
   return (
     <Screen
       refreshing={refreshing}
@@ -36,32 +51,61 @@ export default function ShowsScreen() {
         void load().finally(() => setRefreshing(false));
       }}
     >
-      <BrandHeader kicker="Schedule" />
       <SampleNote show={sample} />
       <ErrorText message={error} />
-      <SectionTitle>Coming up</SectionTitle>
+      <Eyebrow>Schedule</Eyebrow>
       {shows.length === 0 ? <Muted>No upcoming shows are published yet.</Muted> : null}
-      {shows.map((show) => (
-        <Card key={show.id} onPress={() => router.push(`/show/${show.id}`)}>
-          <Title>{show.title}</Title>
-          <Muted>
-            {formatWhen(show.startsAt)}
-            {show.coverCharge ? ` · Cover ${show.coverCharge}` : ""}
-          </Muted>
-          {show.artists.length ? <Muted>{show.artists.map((artist) => artist.name).join(", ")}</Muted> : null}
-        </Card>
-      ))}
-      <SectionTitle>Past performances</SectionTitle>
+      {groups.map((group) => {
+        const marker = formatDayMarker(group.show.startsAt);
+        return (
+          <View key={group.key} style={styles.day}>
+            <View style={styles.marker}>
+              <Text style={styles.weekday}>{marker.weekday}</Text>
+              <Text style={styles.dayNum}>{marker.day}</Text>
+              <Text style={styles.month}>{marker.month}</Text>
+            </View>
+            <View style={styles.dayShows}>
+              {group.items.map((show) => {
+                const index = revealIndex;
+                revealIndex += 1;
+                return (
+                  <Reveal key={show.id} index={index}>
+                    <Card onPress={() => router.push(`/show/${show.id}`)}>
+                      <Text style={styles.time}>{formatClock(show.startsAt)}</Text>
+                      <Title>{show.title}</Title>
+                      {show.artists.length ? <Muted>{show.artists.map((artist) => artist.name).join(", ")}</Muted> : null}
+                      {show.coverCharge ? <Muted>Cover {show.coverCharge}</Muted> : null}
+                    </Card>
+                  </Reveal>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
+      <Eyebrow>Past performances</Eyebrow>
       {recordings.length === 0 ? <Muted>Recorded shows show up here after staff publish them.</Muted> : null}
-      {recordings.map((recording) => (
-        <Card key={recording.id} onPress={() => router.push(`/recording/${recording.id}`)}>
-          <Title>{recording.title}</Title>
-          <Muted>
-            {recording.artistName || recording.eventTitle || "FloBama"}
-            {recording.recordedAt ? ` · ${formatWhen(recording.recordedAt)}` : ""}
-          </Muted>
-        </Card>
+      {recordings.map((recording, index) => (
+        <Reveal key={recording.id} index={index}>
+          <Card onPress={() => router.push(`/recording/${recording.id}`)}>
+            <Title>{recording.title}</Title>
+            <Muted>
+              {recording.artistName || recording.eventTitle || "FloBama"}
+              {recording.recordedAt ? ` · ${formatDayLabel(recording.recordedAt)}` : ""}
+            </Muted>
+          </Card>
+        </Reveal>
       ))}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  day: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
+  marker: { width: 52, alignItems: "center", paddingTop: space.sm },
+  weekday: { color: colors.gold, fontFamily: fonts.textStrong, fontSize: typeScale.label, letterSpacing: 0.6, textTransform: "uppercase" },
+  dayNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 32 },
+  month: { color: colors.muted, fontFamily: fonts.text, fontSize: typeScale.label },
+  dayShows: { flex: 1, gap: space.md },
+  time: { color: colors.gold, fontFamily: fonts.textStrong, fontSize: typeScale.small },
+});

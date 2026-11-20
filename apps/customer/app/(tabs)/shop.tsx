@@ -1,11 +1,11 @@
 import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, type Merch } from "../../src/api";
 import { useCart } from "../../src/cart";
-import { colors, formatUsd } from "../../src/theme";
-import { BrandHeader, Card, ErrorText, GoldButton, Muted, SampleNote, Title } from "../../src/ui";
+import { colors, fonts, formatUsd, radii, space, type as typeScale } from "../../src/theme";
+import { ErrorText, GoldButton, Muted, Reveal, SampleNote } from "../../src/ui";
 
 export default function ShopScreen() {
   const cart = useCart();
@@ -31,26 +31,42 @@ export default function ShopScreen() {
   return (
     <SafeAreaView style={styles.fill} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.content} style={styles.scroll}>
-        <BrandHeader kicker="Merch" />
         <SampleNote show={sample} />
         <ErrorText message={error} />
-        <Muted>Pickup at the bar. Orders are paid with Stripe test mode until the venue turns on live payments.</Muted>
-        {products.map((product) => (
-          <Card key={product.id}>
-            <Title>{product.name}</Title>
-            {product.description ? <Muted>{product.description}</Muted> : null}
-            <Text style={styles.price}>{formatUsd(product.priceCents)}</Text>
-            <GoldButton label="Add to cart" onPress={() => cart.add(product)} />
-          </Card>
+        <Muted>Pickup at the bar. Stripe stays in test mode until the venue turns on live payments.</Muted>
+        {products.map((product, index) => (
+          <Reveal key={product.id} index={index}>
+            <View style={styles.card}>
+              {product.imageUrl ? (
+                <Image source={{ uri: product.imageUrl }} style={styles.photo} accessibilityLabel={product.name} />
+              ) : (
+                <View style={styles.swatch}>
+                  <Text style={styles.initial}>{product.name.slice(0, 1)}</Text>
+                </View>
+              )}
+              <View style={styles.body}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.name}>{product.name}</Text>
+                  <Text style={styles.price}>{formatUsd(product.priceCents)}</Text>
+                </View>
+                {product.description ? <Muted>{product.description}</Muted> : null}
+                <GoldButton label="Add to cart" onPress={() => cart.add(product)} />
+              </View>
+            </View>
+          </Reveal>
         ))}
-        {cart.count > 0 ? (
-          <Link href="/checkout" style={styles.cart}>
-            <Text style={styles.cartText}>
-              Cart · {cart.count} · {formatUsd(cart.totalCents)}
-            </Text>
-          </Link>
-        ) : null}
       </ScrollView>
+      {cart.count > 0 ? (
+        <View style={styles.cartDock}>
+          <Link href="/checkout" asChild>
+            <Pressable style={styles.cart} accessibilityRole="button" accessibilityLabel="Open cart">
+              <Text style={styles.cartText}>
+                Cart · {cart.count} · {formatUsd(cart.totalCents)}
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -58,13 +74,33 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1, minHeight: 0, backgroundColor: colors.bg },
   scroll: { flex: 1, minHeight: 0 },
-  content: { padding: 20, paddingBottom: 28, gap: 16 },
-  price: { color: colors.gold, fontSize: 18, fontWeight: "800" },
+  content: { padding: space.xl, paddingBottom: 96, gap: space.lg },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: "hidden",
+  },
+  photo: { width: "100%", height: 160 },
+  swatch: {
+    height: 112,
+    backgroundColor: "#3a2414",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  initial: { color: colors.gold, fontFamily: fonts.display, fontSize: 42 },
+  body: { padding: space.lg, gap: space.md },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", gap: space.md, alignItems: "baseline" },
+  name: { color: colors.text, fontFamily: fonts.displaySoft, fontSize: typeScale.card, flex: 1 },
+  price: { color: colors.gold, fontFamily: fonts.textStrong, fontSize: typeScale.body },
+  cartDock: { paddingHorizontal: space.lg, paddingBottom: space.md, paddingTop: space.sm },
   cart: {
     backgroundColor: colors.gold,
-    borderRadius: 999,
-    paddingVertical: 14,
+    borderRadius: radii.pill,
+    minHeight: 52,
     alignItems: "center",
+    justifyContent: "center",
   },
-  cartText: { color: colors.black, fontWeight: "800", fontSize: 16, textAlign: "center", width: "100%" },
+  cartText: { color: colors.ink, fontFamily: fonts.textStrong, fontSize: typeScale.body },
 });
