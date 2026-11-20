@@ -13,6 +13,7 @@ import {
   type BulkEventSnapshot,
 } from "@/lib/events/bulk";
 import { eventWriteFieldsFromForm, syncEventArtists } from "@/lib/events/persist";
+import { applyEventSaveIntent, eventSaveMessage, type EventSaveIntent } from "@/lib/events/submit";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { isMissingProductionRelation } from "@/lib/queries/production";
 import { isMissingLedWallRelation } from "@/lib/screens/led-wall";
@@ -59,7 +60,11 @@ function revalidateOps() {
   revalidatePublicSurfaces();
 }
 
-export async function saveEventAction(input: unknown, eventId?: string): Promise<ActionResult> {
+export async function saveEventAction(
+  input: unknown,
+  eventId?: string,
+  options?: { publish?: boolean },
+): Promise<ActionResult> {
   const gate = await staffForMutation();
   if (!gate.ok) return { ok: false, message: gate.message };
   const allowed = authorizeProgramming(gate.context.role);
@@ -74,7 +79,8 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
     };
   }
 
-  const values = parsed.data;
+  const intent: EventSaveIntent = options?.publish ? "publish" : "save";
+  const values = applyEventSaveIntent(parsed.data, intent);
   const built = eventWriteFieldsFromForm(values);
   if (!built.ok) return { ok: false, message: built.message };
   const fields = built.fields;
@@ -99,7 +105,7 @@ export async function saveEventAction(input: unknown, eventId?: string): Promise
   revalidateOps();
   revalidatePath(`/programming/${id}`);
   revalidatePath(`/programming/${id}/edit`);
-  return { ok: true, message: eventId ? "Event saved." : "Event created.", id };
+  return { ok: true, message: eventSaveMessage(Boolean(eventId), intent), id };
 }
 
 export async function setEventStatusAction(

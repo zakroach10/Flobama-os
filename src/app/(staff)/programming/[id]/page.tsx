@@ -6,6 +6,7 @@ import { formatVenueDateTime } from "@/lib/timezone";
 import { canManageProgramming } from "@/lib/auth/permissions";
 import { EventActions } from "@/components/events/event-actions";
 import { EventPageHeader } from "@/components/events/event-page-header";
+import { FacebookCopyPanel } from "@/components/events/facebook-copy-panel";
 import { ErrorState } from "@/components/states";
 import { EVENT_VISIBILITY_LABELS } from "@/lib/constants";
 
@@ -64,6 +65,23 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           {event.public_description || "No public description."}
         </p>
       </section>
+
+      <FacebookCopyPanel
+        source={{
+          title: event.title,
+          publicDescription: event.public_description,
+          startsAt: event.starts_at,
+          endsAt: event.ends_at,
+          timeZone: context.venue.timezone,
+          locationLabel: event.location_label,
+          venueName: context.venue.name,
+          hosts: names,
+          ticketUrl: event.ticket_url,
+          coverLabel: event.cover_label,
+          isTicketed: event.is_ticketed,
+          eventType: event.event_type,
+        }}
+      />
       <section className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <h2 className="text-lg font-semibold">Internal notes (staff-only)</h2>
         <p className="whitespace-pre-wrap text-sm">
