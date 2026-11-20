@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { saveEventAction } from "@/actions/records";
 import { saveArtistAction } from "@/actions/records";
 import { searchArtistsAction } from "@/actions/artists-search";
+import { FacebookCopyPanel } from "@/components/events/facebook-copy-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EVENT_STATUSES, EVENT_TYPES, EVENT_TYPE_LABELS, EVENT_STATUS_LABELS, EVENT_VISIBILITY_LABELS } from "@/lib/constants";
+import { applyEventSaveIntent, type EventSaveIntent } from "@/lib/events/submit";
 import type { EventFormInput, EventFormValues } from "@/lib/validation/schemas";
 
 export type ArtistOption = { id: string; name: string; genre: string | null };
@@ -29,15 +31,18 @@ export function EventForm({
   timeZone,
   eventId,
   isDuplicate = false,
+  venueName,
 }: {
   defaultValues: EventFormInput;
   artists: ArtistOption[];
   timeZone: string;
   eventId?: string;
   isDuplicate?: boolean;
+  venueName?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [submitIntent, setSubmitIntent] = useState<EventSaveIntent | null>(null);
   const [values, setValues] = useState<EventFormValues>({
     title: defaultValues.title,
     eventType: defaultValues.eventType,
@@ -99,12 +104,14 @@ export function EventForm({
     );
   }
 
-  function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  function persist(intent: EventSaveIntent) {
     setFormError(null);
     setFieldErrors({});
+    setSubmitIntent(intent);
+    const payload = applyEventSaveIntent(values, intent);
     startTransition(async () => {
-      const result = await saveEventAction(values, eventId);
+      const result = await saveEventAction(payload, eventId, intent === "publish" ? { publish: true } : undefined);
+      setSubmitIntent(null);
       if (!result.ok) {
         setFormError(result.message);
         setFieldErrors(result.fieldErrors ?? {});
@@ -115,6 +122,11 @@ export function EventForm({
       router.push(`/programming/${result.id}`);
       router.refresh();
     });
+  }
+
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    persist("save");
   }
 
   return (
@@ -261,7 +273,8 @@ export function EventForm({
         <legend className="text-base font-semibold">Status</legend>
         <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           Published + public events appear on the public API, website embed, and OBS overlay. Private or draft rows
-          never do, and internal notes stay staff-only.
+          never do, and internal notes stay staff-only. Save keeps the status selected here. Publish saves and sets
+          the status to published.
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex min-h-11 items-center gap-3 text-sm">
@@ -334,13 +347,35 @@ export function EventForm({
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <Button type="submit" className="w-full sm:w-auto" disabled={pending}>
-          {pending ? "Saving…" : eventId ? "Save event" : "Create event"}
+        <Button type="button" className="w-full sm:w-auto" disabled={pending} onClick={() => persist("publish")}>
+          {pending && submitIntent === "publish" ? "Publishing…" : "Publish"}
+        </Button>
+        <Button type="submit" className="w-full sm:w-auto" variant="outline" disabled={pending}>
+          {pending && submitIntent === "save" ? "Saving…" : eventId ? "Save event" : "Create event"}
         </Button>
         <Button type="button" className="w-full sm:w-auto" variant="outline" disabled={pending} onClick={() => router.back()}>
           Cancel
         </Button>
       </div>
+
+      <FacebookCopyPanel
+        source={{
+          title: values.title,
+          publicDescription: values.publicDescription,
+          startDate: values.startDate,
+          startTime: values.startTime,
+          endDate: values.endDate,
+          endTime: values.endTime,
+          timeZone,
+          locationLabel: values.locationLabel,
+          venueName,
+          hosts: selected.map((artist) => artist.name),
+          ticketUrl: values.ticketUrl,
+          coverLabel: values.coverLabel,
+          isTicketed: values.isTicketed,
+          eventType: values.eventType,
+        }}
+      />
 
       <AddArtistDialog
         open={addOpen}

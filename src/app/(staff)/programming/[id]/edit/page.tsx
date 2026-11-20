@@ -41,6 +41,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       <EventForm
         eventId={event.id}
         timeZone={context.venue.timezone}
+        venueName={context.venue.name}
         artists={merged}
         defaultValues={{
           title: event.title,

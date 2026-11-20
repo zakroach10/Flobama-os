@@ -84,11 +84,17 @@ export default async function NewEventPage({
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{isDuplicate ? "Duplicate event" : "New event"}</h1>
         <p className="text-muted-foreground">
           {isDuplicate
-            ? "Copied from an existing record. Status is draft until you save."
+            ? "Copied from an existing record. It starts as a draft until you publish."
             : "Schedule a show in the venue timezone."}
         </p>
       </div>
-      <EventForm defaultValues={defaults} artists={artists} timeZone={context.venue.timezone} isDuplicate={isDuplicate} />
+      <EventForm
+        defaultValues={defaults}
+        artists={artists}
+        timeZone={context.venue.timezone}
+        venueName={context.venue.name}
+        isDuplicate={isDuplicate}
+      />
     </div>
   );
 }
