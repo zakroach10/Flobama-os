@@ -6,6 +6,7 @@ export async function uploadAudiencePictureFromBrowser(input: {
   file: File;
   venueId: string;
   supabaseEnv: PublicSupabaseEnv | null;
+  folder?: "pictures" | "players";
 }) {
   const type = input.file.type;
   const isPng = type === "image/png" || input.file.name.toLowerCase().endsWith(".png");
@@ -29,7 +30,8 @@ export async function uploadAudiencePictureFromBrowser(input: {
 
   const ext = isPng ? "png" : isWebp ? "webp" : "jpg";
   const contentType = isPng ? "image/png" : isWebp ? "image/webp" : "image/jpeg";
-  const storagePath = `${input.venueId}/audience/pictures/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const folder = input.folder === "players" ? "players" : "pictures";
+  const storagePath = `${input.venueId}/audience/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   const { error: uploadError } = await supabase.storage.from("screen-ads").upload(storagePath, input.file, {
     contentType,

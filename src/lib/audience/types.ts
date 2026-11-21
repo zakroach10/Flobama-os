@@ -10,6 +10,8 @@ export const AUDIENCE_TOOL_KINDS = [
   "sponsor",
   "countdown",
   "picture",
+  "guess_player",
+  "guess_lyric",
 ] as const;
 
 export type AudienceToolKind = (typeof AUDIENCE_TOOL_KINDS)[number];
@@ -22,6 +24,26 @@ export type AudienceVoteTally = { key: string; label: string; count: number };
 
 export type AudienceToolPayload = Record<string, unknown>;
 
+export type AudienceGuessBubble = {
+  id: string;
+  displayName: string;
+  answer: string;
+  correct: boolean;
+  won: boolean;
+  createdAt: string;
+};
+
+export type AudienceGuessView = {
+  roundKey: string;
+  prompt: string;
+  photoUrl: string | null;
+  playerIndex: number;
+  playerCount: number;
+  status: "waiting" | "playing" | "won";
+  winner: { displayName: string; answer: string } | null;
+  bubbles: AudienceGuessBubble[];
+};
+
 export type AudienceWallTool = {
   id: string;
   kind: AudienceToolKind;
@@ -32,6 +54,7 @@ export type AudienceWallTool = {
   tallies: AudienceVoteTally[];
   totalVotes: number;
   questionOnWall?: { id: string; displayName: string; body: string } | null;
+  guess?: AudienceGuessView | null;
 };
 
 export const AUDIENCE_CORNER_POSITIONS = ["bottom-left", "bottom-right"] as const;
@@ -80,6 +103,8 @@ export const AUDIENCE_TOOL_LABELS: Record<AudienceToolKind, string> = {
   sponsor: "Sponsor card",
   countdown: "Countdown / break",
   picture: "Picture / graphic",
+  guess_player: "Guess the Player",
+  guess_lyric: "Guess the Lyric",
 };
 
 export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
@@ -92,4 +117,6 @@ export const AUDIENCE_TOOL_HINTS: Record<AudienceToolKind, string> = {
   sponsor: "Sponsor card with a phone number and optional message underneath, or pin a logo in the corner while other content stays up.",
   countdown: "Pre-show timer or “we’ll be right back” break.",
   picture: "Upload a photo or graphic, save it as a preset, put it on the LED wall.",
+  guess_player: "Ten players, photo only on the wall. First exact name wins.",
+  guess_lyric: "Play the song in the room. First exact lyric wins and hits the wall.",
 };

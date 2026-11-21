@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { defaultGuessLyricPayload, defaultGuessPlayerPayload } from "@/lib/audience/guess";
 import type {
   AudienceCornerPosition,
   AudienceCornerSponsor,
@@ -142,6 +143,10 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
         storagePath: "",
         caption: "",
       };
+    case "guess_player":
+      return defaultGuessPlayerPayload();
+    case "guess_lyric":
+      return defaultGuessLyricPayload();
     default:
       return {};
   }
@@ -168,6 +173,8 @@ export function titleForAudienceTool(kind: AudienceToolKind): string {
     sponsor: "Sponsor card",
     countdown: "Countdown",
     picture: "Picture",
+    guess_player: "Guess the Player",
+    guess_lyric: "Guess the Lyric",
   };
   return labels[kind];
 }

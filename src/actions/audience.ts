@@ -7,6 +7,8 @@ import { getStaffContext } from "@/lib/auth/staff";
 import {
   AUDIENCE_CORNER_SPONSOR_CONTACT_SQL,
   AUDIENCE_CORNER_SPONSOR_SQL,
+  AUDIENCE_GUESS_KIND_SQL,
+  AUDIENCE_GUESS_SQL,
   AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
@@ -21,19 +23,27 @@ import {
 } from "@/lib/audience/engine";
 import { AUDIENCE_CORNER_POSITIONS, AUDIENCE_TOOL_KINDS } from "@/lib/audience/types";
 import {
+  advanceGuessPlayer,
   clearWallTool,
   createAudienceTool,
   deleteAudiencePreset,
   endAudienceSession,
   loadAudiencePreset,
+  loadStaffGuessRound,
   moderateAudienceQuestion,
   putToolOnWall,
   saveAudiencePreset,
   setAudienceReveal,
   setAudienceVoting,
   startAudienceSession,
+  startGuessLyricRound,
   updateToolPayload,
 } from "@/lib/audience/runtime";
+import {
+  sanitizeGuessLyricPayload,
+  sanitizeGuessPlayerPayload,
+  type StaffGuessRound,
+} from "@/lib/audience/guess";
 import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import { revalidatePublicSurfaces } from "@/lib/public/revalidate";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -65,7 +75,13 @@ function sqlHint(message: string) {
   if (/audience_venue_settings/i.test(message)) {
     return `Apply ${AUDIENCE_SETTINGS_SQL} in the Supabase SQL editor, then try again.`;
   }
-  if (/invalid input value for enum audience_tool_kind|picture/i.test(message) && /enum|invalid/i.test(message)) {
+  if (/audience_guess_submissions|submit_audience_guess/i.test(message)) {
+    return `Apply ${AUDIENCE_GUESS_KIND_SQL} then ${AUDIENCE_GUESS_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  if (/invalid input value for enum audience_tool_kind|guess_player|guess_lyric|picture/i.test(message) && /enum|invalid/i.test(message)) {
+    if (/guess_player|guess_lyric/i.test(message)) {
+      return `Apply ${AUDIENCE_GUESS_KIND_SQL} in the Supabase SQL editor, then try again.`;
+    }
     return `Apply ${AUDIENCE_PICTURE_SQL} in the Supabase SQL editor, then try again.`;
   }
   if (isMissingAudienceRelation(message) || /interactor|staff_role/i.test(message)) {
@@ -603,6 +619,14 @@ export async function putAudiencePresetOnWallAction(input: unknown): Promise<Aud
     presetId: parsed.data.presetId,
   });
   if (!loaded.ok) return { ok: false, message: sqlHint(loaded.message) };
+  if (loaded.preset.kind === "guess_player") {
+    const ready = sanitizeGuessPlayerPayload(loaded.preset.payload, gate.context.venue.id, "live");
+    if (!ready.ok) return { ok: false, message: ready.message };
+  }
+  if (loaded.preset.kind === "guess_lyric") {
+    const ready = sanitizeGuessLyricPayload(loaded.preset.payload, "live");
+    if (!ready.ok) return { ok: false, message: ready.message };
+  }
 
   const created = await createAudienceTool(gate.supabase, {
     venueId: gate.context.venue.id,
@@ -629,4 +653,54 @@ export async function putAudiencePresetOnWallAction(input: unknown): Promise<Aud
     message: `“${loaded.preset.name}” is on the LED wall.`,
     toolId: created.toolId,
   };
+}
+
+export async function advanceGuessPlayerAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z.object({ direction: z.enum(["next", "prev"]) }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+  const result = await advanceGuessPlayer(gate.supabase, {
+    venueId: gate.context.venue.id,
+    direction: parsed.data.direction,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  revalidateAudience();
+  return { ok: true, message: result.message };
+}
+
+export async function startGuessLyricRoundAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      toolId: z.string().uuid(),
+      prompt: z.string().trim().max(120).optional(),
+      songTitle: z.string().trim().max(120).optional(),
+      answer: z.string().trim().min(1).max(160),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+  const result = await startGuessLyricRound(gate.supabase, {
+    venueId: gate.context.venue.id,
+    toolId: parsed.data.toolId,
+    prompt: parsed.data.prompt ?? "What lyric is this?",
+    songTitle: parsed.data.songTitle ?? "",
+    answer: parsed.data.answer,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  await activateAudienceScene(gate.supabase, gate.context.venue.id);
+  revalidateAudience();
+  return { ok: true, message: "Lyric round is on the wall. First exact match wins.", toolId: parsed.data.toolId };
+}
+
+export async function pollAudienceGuessAction(): Promise<
+  | { ok: true; round: StaffGuessRound | null }
+  | { ok: false; message: string }
+> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const result = await loadStaffGuessRound(gate.supabase, gate.context.venue.id);
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  return { ok: true, round: result.round };
 }

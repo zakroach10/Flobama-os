@@ -44,6 +44,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   interactor: [
     "Run Live Audience Interactor tools on the LED wall",
     "Start audience sessions, polls, Q&A, hot takes, messages, and cards",
+    "Run Guess the Player and Guess the Lyric on the LED wall",
     "Save and reuse presets for each game mode before a show",
     "Activate the Audience Interactor LED scene",
     "Audience console only — no sidebar, dashboard, or settings",

@@ -10,6 +10,7 @@ import { createAnonSupabaseClient } from "@/lib/supabase/anon";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { demoTriviaPodiumWall, demoTriviaQuestionWall, demoTriviaWall } from "@/lib/trivia/demo";
 import { buildPublicWallState } from "@/lib/trivia/runtime";
+import { demoGuessBubblesWall, demoGuessWinnerWall } from "@/lib/audience/demo";
 import { getAudienceWallState } from "@/lib/audience/runtime";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,15 @@ export default async function LedDisplayPage({
         initialRevision="demo-adroll"
         initialStartedAt={new Date().toISOString()}
         lockPlaylist
+      />
+    );
+  }
+  if (process.env.NODE_ENV !== "production" && params.demo === "guess") {
+    return (
+      <LedDisplay
+        initial={null}
+        initialAudience={params.phase === "winner" ? demoGuessWinnerWall() : demoGuessBubblesWall()}
+        lockAudienceDemo
       />
     );
   }

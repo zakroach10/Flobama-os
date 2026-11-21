@@ -42,6 +42,7 @@ export function LedDisplay({
   initialAudience = null,
   lockTriviaDemo = false,
   lockPlaylist = false,
+  lockAudienceDemo = false,
 }: {
   initial: PublicLedMedia | null;
   initialPlaylist?: PublicLedPlaylistItem[];
@@ -53,6 +54,7 @@ export function LedDisplay({
   initialAudience?: AudienceWallState | null;
   lockTriviaDemo?: boolean;
   lockPlaylist?: boolean;
+  lockAudienceDemo?: boolean;
 }) {
   const [media, setMedia] = useState<PublicLedMedia | null>(initial);
   const [shown, setShown] = useState<PublicLedMedia | null>(initial);
@@ -81,7 +83,7 @@ export function LedDisplay({
   }, [playlist, startedAt]);
 
   useEffect(() => {
-    if (lockTriviaDemo || lockPlaylist) return;
+    if (lockTriviaDemo || lockPlaylist || lockAudienceDemo) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -176,7 +178,7 @@ export function LedDisplay({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [lockTriviaDemo, lockPlaylist]);
+  }, [lockTriviaDemo, lockPlaylist, lockAudienceDemo]);
 
   const visible =
     media?.mediaKind === "youtube" ? media : visibleWhileLoading({ requested: media, showing: shown, readyUrls });
@@ -212,7 +214,7 @@ export function LedDisplay({
   }, [mode, playlist, startedAt, trivia, audience?.tool]);
 
   const pool =
-    lockTriviaDemo || lockPlaylist ? null : (
+    lockTriviaDemo || lockPlaylist || lockAudienceDemo ? null : (
       <LedPreloadPool items={[...warmItems, ...incoming]} onReady={markReady} />
     );
 
@@ -229,7 +231,7 @@ export function LedDisplay({
     return (
       <>
         {pool}
-        <AudienceWall initial={audience} />
+        <AudienceWall initial={audience} lockDemo={lockAudienceDemo} />
       </>
     );
   }
@@ -248,7 +250,7 @@ export function LedDisplay({
     return (
       <>
         {pool}
-        <AudienceWall initial={audience} />
+        <AudienceWall initial={audience} lockDemo={lockAudienceDemo} />
       </>
     );
   }

@@ -21,6 +21,7 @@ import {
 } from "@/actions/audience";
 import { uploadAudienceBrandLogoFromBrowser } from "@/lib/audience/brand-upload";
 import { uploadAudiencePictureFromBrowser } from "@/lib/audience/picture-upload";
+import { GuessLyricFields, GuessPlayerFields } from "@/components/audience/guess-fields";
 import { CornerSponsorPanel } from "@/components/audience/corner-sponsor-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -585,6 +586,10 @@ export function AudienceWorkspace({
                     onPresetNameChange={setPresetName}
                     venueId={venueId}
                     supabaseEnv={supabaseEnv}
+                    votingOpen={session.votingOpen}
+                    onToggleVoting={() =>
+                      run(async () => setAudienceVotingAction({ votingOpen: !session.votingOpen }))
+                    }
                     onSave={(payload, title) => {
                       run(async () =>
                         updateAudienceToolAction({
@@ -991,6 +996,20 @@ function OfflineFields({
       />
     );
   }
+  if (kind === "guess_player") {
+    return (
+      <GuessPlayerFields
+        draft={draft}
+        setDraft={setDraft}
+        pending={pending}
+        venueId={venueId}
+        supabaseEnv={supabaseEnv}
+      />
+    );
+  }
+  if (kind === "guess_lyric") {
+    return <GuessLyricFields draft={draft} setDraft={setDraft} pending={pending} />;
+  }
   return null;
 }
 
@@ -1074,6 +1093,8 @@ function ToolEditor({
   onSave,
   onSavePreset,
   onShowInCorner,
+  votingOpen,
+  onToggleVoting,
 }: {
   tool: StaffAudienceTool;
   pending: boolean;
@@ -1084,6 +1105,8 @@ function ToolEditor({
   onSave: (payload: Record<string, unknown>, title?: string) => void;
   onSavePreset: (payload: Record<string, unknown>, title?: string) => void;
   onShowInCorner?: (payload: Record<string, unknown>) => void;
+  votingOpen?: boolean;
+  onToggleVoting?: () => void;
 }) {
   const [draft, setDraft] = useState(() => ({ ...tool.payload }));
   const kind = tool.kind as AudienceToolKind;
@@ -1385,6 +1408,50 @@ function ToolEditor({
           pending={pending}
           venueId={venueId}
           supabaseEnv={supabaseEnv}
+        />
+      </EditorShell>
+    );
+  }
+
+  if (kind === "guess_player") {
+    return (
+      <EditorShell
+        pending={pending}
+        onSave={() => save(String(draft.prompt ?? "Guess the Player"))}
+        presetName={presetName}
+        onPresetNameChange={onPresetNameChange}
+        onSavePreset={() => savePreset(String(draft.prompt ?? "Guess the Player"))}
+      >
+        <GuessPlayerFields
+          draft={draft}
+          setDraft={setDraft}
+          pending={pending}
+          venueId={venueId}
+          supabaseEnv={supabaseEnv}
+          toolId={tool.id}
+          votingOpen={votingOpen}
+          onToggleVoting={onToggleVoting}
+        />
+      </EditorShell>
+    );
+  }
+
+  if (kind === "guess_lyric") {
+    return (
+      <EditorShell
+        pending={pending}
+        onSave={() => save(String(draft.prompt ?? "Guess the Lyric"))}
+        presetName={presetName}
+        onPresetNameChange={onPresetNameChange}
+        onSavePreset={() => savePreset(String(draft.prompt ?? "Guess the Lyric"))}
+      >
+        <GuessLyricFields
+          draft={draft}
+          setDraft={setDraft}
+          pending={pending}
+          toolId={tool.id}
+          votingOpen={votingOpen}
+          onToggleVoting={onToggleVoting}
         />
       </EditorShell>
     );

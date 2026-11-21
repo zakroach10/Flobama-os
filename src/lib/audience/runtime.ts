@@ -7,8 +7,23 @@ import {
   isAudienceToolKind,
   normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
+import {
+  assertGuessReadyForWall,
+  buildGuessView,
+  guessRoundKey,
+  isGuessToolKind,
+  newGuessRoundId,
+  parseGuessPlayers,
+  prepareCreatedGuessPayload,
+  redactGuessPayload,
+  sanitizeGuessLyricPayload,
+  sanitizeGuessPlayerPayload,
+  staffGuessRound,
+} from "@/lib/audience/guess";
 import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import type {
+  AudienceGuessBubble,
+  AudienceGuessView,
   AudienceGuestState,
   AudienceToolKind,
   AudienceWallState,
@@ -131,13 +146,15 @@ function toWallTool(
   resultsRevealed: boolean,
   tallies: Awaited<ReturnType<typeof loadTallies>>,
   questionOnWall: Awaited<ReturnType<typeof loadQuestionOnWall>>,
+  guess: AudienceGuessView | null,
 ): AudienceWallTool | null {
   if (!isAudienceToolKind(tool.kind)) return null;
+  const rawPayload = (tool.payload as Record<string, unknown>) ?? {};
   return {
     id: tool.id,
     kind: tool.kind,
     title: tool.title,
-    payload: (tool.payload as Record<string, unknown>) ?? {},
+    payload: isGuessToolKind(tool.kind) ? redactGuessPayload(tool.kind, rawPayload) : rawPayload,
     votingOpen,
     resultsRevealed,
     // Keep keys for phone voting; hide counts on the wall until hosts reveal.
@@ -146,7 +163,58 @@ function toWallTool(
       : tallies.tallies.map((row) => ({ ...row, count: 0 })),
     totalVotes: tallies.totalVotes,
     questionOnWall,
+    guess,
   };
+}
+
+async function loadGuessView(client: AnyClient, tool: ToolRow | null): Promise<AudienceGuessView | null> {
+  if (!tool || !isGuessToolKind(tool.kind)) return null;
+  const payload = (tool.payload as Record<string, unknown>) ?? {};
+  const roundKey = guessRoundKey(tool.kind, payload);
+  if (!roundKey) {
+    return buildGuessView({ kind: tool.kind, payload, submissions: [] });
+  }
+  const { data, error } = await client
+    .from("audience_guess_submissions" as never)
+    .select("id, display_name, answer, correct, won, created_at")
+    .eq("tool_id", tool.id)
+    .eq("round_key", roundKey)
+    .order("created_at", { ascending: false })
+    .limit(24);
+  if (error) {
+    return buildGuessView({ kind: tool.kind, payload, submissions: [] });
+  }
+  const submissions = mapGuessRows(
+    (data as Array<{
+      id: string;
+      display_name: string;
+      answer: string;
+      correct: boolean;
+      won: boolean;
+      created_at: string;
+    }> | null) ?? [],
+  );
+  return buildGuessView({ kind: tool.kind, payload, submissions });
+}
+
+function mapGuessRows(
+  rows: Array<{
+    id: string;
+    display_name: string;
+    answer: string;
+    correct: boolean;
+    won: boolean;
+    created_at: string;
+  }>,
+): AudienceGuessBubble[] {
+  return rows.map((row) => ({
+    id: row.id,
+    displayName: row.display_name,
+    answer: row.answer,
+    correct: row.correct,
+    won: row.won,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function getAudienceWallState(
@@ -160,9 +228,10 @@ export async function getAudienceWallState(
   const tool = await loadTool(client, session.active_tool_id);
   const tallies = await loadTallies(client, tool);
   const questionOnWall = tool?.kind === "questions" ? await loadQuestionOnWall(client, session.id) : null;
+  const guess = tool && tool.status === "on_wall" ? await loadGuessView(client, tool) : null;
   const wallTool =
     tool && tool.status === "on_wall"
-      ? toWallTool(tool, session.voting_open, session.results_revealed, tallies, questionOnWall)
+      ? toWallTool(tool, session.voting_open, session.results_revealed, tallies, questionOnWall, guess)
       : null;
   const chrome = await readAudienceVenueSettings(client, venueId);
 
@@ -254,6 +323,8 @@ export async function createAudienceTool(
     createdBy: string;
   },
 ): Promise<{ ok: true; toolId: string } | { ok: false; message: string }> {
+  const prepared = prepareCreatedGuessPayload(input.kind, input.payload, input.venueId);
+  if (!prepared.ok) return prepared;
   const { data, error } = await client
     .from("audience_tools" as never)
     .insert({
@@ -262,7 +333,7 @@ export async function createAudienceTool(
       kind: input.kind,
       title: input.title.trim(),
       status: "ready",
-      payload: input.payload,
+      payload: prepared.payload,
       created_by: input.createdBy,
     } as never)
     .select("id")
@@ -281,6 +352,14 @@ export async function putToolOnWall(
 
   const tool = await loadTool(client, input.toolId);
   if (!tool) return { ok: false, message: "Tool not found." };
+  if (isAudienceToolKind(tool.kind)) {
+    const ready = assertGuessReadyForWall(
+      tool.kind,
+      (tool.payload as Record<string, unknown>) ?? {},
+      input.venueId,
+    );
+    if (!ready.ok) return ready;
+  }
 
   await client
     .from("audience_tools" as never)
@@ -364,7 +443,40 @@ export async function updateToolPayload(
   client: AnyClient,
   input: { venueId: string; toolId: string; payload: Record<string, unknown>; title?: string },
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  const patch: Record<string, unknown> = { payload: input.payload };
+  const existing = await client
+    .from("audience_tools" as never)
+    .select("id, kind, status, payload")
+    .eq("id", input.toolId)
+    .eq("venue_id", input.venueId)
+    .maybeSingle();
+  if (existing.error) return { ok: false, message: existing.error.message };
+  const row = existing.data as { kind: string; status: string; payload: Record<string, unknown> | null } | null;
+  if (!row) return { ok: false, message: "Tool not found." };
+
+  let payload = input.payload;
+  if (isGuessToolKind(row.kind)) {
+    const mode = row.status === "on_wall" ? "live" : "draft";
+    const sanitized =
+      row.kind === "guess_player"
+        ? sanitizeGuessPlayerPayload(input.payload, input.venueId, mode)
+        : sanitizeGuessLyricPayload(input.payload, mode);
+    if (!sanitized.ok) return sanitized;
+    // Keep the live lyric round id unless the host explicitly starts a new round.
+    if (row.kind === "guess_lyric") {
+      const currentRound = String((row.payload ?? {}).roundId ?? "");
+      payload = { ...sanitized.payload, roundId: currentRound || sanitized.payload.roundId };
+    } else if (row.status === "on_wall") {
+      const currentActive = String((row.payload ?? {}).activePlayerId ?? "");
+      payload = {
+        ...sanitized.payload,
+        activePlayerId: currentActive || sanitized.payload.activePlayerId,
+      };
+    } else {
+      payload = sanitized.payload;
+    }
+  }
+
+  const patch: Record<string, unknown> = { payload };
   if (input.title?.trim()) patch.title = input.title.trim();
   const { error } = await client
     .from("audience_tools" as never)
@@ -372,6 +484,17 @@ export async function updateToolPayload(
     .eq("id", input.toolId)
     .eq("venue_id", input.venueId);
   if (error) return { ok: false, message: error.message };
+  if (row.kind === "guess_player") {
+    const previous = parseGuessPlayers((row.payload ?? {}) as Record<string, unknown>);
+    const next = parseGuessPlayers(payload);
+    const stillUsed = new Set(next.map((player) => player.storagePath).filter(Boolean));
+    const remove = previous
+      .map((player) => player.storagePath)
+      .filter((path) => path && !stillUsed.has(path) && path.startsWith(`${input.venueId}/audience/`));
+    if (remove.length > 0) {
+      await client.storage.from("screen-ads").remove(remove);
+    }
+  }
   return { ok: true };
 }
 
@@ -466,9 +589,10 @@ async function getGuestState(
   const tool = await loadTool(client, session.active_tool_id);
   const tallies = await loadTallies(client, tool);
   const questionOnWall = tool?.kind === "questions" ? await loadQuestionOnWall(client, session.id) : null;
+  const guess = tool && tool.status === "on_wall" ? await loadGuessView(client, tool) : null;
   const wallTool =
     tool && tool.status === "on_wall"
-      ? toWallTool(tool, session.voting_open, session.results_revealed, tallies, questionOnWall)
+      ? toWallTool(tool, session.voting_open, session.results_revealed, tallies, questionOnWall, guess)
       : null;
 
   let myVote: string | null = null;
@@ -626,6 +750,12 @@ export async function saveAudiencePreset(
     createdBy: string;
   },
 ): Promise<{ ok: true; presetId: string } | { ok: false; message: string }> {
+  const prepared = prepareCreatedGuessPayload(input.kind, input.payload, input.venueId);
+  if (!prepared.ok) return prepared;
+  const presetPayload =
+    input.kind === "guess_lyric"
+      ? { ...prepared.payload, roundId: "" }
+      : prepared.payload;
   const { data, error } = await client
     .from("audience_presets" as never)
     .insert({
@@ -633,7 +763,7 @@ export async function saveAudiencePreset(
       kind: input.kind,
       name: input.name.trim(),
       title: input.title.trim(),
-      payload: input.payload,
+      payload: presetPayload,
       created_by: input.createdBy,
     } as never)
     .select("id")
@@ -688,4 +818,140 @@ export async function loadAudiencePreset(
       payload: row.payload ?? {},
     },
   };
+}
+
+type GuessRpcResult = {
+  ok?: boolean;
+  error?: string;
+  correct?: boolean;
+  won?: boolean;
+  late?: boolean;
+};
+
+export async function submitAudienceGuess(
+  client: AnyClient,
+  input: { guestToken: string; answer: string },
+): Promise<
+  | { ok: true; state: AudienceGuestState; correct: boolean; won: boolean; late: boolean }
+  | { ok: false; message: string }
+> {
+  const { data, error } = await client.rpc(
+    "submit_audience_guess" as never,
+    { p_guest_token: input.guestToken, p_answer: input.answer } as never,
+  );
+  if (error) return { ok: false, message: error.message };
+  const row = (data ?? {}) as GuessRpcResult;
+  if (!row.ok) return { ok: false, message: row.error ?? "Could not submit that guess." };
+  const next = await getAudienceGuestStateByToken(client, input.guestToken);
+  if (!next.ok || !next.state) return { ok: false, message: "Guess saved but state reload failed." };
+  return {
+    ok: true,
+    state: next.state,
+    correct: Boolean(row.correct),
+    won: Boolean(row.won),
+    late: Boolean(row.late),
+  };
+}
+
+export async function advanceGuessPlayer(
+  client: AnyClient,
+  input: { venueId: string; direction: "next" | "prev" },
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const { session, error } = await loadLiveSession(client, input.venueId);
+  if (error) return { ok: false, message: error };
+  if (!session?.active_tool_id) return { ok: false, message: "Put Guess the Player on the wall first." };
+  const tool = await loadTool(client, session.active_tool_id);
+  if (!tool || tool.kind !== "guess_player") {
+    return { ok: false, message: "Guess the Player is not on the wall." };
+  }
+  const ready = sanitizeGuessPlayerPayload(
+    (tool.payload as Record<string, unknown>) ?? {},
+    input.venueId,
+    "live",
+  );
+  if (!ready.ok) return ready;
+  const players = parseGuessPlayers(ready.payload);
+  const current = String(ready.payload.activePlayerId ?? "");
+  const index = Math.max(0, players.findIndex((player) => player.id === current));
+  const nextIndex = input.direction === "next" ? index + 1 : index - 1;
+  if (nextIndex < 0) return { ok: true, message: "Already on the first player." };
+  if (nextIndex >= players.length) return { ok: true, message: "Already on the last player." };
+  const next = players[nextIndex];
+  if (!next) return { ok: false, message: "That player is missing." };
+  const { error: updateError } = await client
+    .from("audience_tools" as never)
+    .update({ payload: { ...ready.payload, activePlayerId: next.id } } as never)
+    .eq("id", tool.id)
+    .eq("venue_id", input.venueId);
+  if (updateError) return { ok: false, message: updateError.message };
+  return { ok: true, message: `Now showing ${next.name}.` };
+}
+
+export async function startGuessLyricRound(
+  client: AnyClient,
+  input: { venueId: string; toolId: string; prompt: string; songTitle: string; answer: string },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const sanitized = sanitizeGuessLyricPayload(
+    {
+      prompt: input.prompt,
+      songTitle: input.songTitle,
+      answer: input.answer,
+      roundId: newGuessRoundId(),
+    },
+    "live",
+  );
+  if (!sanitized.ok) return sanitized;
+  const { data, error } = await client
+    .from("audience_tools" as never)
+    .update({
+      payload: sanitized.payload,
+      title: String(sanitized.payload.prompt ?? "Guess the Lyric"),
+    } as never)
+    .eq("id", input.toolId)
+    .eq("venue_id", input.venueId)
+    .eq("kind", "guess_lyric")
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, message: error.message };
+  if (!data) return { ok: false, message: "Lyric round not found." };
+  return putToolOnWall(client, {
+    venueId: input.venueId,
+    toolId: input.toolId,
+    resultsRevealed: false,
+    votingOpen: true,
+  });
+}
+
+export async function loadStaffGuessRound(client: AnyClient, venueId: string) {
+  const { session, error } = await loadLiveSession(client, venueId);
+  if (error) return { ok: false as const, message: error };
+  if (!session?.active_tool_id) return { ok: true as const, round: null };
+  const tool = await loadTool(client, session.active_tool_id);
+  if (!tool || !isGuessToolKind(tool.kind) || tool.status !== "on_wall") {
+    return { ok: true as const, round: null };
+  }
+  const payload = (tool.payload as Record<string, unknown>) ?? {};
+  const roundKey = guessRoundKey(tool.kind, payload);
+  let submissions: AudienceGuessBubble[] = [];
+  if (roundKey) {
+    const { data, error: subError } = await client
+      .from("audience_guess_submissions" as never)
+      .select("id, display_name, answer, correct, won, created_at")
+      .eq("tool_id", tool.id)
+      .eq("round_key", roundKey)
+      .order("created_at", { ascending: false })
+      .limit(24);
+    if (subError) return { ok: false as const, message: subError.message };
+    submissions = mapGuessRows(
+      (data as Array<{
+        id: string;
+        display_name: string;
+        answer: string;
+        correct: boolean;
+        won: boolean;
+        created_at: string;
+      }> | null) ?? [],
+    );
+  }
+  return { ok: true as const, round: staffGuessRound({ kind: tool.kind, payload, submissions }) };
 }

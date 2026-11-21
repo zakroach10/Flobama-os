@@ -2,11 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
-import type { AudienceCornerSponsor, AudienceWallState, AudienceWallTool } from "@/lib/audience/types";
+import { GUESS_BUBBLE_LIMIT } from "@/lib/audience/guess";
+import type {
+  AudienceCornerSponsor,
+  AudienceGuessView,
+  AudienceWallState,
+  AudienceWallTool,
+} from "@/lib/audience/types";
 import { JoinPopups } from "@/components/screens/join-popups";
 
-export function AudienceWall({ initial }: { initial: AudienceWallState }) {
+export function AudienceWall({
+  initial,
+  lockDemo = false,
+}: {
+  initial: AudienceWallState;
+  lockDemo?: boolean;
+}) {
   const [wall, setWall] = useState(initial);
   const [qr, setQr] = useState<string | null>(null);
   const joinUrl = useMemo(() => {
@@ -25,6 +38,7 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
   }, [joinUrl]);
 
   useEffect(() => {
+    if (lockDemo) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -41,7 +55,7 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, []);
+  }, [lockDemo]);
 
   const tool = wall.tool;
   const endsAt = typeof tool?.payload.endsAt === "string" ? tool.payload.endsAt : null;
@@ -179,6 +193,8 @@ export function AudienceWall({ initial }: { initial: AudienceWallState }) {
           <HostPicksWall tool={tool} />
         ) : tool.kind === "poll" || tool.kind === "hot_take" ? (
           <PollWall tool={tool} />
+        ) : tool.kind === "guess_player" || tool.kind === "guess_lyric" ? (
+          <GuessWall tool={tool} />
         ) : (
           <p className="text-4xl font-semibold text-white/80">Scan to join — stand by for the next interaction</p>
         )}
@@ -334,6 +350,122 @@ function HostPicksWall({ tool }: { tool: AudienceWallTool }) {
       </div>
     </div>
   );
+}
+
+function GuessWall({ tool }: { tool: AudienceWallTool }) {
+  const guess = tool.guess;
+  if (!guess) {
+    return <p className="text-4xl font-semibold text-white/80">Get ready to guess</p>;
+  }
+  const winner = guess.status === "won" ? guess.winner : null;
+  return (
+    <div className="relative flex h-full w-full items-center justify-center">
+      {winner ? <GuessWinner guess={guess} winner={winner} /> : <GuessPrompt guess={guess} kind={tool.kind} />}
+      <GuessBubbles bubbles={guess.bubbles} />
+    </div>
+  );
+}
+
+function GuessPrompt({ guess, kind }: { guess: AudienceGuessView; kind: AudienceWallTool["kind"] }) {
+  const counter =
+    kind === "guess_player" && guess.playerCount > 0
+      ? `Player ${Math.max(guess.playerIndex, 1)} of ${guess.playerCount}`
+      : "Listen close";
+  return (
+    <div className="flex w-full max-w-6xl flex-col items-center px-4 text-center">
+      <p className="text-xl font-semibold tracking-[0.28em] text-amber-300 uppercase">{counter}</p>
+      <p className="mt-4 max-w-4xl text-5xl font-black tracking-tight md:text-6xl">{guess.prompt}</p>
+      {guess.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={guess.photoUrl}
+          alt=""
+          className="mt-8 max-h-[52vh] w-auto max-w-[70vw] rounded-[2rem] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+        />
+      ) : (
+        <p className="mt-10 text-3xl font-semibold text-white/70">Type it exactly — first correct guess wins</p>
+      )}
+    </div>
+  );
+}
+
+function GuessWinner({
+  guess,
+  winner,
+}: {
+  guess: AudienceGuessView;
+  winner: { displayName: string; answer: string };
+}) {
+  return (
+    <div className="audience-winner grid w-full max-w-6xl items-center gap-10 px-4 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      {guess.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={guess.photoUrl}
+          alt=""
+          className="mx-auto max-h-[58vh] w-auto max-w-full rounded-[2rem] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.5)]"
+        />
+      ) : (
+        <div className="flex justify-center">
+          <ThumbsUp className="size-40 text-amber-300" aria-label="Correct" />
+        </div>
+      )}
+      <div className="text-center md:text-left">
+        <div className="mb-4 flex items-center justify-center gap-3 text-amber-300 md:justify-start">
+          {guess.photoUrl ? <ThumbsUp className="size-14" aria-label="Correct" /> : null}
+          <p className="text-5xl font-black tracking-tight md:text-6xl">{winner.displayName}</p>
+        </div>
+        <p className="mt-3 text-5xl font-black tracking-tight text-balance text-amber-100 md:text-7xl">{winner.answer}</p>
+      </div>
+    </div>
+  );
+}
+
+function GuessBubbles({ bubbles }: { bubbles: AudienceGuessView["bubbles"] }) {
+  const visible = bubbles.slice(0, GUESS_BUBBLE_LIMIT);
+  if (visible.length === 0) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {visible.map((bubble) => {
+        const lane = bubbleLane(bubble.id);
+        const drift = lane % 2 === 0 ? 28 : -28;
+        return (
+          <div
+            key={bubble.id}
+            className="audience-bubble absolute bottom-[8vh] max-w-[18rem]"
+            style={{
+              left: `${5 + lane * 11}%`,
+              ["--bubble-drift" as string]: `${drift}px`,
+            }}
+          >
+            <div
+              className={`flex items-center gap-3 rounded-full border px-4 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ${
+                bubble.correct
+                  ? "border-amber-200/40 bg-amber-300 text-neutral-950"
+                  : "border-white/15 bg-[#141820] text-white"
+              }`}
+            >
+              {bubble.correct ? (
+                <ThumbsUp className="size-6 shrink-0" aria-label="Correct" />
+              ) : (
+                <ThumbsDown className="size-6 shrink-0 text-rose-300" aria-label="Wrong" />
+              )}
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-sm font-semibold opacity-80">{bubble.displayName}</span>
+                <span className="block truncate text-lg font-black leading-tight">{bubble.answer}</span>
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function bubbleLane(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) hash = (hash * 33 + id.charCodeAt(i)) >>> 0;
+  return hash % 8;
 }
 
 function HostCard({ name, pick, tone }: { name: string; pick: string; tone: "rose" | "sky" | "amber" }) {
