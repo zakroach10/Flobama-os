@@ -116,6 +116,8 @@ export const AUDIENCE_SQL_TABLES = "supabase/migrations/20260930000024_audience_
 export const AUDIENCE_SETTINGS_SQL = "supabase/migrations/20260930000027_audience_venue_settings.sql";
 export const AUDIENCE_PRESETS_SQL = "supabase/migrations/20261002000031_audience_presets.sql";
 export const AUDIENCE_PICTURE_SQL = "supabase/migrations/20261002000032_audience_picture_kind.sql";
+export const AUDIENCE_GUESS_KIND_SQL = "supabase/migrations/20261121000071_audience_guess_kinds.sql";
+export const AUDIENCE_GUESS_SQL = "supabase/migrations/20261121000072_audience_guess_submissions.sql";
 export const AUDIENCE_CORNER_SPONSOR_SQL = "supabase/migrations/20261003000035_audience_corner_sponsor.sql";
 export const AUDIENCE_CORNER_SPONSOR_CONTACT_SQL =
   "supabase/migrations/20261003000036_audience_corner_sponsor_contact.sql";

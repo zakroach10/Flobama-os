@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
-import type { AudienceGuestState } from "@/lib/audience/types";
+import type { AudienceGuestState, AudienceWallTool } from "@/lib/audience/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,14 +14,24 @@ function sponsorTelHref(phone: unknown) {
   return { display, href: `tel:${dial}` };
 }
 
-export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
+export function AudiencePlayClient({
+  joinCode,
+  initialState = null,
+  lockDemo = false,
+}: {
+  joinCode: string;
+  initialState?: AudienceGuestState | null;
+  lockDemo?: boolean;
+}) {
   const [name, setName] = useState("");
-  const [state, setState] = useState<AudienceGuestState | null>(null);
+  const [state, setState] = useState<AudienceGuestState | null>(initialState);
   const [question, setQuestion] = useState("");
+  const [guess, setGuess] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (lockDemo) return;
     let cancelled = false;
     async function refresh() {
       try {
@@ -41,7 +51,7 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [joinCode]);
+  }, [joinCode, lockDemo]);
 
   function join() {
     startTransition(async () => {
@@ -74,6 +84,33 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
         return;
       }
       setState(json.state ?? null);
+    });
+  }
+
+  function submitGuess() {
+    startTransition(async () => {
+      setMessage(null);
+      const res = await fetch("/api/public/v1/audience/guess", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ answer: guess }),
+      });
+      const json = (await res.json()) as {
+        state?: AudienceGuestState;
+        error?: string;
+        correct?: boolean;
+        won?: boolean;
+        late?: boolean;
+      };
+      if (!res.ok) {
+        setMessage(json.error ?? "Could not send that guess.");
+        return;
+      }
+      setState(json.state ?? null);
+      setGuess("");
+      if (json.won) setMessage("You got it.");
+      else if (json.late) setMessage("Right spelling, but someone else was first.");
+      else setMessage("Not a match. Spelling has to be exact.");
     });
   }
 
@@ -184,6 +221,15 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
             <p className="text-sm text-muted-foreground">Results stay hidden until the hosts reveal them.</p>
           )}
         </div>
+      ) : tool.kind === "guess_player" || tool.kind === "guess_lyric" ? (
+        <GuessCard
+          tool={tool}
+          votingOpen={state.votingOpen}
+          guess={guess}
+          pending={pending}
+          onGuess={setGuess}
+          onSubmit={submitGuess}
+        />
       ) : tool.kind === "sponsor" ? (
         <SponsorCard payload={tool.payload} title={tool.title} />
       ) : (
@@ -193,6 +239,74 @@ export function AudiencePlayClient({ joinCode }: { joinCode: string }) {
       )}
 
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+    </div>
+  );
+}
+
+function GuessCard({
+  tool,
+  votingOpen,
+  guess,
+  pending,
+  onGuess,
+  onSubmit,
+}: {
+  tool: AudienceWallTool;
+  votingOpen: boolean;
+  guess: string;
+  pending: boolean;
+  onGuess: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const round = tool.guess;
+  const prompt = round?.prompt || (tool.kind === "guess_player" ? "Who is this?" : "What lyric is this?");
+  const photo = tool.kind === "guess_player" ? String(tool.payload.photoUrl ?? "") : "";
+  const closed = !votingOpen || round?.status === "won" || round?.status === "waiting";
+  return (
+    <div className="space-y-3 rounded-xl border bg-card p-4">
+      <p className="text-lg font-semibold">{prompt}</p>
+      {tool.kind === "guess_player" && round && round.playerCount > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Player {Math.max(round.playerIndex, 1)} of {round.playerCount}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">Type the lyric exactly, including capitalization.</p>
+      )}
+      {photo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photo} alt="" className="mx-auto max-h-56 w-auto rounded-xl object-contain" />
+      ) : null}
+      {round?.status === "won" && round.winner ? (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm">
+          {round.winner.displayName} got it: {round.winner.answer}
+        </p>
+      ) : closed ? (
+        <p className="text-sm text-muted-foreground">Guessing is closed.</p>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="guess-answer">{tool.kind === "guess_player" ? "Player name" : "Lyric"}</Label>
+            <Input
+              id="guess-answer"
+              value={guess}
+              maxLength={160}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && guess.trim()) onSubmit();
+              }}
+              onChange={(event) => onGuess(event.target.value)}
+              placeholder={tool.kind === "guess_player" ? "Exact name" : "Exact lyric"}
+            />
+          </div>
+          <Button type="button" className="min-h-12 w-full" disabled={pending || guess.trim().length < 1} onClick={onSubmit}>
+            {pending ? "Sending…" : "Submit guess"}
+          </Button>
+        </>
+      )}
     </div>
   );
 }
