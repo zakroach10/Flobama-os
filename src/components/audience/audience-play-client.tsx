@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { AUDIENCE_POLL_MS } from "@/lib/constants";
+import { validateAudienceDisplayName } from "@/lib/audience/names";
 import type { AudienceGuestState, AudienceWallTool } from "@/lib/audience/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,16 +19,21 @@ export function AudiencePlayClient({
   joinCode,
   initialState = null,
   lockDemo = false,
+  initialName = "",
+  initialNotice = null,
 }: {
   joinCode: string;
   initialState?: AudienceGuestState | null;
   lockDemo?: boolean;
+  initialName?: string;
+  initialNotice?: { message: string; suggestion?: string | null } | null;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [state, setState] = useState<AudienceGuestState | null>(initialState);
   const [question, setQuestion] = useState("");
   const [guess, setGuess] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(initialNotice?.message ?? null);
+  const [suggestion, setSuggestion] = useState<string | null>(initialNotice?.suggestion ?? null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -54,15 +60,27 @@ export function AudiencePlayClient({
   }, [joinCode, lockDemo]);
 
   function join() {
+    const checked = validateAudienceDisplayName(name);
+    if (!checked.ok) {
+      setSuggestion(checked.suggestion);
+      setMessage(checked.message);
+      return;
+    }
     startTransition(async () => {
       setMessage(null);
+      setSuggestion(null);
       const res = await fetch("/api/public/v1/audience/join", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code: joinCode, displayName: name }),
       });
-      const json = (await res.json()) as { state?: AudienceGuestState; error?: string };
+      const json = (await res.json()) as {
+        state?: AudienceGuestState;
+        error?: string;
+        suggestion?: string | null;
+      };
       if (!res.ok) {
+        setSuggestion(json.suggestion ?? null);
         setMessage(json.error ?? "Could not join.");
         return;
       }
@@ -144,15 +162,35 @@ export function AudiencePlayClient({
           <Input
             id="display-name"
             value={name}
-            maxLength={24}
+            maxLength={40}
             onChange={(event) => setName(event.target.value)}
             placeholder="Your name"
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? "display-name-error" : undefined}
           />
         </div>
-        <Button type="button" className="min-h-12 w-full" disabled={pending || name.trim().length < 1} onClick={join}>
+        <Button type="button" className="min-h-12 w-full" disabled={pending} onClick={join}>
           {pending ? "Joining…" : "Join"}
         </Button>
-        {message ? <p className="text-sm text-destructive">{message}</p> : null}
+        {message ? (
+          <p id="display-name-error" role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {message}
+          </p>
+        ) : null}
+        {suggestion ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full"
+            onClick={() => {
+              setName(suggestion);
+              setMessage(null);
+              setSuggestion(null);
+            }}
+          >
+            Use {suggestion}
+          </Button>
+        ) : null}
       </div>
     );
   }

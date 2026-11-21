@@ -7,13 +7,13 @@ import {
   pollAudienceGuessAction,
   startGuessLyricRoundAction,
 } from "@/actions/audience";
+import { ReorderList } from "@/components/audience/reorder-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { uploadAudiencePictureFromBrowser } from "@/lib/audience/picture-upload";
 import {
   guessPlayersForEditor,
-  moveGuessPlayer,
   type GuessPlayer,
   type StaffGuessRound,
 } from "@/lib/audience/guess";
@@ -29,6 +29,7 @@ export function GuessPlayerFields({
   toolId,
   votingOpen,
   onToggleVoting,
+  onPersistOrder,
 }: {
   draft: Record<string, unknown>;
   setDraft: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
@@ -38,6 +39,7 @@ export function GuessPlayerFields({
   toolId?: string;
   votingOpen?: boolean;
   onToggleVoting?: () => void;
+  onPersistOrder?: (players: GuessPlayer[]) => void;
 }) {
   const players = guessPlayersForEditor(draft);
   const [round, setRound] = useState<StaffGuessRound | null>(null);
@@ -58,19 +60,21 @@ export function GuessPlayerFields({
     };
   }, [toolId]);
 
-  function writePlayers(next: GuessPlayer[], activePlayerId?: string) {
+  function writePlayers(next: GuessPlayer[], activePlayerId?: string, persist = false) {
     setDraft((prev) => ({
       ...prev,
       players: next,
       activePlayerId: activePlayerId ?? prev.activePlayerId,
     }));
+    if (persist) onPersistOrder?.(next);
   }
 
   return (
     <div className="space-y-4 sm:col-span-2">
       <p className="text-sm text-muted-foreground">
-        Ten players. The wall shows the photo only. The first guess that matches the name exactly — same
-        spelling, capitalization, and spaces — wins that player.
+        Ten players, in the order the game runs. Drag a row, or use Up and Down. The wall shows the photo
+        only. The first guess that matches the name exactly — same spelling, capitalization, and spaces — wins
+        that player.
       </p>
       <div className="space-y-1">
         <Label htmlFor="guess-player-prompt">Prompt on the wall</Label>
@@ -123,9 +127,16 @@ export function GuessPlayerFields({
           ) : null}
         </div>
       ) : null}
-      <ol className="space-y-3">
-        {players.map((player, index) => (
-          <li key={player.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[5.5rem_minmax(0,1fr)_auto]">
+      <ReorderList
+        items={players}
+        getId={(player) => player.id}
+        getLabel={(player) => player.name || "player"}
+        listLabel="Guess the Player list"
+        disabled={pending}
+        className="space-y-3"
+        onReorder={(next) => writePlayers(next, undefined, true)}
+        renderItem={(player, index) => (
+          <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
             <PlayerPhoto
               player={player}
               pending={pending}
@@ -155,29 +166,9 @@ export function GuessPlayerFields({
                 }}
               />
             </div>
-            <div className="flex items-end gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending || index === 0}
-                onClick={() => writePlayers(moveGuessPlayer(players, index, -1))}
-              >
-                Up
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending || index === players.length - 1}
-                onClick={() => writePlayers(moveGuessPlayer(players, index, 1))}
-              >
-                Down
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ol>
+          </div>
+        )}
+      />
     </div>
   );
 }

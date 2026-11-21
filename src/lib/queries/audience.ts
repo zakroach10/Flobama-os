@@ -53,7 +53,45 @@ export type StaffAudiencePreset = {
   title: string;
   payload: Record<string, unknown>;
   updatedAt: string;
+  sortOrder: number;
 };
+
+async function loadAudiencePresets(client: Client, venueId: string) {
+  const ordered = await client
+    .from("audience_presets" as never)
+    .select("id, kind, name, title, payload, updated_at, sort_order")
+    .eq("venue_id", venueId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  const missingOrder = Boolean(ordered.error && /sort_order/i.test(ordered.error.message));
+  const result = missingOrder
+    ? await client
+        .from("audience_presets" as never)
+        .select("id, kind, name, title, payload, updated_at")
+        .eq("venue_id", venueId)
+        .order("updated_at", { ascending: false })
+    : ordered;
+  const presets: StaffAudiencePreset[] = ((result.data as Array<{
+    id: string;
+    kind: AudienceToolKind;
+    name: string;
+    title: string;
+    payload: Record<string, unknown> | null;
+    updated_at: string;
+    sort_order?: number;
+  }> | null) ?? [])
+    .filter((preset) => isAudienceToolKind(preset.kind))
+    .map((preset, index) => ({
+      id: preset.id,
+      kind: preset.kind,
+      name: preset.name,
+      title: preset.title,
+      payload: preset.payload ?? {},
+      updatedAt: preset.updated_at,
+      sortOrder: typeof preset.sort_order === "number" ? preset.sort_order : index,
+    }));
+  return { data: result.data, error: missingOrder ? null : result.error, presets };
+}
 
 export async function loadAudienceWorkspace(client: Client, venueId: string) {
   const [sessionRes, settingsResult, presetsRes] = await Promise.all([
@@ -66,11 +104,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
       .limit(1)
       .maybeSingle(),
     readAudienceVenueSettings(client, venueId),
-    client
-      .from("audience_presets" as never)
-      .select("id, kind, name, title, payload, updated_at")
-      .eq("venue_id", venueId)
-      .order("updated_at", { ascending: false }),
+    loadAudiencePresets(client, venueId),
   ]);
 
   const loadedSettings = settingsResult.ok ? settingsResult.settings : emptyAudienceVenueSettings();
@@ -88,23 +122,7 @@ export async function loadAudienceWorkspace(client: Client, venueId: string) {
   const missingCornerSponsor = loadedSettings.missingCornerSponsorColumns;
   const missingCornerSponsorContact = loadedSettings.missingCornerSponsorContactColumns;
 
-  const presets: StaffAudiencePreset[] = ((presetsRes.data as Array<{
-    id: string;
-    kind: AudienceToolKind;
-    name: string;
-    title: string;
-    payload: Record<string, unknown> | null;
-    updated_at: string;
-  }> | null) ?? [])
-    .filter((preset) => isAudienceToolKind(preset.kind))
-    .map((preset) => ({
-      id: preset.id,
-      kind: preset.kind,
-      name: preset.name,
-      title: preset.title,
-      payload: preset.payload ?? {},
-      updatedAt: preset.updated_at,
-    }));
+  const presets: StaffAudiencePreset[] = presetsRes.presets;
 
   const presetsMissing = Boolean(
     presetsRes.error && isMissingAudienceRelation(presetsRes.error.message),

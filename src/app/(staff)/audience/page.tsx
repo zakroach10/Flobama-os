@@ -13,7 +13,8 @@ import {
   LED_AUDIENCE_SCENE_SEED_SQL,
   LED_AUDIENCE_SCENE_SQL,
 } from "@/lib/constants";
-import { getPublicAppUrl, getPublicSupabaseEnv } from "@/lib/env";
+import { audienceWallShareUrl } from "@/lib/audience/wall-share";
+import { getPublicAppUrl, getPublicSupabaseEnv, getTriviaPublicUrl } from "@/lib/env";
 import { loadAudienceWorkspace } from "@/lib/queries/audience";
 import { AudienceWorkspace } from "@/components/audience/audience-workspace";
 import { ErrorState } from "@/components/states";
@@ -55,6 +56,8 @@ export default async function AudiencePage() {
       missingPresetsTable={data.missingPresetsTable}
       missingCornerSponsor={data.missingCornerSponsor}
       missingCornerSponsorContact={data.missingCornerSponsorContact}
+      obsSolidUrl={audienceWallShareUrl(getTriviaPublicUrl(), context.venue.id, "solid")}
+      obsTransparentUrl={audienceWallShareUrl(getTriviaPublicUrl(), context.venue.id, "transparent")}
     />
   );
 }

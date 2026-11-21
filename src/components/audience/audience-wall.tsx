@@ -8,6 +8,7 @@ import { GUESS_BUBBLE_LIMIT } from "@/lib/audience/guess";
 import type {
   AudienceCornerSponsor,
   AudienceGuessView,
+  AudienceObsBackground,
   AudienceWallState,
   AudienceWallTool,
 } from "@/lib/audience/types";
@@ -16,12 +17,19 @@ import { JoinPopups } from "@/components/screens/join-popups";
 export function AudienceWall({
   initial,
   lockDemo = false,
+  pollPath = "/api/public/v1/audience/wall",
+  background = "solid",
+  initialQr = null,
 }: {
   initial: AudienceWallState;
   lockDemo?: boolean;
+  pollPath?: string;
+  background?: AudienceObsBackground;
+  /** Server-rendered join QR so OBS has a code before client JavaScript runs. */
+  initialQr?: string | null;
 }) {
   const [wall, setWall] = useState(initial);
-  const [qr, setQr] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(initialQr);
   const joinUrl = useMemo(() => {
     if (typeof window === "undefined") return wall.joinPath;
     return `${window.location.origin}${wall.joinPath}`;
@@ -42,7 +50,7 @@ export function AudienceWall({
     let cancelled = false;
     async function refresh() {
       try {
-        const res = await fetch("/api/public/v1/audience/wall", { cache: "no-store" });
+        const res = await fetch(pollPath, { cache: "no-store" });
         if (!res.ok) return;
         const json = (await res.json()) as { wall?: AudienceWallState | null };
         if (!cancelled && json.wall) setWall(json.wall);
@@ -55,7 +63,7 @@ export function AudienceWall({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [lockDemo]);
+  }, [lockDemo, pollPath]);
 
   const tool = wall.tool;
   const endsAt = typeof tool?.payload.endsAt === "string" ? tool.payload.endsAt : null;
@@ -83,8 +91,14 @@ export function AudienceWall({
   const sponsorPhone = String(tool?.payload.phone ?? "").trim();
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#07090d] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
+    <div
+      className={`relative h-full w-full overflow-hidden text-white ${
+        background === "transparent" ? "bg-transparent" : "bg-[#07090d]"
+      }`}
+    >
+      {background === "solid" ? (
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(230,57,70,0.22),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,196,0,0.16),transparent_35%)]" />
+      ) : null}
 
       {wall.brandLogoUrl && tool ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -206,18 +220,22 @@ export function AudienceWall({
           <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">{wall.title}</h1>
           <p className="mt-2 text-xl text-white/70">{wall.lobbyMessage}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-4">
-          <div className="rounded-2xl bg-white p-3 text-center text-black">
-            {qr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="" className="size-32" />
-            ) : (
-              <div className="size-32 bg-neutral-200" />
-            )}
-            <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
-            <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
+        {wall.joinCode ? (
+          <div className="flex shrink-0 flex-col items-end gap-4">
+            <div className="rounded-2xl bg-white p-3 text-center text-black">
+              {qr ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qr} alt="" className="size-32" />
+              ) : (
+                <div className="size-32 bg-neutral-200" />
+              )}
+              <p className="mt-2 font-mono text-2xl font-bold tracking-[0.2em]">{wall.joinCode}</p>
+              <p className="text-xs text-neutral-600">{wall.guestCount} joined</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div />
+        )}
       </header>
       {!tool && wall.brandLogoUrl ? (
         <p className="pointer-events-none absolute inset-x-0 bottom-16 z-20 px-10 text-center text-3xl font-semibold text-white/80">

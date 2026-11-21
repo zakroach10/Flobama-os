@@ -180,9 +180,14 @@ export function sanitizeGuessPlayerPayload(
   const activePlayerId = players.some((player) => player.id === requested)
     ? requested
     : (players[0]?.id ?? "player-1");
+  // Array order is the run order (next / previous player). position is stored to match it.
   return {
     ok: true,
-    payload: { prompt, players, activePlayerId },
+    payload: {
+      prompt,
+      players: players.map((player, position) => ({ ...player, position })),
+      activePlayerId,
+    },
   };
 }
 

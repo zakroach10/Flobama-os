@@ -121,6 +121,10 @@ export const AUDIENCE_GUESS_SQL = "supabase/migrations/20261121000072_audience_g
 export const AUDIENCE_CORNER_SPONSOR_SQL = "supabase/migrations/20261003000035_audience_corner_sponsor.sql";
 export const AUDIENCE_CORNER_SPONSOR_CONTACT_SQL =
   "supabase/migrations/20261003000036_audience_corner_sponsor_contact.sql";
+export const AUDIENCE_PRESET_ORDER_SQL =
+  "supabase/migrations/20261121000073_audience_preset_sort_order.sql";
+export const AUDIENCE_GUEST_NAMES_SQL =
+  "supabase/migrations/20261121000074_audience_guest_session_names.sql";
 export const AUDIENCE_GUEST_COOKIE = "flobama_audience_guest";
 export const AUDIENCE_POLL_MS = 1000;
 export const LED_OBS_CLIENT_VERSION = "1.0.2";
@@ -156,6 +160,10 @@ export const TRIVIA_DEFAULT_QUESTION_COUNT = 10;
  */
 export const TRIVIA_WALL_WIDTH = 1920;
 export const TRIVIA_WALL_HEIGHT = 1080;
+/** OBS Browser Source size for the audience interactor wall. The page scales to this box. */
+export const AUDIENCE_WALL_WIDTH = 1920;
+export const AUDIENCE_WALL_HEIGHT = 1080;
+export const AUDIENCE_OBS_FPS = 30;
 export const TRIVIA_OBS_SCENE_NAME = "LED Wall - Trivia";
 export const TRIVIA_OBS_BROWSER_SOURCE_NAME = "Trivia LED Browser";
 export const TRIVIA_OBS_COLLECTION_NAME = "FloBama LED Wall";
