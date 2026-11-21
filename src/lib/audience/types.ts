@@ -69,6 +69,8 @@ export type AudienceCornerSponsor = {
   message: string;
 };
 
+export type AudienceObsBackground = "solid" | "transparent";
+
 export type AudienceWallState = {
   sessionId: string;
   title: string;

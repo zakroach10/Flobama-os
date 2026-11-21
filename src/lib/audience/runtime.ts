@@ -3,10 +3,17 @@ import {
   applyVoteCounts,
   choiceLabelsForTool,
   createAudienceJoinCode,
+  isAudienceDisplayNameConflict,
   isAudienceGuestTokenConflict,
   isAudienceToolKind,
-  normalizeAudienceDisplayName,
 } from "@/lib/audience/engine";
+import {
+  audienceDisplayNameKey,
+  audienceDisplayNameMessage,
+  decideAudienceNameClaim,
+  type AudienceNameClaim,
+  type AudienceNameIssue,
+} from "@/lib/audience/names";
 import {
   assertGuessReadyForWall,
   buildGuessView,
@@ -22,6 +29,7 @@ import {
 } from "@/lib/audience/guess";
 import { readAudienceVenueSettings } from "@/lib/audience/settings";
 import type {
+  AudienceCornerSponsor,
   AudienceGuessBubble,
   AudienceGuessView,
   AudienceGuestState,
@@ -251,6 +259,42 @@ export async function getAudienceWallState(
         ? "Live on the wall — scan to join"
         : "Scan to join — waiting for the next interaction",
     },
+  };
+}
+
+export function standbyAudienceWall(input: {
+  brandLogoUrl: string | null;
+  cornerSponsor: AudienceCornerSponsor | null;
+}): AudienceWallState {
+  return {
+    sessionId: "standby",
+    title: "FloBama Live",
+    joinCode: "",
+    joinPath: "/live",
+    guestCount: 0,
+    brandLogoUrl: input.brandLogoUrl,
+    cornerSponsor: input.cornerSponsor,
+    tool: null,
+    recentJoins: [],
+    lobbyMessage: "Scan to join — stand by for the next interaction",
+  };
+}
+
+/** Live wall when a session is up, otherwise a branded standby frame for OBS. */
+export async function getAudienceObsFrame(
+  client: AnyClient,
+  venueId: string,
+): Promise<{ ok: true; wall: AudienceWallState } | { ok: false; message: string }> {
+  const result = await getAudienceWallState(client, venueId);
+  if (!result.ok) return result;
+  if (result.wall) return { ok: true, wall: result.wall };
+  const chrome = await readAudienceVenueSettings(client, venueId);
+  return {
+    ok: true,
+    wall: standbyAudienceWall({
+      brandLogoUrl: chrome.ok ? chrome.settings.row.brandLogoUrl : null,
+      cornerSponsor: chrome.ok ? chrome.settings.cornerSponsor : null,
+    }),
   };
 }
 
@@ -515,16 +559,73 @@ async function moveGuestToSession(
   return { ok: true as const };
 }
 
+type NameJoinFailure = {
+  ok: false;
+  message: string;
+  issue?: AudienceNameIssue;
+  suggestion?: string | null;
+};
+
+async function loadSessionNameClaims(client: AnyClient, sessionId: string) {
+  const { data, error } = await client
+    .from("audience_guests" as never)
+    .select("id, guest_token, display_name, session_id")
+    .eq("session_id", sessionId);
+  if (error) return { claims: [] as AudienceNameClaim[], error: error.message };
+  const claims = (
+    (data as Array<{ id: string; guest_token: string; display_name: string; session_id: string }> | null) ?? []
+  ).map((row) => ({
+    guestId: row.id,
+    guestToken: row.guest_token,
+    nameKey: audienceDisplayNameKey(row.display_name),
+    sessionId: row.session_id,
+  }));
+  return { claims, error: null as string | null };
+}
+
+async function takenNameFailure(
+  client: AnyClient,
+  input: { sessionId: string; displayName: string; guestToken: string },
+): Promise<NameJoinFailure> {
+  const loaded = await loadSessionNameClaims(client, input.sessionId);
+  if (loaded.error) return { ok: false, message: loaded.error };
+  const decision = decideAudienceNameClaim({
+    displayName: input.displayName,
+    guestToken: input.guestToken,
+    sessionId: input.sessionId,
+    sessionGuests: loaded.claims,
+  });
+  if (!decision.ok) {
+    return { ok: false, message: decision.message, issue: decision.issue, suggestion: decision.suggestion };
+  }
+  return { ok: false, message: audienceDisplayNameMessage("taken"), issue: "taken", suggestion: null };
+}
+
+function nameFailureFromWrite(error: { code?: string; message?: string }, fallback: NameJoinFailure): NameJoinFailure {
+  if (isAudienceDisplayNameConflict(error)) return fallback;
+  return { ok: false, message: error.message ?? "Could not save that name." };
+}
+
 export async function joinAudienceSession(
   client: AnyClient,
   input: { joinCode: string; displayName: string; guestToken: string },
-): Promise<{ ok: true; state: AudienceGuestState } | { ok: false; message: string }> {
+): Promise<{ ok: true; state: AudienceGuestState } | NameJoinFailure> {
   const { session, error } = await loadSessionByCode(client, input.joinCode);
   if (error) return { ok: false, message: error };
   if (!session) return { ok: false, message: "No live show found for that code." };
 
-  const displayName = normalizeAudienceDisplayName(input.displayName);
-  if (displayName.length < 1) return { ok: false, message: "Enter a display name." };
+  const loadedClaims = await loadSessionNameClaims(client, session.id);
+  if (loadedClaims.error) return { ok: false, message: loadedClaims.error };
+  const claim = decideAudienceNameClaim({
+    displayName: input.displayName,
+    guestToken: input.guestToken,
+    sessionId: session.id,
+    sessionGuests: loadedClaims.claims,
+  });
+  if (!claim.ok) {
+    return { ok: false, message: claim.message, issue: claim.issue, suggestion: claim.suggestion };
+  }
+  const displayName = claim.displayName;
 
   const { data: existing, error: existingError } = await client
     .from("audience_guests" as never)
@@ -532,6 +633,9 @@ export async function joinAudienceSession(
     .eq("guest_token", input.guestToken)
     .maybeSingle();
   if (existingError) return { ok: false, message: existingError.message };
+
+  const raced = () =>
+    takenNameFailure(client, { sessionId: session.id, displayName, guestToken: input.guestToken });
 
   if (!existing) {
     const { error: insertError } = await client.from("audience_guests" as never).insert({
@@ -541,6 +645,7 @@ export async function joinAudienceSession(
       guest_token: input.guestToken,
     } as never);
     if (insertError) {
+      if (isAudienceDisplayNameConflict(insertError)) return raced();
       if (!isAudienceGuestTokenConflict(insertError)) return { ok: false, message: insertError.message };
       const moved = await moveGuestToSession(client, {
         guestToken: input.guestToken,
@@ -548,7 +653,7 @@ export async function joinAudienceSession(
         venueId: session.venue_id,
         displayName,
       });
-      if (!moved.ok) return moved;
+      if (!moved.ok) return nameFailureFromWrite({ message: moved.message }, await raced());
     }
   } else {
     const row = existing as { id: string; session_id: string };
@@ -564,7 +669,7 @@ export async function joinAudienceSession(
       .from("audience_guests" as never)
       .update(patch as never)
       .eq("id", row.id);
-    if (updateError) return { ok: false, message: updateError.message };
+    if (updateError) return nameFailureFromWrite(updateError, await raced());
   }
 
   const state = await getGuestState(client, session, input.guestToken);
@@ -756,6 +861,14 @@ export async function saveAudiencePreset(
     input.kind === "guess_lyric"
       ? { ...prepared.payload, roundId: "" }
       : prepared.payload;
+  const { data: tail } = await client
+    .from("audience_presets" as never)
+    .select("sort_order")
+    .eq("venue_id", input.venueId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sortOrder = Number((tail as { sort_order?: number } | null)?.sort_order ?? -1) + 1;
   const { data, error } = await client
     .from("audience_presets" as never)
     .insert({
@@ -764,12 +877,43 @@ export async function saveAudiencePreset(
       name: input.name.trim(),
       title: input.title.trim(),
       payload: presetPayload,
+      sort_order: sortOrder,
       created_by: input.createdBy,
     } as never)
     .select("id")
     .single();
   if (error || !data) return { ok: false, message: error?.message ?? "Could not save preset." };
   return { ok: true, presetId: (data as { id: string }).id };
+}
+
+export async function reorderAudiencePresets(
+  client: AnyClient,
+  input: { venueId: string; presetIds: string[] },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data, error } = await client
+    .from("audience_presets" as never)
+    .select("id, sort_order")
+    .eq("venue_id", input.venueId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) return { ok: false, message: error.message };
+  const existing = (data as Array<{ id: string; sort_order: number }> | null) ?? [];
+  const known = new Set(existing.map((row) => row.id));
+  const wanted = input.presetIds.filter((id) => known.has(id));
+  const rest = existing.map((row) => row.id).filter((id) => !wanted.includes(id));
+  const ordered = [...wanted, ...rest];
+  for (let index = 0; index < ordered.length; index += 1) {
+    const id = ordered[index];
+    const current = existing.find((row) => row.id === id);
+    if (!id || current?.sort_order === index) continue;
+    const { error: updateError } = await client
+      .from("audience_presets" as never)
+      .update({ sort_order: index } as never)
+      .eq("id", id)
+      .eq("venue_id", input.venueId);
+    if (updateError) return { ok: false, message: updateError.message };
+  }
+  return { ok: true };
 }
 
 export async function deleteAudiencePreset(

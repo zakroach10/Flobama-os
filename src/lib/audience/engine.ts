@@ -152,14 +152,21 @@ export function defaultPayloadForKind(kind: AudienceToolKind): Record<string, un
   }
 }
 
+export function isAudienceDisplayNameConflict(
+  error: { code?: string; message?: string } | null | undefined,
+) {
+  if (!error) return false;
+  return /audience_guests_session_name_key_uidx|name_key/i.test(error.message ?? "");
+}
+
 export function isAudienceGuestTokenConflict(
   error: { code?: string; message?: string } | null | undefined,
 ) {
   if (!error) return false;
-  if (error.code === "23505") return true;
-  return /audience_guests_guest_token_key|duplicate key value violates unique constraint/i.test(
-    error.message ?? "",
-  );
+  if (isAudienceDisplayNameConflict(error)) return false;
+  const message = error.message ?? "";
+  if (/audience_guests_guest_token_key/i.test(message)) return true;
+  return error.code === "23505" && /guest_token/i.test(message);
 }
 
 export function titleForAudienceTool(kind: AudienceToolKind): string {

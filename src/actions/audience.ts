@@ -7,8 +7,10 @@ import { getStaffContext } from "@/lib/auth/staff";
 import {
   AUDIENCE_CORNER_SPONSOR_CONTACT_SQL,
   AUDIENCE_CORNER_SPONSOR_SQL,
+  AUDIENCE_GUEST_NAMES_SQL,
   AUDIENCE_GUESS_KIND_SQL,
   AUDIENCE_GUESS_SQL,
+  AUDIENCE_PRESET_ORDER_SQL,
   AUDIENCE_PICTURE_SQL,
   AUDIENCE_PRESETS_SQL,
   AUDIENCE_SETTINGS_SQL,
@@ -32,6 +34,7 @@ import {
   loadStaffGuessRound,
   moderateAudienceQuestion,
   putToolOnWall,
+  reorderAudiencePresets,
   saveAudiencePreset,
   setAudienceReveal,
   setAudienceVoting,
@@ -63,6 +66,12 @@ function fieldMessage(error: z.ZodError) {
 }
 
 function sqlHint(message: string) {
+  if (/sort_order/i.test(message) && /audience_presets/i.test(message)) {
+    return `Apply ${AUDIENCE_PRESET_ORDER_SQL} in the Supabase SQL editor, then try again.`;
+  }
+  if (/audience_guests_session_name_key|name_key/i.test(message)) {
+    return `Apply ${AUDIENCE_GUEST_NAMES_SQL} in the Supabase SQL editor, then try again.`;
+  }
   if (/audience_presets/i.test(message)) {
     return `Apply ${AUDIENCE_PRESETS_SQL} in the Supabase SQL editor, then try again.`;
   }
@@ -109,6 +118,7 @@ function revalidateAudience() {
   revalidatePath("/screens");
   revalidatePath("/display/led");
   revalidatePath("/api/public/v1/audience/wall");
+  revalidatePath("/display/audience", "layout");
   revalidatePath("/api/public/v1/screens/led");
 }
 
@@ -553,6 +563,24 @@ export async function saveAudiencePresetAction(input: unknown): Promise<Audience
   if (!result.ok) return { ok: false, message: sqlHint(result.message) };
   revalidateAudience();
   return { ok: true, message: "Preset saved for later shows.", toolId: result.presetId };
+}
+
+export async function reorderAudiencePresetsAction(input: unknown): Promise<AudienceActionResult> {
+  const gate = await audienceGate();
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const parsed = z
+    .object({
+      presetIds: z.array(z.string().uuid()).max(200),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, message: fieldMessage(parsed.error) };
+  const result = await reorderAudiencePresets(gate.supabase, {
+    venueId: gate.context.venue.id,
+    presetIds: parsed.data.presetIds,
+  });
+  if (!result.ok) return { ok: false, message: sqlHint(result.message) };
+  revalidateAudience();
+  return { ok: true, message: "Preset order saved." };
 }
 
 export async function deleteAudiencePresetAction(input: unknown): Promise<AudienceActionResult> {

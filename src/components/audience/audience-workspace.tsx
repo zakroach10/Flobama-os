@@ -12,6 +12,7 @@ import {
   pollAudienceInboxAction,
   putAudiencePresetOnWallAction,
   putAudienceToolOnWallAction,
+  reorderAudiencePresetsAction,
   saveAudienceCornerSponsorAction,
   saveAudiencePresetAction,
   setAudienceRevealAction,
@@ -22,7 +23,11 @@ import {
 import { uploadAudienceBrandLogoFromBrowser } from "@/lib/audience/brand-upload";
 import { uploadAudiencePictureFromBrowser } from "@/lib/audience/picture-upload";
 import { GuessLyricFields, GuessPlayerFields } from "@/components/audience/guess-fields";
+import { AudienceObsSourcePanel } from "@/components/audience/obs-source-panel";
+import { ChoiceListEditor } from "@/components/audience/choice-list-editor";
+import { ReorderList } from "@/components/audience/reorder-list";
 import { CornerSponsorPanel } from "@/components/audience/corner-sponsor-panel";
+import { applyVisibleReorder } from "@/lib/audience/order";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +71,8 @@ export function AudienceWorkspace({
   missingPresetsTable,
   missingCornerSponsor,
   missingCornerSponsorContact,
+  obsSolidUrl,
+  obsTransparentUrl,
 }: {
   session: StaffAudienceSession | null;
   tools: StaffAudienceTool[];
@@ -78,12 +85,21 @@ export function AudienceWorkspace({
   missingPresetsTable?: boolean;
   missingCornerSponsor?: boolean;
   missingCornerSponsorContact?: boolean;
+  obsSolidUrl: string | null;
+  obsTransparentUrl: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [polledQuestions, setPolledQuestions] = useState<StaffAudienceQuestion[] | null>(null);
   const [polledGuestCount, setPolledGuestCount] = useState<number | null>(null);
   const seenQuestionIds = useRef<Set<string> | null>(null);
+  const presetOrderKey = presets.map((preset) => `${preset.id}:${preset.sortOrder}`).join("|");
+  const [orderedPresets, setOrderedPresets] = useState(presets);
+  const [orderedKey, setOrderedKey] = useState(presetOrderKey);
+  if (orderedKey !== presetOrderKey) {
+    setOrderedKey(presetOrderKey);
+    setOrderedPresets(presets);
+  }
   const [presetKindFilter, setPresetKindFilter] = useState<AudienceToolKind | "all">("all");
   const [presetName, setPresetName] = useState("");
   const [brandOpen, setBrandOpen] = useState(false);
@@ -163,10 +179,32 @@ export function AudienceWorkspace({
   const filteredPresets = useMemo(
     () =>
       presetKindFilter === "all"
-        ? presets
-        : presets.filter((preset) => preset.kind === presetKindFilter),
-    [presets, presetKindFilter],
+        ? orderedPresets
+        : orderedPresets.filter((preset) => preset.kind === presetKindFilter),
+    [orderedPresets, presetKindFilter],
   );
+
+  function commitPresetOrder(nextVisible: StaffAudiencePreset[]) {
+    const allIds = orderedPresets.map((preset) => preset.id);
+    const visibleIds = filteredPresets.map((preset) => preset.id);
+    const nextIds = applyVisibleReorder(
+      allIds,
+      visibleIds,
+      nextVisible.map((preset) => preset.id),
+    );
+    const byId = new Map(orderedPresets.map((preset) => [preset.id, preset]));
+    const next = nextIds.map((id) => byId.get(id)).filter((preset): preset is StaffAudiencePreset => Boolean(preset));
+    setOrderedPresets(next);
+    startTransition(async () => {
+      const result = await reorderAudiencePresetsAction({ presetIds: nextIds });
+      if (!result.ok) {
+        toast.error(result.message);
+        setOrderedPresets(presets);
+        return;
+      }
+      refresh();
+    });
+  }
 
   function refresh() {
     router.refresh();
@@ -240,6 +278,8 @@ export function AudienceWorkspace({
         </button>
         </div>
       </header>
+
+      <AudienceObsSourcePanel solidUrl={obsSolidUrl} transparentUrl={obsTransparentUrl} />
 
       {brandOpen ? (
         <section className="rounded-xl border bg-card p-4">
@@ -372,6 +412,7 @@ export function AudienceWorkspace({
           <section className="rounded-xl border bg-card p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold tracking-wide uppercase">Presets</h2>
+              <p className="text-xs text-muted-foreground">Drag to set the order. Up and Down work the same way.</p>
               <select
                 className="h-9 rounded-lg border border-input bg-transparent px-2 text-xs"
                 value={presetKindFilter}
@@ -398,9 +439,16 @@ export function AudienceWorkspace({
                 Save filled-in polls, hot takes, and cards here so you are not typing mid-show.
               </p>
             ) : (
-              <ul className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 lg:max-h-[62vh]">
-                {filteredPresets.map((preset) => (
-                  <li key={preset.id} className="rounded-lg border px-3 py-2">
+              <ReorderList
+                items={filteredPresets}
+                getId={(preset) => preset.id}
+                getLabel={(preset) => preset.name}
+                listLabel="Saved presets"
+                disabled={pending}
+                className="max-h-[40vh] space-y-2 overflow-y-auto pr-1 lg:max-h-[62vh]"
+                onReorder={commitPresetOrder}
+                renderItem={(preset) => (
+                  <div className="rounded-lg border px-3 py-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-2">
                         {preset.kind === "picture" && typeof preset.payload.imageUrl === "string" && preset.payload.imageUrl ? (
@@ -480,9 +528,9 @@ export function AudienceWorkspace({
                     >
                       {session ? "Put on LED wall" : "Start session to use"}
                     </Button>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                )}
+              />
             )}
           </section>
         </div>
@@ -901,18 +949,11 @@ function OfflineFields({
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Question" value={String(draft.prompt ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, prompt: value }))} />
-        <Field
-          label="Answer choices (separate with commas)"
-          value={Array.isArray(draft.options) ? draft.options.join(", ") : ""}
-          onChange={(value) =>
-            setDraft((prev) => ({
-              ...prev,
-              options: value
-                .split(",")
-                .map((part) => part.trim())
-                .filter(Boolean),
-            }))
-          }
+        <ChoiceListEditor
+          label="Answer choices"
+          value={Array.isArray(draft.options) ? draft.options.map((item) => String(item)) : []}
+          disabled={pending}
+          onChange={(options) => setDraft((prev) => ({ ...prev, options }))}
         />
       </div>
     );
@@ -923,18 +964,11 @@ function OfflineFields({
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Question" value={String(draft.prompt ?? "")} onChange={(value) => setDraft((prev) => ({ ...prev, prompt: value }))} />
-        <Field
-          label="Choices guests can vote on (comma-separated)"
-          value={Array.isArray(draft.options) ? draft.options.join(", ") : ""}
-          onChange={(value) =>
-            setDraft((prev) => ({
-              ...prev,
-              options: value
-                .split(",")
-                .map((part) => part.trim())
-                .filter(Boolean),
-            }))
-          }
+        <ChoiceListEditor
+          label="Choices guests can vote on"
+          value={Array.isArray(draft.options) ? draft.options.map((item) => String(item)) : []}
+          disabled={pending}
+          onChange={(options) => setDraft((prev) => ({ ...prev, options }))}
         />
         <Field
           label="Austin’s pick"
@@ -1109,6 +1143,7 @@ function ToolEditor({
   onToggleVoting?: () => void;
 }) {
   const [draft, setDraft] = useState(() => ({ ...tool.payload }));
+  const [, startOrderSave] = useTransition();
   const kind = tool.kind as AudienceToolKind;
 
   function save(title?: string) {
@@ -1174,18 +1209,11 @@ function ToolEditor({
           value={String(draft.prompt ?? "")}
           onChange={(value) => setDraft((prev) => ({ ...prev, prompt: value }))}
         />
-        <Field
-          label="Answer choices (separate with commas)"
-          value={Array.isArray(draft.options) ? draft.options.join(", ") : ""}
-          onChange={(value) =>
-            setDraft((prev) => ({
-              ...prev,
-              options: value
-                .split(",")
-                .map((part) => part.trim())
-                .filter(Boolean),
-            }))
-          }
+        <ChoiceListEditor
+          label="Answer choices"
+          value={Array.isArray(draft.options) ? draft.options.map((item) => String(item)) : []}
+          disabled={pending}
+          onChange={(options) => setDraft((prev) => ({ ...prev, options }))}
         />
       </EditorShell>
     );
@@ -1207,18 +1235,11 @@ function ToolEditor({
           value={String(draft.prompt ?? "")}
           onChange={(value) => setDraft((prev) => ({ ...prev, prompt: value }))}
         />
-        <Field
-          label="Choices guests can vote on (comma-separated)"
-          value={Array.isArray(draft.options) ? draft.options.join(", ") : ""}
-          onChange={(value) =>
-            setDraft((prev) => ({
-              ...prev,
-              options: value
-                .split(",")
-                .map((part) => part.trim())
-                .filter(Boolean),
-            }))
-          }
+        <ChoiceListEditor
+          label="Choices guests can vote on"
+          value={Array.isArray(draft.options) ? draft.options.map((item) => String(item)) : []}
+          disabled={pending}
+          onChange={(options) => setDraft((prev) => ({ ...prev, options }))}
         />
         <Field
           label="Austin’s pick"
@@ -1431,6 +1452,15 @@ function ToolEditor({
           toolId={tool.id}
           votingOpen={votingOpen}
           onToggleVoting={onToggleVoting}
+          onPersistOrder={(players) => {
+            startOrderSave(async () => {
+              const result = await updateAudienceToolAction({
+                toolId: tool.id,
+                payload: { ...draft, players },
+              });
+              if (!result.ok) toast.error(result.message);
+            });
+          }}
         />
       </EditorShell>
     );
