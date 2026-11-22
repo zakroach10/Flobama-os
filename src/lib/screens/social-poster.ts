@@ -153,6 +153,217 @@ export function socialPosterScale(id: WeekSocialFormatId) {
   return scales[id];
 }
 
+/** Matches the line box used by the PNG renderer. */
+export const SOCIAL_LINE_HEIGHT = 1.12;
+
+/** Room kept between the lineup block and the header / bottom edge. */
+const LINEUP_SLACK = 24;
+/** Roboto Bold uppercase advance, a little high so wrap estimates don't run short. */
+const NAME_ADVANCE = 0.66;
+const SPACE_ADVANCE = 0.25;
+
+export type SocialLineupLayout = {
+  header: number;
+  listHeight: number;
+  contentWidth: number;
+  dateSize: number;
+  nameSize: number;
+  ordinalSize: number;
+  gap: number;
+  nameGap: number;
+  lineHeight: number;
+  chipFont: number;
+  chipPadY: number;
+  chipPadX: number;
+  padTop: number;
+  padBottom: number;
+  padX: number;
+};
+
+type LineupKind = "paper" | "stack" | "ticket";
+
+type LineupDesign = {
+  kind: LineupKind;
+  header: number;
+  padTop: number;
+  padBottom: number;
+  padX: number;
+  date: number;
+  name: number;
+  ordinalRatio: number;
+  gap: number;
+  nameGap: number;
+  chipFont: number;
+  chipPadY: number;
+  chipPadX: number;
+};
+
+function lineupDesign(templateId: WeekSocialTemplateId): LineupDesign {
+  if (templateId === "ticket") {
+    return {
+      kind: "ticket",
+      header: 360,
+      padTop: 24,
+      padBottom: 36,
+      padX: 48,
+      date: 28,
+      name: 58,
+      ordinalRatio: 0.5,
+      gap: 16,
+      nameGap: 8,
+      chipFont: 28,
+      chipPadY: 10,
+      chipPadX: 22,
+    };
+  }
+  if (templateId === "night" || templateId === "marquee") {
+    const theme = SOCIAL_STACK_THEMES[templateId];
+    return {
+      kind: "stack",
+      header: 360,
+      padTop: 24,
+      padBottom: 36,
+      padX: 56,
+      date: theme.dateSize,
+      name: theme.nameSize,
+      ordinalRatio: 0.55,
+      gap: 14,
+      nameGap: 4,
+      chipFont: theme.dateSize,
+      chipPadY: 0,
+      chipPadX: 0,
+    };
+  }
+  return {
+    kind: "paper",
+    header: PORTRAIT_SCALE.header,
+    padTop: PORTRAIT_SCALE.listTop,
+    padBottom: 36,
+    padX: PORTRAIT_SCALE.padX,
+    date: PORTRAIT_SCALE.date,
+    name: PORTRAIT_SCALE.name,
+    ordinalRatio: PORTRAIT_SCALE.ordinal / PORTRAIT_SCALE.date,
+    gap: PORTRAIT_SCALE.gap,
+    nameGap: 2,
+    chipFont: PORTRAIT_SCALE.date,
+    chipPadY: 0,
+    chipPadX: 0,
+  };
+}
+
+function nameLineCount(name: string, fontSize: number, maxWidth: number) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0 || maxWidth <= 0) return 1;
+  const space = fontSize * SPACE_ADVANCE;
+  let lines = 1;
+  let used = 0;
+  for (const word of words) {
+    const width = word.length * fontSize * NAME_ADVANCE;
+    if (used === 0) {
+      used = width;
+      continue;
+    }
+    if (used + space + width <= maxWidth) used += space + width;
+    else {
+      lines += 1;
+      used = width;
+    }
+  }
+  return lines;
+}
+
+function rowBlockHeight(layout: SocialLineupLayout, lines: number) {
+  const name = layout.nameSize * layout.lineHeight * lines;
+  if (layout.chipPadY > 0) {
+    return layout.chipPadY * 2 + layout.chipFont * layout.lineHeight + layout.nameGap + name;
+  }
+  return layout.dateSize * layout.lineHeight + layout.nameGap + name;
+}
+
+/** Height of the show list, not counting the list's own padding. */
+export function socialLineupBlockHeight(layout: SocialLineupLayout, names: string[]) {
+  if (names.length === 0) return 0;
+  const rows = names.reduce((sum, name) => sum + rowBlockHeight(layout, nameLineCount(name, layout.nameSize, layout.contentWidth)), 0);
+  return rows + (names.length - 1) * layout.gap;
+}
+
+export function socialLineupLimit(layout: SocialLineupLayout) {
+  return layout.listHeight - layout.padTop - layout.padBottom - LINEUP_SLACK;
+}
+
+function materialize(
+  design: LineupDesign,
+  sizes: { name: number; date: number; gap: number; nameGap: number; chipFont: number; chipPadY: number; chipPadX: number },
+  canvas: { width: number; height: number },
+): SocialLineupLayout {
+  const chipFont = Math.max(16, sizes.chipFont);
+  const dateSize = Math.max(18, sizes.date);
+  const ordinalBase = design.kind === "ticket" ? chipFont : dateSize;
+  return {
+    header: design.header,
+    listHeight: canvas.height - design.header,
+    contentWidth: Math.max(120, canvas.width - design.padX * 2 - 16),
+    dateSize,
+    nameSize: Math.max(30, sizes.name),
+    ordinalSize: Math.max(11, Math.round(ordinalBase * design.ordinalRatio)),
+    gap: Math.max(6, sizes.gap),
+    nameGap: Math.max(2, sizes.nameGap),
+    lineHeight: SOCIAL_LINE_HEIGHT,
+    chipFont,
+    chipPadY: design.chipPadY === 0 ? 0 : Math.max(6, sizes.chipPadY),
+    chipPadX: design.chipPadX === 0 ? 0 : Math.max(10, sizes.chipPadX),
+    padTop: design.padTop,
+    padBottom: design.padBottom,
+    padX: design.padX,
+  };
+}
+
+/**
+ * Show names and dates for one portrait page.
+ * A short week keeps the design size. A full page, or a title that wraps,
+ * steps down until the block sits under the header in the posted PNG.
+ */
+export function socialLineupLayout(options: {
+  templateId: WeekSocialTemplateId;
+  names: string[];
+  width?: number;
+  height?: number;
+}): SocialLineupLayout {
+  const design = lineupDesign(options.templateId);
+  const canvas = { width: options.width ?? 1080, height: options.height ?? 1350 };
+  const names = options.names;
+  let name = design.name;
+  let date = design.date;
+  let gap = design.gap;
+  const nameGap = design.nameGap;
+  let chipFont = design.chipFont;
+  let chipPadY = design.chipPadY;
+  let chipPadX = design.chipPadX;
+
+  const layoutAt = () =>
+    materialize(design, { name, date, gap, nameGap, chipFont, chipPadY, chipPadX }, canvas);
+
+  let layout = layoutAt();
+  if (names.length === 0) return layout;
+
+  const budget = socialLineupLimit(layout);
+  let guard = 0;
+  while (socialLineupBlockHeight(layout, names) > budget && guard < 80) {
+    if (name > 40) name -= 1;
+    else if (gap > 8) gap -= 1;
+    else if (design.kind === "ticket" && chipFont > 20) {
+      chipFont -= 1;
+      chipPadY = Math.max(6, chipPadY - 1);
+      chipPadX = Math.max(12, chipPadX - 1);
+    } else if (date > 22) date -= 1;
+    else if (name > 30) name -= 1;
+    else break;
+    layout = layoutAt();
+    guard += 1;
+  }
+  return layout;
+}
+
 export function socialPosterColumns(rows: SocialPosterRow[], columns: 1 | 2) {
   if (columns === 1 || rows.length <= 4) return [rows];
   const mid = Math.ceil(rows.length / 2);

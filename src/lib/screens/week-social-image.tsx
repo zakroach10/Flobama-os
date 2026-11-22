@@ -3,10 +3,12 @@ import {
   SOCIAL_TEMPLATE_HEADING,
   SOCIAL_TEMPLATE_LOGO,
   SOCIAL_TICKET_THEME,
+  socialLineupLayout,
   socialPosterColumns,
   socialPosterRows,
   socialPosterScale,
   socialPosterStackTheme,
+  type SocialLineupLayout,
   type SocialPosterRow,
   type SocialStackTheme,
 } from "@/lib/screens/social-poster";
@@ -46,12 +48,18 @@ export function WeekSocialOgGraphic({
 }) {
   const template = weekSocialTemplate(templateId);
   const rows = socialPosterRows(days);
+  const layout = socialLineupLayout({
+    templateId: template.id,
+    names: rows.map((row) => row.name),
+    width: format.width,
+    height: format.height,
+  });
   if (template.id === "ticket") {
-    return <OgTicket format={format} rows={rows} pageLabel={pageLabel} rangeLabel={rangeLabel} logoSrc={logoSrc} />;
+    return <OgTicket format={format} rows={rows} pageLabel={pageLabel} rangeLabel={rangeLabel} logoSrc={logoSrc} layout={layout} />;
   }
   const stack = socialPosterStackTheme(template.id);
   if (stack) {
-    return <OgStack format={format} rows={rows} pageLabel={pageLabel} rangeLabel={rangeLabel} theme={stack} logoSrc={logoSrc} />;
+    return <OgStack format={format} rows={rows} pageLabel={pageLabel} rangeLabel={rangeLabel} theme={stack} logoSrc={logoSrc} layout={layout} />;
   }
   const scale = socialPosterScale(format.id);
   const columns = socialPosterColumns(rows, scale.columns);
@@ -67,6 +75,7 @@ export function WeekSocialOgGraphic({
         backgroundColor: SOCIAL_POSTER.cream,
         fontFamily: "Roboto",
         position: "relative",
+        overflow: "hidden",
       }}
     >
       <div
@@ -111,7 +120,13 @@ export function WeekSocialOgGraphic({
         )}
         {stickerSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={stickerSrc} alt="FloBama" width={scale.logo} height={Math.round((scale.logo * 300) / 710)} />
+          <img
+            src={stickerSrc}
+            alt="FloBama"
+            width={scale.logo}
+            height={Math.round((scale.logo * 300) / 710)}
+            style={{ width: scale.logo, height: Math.round((scale.logo * 300) / 710), objectFit: "contain" }}
+          />
         ) : (
           <Text style={{ fontSize: 54, fontWeight: 700, color: SOCIAL_POSTER.title }}>FloBama</Text>
         )}
@@ -165,14 +180,17 @@ export function WeekSocialOgGraphic({
           style={{
             display: "flex",
             flexDirection: split ? "row" : "column",
-            flex: 1,
+            width: "100%",
+            height: layout.listHeight,
+            overflow: "hidden",
+            flexShrink: 0,
             justifyContent: "center",
             alignItems: "center",
-            paddingLeft: scale.padX,
-            paddingRight: scale.padX,
-            paddingTop: scale.listTop,
-            paddingBottom: pageLabel ? 28 : 36,
-            gap: split ? 32 : scale.gap,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
+            gap: split ? 32 : layout.gap,
           }}
         >
           {columns.map((column, index) => (
@@ -181,10 +199,10 @@ export function WeekSocialOgGraphic({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                flex: 1,
+                width: "100%",
                 justifyContent: "center",
                 alignItems: "center",
-                gap: scale.gap,
+                gap: layout.gap,
               }}
             >
               {column.map((row) => (
@@ -195,6 +213,7 @@ export function WeekSocialOgGraphic({
                     flexDirection: "column",
                     alignItems: "center",
                     width: "100%",
+                    flexShrink: 0,
                   }}
                 >
                   <div
@@ -207,16 +226,19 @@ export function WeekSocialOgGraphic({
                   >
                     <Text
                       style={{
-                        fontSize: scale.date,
+                        fontSize: layout.dateSize,
+                        lineHeight: layout.lineHeight,
                         color: SOCIAL_POSTER.ink,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {row.lead}
                     </Text>
                     <Text
                       style={{
-                        fontSize: scale.ordinal,
+                        fontSize: layout.ordinalSize,
+                        lineHeight: layout.lineHeight,
                         color: SOCIAL_POSTER.ink,
                         marginTop: 2,
                         textTransform: "uppercase",
@@ -226,11 +248,13 @@ export function WeekSocialOgGraphic({
                     </Text>
                     <Text
                       style={{
-                        fontSize: scale.date,
+                        fontSize: layout.dateSize,
+                        lineHeight: layout.lineHeight,
                         fontWeight: 700,
                         color: SOCIAL_POSTER.ink,
                         marginLeft: 8,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {row.time}
@@ -238,12 +262,15 @@ export function WeekSocialOgGraphic({
                   </div>
                   <Text
                     style={{
-                      marginTop: 2,
-                      fontSize: scale.name,
+                      marginTop: layout.nameGap,
+                      width: "100%",
+                      fontSize: layout.nameSize,
+                      lineHeight: layout.lineHeight,
                       fontWeight: 700,
                       color: SOCIAL_POSTER.blue,
                       textTransform: "uppercase",
                       textAlign: "center",
+                      justifyContent: "center",
                     }}
                   >
                     {row.name}
@@ -282,6 +309,7 @@ function OgStack({
   rangeLabel,
   theme,
   logoSrc,
+  layout,
 }: {
   format: WeekSocialFormat;
   rows: SocialPosterRow[];
@@ -289,6 +317,7 @@ function OgStack({
   rangeLabel?: string;
   theme: SocialStackTheme;
   logoSrc: string | null;
+  layout: SocialLineupLayout;
 }) {
   return (
     <div
@@ -300,6 +329,7 @@ function OgStack({
         backgroundColor: theme.canvas,
         fontFamily: "Roboto",
         position: "relative",
+        overflow: "hidden",
       }}
     >
       <div
@@ -307,7 +337,9 @@ function OgStack({
           display: "flex",
           flexDirection: "column",
           width: "100%",
-          height: 360,
+          height: layout.header,
+          overflow: "hidden",
+          flexShrink: 0,
           backgroundColor: theme.header,
         }}
       >
@@ -328,7 +360,13 @@ function OgStack({
         >
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoSrc} alt="FloBama" width={SOCIAL_TEMPLATE_LOGO.width} height={SOCIAL_TEMPLATE_LOGO.height} />
+            <img
+              src={logoSrc}
+              alt="FloBama"
+              width={SOCIAL_TEMPLATE_LOGO.width}
+              height={SOCIAL_TEMPLATE_LOGO.height}
+              style={{ width: SOCIAL_TEMPLATE_LOGO.width, height: SOCIAL_TEMPLATE_LOGO.height, objectFit: "contain" }}
+            />
           ) : (
             <Text style={{ fontSize: 58, fontWeight: 700, color: theme.kicker }}>FloBama</Text>
           )}
@@ -383,14 +421,17 @@ function OgStack({
           style={{
             display: "flex",
             flexDirection: "column",
-            flex: 1,
+            width: "100%",
+            height: layout.listHeight,
+            overflow: "hidden",
+            flexShrink: 0,
             alignItems: "center",
             justifyContent: "center",
-            paddingLeft: 56,
-            paddingRight: 56,
-            paddingTop: 24,
-            paddingBottom: 36,
-            gap: 14,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
+            gap: layout.gap,
           }}
         >
           {rows.map((row) => (
@@ -401,21 +442,25 @@ function OgStack({
                 flexDirection: "column",
                 width: "100%",
                 alignItems: "center",
+                flexShrink: 0,
               }}
             >
               <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
-                <Text style={{ fontSize: theme.dateSize, color: theme.date, textTransform: "uppercase" }}>{row.lead}</Text>
-                <Text style={{ fontSize: Math.round(theme.dateSize * 0.55), color: theme.date, marginTop: 2, textTransform: "uppercase" }}>{row.ordinal}</Text>
-                <Text style={{ fontSize: theme.dateSize, fontWeight: 700, color: theme.date, marginLeft: 8, textTransform: "uppercase" }}>{row.time}</Text>
+                <Text style={{ fontSize: layout.dateSize, lineHeight: layout.lineHeight, color: theme.date, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.lead}</Text>
+                <Text style={{ fontSize: layout.ordinalSize, lineHeight: layout.lineHeight, color: theme.date, marginTop: 2, textTransform: "uppercase" }}>{row.ordinal}</Text>
+                <Text style={{ fontSize: layout.dateSize, lineHeight: layout.lineHeight, fontWeight: 700, color: theme.date, marginLeft: 8, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.time}</Text>
               </div>
               <Text
                 style={{
-                  marginTop: 2,
-                  fontSize: theme.nameSize,
+                  marginTop: layout.nameGap,
+                  width: "100%",
+                  fontSize: layout.nameSize,
+                  lineHeight: layout.lineHeight,
                   fontWeight: 700,
                   color: theme.name,
                   textTransform: "uppercase",
                   textAlign: "center",
+                  justifyContent: "center",
                 }}
               >
                 {row.name}
@@ -450,12 +495,14 @@ function OgTicket({
   pageLabel,
   rangeLabel,
   logoSrc,
+  layout,
 }: {
   format: WeekSocialFormat;
   rows: SocialPosterRow[];
   pageLabel: string | null;
   rangeLabel?: string;
   logoSrc: string | null;
+  layout: SocialLineupLayout;
 }) {
   const theme = SOCIAL_TICKET_THEME;
   return (
@@ -468,6 +515,7 @@ function OgTicket({
         backgroundColor: theme.canvas,
         fontFamily: "Roboto",
         position: "relative",
+        overflow: "hidden",
       }}
     >
       <div
@@ -477,7 +525,9 @@ function OgTicket({
           alignItems: "center",
           justifyContent: "center",
           width: "100%",
-          height: 360,
+          height: layout.header,
+          overflow: "hidden",
+          flexShrink: 0,
           backgroundColor: theme.header,
           paddingLeft: 48,
           paddingRight: 48,
@@ -485,7 +535,13 @@ function OgTicket({
       >
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoSrc} alt="FloBama" width={SOCIAL_TEMPLATE_LOGO.width} height={SOCIAL_TEMPLATE_LOGO.height} />
+          <img
+            src={logoSrc}
+            alt="FloBama"
+            width={SOCIAL_TEMPLATE_LOGO.width}
+            height={SOCIAL_TEMPLATE_LOGO.height}
+            style={{ width: SOCIAL_TEMPLATE_LOGO.width, height: SOCIAL_TEMPLATE_LOGO.height, objectFit: "contain" }}
+          />
         ) : (
           <Text style={{ fontSize: 48, fontWeight: 700, color: theme.kicker }}>FloBama</Text>
         )}
@@ -538,18 +594,21 @@ function OgTicket({
           style={{
             display: "flex",
             flexDirection: "column",
-            flex: 1,
+            width: "100%",
+            height: layout.listHeight,
+            overflow: "hidden",
+            flexShrink: 0,
             alignItems: "center",
             justifyContent: "center",
-            paddingLeft: 48,
-            paddingRight: 48,
-            paddingTop: 24,
-            paddingBottom: 36,
-            gap: 16,
+            paddingLeft: layout.padX,
+            paddingRight: layout.padX,
+            paddingTop: layout.padTop,
+            paddingBottom: layout.padBottom,
+            gap: layout.gap,
           }}
         >
           {rows.map((row) => (
-            <div key={row.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+            <div key={row.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", flexShrink: 0 }}>
               <div
                 style={{
                   display: "flex",
@@ -557,24 +616,27 @@ function OgTicket({
                   alignItems: "flex-start",
                   justifyContent: "center",
                   backgroundColor: theme.chip,
-                  paddingTop: 10,
-                  paddingBottom: 10,
-                  paddingLeft: 22,
-                  paddingRight: 22,
+                  paddingTop: layout.chipPadY,
+                  paddingBottom: layout.chipPadY,
+                  paddingLeft: layout.chipPadX,
+                  paddingRight: layout.chipPadX,
                 }}
               >
-                <Text style={{ fontSize: 28, fontWeight: 700, color: theme.chipText, textTransform: "uppercase" }}>{row.lead}</Text>
-                <Text style={{ fontSize: 14, color: theme.chipText, marginTop: 2 }}>{row.ordinal}</Text>
-                <Text style={{ fontSize: 28, fontWeight: 700, color: theme.chipText, marginLeft: 8 }}>{row.time}</Text>
+                <Text style={{ fontSize: layout.chipFont, lineHeight: layout.lineHeight, fontWeight: 700, color: theme.chipText, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.lead}</Text>
+                <Text style={{ fontSize: layout.ordinalSize, lineHeight: layout.lineHeight, color: theme.chipText, marginTop: 2 }}>{row.ordinal}</Text>
+                <Text style={{ fontSize: layout.chipFont, lineHeight: layout.lineHeight, fontWeight: 700, color: theme.chipText, marginLeft: 8, whiteSpace: "nowrap" }}>{row.time}</Text>
               </div>
               <Text
                 style={{
-                  marginTop: 8,
-                  fontSize: 58,
+                  marginTop: layout.nameGap,
+                  width: "100%",
+                  fontSize: layout.nameSize,
+                  lineHeight: layout.lineHeight,
                   fontWeight: 700,
                   color: theme.name,
                   textTransform: "uppercase",
                   textAlign: "center",
+                  justifyContent: "center",
                 }}
               >
                 {row.name}
