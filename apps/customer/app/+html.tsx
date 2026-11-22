@@ -12,7 +12,7 @@ export default function Root({ children }: { children: ReactNode }) {
         <ScrollViewStyleReset />
         <style
           dangerouslySetInnerHTML={{
-            __html: "html, body, #root { height: 100%; background: #1a120f; margin: 0; }",
+            __html: "html, body, #root { height: 100%; background: #070605; margin: 0; }",
           }}
         />
       </head>

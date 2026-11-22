@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { api, type Recording, type Show } from "../../src/api";
 import { formatWhen } from "../../src/theme";
-import { Card, ErrorText, Muted, Screen, SectionTitle, Title } from "../../src/ui";
+import { Card, Detail, Display, ErrorText, Eyebrow, Muted, Title } from "../../src/ui";
 
 export default function ShowScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,25 +23,23 @@ export default function ShowScreen() {
   }, [id]);
 
   return (
-    <Screen>
+    <Detail>
       <ErrorText message={error} />
       {show ? (
         <>
-          <Title>{show.title}</Title>
-          <Muted>
-            {formatWhen(show.startsAt)}
-            {show.locationLabel ? ` · ${show.locationLabel}` : ""}
-          </Muted>
+          <Eyebrow>{formatWhen(show.startsAt)}</Eyebrow>
+          <Display>{show.title}</Display>
+          {show.locationLabel ? <Muted>{show.locationLabel}</Muted> : null}
           {show.coverCharge ? <Muted>Cover {show.coverCharge}</Muted> : null}
           {show.description ? <Muted>{show.description}</Muted> : null}
-          {show.artists.length ? <SectionTitle>Artists</SectionTitle> : null}
+          {show.artists.length ? <Eyebrow>Artists</Eyebrow> : null}
           {show.artists.map((artist) => (
             <Card key={artist.id} onPress={() => router.push(`/artist/${artist.id}`)}>
               <Title>{artist.name}</Title>
               {artist.genre ? <Muted>{artist.genre}</Muted> : null}
             </Card>
           ))}
-          {recordings.length ? <SectionTitle>Watch</SectionTitle> : null}
+          {recordings.length ? <Eyebrow>Watch</Eyebrow> : null}
           {recordings.map((recording) => (
             <Card key={recording.id} onPress={() => router.push(`/recording/${recording.id}`)}>
               <Title>{recording.title}</Title>
@@ -49,6 +47,6 @@ export default function ShowScreen() {
           ))}
         </>
       ) : null}
-    </Screen>
+    </Detail>
   );
 }
