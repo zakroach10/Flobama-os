@@ -61,7 +61,7 @@ export async function pinLedPreloadAction(input: unknown): Promise<PreloadPinRes
   }
   revalidatePath("/screens");
   revalidatePath("/api/public/v1/screens/led");
-  return { ok: true, message: "The wall browser will decode this without changing what is live." };
+  return { ok: true, message: "The Local Runner will download this without changing what is live." };
 }
 
 export async function unpinLedPreloadAction(input: unknown): Promise<PreloadPinResult> {

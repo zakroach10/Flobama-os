@@ -102,6 +102,12 @@ let audience = null;
 /** Tracks url readiness so we re-render when cache finishes under the same revision. */
 let playlistReadyKey = "";
 let heldMedia = null;
+let preloadItems = [];
+let desiredUrl = "";
+let desiredOptions = { loop: true };
+const warmState = new Map();
+const warmNodes = new Map();
+const reportedPreload = new Map();
 
 /** Performance-mode state (authoritative controls come from /api/playback). */
 let performanceItem = null;
@@ -256,7 +262,96 @@ function renderYoutube(item) {
   });
 }
 
+function reportPlayer(item, state, message) {
+  const assetId = item?.sceneId || item?.id;
+  if (!assetId) return;
+  const key = `${assetId}|${item.url || ""}|${state}|${message || ""}`;
+  if (reportedPreload.get(assetId) === key) return;
+  reportedPreload.set(assetId, key);
+  void fetch("/api/preload", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reports: [{ assetId, state, message: message || null }] }),
+  }).catch(() => {});
+}
+
+function ensureWarm(item) {
+  if (!item?.url || (item.mediaKind !== "image" && item.mediaKind !== "video")) return;
+  if (warmNodes.has(item.url)) return;
+  const node =
+    item.mediaKind === "video" ? document.createElement("video") : document.createElement("img");
+  node.alt = "";
+  node.style.cssText = "position:absolute;width:1px;height:1px;opacity:0;pointer-events:none";
+  if (item.mediaKind === "video") {
+    node.muted = true;
+    node.defaultMuted = true;
+    node.volume = 0;
+    node.playsInline = true;
+    node.preload = "auto";
+    node.autoplay = false;
+    node.addEventListener("loadeddata", () => markWarm(item, "ready"));
+  } else {
+    node.addEventListener("load", () => markWarm(item, "ready"));
+  }
+  node.addEventListener("error", () => markWarm(item, "error", "Wall player could not decode it"));
+  warmState.set(item.url, "loading");
+  reportPlayer(item, "loading", null);
+  node.src = item.url;
+  if (item.mediaKind === "image" && node.complete && node.naturalWidth > 0) markWarm(item, "ready");
+  warmNodes.set(item.url, node);
+  document.body.appendChild(node);
+}
+
+function markWarm(item, state, message) {
+  if (!item?.url) return;
+  warmState.set(item.url, state);
+  reportPlayer(item, state, message || null);
+  if (state === "ready" && desiredUrl === item.url) {
+    renderMedia(item, desiredOptions);
+  }
+}
+
+function syncWarmPool(items) {
+  const wanted = new Map();
+  for (const item of items || []) {
+    if (!item?.url || (item.mediaKind !== "image" && item.mediaKind !== "video")) continue;
+    wanted.set(item.url, item);
+  }
+  if (playlist.length > 1) {
+    const next = playlist[(index + 1) % playlist.length];
+    if (next?.url && (next.mediaKind === "image" || next.mediaKind === "video")) wanted.set(next.url, next);
+  }
+  for (const item of wanted.values()) ensureWarm(item);
+  for (const [url, node] of warmNodes) {
+    if (wanted.has(url) || url === desiredUrl) continue;
+    node.remove();
+    warmNodes.delete(url);
+    warmState.delete(url);
+  }
+}
+
+function requestVisible(item, options = { loop: true }) {
+  desiredOptions = options;
+  desiredUrl = item?.url || "";
+  if (!item?.url || (item.mediaKind !== "image" && item.mediaKind !== "video")) {
+    if (item?.mediaKind === "youtube") {
+      renderMedia(item, options);
+      return;
+    }
+    if (!stage.querySelector("img, video") && !stage.querySelector("[data-hold]")) renderHoldCard();
+    return;
+  }
+  ensureWarm(item);
+  if (warmState.get(item.url) === "ready") {
+    renderMedia(item, options);
+    return;
+  }
+  if (!stage.querySelector("img, video") && !stage.querySelector("[data-hold]")) renderHoldCard();
+}
+
 function renderMedia(item, { loop = true } = {}) {
+  const existing = stage.querySelector("img, video");
+  if (existing && existing.getAttribute("src") === item.url) return;
   clearStage();
   if (!item?.url) {
     renderBlack();
@@ -413,7 +508,7 @@ function renderPlaylist() {
     return;
   }
   heldMedia = visible;
-  renderMedia(visible, { loop: playlist.length <= 1 });
+  requestVisible(visible, { loop: playlist.length <= 1 });
 }
 
 function render() {
@@ -435,7 +530,7 @@ function render() {
   const active = chooseVisibleItem(playlist, 0, heldMedia);
   if (active?.url) {
     heldMedia = active;
-    renderMedia(active, { loop: true });
+    requestVisible(active, { loop: true });
     return;
   }
   if (stage.querySelector("[data-hold]")) return;
@@ -528,6 +623,7 @@ async function refresh() {
       index = 0;
     }
 
+    preloadItems = Array.isArray(data.preload) ? data.preload : [];
     const visibleAfter = chooseVisibleItem(playlist, mode === "playlist" ? index : 0, heldMedia);
     if (visibleAfter?.url) heldMedia = visibleAfter;
     const sameFrame =
@@ -538,7 +634,7 @@ async function refresh() {
     if ((revisionChanged || readyChanged || clockChanged) && !sameFrame) {
       render();
     }
-    await refreshOverlays();
+    if (nextMode !== "performance") syncWarmPool(preloadItems);
   } catch {
     /* keep current frame */
   }
@@ -558,3 +654,5 @@ setInterval(() => {
 
 void refresh();
 setInterval(() => void refresh(), 1000);
+void refreshOverlays();
+setInterval(() => void refreshOverlays(), 15000);

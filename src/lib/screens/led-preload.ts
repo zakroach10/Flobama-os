@@ -6,8 +6,20 @@ export const LED_PRELOAD_LEAD_MS = 20 * 60 * 1000;
 export const LED_PRELOAD_MAX_IMAGES = 6;
 export const LED_PRELOAD_MAX_VIDEOS = 2;
 
-/** Booth reports older than this are treated as offline, not ready. */
+/** Hosted-browser reports older than this are ignored. The Local Runner uses a longer window. */
 export const LED_PRELOAD_REPORT_FRESH_MS = 45_000;
+
+/** Local Runner status is refreshed on change, with a slow keepalive, not every heartbeat. */
+export const LED_PRELOAD_RUNNER_FRESH_MS = 6 * 60 * 1000;
+
+/** Videos larger than this are not pinned into the Local Runner cache ahead of time. */
+export const LED_PRELOAD_MAX_VIDEO_BYTES = 80 * 1024 * 1024;
+
+/** Default Local Runner heartbeat. The runner notices a new scene on the next beat. */
+export const LOCAL_RUNNER_HEARTBEAT_MS = 2000;
+
+/** Wall player polls the Local Runner's own /api/playback. This does not hit Supabase. */
+export const LOCAL_WALL_POLL_MS = 1000;
 
 export type PreloadMediaKind = "image" | "video";
 
@@ -195,6 +207,65 @@ export function visibleWhileLoading<T extends { url: string }>(input: {
     return input.requested;
   }
   return input.showing;
+}
+
+export function runnerPreloadClientKey(deviceId: string) {
+  return `runner:${deviceId}`;
+}
+
+export function isRunnerPreloadClient(clientKey: string | null | undefined) {
+  return typeof clientKey === "string" && clientKey.startsWith("runner:");
+}
+
+/**
+ * Asset ids to download before they are live. Live ids are omitted so they are not counted
+ * against the cap. Does not choose what is on the wall.
+ */
+export function choosePreloadAssetIds(input: {
+  liveIds: string[];
+  candidates: Array<{ id: string; mediaKind: string | null; sizeBytes?: number | null }>;
+}): string[] {
+  const live = new Set(input.liveIds.filter(Boolean));
+  const items: PreloadItem[] = [];
+  for (const candidate of input.candidates) {
+    if (!candidate.id || live.has(candidate.id)) continue;
+    if (!isWarmableKind(candidate.mediaKind)) continue;
+    if (
+      candidate.mediaKind === "video" &&
+      typeof candidate.sizeBytes === "number" &&
+      candidate.sizeBytes > LED_PRELOAD_MAX_VIDEO_BYTES
+    ) {
+      continue;
+    }
+    items.push({
+      id: candidate.id,
+      title: candidate.id,
+      url: `preload:${candidate.id}`,
+      mediaKind: candidate.mediaKind,
+      source: "schedule",
+      startsAt: null,
+    });
+  }
+  return capPreloadItems(items).map((item) => item.id);
+}
+
+/**
+ * Worst-case command-to-visible for the Local Runner.
+ * The runner learns the new scene on its next heartbeat, then the wall player learns it on its next localhost poll.
+ * A file already on disk skips the download. This is not a measurement from the venue OBS machine.
+ */
+export function localCommandToVisibleMs(input: {
+  heartbeatMs: number;
+  pollMs: number;
+  downloadMs: number;
+  decodeMs: number;
+  fileOnDisk: boolean;
+}): { ms: number; waitsForDownload: boolean } {
+  const heartbeatMs = Math.max(0, input.heartbeatMs);
+  const pollMs = Math.max(0, input.pollMs);
+  const downloadMs = input.fileOnDisk ? 0 : Math.max(0, input.downloadMs);
+  const decodeMs = Math.max(0, input.decodeMs);
+  return { ms: heartbeatMs + downloadMs + pollMs + decodeMs, waitsForDownload: !input.fileOnDisk };
 }
 
 export function preloadItemToPublic(item: PreloadItem): PublicLedMedia & { source: PreloadItem["source"] } {
